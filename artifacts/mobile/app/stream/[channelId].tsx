@@ -6,6 +6,7 @@ import {
   Animated,
   FlatList,
   KeyboardAvoidingView,
+  PanResponder,
   Platform,
   Share,
   StyleSheet,
@@ -18,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   useGenerateAgoraToken,
   useGetStream,
+  useListStreams,
   useUpdateViewerCount,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
@@ -65,7 +67,6 @@ const CATEGORY_COLORS: Record<string, [string, string]> = {
   Other:  ["#4FC3F7", "#1565C0"],
 };
 
-// Animated gradient background used as the "video" in demo mode
 function DemoVideo({ category }: { category?: string }) {
   const [bg1, bg2] = CATEGORY_COLORS[category ?? ""] ?? CATEGORY_COLORS["Other"]!;
   const shift = useRef(new Animated.Value(0)).current;
@@ -110,16 +111,45 @@ export default function StreamScreen() {
   const engineRef = useRef<any>(null);
   const listRef = useRef<FlatList>(null);
 
+  // Slide animation for swipe transitions
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  // Hint arrow fade-in
+  const hintOpacity = useRef(new Animated.Value(0)).current;
+  const isNavigatingRef = useRef(false);
+
   const { data: streamData } = useGetStream(channelId ?? "", {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     query: { enabled: !!channelId, refetchInterval: 5000 } as any,
   });
   const stream = streamData?.stream;
 
+  // Fetch the full stream list so we know prev/next
+  const { data: allStreamsData } = useListStreams({
+    query: { refetchInterval: 10000 } as any,
+  });
+  const allStreams = allStreamsData?.streams ?? [];
+  const currentIndex = allStreams.findIndex((s) => s.channelId === channelId);
+  const nextStream = currentIndex >= 0 && currentIndex < allStreams.length - 1
+    ? allStreams[currentIndex + 1]
+    : null;
+  const prevStream = currentIndex > 0 ? allStreams[currentIndex - 1] : null;
+
   const generateToken = useGenerateAgoraToken();
   const updateViewers = useUpdateViewerCount();
 
-  // Simulate live chat for demo
+  // Show swipe-up hint briefly when a next stream is available
+  useEffect(() => {
+    if (!nextStream) return;
+    const timeout = setTimeout(() => {
+      Animated.sequence([
+        Animated.timing(hintOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.delay(1800),
+        Animated.timing(hintOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]).start();
+    }, 1500);
+    return () => clearTimeout(timeout);
+  }, [channelId, nextStream, hintOpacity]);
+
+  // Simulate live chat
   useEffect(() => {
     const interval = setInterval(() => {
       const sender = VIEWER_NAMES[Math.floor(Math.random() * VIEWER_NAMES.length)]!;
@@ -161,11 +191,7 @@ export default function StreamScreen() {
         engineRef.current = engine;
 
         const tokenData = await generateToken.mutateAsync({
-          data: {
-            channelName: channelId,
-            uid: user.uid,
-            role: "audience",
-          },
+          data: { channelName: channelId, uid: user.uid, role: "audience" },
         });
         await engine.joinChannel(tokenData.token, channelId, user.uid, {
           clientRoleType: ClientRoleType.ClientRoleAudience,
@@ -174,7 +200,7 @@ export default function StreamScreen() {
         });
         if (!didUnmount) setJoined(true);
         updateViewers.mutate({ channelId, data: { action: "join" } });
-      } catch (_e) { /* non-native or Expo Go */ }
+      } catch (_e) {}
     };
 
     setup();
@@ -186,6 +212,63 @@ export default function StreamScreen() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId]);
+
+  const navigateToStream = (targetChannelId: string, direction: "up" | "down") => {
+    if (isNavigatingRef.current) return;
+    isNavigatingRef.current = true;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    const toValue = direction === "up" ? -80 : 80;
+    Animated.timing(slideAnim, {
+      toValue,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
+      slideAnim.setValue(0);
+      isNavigatingRef.current = false;
+      router.replace(`/stream/${targetChannelId}` as any);
+    });
+  };
+
+  // PanResponder for swipe-up / swipe-down on the video area
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_evt, gs) =>
+        Math.abs(gs.dy) > 10 && Math.abs(gs.dy) > Math.abs(gs.dx),
+      onPanResponderRelease: (_evt, gs) => {
+        if (gs.dy < -60) {
+          // Swipe up — go to next stream
+          // Access via closure; use refs to avoid stale state
+          swipeUpRef.current();
+        } else if (gs.dy > 60) {
+          // Swipe down — go to previous stream or back
+          swipeDownRef.current();
+        }
+      },
+    }),
+  ).current;
+
+  // Keep swipe callbacks in refs so PanResponder can access latest state
+  const swipeUpRef = useRef<() => void>(() => {});
+  const swipeDownRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    swipeUpRef.current = () => {
+      if (nextStream) {
+        navigateToStream(nextStream.channelId, "up");
+      } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      }
+    };
+    swipeDownRef.current = () => {
+      if (prevStream) {
+        navigateToStream(prevStream.channelId, "down");
+      } else {
+        router.back();
+      }
+    };
+  });
 
   const sendMessage = () => {
     if (!inputText.trim()) return;
@@ -200,7 +283,6 @@ export default function StreamScreen() {
   const topPad    = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
-  // Narrow the component type so TypeScript accepts it as JSX
   const VideoView = RtcSurfaceViewComponent;
   const showNativeVideo = isNative && joined && remoteUid !== null && VideoView;
 
@@ -210,25 +292,28 @@ export default function StreamScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={0}
     >
-      {/* Video / demo background */}
-      {showNativeVideo && VideoView ? (
-        <VideoView
-          canvas={{ uid: remoteUid! }}
-          style={StyleSheet.absoluteFill}
-        />
-      ) : (
-        <DemoVideo category={stream?.category} />
-      )}
+      {/* Swipeable video area */}
+      <Animated.View
+        style={[StyleSheet.absoluteFill, { transform: [{ translateY: slideAnim }] }]}
+        {...panResponder.panHandlers}
+      >
+        {showNativeVideo && VideoView ? (
+          <VideoView canvas={{ uid: remoteUid! }} style={StyleSheet.absoluteFill} />
+        ) : (
+          <DemoVideo category={stream?.category} />
+        )}
+      </Animated.View>
 
-      {/* Overlay UI */}
+      {/* Overlay UI — not part of pan responder so touches work normally */}
       <View
         style={[
           styles.overlay,
           { paddingTop: topPad + 8, paddingBottom: bottomPad + 8 },
         ]}
+        pointerEvents="box-none"
       >
         {/* Top bar */}
-        <View style={styles.topBar}>
+        <View style={styles.topBar} pointerEvents="auto">
           <TouchableOpacity
             style={styles.backBtn}
             onPress={() => router.back()}
@@ -262,10 +347,23 @@ export default function StreamScreen() {
         </View>
 
         {stream && (
-          <Text style={styles.streamTitle} numberOfLines={2}>
+          <Text style={styles.streamTitle} numberOfLines={2} pointerEvents="none">
             {stream.title}
           </Text>
         )}
+
+        {/* Middle spacer — swipe gestures pass through here */}
+        <View style={styles.swipeZone} pointerEvents="none">
+          {/* Swipe-up hint */}
+          {nextStream && (
+            <Animated.View style={[styles.swipeHint, { opacity: hintOpacity }]}>
+              <Ionicons name="chevron-up" size={18} color="rgba(255,255,255,0.7)" />
+              <Text style={styles.swipeHintText}>
+                {nextStream.hostName}
+              </Text>
+            </Animated.View>
+          )}
+        </View>
 
         {/* Live chat */}
         <View style={styles.chatArea} pointerEvents="box-none">
@@ -288,7 +386,7 @@ export default function StreamScreen() {
         </View>
 
         {/* Bottom actions */}
-        <View style={styles.bottomBar}>
+        <View style={styles.bottomBar} pointerEvents="auto">
           <TextInput
             style={styles.chatInput}
             value={inputText}
@@ -431,7 +529,23 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
-  chatArea: { flex: 1, justifyContent: "flex-end" },
+  swipeZone: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 12,
+  },
+  swipeHint: {
+    alignItems: "center",
+    gap: 4,
+  },
+  swipeHintText: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+    letterSpacing: 0.3,
+  },
+  chatArea: { justifyContent: "flex-end" },
   chatScroll: { maxHeight: 240 },
   chatList: { gap: 5, paddingBottom: 4 },
   chatBubble: {
