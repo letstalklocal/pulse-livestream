@@ -20,6 +20,7 @@ import {
   useCreateStream,
   useEndStream,
   useGenerateAgoraToken,
+  useGetStream,
   useHeartbeatStream,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -109,6 +110,12 @@ export default function GoLiveScreen() {
   const createStream = useCreateStream();
   const endStream = useEndStream();
   const heartbeat = useHeartbeatStream();
+
+  // Poll viewer count while live
+  const { data: liveStreamData } = useGetStream(channelIdRef.current, {
+    query: { enabled: isLive && !!channelIdRef.current, refetchInterval: 5000 } as any,
+  });
+  const viewerCount = liveStreamData?.stream?.viewerCount ?? 0;
 
   // Request permissions and initialise Agora engine on mount
   useEffect(() => {
@@ -294,22 +301,16 @@ export default function GoLiveScreen() {
               </View>
               <Text style={styles.liveDuration}>{formatDuration(duration)}</Text>
             </View>
-            {!isNative && (
-              <View style={styles.demoBadge}>
-                <Text style={styles.demoBadgeText}>DEMO</Text>
+            <View style={styles.liveTopRight}>
+              {!isNative && (
+                <View style={styles.demoBadge}>
+                  <Text style={styles.demoBadgeText}>DEMO</Text>
+                </View>
+              )}
+              <View style={styles.viewerPill}>
+                <Ionicons name="eye" size={13} color="#FFF" />
+                <Text style={styles.viewerPillText}>{viewerCount}</Text>
               </View>
-            )}
-          </View>
-
-          <View style={styles.liveInfoRow}>
-            <View style={[styles.liveAvatarBubble, { backgroundColor: catColor + "33", borderColor: catColor }]}>
-              <Text style={[styles.liveAvatarText, { color: catColor }]}>
-                {user.name.slice(0, 2).toUpperCase()}
-              </Text>
-            </View>
-            <View style={styles.liveInfoText}>
-              <Text style={styles.liveHostName}>{user.name}</Text>
-              <Text style={styles.liveTitleText} numberOfLines={1}>{title}</Text>
             </View>
           </View>
 
@@ -340,17 +341,6 @@ export default function GoLiveScreen() {
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={[styles.setupIcon, { backgroundColor: catColor + "22", borderColor: catColor + "55" }]}>
-          <Ionicons name="radio" size={40} color={catColor} />
-        </View>
-
-        <Text style={[styles.setupTitle, { color: colors.foreground }]}>
-          Start your stream
-        </Text>
-        <Text style={[styles.setupSubtitle, { color: colors.mutedForeground }]}>
-          {isNative ? "Tell viewers what you're streaming" : "Demo mode — stream info saved, no camera on web"}
-        </Text>
-
         <View style={styles.inputSection}>
           <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Stream title</Text>
           <TextInput
@@ -368,8 +358,20 @@ export default function GoLiveScreen() {
             placeholderTextColor={colors.mutedForeground}
             maxLength={80}
             returnKeyType="done"
+            autoFocus
           />
         </View>
+
+        <View style={[styles.setupIcon, { backgroundColor: catColor + "22", borderColor: catColor + "55" }]}>
+          <Ionicons name="radio" size={40} color={catColor} />
+        </View>
+
+        <Text style={[styles.setupTitle, { color: colors.foreground }]}>
+          Start your stream
+        </Text>
+        <Text style={[styles.setupSubtitle, { color: colors.mutedForeground }]}>
+          {isNative ? "Choose a category and go live" : "Demo mode — stream info saved, no camera on web"}
+        </Text>
 
         <View style={styles.inputSection}>
           <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Category</Text>
@@ -490,6 +492,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   liveTopBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  liveTopRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  viewerPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  viewerPillText: { color: "#FFF", fontSize: 12, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
   liveBadgeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   liveBadge: {
     flexDirection: "row",
@@ -512,20 +525,6 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.25)",
   },
   demoBadgeText: { color: "rgba(255,255,255,0.7)", fontSize: 10, fontWeight: "700", fontFamily: "Inter_700Bold", letterSpacing: 1 },
-  liveInfoRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  liveAvatarBubble: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, alignItems: "center", justifyContent: "center" },
-  liveAvatarText: { fontSize: 16, fontWeight: "700", fontFamily: "Inter_700Bold" },
-  liveInfoText: { gap: 2 },
-  liveHostName: {
-    color: "#FFF",
-    fontSize: 14,
-    fontWeight: "700",
-    fontFamily: "Inter_700Bold",
-    textShadowColor: "rgba(0,0,0,0.8)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  liveTitleText: { color: "rgba(255,255,255,0.85)", fontSize: 12, fontFamily: "Inter_400Regular", maxWidth: 200 },
   endLiveBtn: {
     flexDirection: "row",
     alignItems: "center",
