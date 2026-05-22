@@ -9,7 +9,6 @@ import {
   View,
 } from "react-native";
 import { Avatar } from "@/components/Avatar";
-import { useColors } from "@/hooks/useColors";
 
 interface Stream {
   channelId: string;
@@ -41,54 +40,43 @@ function formatViewers(count: number): string {
 }
 
 export function StreamCard({ stream }: Props) {
-  const colors = useColors();
   const router = useRouter();
   const [bg1, bg2] = CATEGORY_COLORS[stream.category] ?? CATEGORY_COLORS["Other"]!;
 
-  const goToProfile = () => {
-    router.push(
-      `/profile/${stream.hostUid}?name=${encodeURIComponent(stream.hostName)}` as any
-    );
-  };
-
   return (
     <TouchableOpacity
-      style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+      style={[styles.card]}
       onPress={() => router.push(`/stream/${stream.channelId}` as any)}
       activeOpacity={0.85}
     >
-      {/* Thumbnail */}
+      {/* Full-card thumbnail */}
       <View style={[styles.thumbnail, { backgroundColor: bg2 }]}>
-        <View style={[styles.thumbnailGradient, { backgroundColor: bg1 }]} />
-        <View style={styles.thumbnailContent}>
-          <Avatar uid={stream.hostUid} name={stream.hostName} size={48} />
+        {/* Colour wash */}
+        <View style={[styles.wash, { backgroundColor: bg1 }]} />
+
+        {/* Centred avatar placeholder */}
+        <View style={styles.centerAvatar}>
+          <Avatar uid={stream.hostUid} name={stream.hostName} size={52} />
         </View>
+
+        {/* Top-left: LIVE badge */}
         <View style={styles.liveBadge}>
           <View style={styles.liveDot} />
           <Text style={styles.liveText}>LIVE</Text>
         </View>
+
+        {/* Top-right: viewer count */}
         <View style={styles.viewerBadge}>
           <Ionicons name="eye" size={10} color="#FFF" />
           <Text style={styles.viewerText}>{formatViewers(stream.viewerCount)}</Text>
         </View>
-      </View>
 
-      {/* Info row with tappable avatar */}
-      <View style={styles.info}>
-        <TouchableOpacity onPress={goToProfile} activeOpacity={0.8} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-          <Avatar uid={stream.hostUid} name={stream.hostName} size={30} borderWidth={1} />
-        </TouchableOpacity>
-        <View style={styles.infoText}>
-          <TouchableOpacity onPress={goToProfile} activeOpacity={0.8}>
-            <Text style={[styles.hostName, { color: colors.foreground }]} numberOfLines={1}>
-              {stream.hostName}
-            </Text>
-          </TouchableOpacity>
-          <Text style={[styles.title, { color: colors.mutedForeground }]} numberOfLines={2}>
-            {stream.title}
-          </Text>
-          <View style={[styles.categoryBadge, { backgroundColor: bg1 + "33" }]}>
-            <Text style={[styles.categoryText, { color: bg1 }]}>{stream.category}</Text>
+        {/* Bottom overlay: avatar + name + title */}
+        <View style={styles.bottomOverlay}>
+          <Avatar uid={stream.hostUid} name={stream.hostName} size={26} borderWidth={1} />
+          <View style={styles.overlayText}>
+            <Text style={styles.hostName} numberOfLines={1}>{stream.hostName}</Text>
+            <Text style={styles.title} numberOfLines={1}>{stream.title}</Text>
           </View>
         </View>
       </View>
@@ -101,7 +89,6 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     borderRadius: 14,
     overflow: "hidden",
-    borderWidth: 1,
     marginBottom: 12,
   },
   thumbnail: {
@@ -112,12 +99,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     overflow: "hidden",
   },
-  thumbnailGradient: {
+  wash: {
     ...StyleSheet.absoluteFillObject,
-    opacity: 0.6,
-    top: "40%",
+    opacity: 0.55,
+    top: "35%",
   },
-  thumbnailContent: { alignItems: "center", justifyContent: "center" },
+  centerAvatar: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
   liveBadge: {
     position: "absolute",
     top: 8,
@@ -134,26 +124,30 @@ const styles = StyleSheet.create({
   liveText: { color: "#FFF", fontSize: 9, fontWeight: "700", fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
   viewerBadge: {
     position: "absolute",
-    bottom: 8,
+    top: 8,
     right: 8,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: "rgba(0,0,0,0.55)",
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderRadius: 4,
     gap: 3,
   },
   viewerText: { color: "#FFF", fontSize: 10, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
-  info: {
-    padding: 10,
+  bottomOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
+    alignItems: "center",
+    gap: 7,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    backgroundColor: "rgba(0,0,0,0.52)",
   },
-  infoText: { flex: 1, gap: 3 },
-  hostName: { fontSize: 13, fontWeight: "700", fontFamily: "Inter_700Bold" },
-  title: { fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 16 },
-  categoryBadge: { alignSelf: "flex-start", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 2 },
-  categoryText: { fontSize: 10, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
+  overlayText: { flex: 1 },
+  hostName: { color: "#FFF", fontSize: 12, fontWeight: "700", fontFamily: "Inter_700Bold" },
+  title: { color: "rgba(255,255,255,0.65)", fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 1 },
 });
