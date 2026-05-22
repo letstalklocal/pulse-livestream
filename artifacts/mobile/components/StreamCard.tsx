@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
   },
   thumbnail: {
     width: "100%",
-    aspectRatio: 3 / 4,
+    aspectRatio: 9 / 16,
     position: "relative",
     alignItems: "center",
     justifyContent: "center",
