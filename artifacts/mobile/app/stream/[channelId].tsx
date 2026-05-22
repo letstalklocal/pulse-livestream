@@ -17,9 +17,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
 import {
   useGenerateAgoraToken,
   useGetStream,
@@ -72,10 +70,10 @@ const CATEGORY_COLORS: Record<string, [string, string]> = {
   Other:  ["#4FC3F7", "#1565C0"],
 };
 
-function DemoVideo({ category }: { category?: string }) {
+// ─── Lightweight background tile for adjacent streams ──────────────────────
+function StreamTile({ category }: { category?: string }) {
   const [bg1, bg2] = CATEGORY_COLORS[category ?? ""] ?? CATEGORY_COLORS["Other"]!;
   const shift = useRef(new Animated.Value(0)).current;
-
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
@@ -84,15 +82,9 @@ function DemoVideo({ category }: { category?: string }) {
       ]),
     ).start();
   }, [shift]);
-
-  const bgColor = shift.interpolate({
-    inputRange: [0, 1],
-    outputRange: [bg2, bg1],
-  });
-
+  const bgColor = shift.interpolate({ inputRange: [0, 1], outputRange: [bg2, bg1] });
   return (
     <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: bgColor }]}>
-      <View style={[StyleSheet.absoluteFill, styles.videoOverlay]} />
       <View style={styles.videoCenter}>
         <Text style={styles.videoInitials}>
           {(category ?? "?").slice(0, 2).toUpperCase()}
@@ -102,12 +94,16 @@ function DemoVideo({ category }: { category?: string }) {
   );
 }
 
-export default function StreamScreen() {
-  const insets = useSafeAreaInsets();
-  const router = useRouter();
-  const { channelId, from } = useLocalSearchParams<{ channelId: string; from?: string }>();
-  const { user } = useAuth();
+// ─── Full stream content (video + overlay) for the active slot ─────────────
+interface StreamContentProps {
+  channelId: string;
+  panHandlers: object;
+  onBack: () => void;
+  insets: { top: number; bottom: number };
+}
 
+function StreamContent({ channelId, panHandlers, onBack, insets }: StreamContentProps) {
+  const { user } = useAuth();
   const [remoteUid, setRemoteUid] = useState<number | null>(null);
   const [messages, setMessages] = useState<ChatMsg[]>(SEED_CHAT);
   const [inputText, setInputText] = useState("");
@@ -116,57 +112,12 @@ export default function StreamScreen() {
   const engineRef = useRef<any>(null);
   const listRef = useRef<FlatList>(null);
 
-  // Slide animation for swipe transitions
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  // Hint arrow fade-in
-  const hintOpacity = useRef(new Animated.Value(0)).current;
-  const isNavigatingRef = useRef(false);
-
-  // Slide-in from the direction we came from on mount
-  useEffect(() => {
-    if (!from) return;
-    const startY = from === "up" ? SCREEN_H : -SCREEN_H;
-    slideAnim.setValue(startY);
-    Animated.timing(slideAnim, {
-      toValue: 0,
-      duration: 300,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const { data: streamData } = useGetStream(channelId ?? "", {
+  const { data: streamData } = useGetStream(channelId, {
     query: { enabled: !!channelId, refetchInterval: 5000 } as any,
   });
   const stream = streamData?.stream;
-
-  // Fetch the full stream list so we know prev/next
-  const { data: allStreamsData } = useListStreams({
-    query: { refetchInterval: 10000 } as any,
-  });
-  const allStreams = allStreamsData?.streams ?? [];
-  const currentIndex = allStreams.findIndex((s) => s.channelId === channelId);
-  const nextStream = currentIndex >= 0 && currentIndex < allStreams.length - 1
-    ? allStreams[currentIndex + 1]
-    : null;
-  const prevStream = currentIndex > 0 ? allStreams[currentIndex - 1] : null;
-
   const generateToken = useGenerateAgoraToken();
   const updateViewers = useUpdateViewerCount();
-
-  // Show swipe-up hint briefly when a next stream is available
-  useEffect(() => {
-    if (!nextStream) return;
-    const timeout = setTimeout(() => {
-      Animated.sequence([
-        Animated.timing(hintOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.delay(1800),
-        Animated.timing(hintOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
-      ]).start();
-    }, 1500);
-    return () => clearTimeout(timeout);
-  }, [channelId, nextStream, hintOpacity]);
 
   // Simulate live chat
   useEffect(() => {
@@ -179,7 +130,7 @@ export default function StreamScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  // Auto-scroll chat to bottom
+  // Auto-scroll chat
   useEffect(() => {
     if (messages.length > 0) {
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
@@ -190,7 +141,6 @@ export default function StreamScreen() {
   useEffect(() => {
     if (!channelId || !isNative) return;
     let didUnmount = false;
-
     const setup = async () => {
       try {
         const engine = createEngine();
@@ -208,7 +158,6 @@ export default function StreamScreen() {
           if (!didUnmount) setRemoteUid(null);
         });
         engineRef.current = engine;
-
         const tokenData = await generateToken.mutateAsync({
           data: { channelName: channelId, uid: user?.uid ?? 0, role: "audience" },
         });
@@ -221,7 +170,6 @@ export default function StreamScreen() {
         updateViewers.mutate({ channelId, data: { action: "join" } });
       } catch (_e) {}
     };
-
     setup();
     return () => {
       didUnmount = true;
@@ -231,63 +179,6 @@ export default function StreamScreen() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId]);
-
-  const navigateToStream = (targetChannelId: string, direction: "up" | "down") => {
-    if (isNavigatingRef.current) return;
-    isNavigatingRef.current = true;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    const toValue = direction === "up" ? -SCREEN_H : SCREEN_H;
-    Animated.timing(slideAnim, {
-      toValue,
-      duration: 300,
-      easing: Easing.in(Easing.cubic),
-      useNativeDriver: true,
-    }).start(() => {
-      isNavigatingRef.current = false;
-      router.replace(`/stream/${targetChannelId}?from=${direction}` as any);
-    });
-  };
-
-  // PanResponder for swipe-up / swipe-down on the video area
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_evt, gs) =>
-        Math.abs(gs.dy) > 10 && Math.abs(gs.dy) > Math.abs(gs.dx),
-      onPanResponderRelease: (_evt, gs) => {
-        if (gs.dy < -60) {
-          // Swipe up — go to next stream
-          // Access via closure; use refs to avoid stale state
-          swipeUpRef.current();
-        } else if (gs.dy > 60) {
-          // Swipe down — go to previous stream or back
-          swipeDownRef.current();
-        }
-      },
-    }),
-  ).current;
-
-  // Keep swipe callbacks in refs so PanResponder can access latest state
-  const swipeUpRef = useRef<() => void>(() => {});
-  const swipeDownRef = useRef<() => void>(() => {});
-
-  useEffect(() => {
-    swipeUpRef.current = () => {
-      if (nextStream) {
-        navigateToStream(nextStream.channelId, "up");
-      } else {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      }
-    };
-    swipeDownRef.current = () => {
-      if (prevStream) {
-        navigateToStream(prevStream.channelId, "down");
-      } else {
-        router.back();
-      }
-    };
-  });
 
   const sendMessage = () => {
     if (!inputText.trim()) return;
@@ -301,49 +192,37 @@ export default function StreamScreen() {
 
   const topPad    = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
-
   const VideoView = RtcSurfaceViewComponent;
   const showNativeVideo = isNative && joined && remoteUid !== null && VideoView;
 
   return (
-    <Animated.View
-      style={[styles.container, { backgroundColor: "#000", transform: [{ translateY: slideAnim }] }]}
-      {...panResponder.panHandlers}
-    >
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={0}
     >
-      {/* Full-screen video area */}
-      <View
-        style={StyleSheet.absoluteFill}
-      >
+      {/* Full-screen video background */}
+      <View style={StyleSheet.absoluteFill}>
         {showNativeVideo && VideoView ? (
           <VideoView canvas={{ uid: remoteUid! }} style={StyleSheet.absoluteFill} />
         ) : (
-          <DemoVideo category={stream?.category} />
+          <StreamTile category={stream?.category} />
         )}
       </View>
 
+      {/* Swipe-gesture capture layer — middle of screen, passes touches to children */}
+      <View style={[StyleSheet.absoluteFill, styles.gestureLayer]} {...panHandlers} pointerEvents="box-none" />
+
       {/* Overlay UI */}
       <View
-        style={[
-          styles.overlay,
-          { paddingTop: topPad + 8, paddingBottom: bottomPad + 8 },
-        ]}
+        style={[styles.overlay, { paddingTop: topPad + 8, paddingBottom: bottomPad + 8 }]}
         pointerEvents="box-none"
       >
         {/* Top bar */}
         <View style={styles.topBar} pointerEvents="auto">
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => router.back()}
-            activeOpacity={0.8}
-          >
+          <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.8}>
             <Ionicons name="chevron-down" size={22} color="#FFF" />
           </TouchableOpacity>
-
           <View style={styles.streamMeta}>
             {stream && (
               <View style={styles.hostRow}>
@@ -355,7 +234,6 @@ export default function StreamScreen() {
               </View>
             )}
           </View>
-
           <View style={styles.viewerBadge}>
             <Ionicons name="eye" size={13} color="#FFF" />
             <Text style={styles.viewerText}>
@@ -374,18 +252,8 @@ export default function StreamScreen() {
           </Text>
         )}
 
-        {/* Middle spacer — swipe gestures pass through here */}
-        <View style={styles.swipeZone} pointerEvents="none">
-          {/* Swipe-up hint */}
-          {nextStream && (
-            <Animated.View style={[styles.swipeHint, { opacity: hintOpacity }]}>
-              <Ionicons name="chevron-up" size={18} color="rgba(255,255,255,0.7)" />
-              <Text style={styles.swipeHintText}>
-                {nextStream.hostName}
-              </Text>
-            </Animated.View>
-          )}
-        </View>
+        {/* Middle spacer (swipe zone) */}
+        <View style={styles.swipeZone} pointerEvents="none" />
 
         {/* Live chat */}
         <View style={styles.chatArea} pointerEvents="box-none">
@@ -398,9 +266,7 @@ export default function StreamScreen() {
             style={styles.chatScroll}
             renderItem={({ item }) => (
               <View style={styles.chatBubble}>
-                <Text style={[styles.chatSender, { color: item.color }]}>
-                  {item.sender}:{" "}
-                </Text>
+                <Text style={[styles.chatSender, { color: item.color }]}>{item.sender}: </Text>
                 <Text style={styles.chatText}>{item.text}</Text>
               </View>
             )}
@@ -452,16 +318,149 @@ export default function StreamScreen() {
         </View>
       </View>
     </KeyboardAvoidingView>
-    </Animated.View>
+  );
+}
+
+// ─── Root screen — owns paging state & shared pan gesture ─────────────────
+export default function StreamScreen() {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { channelId: initialChannelId } = useLocalSearchParams<{ channelId: string }>();
+
+  // Active stream tracked in local state — no router.replace needed
+  const [activeChannelId, setActiveChannelId] = useState(initialChannelId ?? "");
+
+  const { data: allStreamsData } = useListStreams({
+    query: { refetchInterval: 10000 } as any,
+  });
+  const allStreams = allStreamsData?.streams ?? [];
+  const currentIndex = allStreams.findIndex((s) => s.channelId === activeChannelId);
+  const prevStream = currentIndex > 0 ? allStreams[currentIndex - 1] : null;
+  const nextStream = currentIndex >= 0 && currentIndex < allStreams.length - 1
+    ? allStreams[currentIndex + 1]
+    : null;
+
+  // Shared vertical offset — ALL slots move together
+  const panY = useRef(new Animated.Value(0)).current;
+
+  // Stable offset refs so PanResponder callbacks see latest streams
+  const prevStreamRef = useRef(prevStream);
+  const nextStreamRef = useRef(nextStream);
+  useEffect(() => { prevStreamRef.current = prevStream; }, [prevStream]);
+  useEffect(() => { nextStreamRef.current = nextStream; }, [nextStream]);
+
+  const isAnimatingRef = useRef(false);
+
+  const snapTo = (targetChannelId: string, direction: "up" | "down") => {
+    if (isAnimatingRef.current) return;
+    isAnimatingRef.current = true;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const toValue = direction === "up" ? -SCREEN_H : SCREEN_H;
+    Animated.timing(panY, {
+      toValue,
+      duration: 320,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      // Switch active stream, reset pan — no navigation
+      setActiveChannelId(targetChannelId);
+      panY.setValue(0);
+      isAnimatingRef.current = false;
+    });
+  };
+
+  const springBack = () => {
+    Animated.spring(panY, {
+      toValue: 0,
+      tension: 80,
+      friction: 12,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_evt, gs) =>
+        Math.abs(gs.dy) > 12 && Math.abs(gs.dy) > Math.abs(gs.dx) * 1.5,
+      onPanResponderMove: (_evt, gs) => {
+        if (isAnimatingRef.current) return;
+        // Resist drag past edges when no adjacent stream
+        if (gs.dy > 0 && !prevStreamRef.current) {
+          panY.setValue(gs.dy * 0.15);
+        } else if (gs.dy < 0 && !nextStreamRef.current) {
+          panY.setValue(gs.dy * 0.15);
+        } else {
+          panY.setValue(gs.dy);
+        }
+      },
+      onPanResponderRelease: (_evt, gs) => {
+        if (isAnimatingRef.current) return;
+        const { dy, vy } = gs;
+        const threshold = 60;
+        const velocityThreshold = 0.4;
+        if ((dy < -threshold || vy < -velocityThreshold) && nextStreamRef.current) {
+          snapTo(nextStreamRef.current.channelId, "up");
+        } else if ((dy > threshold || vy > velocityThreshold) && prevStreamRef.current) {
+          snapTo(prevStreamRef.current.channelId, "down");
+        } else {
+          springBack();
+        }
+      },
+      onPanResponderTerminate: () => springBack(),
+    }),
+  ).current;
+
+  // Slot Y positions: current at panY, prev at panY − SCREEN_H, next at panY + SCREEN_H
+  const prevSlotY = useRef(Animated.add(panY, new Animated.Value(-SCREEN_H))).current;
+  const nextSlotY = useRef(Animated.add(panY, new Animated.Value(SCREEN_H))).current;
+
+  const safeInsets = {
+    top: Platform.OS === "web" ? 67 : insets.top,
+    bottom: Platform.OS === "web" ? 34 : insets.bottom,
+  };
+
+  return (
+    <View style={[styles.container, { backgroundColor: "#08080F" }]}>
+      {/* Prev stream — background tile only */}
+      {prevStream && (
+        <Animated.View
+          style={[StyleSheet.absoluteFill, { transform: [{ translateY: prevSlotY }] }]}
+          pointerEvents="none"
+        >
+          <StreamTile category={prevStream.category} />
+        </Animated.View>
+      )}
+
+      {/* Next stream — background tile only */}
+      {nextStream && (
+        <Animated.View
+          style={[StyleSheet.absoluteFill, { transform: [{ translateY: nextSlotY }] }]}
+          pointerEvents="none"
+        >
+          <StreamTile category={nextStream.category} />
+        </Animated.View>
+      )}
+
+      {/* Current stream — full UI, moves with panY */}
+      <Animated.View
+        style={[StyleSheet.absoluteFill, { transform: [{ translateY: panY }] }]}
+      >
+        <StreamContent
+          key={activeChannelId}
+          channelId={activeChannelId}
+          panHandlers={panResponder.panHandlers}
+          onBack={() => router.back()}
+          insets={safeInsets}
+        />
+      </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  videoOverlay: {
-    backgroundColor: "transparent",
-    opacity: 0.4,
-  },
+  gestureLayer: { zIndex: 1 },
   videoCenter: {
     flex: 1,
     alignItems: "center",
@@ -517,9 +516,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 5,
   },
-  liveDot: {
-    width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FFF",
-  },
+  liveDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FFF" },
   liveBadgeText: {
     color: "#FFF",
     fontSize: 9,
@@ -552,22 +549,7 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
-  swipeZone: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "flex-end",
-    paddingBottom: 12,
-  },
-  swipeHint: {
-    alignItems: "center",
-    gap: 4,
-  },
-  swipeHintText: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 11,
-    fontFamily: "Inter_500Medium",
-    letterSpacing: 0.3,
-  },
+  swipeZone: { flex: 1 },
   chatArea: { justifyContent: "flex-end" },
   chatScroll: { maxHeight: 240 },
   chatList: { gap: 5, paddingBottom: 4 },
@@ -607,17 +589,17 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontSize: 14,
     fontFamily: "Inter_400Regular",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
   },
   actionBtn: {
     alignItems: "center",
-    gap: 2,
-    minWidth: 36,
+    justifyContent: "center",
+    width: 44,
+    height: 44,
   },
   actionBtnText: {
     color: "#FFF",
     fontSize: 10,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Inter_600SemiBold",
+    marginTop: 1,
   },
 });
