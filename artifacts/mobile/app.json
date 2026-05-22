@@ -21,6 +21,7 @@
       }
     },
     "android": {
+      "package": "com.pulse.livestream",
       "permissions": ["CAMERA", "RECORD_AUDIO", "INTERNET", "MODIFY_AUDIO_SETTINGS"]
     },
     "web": {
