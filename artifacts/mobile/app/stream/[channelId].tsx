@@ -7,6 +7,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -204,8 +205,8 @@ export default function StreamScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: "#000" }]}
-      behavior="padding"
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={0}
     >
       {/* Video / demo background */}
       {showNativeVideo ? (
@@ -310,7 +311,20 @@ export default function StreamScreen() {
           <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7}>
             <Ionicons name="gift-outline" size={24} color="#FFD700" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            activeOpacity={0.7}
+            onPress={() => {
+              const domain = process.env["EXPO_PUBLIC_DOMAIN"] ?? "pulse.app";
+              Share.share({
+                title: stream ? `${stream.hostName} is live on Pulse` : "Watch live on Pulse",
+                message: stream
+                  ? `🔴 ${stream.hostName} is streaming "${stream.title}" on Pulse!\nhttps://${domain}/stream/${channelId}`
+                  : `Watch live streams on Pulse!\nhttps://${domain}`,
+              });
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+          >
             <Ionicons name="share-outline" size={24} color="#FFF" />
           </TouchableOpacity>
         </View>
