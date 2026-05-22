@@ -111,7 +111,8 @@ export default function StreamScreen() {
   const listRef = useRef<FlatList>(null);
 
   const { data: streamData } = useGetStream(channelId ?? "", {
-    query: { enabled: !!channelId, refetchInterval: 5000 },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    query: { enabled: !!channelId, refetchInterval: 5000 } as any,
   });
   const stream = streamData?.stream;
 
@@ -199,8 +200,9 @@ export default function StreamScreen() {
   const topPad    = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
-  // Decide what to show as the video layer
-  const showNativeVideo = isNative && joined && remoteUid !== null && RtcSurfaceViewComponent;
+  // Narrow the component type so TypeScript accepts it as JSX
+  const VideoView = RtcSurfaceViewComponent;
+  const showNativeVideo = isNative && joined && remoteUid !== null && VideoView;
 
   return (
     <KeyboardAvoidingView
@@ -209,8 +211,8 @@ export default function StreamScreen() {
       keyboardVerticalOffset={0}
     >
       {/* Video / demo background */}
-      {showNativeVideo ? (
-        <RtcSurfaceViewComponent
+      {showNativeVideo && VideoView ? (
+        <VideoView
           canvas={{ uid: remoteUid! }}
           style={StyleSheet.absoluteFill}
         />

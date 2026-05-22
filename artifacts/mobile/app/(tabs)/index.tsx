@@ -27,7 +27,8 @@ export default function DiscoveryScreen() {
   const [selectedCategory, setSelectedCategory] = useState("All");
 
   const { data, isLoading, refetch, isRefetching } = useListStreams({
-    query: { refetchInterval: 5000 },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    query: { refetchInterval: 5000 } as any,
   });
 
   const streams = data?.streams ?? [];

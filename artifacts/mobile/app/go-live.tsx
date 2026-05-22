@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
+  PermissionsAndroid,
   Platform,
   ScrollView,
   StyleSheet,
@@ -81,6 +82,22 @@ function DemoCamera({ color }: { color: string }) {
   );
 }
 
+async function requestPermissions() {
+  if (Platform.OS !== "android") return true;
+  try {
+    const granted = await PermissionsAndroid.requestMultiple([
+      PermissionsAndroid.PERMISSIONS.CAMERA,
+      PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+    ]);
+    return (
+      granted[PermissionsAndroid.PERMISSIONS.CAMERA] === "granted" &&
+      granted[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] === "granted"
+    );
+  } catch {
+    return false;
+  }
+}
+
 export default function GoLiveScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -92,34 +109,76 @@ export default function GoLiveScreen() {
   const [isLive, setIsLive] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [duration, setDuration] = useState(0);
+  const [cameraReady, setCameraReady] = useState(false);
+
   const channelIdRef = useRef("");
   const engineRef = useRef<any>(null);
   const durationRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Stores token+channelId waiting for the live view to mount
+  const pendingJoinRef = useRef<{ token: string; channelId: string } | null>(null);
 
   const generateToken = useGenerateAgoraToken();
   const createStream = useCreateStream();
   const endStream = useEndStream();
 
-  // Only initialise the real Agora engine on native
+  // Initialise Agora engine and start camera preview on the setup screen
   useEffect(() => {
     if (!isNative) return;
-    try {
-      const engine = createEngine();
-      if (!engine) return;
-      engine.initialize({
-        appId: process.env["EXPO_PUBLIC_AGORA_APP_ID"] ?? "",
-        channelProfile: ChannelProfileType.ChannelProfileLiveBroadcasting,
-      });
-      engine.enableVideo();
-      engine.enableAudio();
-      engineRef.current = engine;
-    } catch (_e) {
-      // ignore
-    }
+
+    let mounted = true;
+
+    (async () => {
+      const ok = await requestPermissions();
+      if (!ok || !mounted) return;
+
+      try {
+        const engine = createEngine();
+        if (!engine) return;
+        engine.initialize({
+          appId: process.env["EXPO_PUBLIC_AGORA_APP_ID"] ?? "",
+          channelProfile: ChannelProfileType.ChannelProfileLiveBroadcasting,
+        });
+        engine.enableVideo();
+        engine.enableAudio();
+        engine.setClientRole(ClientRoleType.ClientRoleBroadcaster);
+        // Start preview so the RtcSurfaceView on the setup screen shows the camera
+        engine.startPreview();
+        engineRef.current = engine;
+        if (mounted) setCameraReady(true);
+      } catch (_e) {
+        // ignore — graceful degradation
+      }
+    })();
+
     return () => {
+      mounted = false;
+      engineRef.current?.stopPreview?.();
       engineRef.current?.release?.();
     };
   }, []);
+
+  // Once the live screen is mounted, actually join the channel
+  useEffect(() => {
+    if (!isLive || !isNative || !engineRef.current || !pendingJoinRef.current) return;
+
+    const { token, channelId } = pendingJoinRef.current;
+    pendingJoinRef.current = null;
+
+    // Tiny delay to ensure RtcSurfaceView is fully laid out before joining
+    const t = setTimeout(async () => {
+      try {
+        await engineRef.current.joinChannel(token, channelId, user.uid, {
+          clientRoleType: ClientRoleType.ClientRoleBroadcaster,
+          publishMicrophoneTrack: true,
+          publishCameraTrack: true,
+        });
+      } catch (_e) {
+        // ignore
+      }
+    }, 150);
+
+    return () => clearTimeout(t);
+  }, [isLive, user.uid]);
 
   const startLive = useCallback(async () => {
     if (!title.trim()) return;
@@ -149,18 +208,9 @@ export default function GoLiveScreen() {
       });
 
       if (isNative && engineRef.current) {
-        engineRef.current.setClientRole(ClientRoleType.ClientRoleBroadcaster);
-        engineRef.current.startPreview();
-        await engineRef.current.joinChannel(
-          tokenData.token,
-          channelId,
-          user.uid,
-          {
-            clientRoleType: ClientRoleType.ClientRoleBroadcaster,
-            publishMicrophoneTrack: true,
-            publishCameraTrack: true,
-          },
-        );
+        // Store join params; the useEffect above will call joinChannel
+        // after isLive=true causes RtcSurfaceView to mount
+        pendingJoinRef.current = { token: tokenData.token, channelId };
       }
 
       setIsLive(true);
@@ -197,14 +247,16 @@ export default function GoLiveScreen() {
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const catColor = CATEGORY_COLORS[category] ?? colors.primary;
 
+  // Narrow to a non-null component type so TypeScript accepts it as JSX
+  const VideoView = RtcSurfaceViewComponent;
+  const showNativeVideo = isNative && VideoView;
+
   // ── LIVE screen ──────────────────────────────────────────────────────────
   if (isLive) {
-    const showNativeVideo = isNative && RtcSurfaceViewComponent;
-
     return (
       <View style={[styles.container, { backgroundColor: "#000" }]}>
-        {showNativeVideo ? (
-          <RtcSurfaceViewComponent
+        {showNativeVideo && VideoView ? (
+          <VideoView
             canvas={{ uid: 0, sourceType: VideoSourceType.VideoSourceCamera }}
             style={StyleSheet.absoluteFill}
           />
@@ -268,12 +320,24 @@ export default function GoLiveScreen() {
   // ── SETUP screen ─────────────────────────────────────────────────────────
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Live camera preview behind the setup form */}
+      {showNativeVideo && VideoView && cameraReady ? (
+        <VideoView
+          canvas={{ uid: 0, sourceType: VideoSourceType.VideoSourceCamera }}
+          style={[StyleSheet.absoluteFill, styles.setupCameraPreview]}
+        />
+      ) : null}
+      {/* Scrim so the form is readable over the camera */}
+      {showNativeVideo && cameraReady ? (
+        <View style={styles.setupScrim} />
+      ) : null}
+
       <TouchableOpacity
         style={[styles.closeBtn, { top: topPad + 12 }]}
         onPress={() => router.back()}
         activeOpacity={0.8}
       >
-        <Ionicons name="close" size={20} color={colors.foreground} />
+        <Ionicons name="close" size={20} color="#FFF" />
       </TouchableOpacity>
 
       <ScrollView
@@ -292,39 +356,39 @@ export default function GoLiveScreen() {
           <Ionicons name="radio" size={40} color={catColor} />
         </View>
 
-        <Text style={[styles.setupTitle, { color: colors.foreground }]}>
+        <Text style={styles.setupTitle}>
           Start your stream
         </Text>
-        <Text style={[styles.setupSubtitle, { color: colors.mutedForeground }]}>
+        <Text style={styles.setupSubtitle}>
           {isNative
             ? "Tell viewers what you're streaming"
             : "Demo mode — stream info saved, no camera on web"}
         </Text>
 
         <View style={styles.inputSection}>
-          <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>
+          <Text style={[styles.inputLabel, { color: "rgba(255,255,255,0.6)" }]}>
             Stream title
           </Text>
           <TextInput
             style={[
               styles.titleInput,
               {
-                color: colors.foreground,
-                borderColor: title ? catColor : colors.border,
-                backgroundColor: colors.card,
+                color: "#FFF",
+                borderColor: title ? catColor : "rgba(255,255,255,0.2)",
+                backgroundColor: "rgba(0,0,0,0.55)",
               },
             ]}
             value={title}
             onChangeText={setTitle}
             placeholder="What are you streaming today?"
-            placeholderTextColor={colors.mutedForeground}
+            placeholderTextColor="rgba(255,255,255,0.35)"
             maxLength={80}
             returnKeyType="done"
           />
         </View>
 
         <View style={styles.inputSection}>
-          <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>
+          <Text style={[styles.inputLabel, { color: "rgba(255,255,255,0.6)" }]}>
             Category
           </Text>
           <View style={styles.categoryGrid}>
@@ -337,8 +401,8 @@ export default function GoLiveScreen() {
                   style={[
                     styles.categoryChip,
                     {
-                      backgroundColor: selected ? cc + "33" : colors.card,
-                      borderColor: selected ? cc : colors.border,
+                      backgroundColor: selected ? cc + "44" : "rgba(0,0,0,0.45)",
+                      borderColor: selected ? cc : "rgba(255,255,255,0.2)",
                     },
                   ]}
                   onPress={() => {
@@ -350,7 +414,7 @@ export default function GoLiveScreen() {
                   <Text
                     style={[
                       styles.categoryChipText,
-                      { color: selected ? cc : colors.mutedForeground },
+                      { color: selected ? cc : "rgba(255,255,255,0.6)" },
                     ]}
                   >
                     {cat}
@@ -365,7 +429,7 @@ export default function GoLiveScreen() {
           style={[
             styles.goLiveBtn,
             {
-              backgroundColor: title.trim() ? catColor : colors.muted,
+              backgroundColor: title.trim() ? catColor : "rgba(255,255,255,0.15)",
               opacity: isStarting ? 0.7 : 1,
             },
           ]}
@@ -397,10 +461,18 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(0,0,0,0.4)",
     alignItems: "center",
     justifyContent: "center",
     zIndex: 10,
+  },
+  setupCameraPreview: {
+    zIndex: 0,
+  },
+  setupScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    zIndex: 1,
   },
   demoCamera: {
     ...StyleSheet.absoluteFillObject,
@@ -429,6 +501,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 24,
     gap: 20,
+    zIndex: 2,
   },
   setupIcon: {
     width: 88,
@@ -443,12 +516,14 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontFamily: "Inter_700Bold",
     textAlign: "center",
+    color: "#FFF",
   },
   setupSubtitle: {
     fontSize: 14,
     fontFamily: "Inter_400Regular",
     textAlign: "center",
     marginTop: -8,
+    color: "rgba(255,255,255,0.6)",
   },
   inputSection: { width: "100%", gap: 8 },
   inputLabel: {
