@@ -190,29 +190,30 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontFamily: "Inter_700Bold",
   },
-  /* Fixed-height pill row — never shifts when a chip is selected */
+  /* Pill row — tight vertical wrap, no layout shifts when a chip is selected */
   categoryRow: {
-    height: 52,
-    justifyContent: "center",
+    flexShrink: 0,
   },
   categoryList: {
     paddingHorizontal: 16,
+    paddingVertical: 6,
     alignItems: "center",
     gap: 8,
   },
   categoryChip: {
-    height: 34,
-    paddingHorizontal: 18,
-    borderRadius: 17,
+    height: 28,
+    paddingHorizontal: 14,
+    borderRadius: 14,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
   categoryChipText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
     fontFamily: "Inter_600SemiBold",
-    lineHeight: 16,
+    lineHeight: 14,
+    includeFontPadding: false,
   },
   grid: {
     paddingHorizontal: 16,
