@@ -16,10 +16,12 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
+  getListStreamsQueryKey,
   useCreateStream,
   useEndStream,
   useGenerateAgoraToken,
 } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import {
@@ -95,11 +97,13 @@ export default function GoLiveScreen() {
   const [duration, setDuration] = useState(0);
 
   const channelIdRef = useRef("");
+  const isLiveRef = useRef(false);
   const engineRef = useRef<any>(null);
   const durationRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Holds token+channelId until the live RtcSurfaceView is mounted
   const pendingJoinRef = useRef<{ token: string; channelId: string } | null>(null);
 
+  const queryClient = useQueryClient();
   const generateToken = useGenerateAgoraToken();
   const createStream = useCreateStream();
   const endStream = useEndStream();
@@ -200,6 +204,7 @@ export default function GoLiveScreen() {
         pendingJoinRef.current = { token: tokenData.token, channelId };
       }
 
+      isLiveRef.current = true;
       setIsLive(true);
       setIsStarting(false);
       durationRef.current = setInterval(() => setDuration((d) => d + 1), 1000);
@@ -212,14 +217,31 @@ export default function GoLiveScreen() {
   const stopLive = useCallback(async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     if (durationRef.current) clearInterval(durationRef.current);
+    // Mark not-live before async ops so the unmount cleanup doesn't double-delete
+    isLiveRef.current = false;
     try {
       engineRef.current?.leaveChannel?.();
       await endStream.mutateAsync({ channelId: channelIdRef.current });
+      await queryClient.invalidateQueries({ queryKey: getListStreamsQueryKey() });
     } catch (_e) {
-      // best effort
+      // best effort — still invalidate so stale data is cleared
+      void queryClient.invalidateQueries({ queryKey: getListStreamsQueryKey() });
     }
     router.back();
-  }, [endStream, router]);
+  }, [endStream, queryClient, router]);
+
+  // Safety net: if the screen unmounts while live (e.g. Android back gesture),
+  // delete the stream so it doesn't linger on the Discover page.
+  useEffect(() => {
+    return () => {
+      if (isLiveRef.current && channelIdRef.current) {
+        void endStream.mutateAsync({ channelId: channelIdRef.current }).finally(() => {
+          void queryClient.invalidateQueries({ queryKey: getListStreamsQueryKey() });
+        });
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const formatDuration = (secs: number) => {
     const h = Math.floor(secs / 3600);
