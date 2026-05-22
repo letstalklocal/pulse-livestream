@@ -63,13 +63,13 @@ const SEED_CHAT: ChatMsg[] = [
   { id: "s3", sender: "pulse_user99", text: "Keep it up! 🔥",              color: "#00C896" },
 ];
 
-const CATEGORY_BG: Record<string, string> = {
-  Gaming: "#1A0A3D",
-  Music:  "#1A0010",
-  Talk:   "#001A12",
-  Art:    "#1A0800",
-  Dance:  "#1A0010",
-  Other:  "#050D1A",
+const CATEGORY_COLORS: Record<string, [string, string]> = {
+  Gaming: ["#7B4FFF", "#3D1FA8"],
+  Music:  ["#FF1966", "#8B0030"],
+  Talk:   ["#00C896", "#006B51"],
+  Art:    ["#FF8C00", "#8B4700"],
+  Dance:  ["#FF1966", "#8B0030"],
+  Other:  ["#4FC3F7", "#1565C0"],
 };
 
 const CATEGORY_ACCENT: Record<string, string> = {
@@ -81,13 +81,37 @@ const CATEGORY_ACCENT: Record<string, string> = {
   Other:  "#4FC3F7",
 };
 
+// ─── Animated gradient background tile ────────────────────────────────────
+function StreamTile({ category }: { category?: string }) {
+  const [bg1, bg2] = CATEGORY_COLORS[category ?? ""] ?? CATEGORY_COLORS["Other"]!;
+  const shift = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shift, { toValue: 1, duration: 3000, useNativeDriver: false }),
+        Animated.timing(shift, { toValue: 0, duration: 3000, useNativeDriver: false }),
+      ]),
+    ).start();
+  }, [shift]);
+  const bgColor = shift.interpolate({ inputRange: [0, 1], outputRange: [bg2, bg1] });
+  return (
+    <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: bgColor }]}>
+      <View style={styles.videoCenter}>
+        <Text style={styles.videoInitials}>
+          {(category ?? "?").slice(0, 2).toUpperCase()}
+        </Text>
+      </View>
+    </Animated.View>
+  );
+}
+
 // ─── Profile card shown while adjacent stream is off-screen ───────────────
 function StreamProfileCard({ stream }: { stream: Stream }) {
-  const bg     = CATEGORY_BG[stream.category]     ?? "#08080F";
   const accent = CATEGORY_ACCENT[stream.category] ?? "#FF1966";
 
   return (
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: bg }]}>
+    <View style={StyleSheet.absoluteFill}>
+      <StreamTile category={stream.category} />
       {/* Subtle radial glow behind avatar */}
       <View style={[styles.cardGlow, { backgroundColor: accent + "22" }]} />
 
@@ -233,11 +257,11 @@ function StreamContent({ channelId, stream, onBack, topPad, bottomPad }: StreamC
         keyboardVerticalOffset={0}
       >
         {/* Video background */}
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: CATEGORY_BG[stream?.category ?? ""] ?? "#08080F" }]}>
+        <View style={StyleSheet.absoluteFill}>
           {showNativeVideo && VideoView ? (
             <VideoView canvas={{ uid: remoteUid! }} style={StyleSheet.absoluteFill} />
           ) : (
-            <View style={[styles.cardGlow, { backgroundColor: accent + "22" }]} />
+            <StreamTile category={stream?.category} />
           )}
         </View>
 
@@ -522,6 +546,19 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 20,
     marginTop: 4,
+  },
+
+  videoCenter: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  videoInitials: {
+    fontSize: 72,
+    fontWeight: "800",
+    color: "rgba(255,255,255,0.2)",
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 4,
   },
 
   // Stream overlay
