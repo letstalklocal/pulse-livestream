@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Dimensions,
   FlatList,
   KeyboardAvoidingView,
   PanResponder,
@@ -100,7 +101,8 @@ function DemoVideo({ category }: { category?: string }) {
 export default function StreamScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { channelId } = useLocalSearchParams<{ channelId: string }>();
+  const { channelId, from } = useLocalSearchParams<{ channelId: string; from?: string }>();
+  const SCREEN_H = Dimensions.get("window").height;
   const { user } = useAuth();
 
   const [remoteUid, setRemoteUid] = useState<number | null>(null);
@@ -135,6 +137,20 @@ export default function StreamScreen() {
 
   const generateToken = useGenerateAgoraToken();
   const updateViewers = useUpdateViewerCount();
+
+  // Entrance animation — slide in from below when navigated via swipe
+  useEffect(() => {
+    if (from === "up" || from === "down") {
+      const startY = from === "up" ? SCREEN_H : -SCREEN_H;
+      slideAnim.setValue(startY);
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 320,
+        useNativeDriver: true,
+      }).start();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Show swipe-up hint briefly when a next stream is available
   useEffect(() => {
@@ -218,15 +234,15 @@ export default function StreamScreen() {
     isNavigatingRef.current = true;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    const toValue = direction === "up" ? -80 : 80;
+    const toValue = direction === "up" ? -SCREEN_H : SCREEN_H;
     Animated.timing(slideAnim, {
       toValue,
-      duration: 180,
+      duration: 320,
       useNativeDriver: true,
     }).start(() => {
       slideAnim.setValue(0);
       isNavigatingRef.current = false;
-      router.replace(`/stream/${targetChannelId}` as any);
+      router.replace(`/stream/${targetChannelId}?from=${direction}` as any);
     });
   };
 
