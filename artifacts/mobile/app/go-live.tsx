@@ -252,7 +252,7 @@ export default function GoLiveScreen() {
     if (!isLive || !channelIdRef.current) return;
     const id = setInterval(() => {
       heartbeat.mutate({ channelId: channelIdRef.current });
-    }, 8_000);
+    }, 30_000);
     return () => clearInterval(id);
   }, [isLive, heartbeat]);
 

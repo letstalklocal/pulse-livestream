@@ -16,8 +16,8 @@ interface StreamRecord {
 
 const streams = new Map<string, StreamRecord>();
 
-// How long without a heartbeat before a real stream is considered dead (15 s)
-const HEARTBEAT_TTL_MS = 15_000;
+// How long without a heartbeat before a real stream is considered dead (60 s)
+const HEARTBEAT_TTL_MS = 60_000;
 
 // Seed data so discovery is never empty — use Infinity so they're never expired
 const seedStreams: StreamRecord[] = [
