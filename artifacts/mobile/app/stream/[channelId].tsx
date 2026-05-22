@@ -24,6 +24,8 @@ import {
   useUpdateViewerCount,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
+import { GiftPicker, GIFTS, type Gift } from "@/components/GiftPicker";
+import { GiftFloater, type FloatingGift } from "@/components/GiftFloater";
 import {
   ChannelProfileType,
   ClientRoleType,
@@ -103,6 +105,7 @@ export default function StreamScreen() {
   const router = useRouter();
   const { channelId } = useLocalSearchParams<{ channelId: string }>();
   const SCREEN_H = Dimensions.get("window").height;
+  const SCREEN_W = Dimensions.get("window").width;
   const { user } = useAuth();
 
   const [remoteUid, setRemoteUid] = useState<number | null>(null);
@@ -110,6 +113,9 @@ export default function StreamScreen() {
   const [inputText, setInputText] = useState("");
   const [joined, setJoined] = useState(false);
   const [likeCount, setLikeCount] = useState(Math.floor(Math.random() * 500) + 50);
+  const [showGiftPicker, setShowGiftPicker] = useState(false);
+  const [demoCoins, setDemoCoins] = useState(1000);
+  const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
   const engineRef = useRef<any>(null);
   const listRef = useRef<FlatList>(null);
 
@@ -154,6 +160,29 @@ export default function StreamScreen() {
     }, 1500);
     return () => clearTimeout(timeout);
   }, [channelId, nextStream, hintOpacity]);
+
+  // Helper: spawn a floating gift on screen
+  const spawnGift = (gift: Gift, senderName: string) => {
+    const x = Math.random() * (SCREEN_W * 0.55) + 16;
+    setFloatingGifts((prev) => [
+      ...prev,
+      { id: `${Date.now()}-${Math.random()}`, emoji: gift.emoji, name: gift.name, senderName, x, size: gift.size },
+    ]);
+  };
+
+  // Simulate other viewers sending gifts occasionally
+  useEffect(() => {
+    const names = ["neon_fox", "cosmic_ray", "techwave", "vibe_check", "l33tcode"];
+    const interval = setInterval(() => {
+      if (Math.random() < 0.35) {
+        const gift = GIFTS[Math.floor(Math.random() * 4)]!;
+        const sender = names[Math.floor(Math.random() * names.length)]!;
+        spawnGift(gift, sender);
+      }
+    }, 4500);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [SCREEN_W]);
 
   // Simulate live chat
   useEffect(() => {
@@ -424,7 +453,14 @@ export default function StreamScreen() {
             <Ionicons name="heart" size={24} color="#FF1966" />
             <Text style={styles.actionBtnText}>{likeCount}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            activeOpacity={0.7}
+            onPress={() => {
+              setShowGiftPicker(true);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+          >
             <Ionicons name="gift-outline" size={24} color="#FFD700" />
           </TouchableOpacity>
           <TouchableOpacity
@@ -447,6 +483,29 @@ export default function StreamScreen() {
       </View>
     </KeyboardAvoidingView>
     </Animated.View>
+
+    {/* Floating gift animations */}
+    {floatingGifts.map((fg) => (
+      <GiftFloater
+        key={fg.id}
+        gift={fg}
+        bottomOffset={(Platform.OS === "web" ? 34 : insets.bottom) + 90}
+        onDone={(id) => setFloatingGifts((prev) => prev.filter((g) => g.id !== id))}
+      />
+    ))}
+
+    {/* Gift picker */}
+    <GiftPicker
+      visible={showGiftPicker}
+      coins={demoCoins}
+      onClose={() => setShowGiftPicker(false)}
+      onSend={(gift) => {
+        setDemoCoins((c) => c - gift.coins);
+        spawnGift(gift, user?.name ?? "You");
+        setShowGiftPicker(false);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }}
+    />
 
     {/* Incoming stream overlay — slides in simultaneously with current screen sliding out */}
     {isTransitioning && (
