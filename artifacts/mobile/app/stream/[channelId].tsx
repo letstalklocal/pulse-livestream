@@ -4,6 +4,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Dimensions,
+  Easing,
   FlatList,
   KeyboardAvoidingView,
   PanResponder,
@@ -15,7 +17,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import {
   useGenerateAgoraToken,
   useGetStream,
@@ -30,6 +34,7 @@ import {
   createEngine,
 } from "@/utils/agora";
 
+const SCREEN_H = Dimensions.get("window").height;
 const isNative = Platform.OS === "ios" || Platform.OS === "android";
 
 interface ChatMsg {
@@ -100,7 +105,7 @@ function DemoVideo({ category }: { category?: string }) {
 export default function StreamScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { channelId } = useLocalSearchParams<{ channelId: string }>();
+  const { channelId, from } = useLocalSearchParams<{ channelId: string; from?: string }>();
   const { user } = useAuth();
 
   const [remoteUid, setRemoteUid] = useState<number | null>(null);
@@ -116,6 +121,20 @@ export default function StreamScreen() {
   // Hint arrow fade-in
   const hintOpacity = useRef(new Animated.Value(0)).current;
   const isNavigatingRef = useRef(false);
+
+  // Slide-in from the direction we came from on mount
+  useEffect(() => {
+    if (!from) return;
+    const startY = from === "up" ? SCREEN_H : -SCREEN_H;
+    slideAnim.setValue(startY);
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { data: streamData } = useGetStream(channelId ?? "", {
     query: { enabled: !!channelId, refetchInterval: 5000 } as any,
@@ -218,15 +237,15 @@ export default function StreamScreen() {
     isNavigatingRef.current = true;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    const toValue = direction === "up" ? -80 : 80;
+    const toValue = direction === "up" ? -SCREEN_H : SCREEN_H;
     Animated.timing(slideAnim, {
       toValue,
-      duration: 180,
+      duration: 300,
+      easing: Easing.in(Easing.cubic),
       useNativeDriver: true,
     }).start(() => {
-      slideAnim.setValue(0);
       isNavigatingRef.current = false;
-      router.replace(`/stream/${targetChannelId}` as any);
+      router.replace(`/stream/${targetChannelId}?from=${direction}` as any);
     });
   };
 
