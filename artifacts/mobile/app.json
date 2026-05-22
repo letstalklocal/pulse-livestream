@@ -22,7 +22,12 @@
     },
     "android": {
       "package": "com.pulse.livestream",
-      "permissions": ["CAMERA", "RECORD_AUDIO", "INTERNET", "MODIFY_AUDIO_SETTINGS"]
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "INTERNET",
+        "MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -40,6 +45,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "4119aa26-5e2a-4825-81e0-9612267f331c"
+      }
+    },
+    "owner": "eespana"
   }
 }
