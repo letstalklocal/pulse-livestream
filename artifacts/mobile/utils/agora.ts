@@ -11,8 +11,12 @@ export const ChannelProfileType = {
 export const VideoSourceType = {
   VideoSourceCamera: 0,
 };
+export const RenderModeType = {
+  RenderModeFit: 1,
+};
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function createEngine(): any {
   return null;
 }
 export const RtcSurfaceViewComponent: React.ComponentType<any> | null = null;
+export const RtcTextureViewComponent: React.ComponentType<any> | null = null;

@@ -25,7 +25,8 @@ import { useColors } from "@/hooks/useColors";
 import {
   ChannelProfileType,
   ClientRoleType,
-  RtcSurfaceViewComponent,
+  RenderModeType,
+  RtcTextureViewComponent,
   VideoSourceType,
   createEngine,
 } from "@/utils/agora";
@@ -109,8 +110,12 @@ export default function GoLiveScreen() {
     let mounted = true;
 
     (async () => {
-      await requestPermissions();
+      const ok = await requestPermissions();
       if (!mounted) return;
+      if (!ok) {
+        console.warn("[Agora] Permissions denied");
+        return;
+      }
       try {
         const engine = createEngine();
         if (!engine) return;
@@ -118,12 +123,24 @@ export default function GoLiveScreen() {
           appId: process.env["EXPO_PUBLIC_AGORA_APP_ID"] ?? "",
           channelProfile: ChannelProfileType.ChannelProfileLiveBroadcasting,
         });
+        // Log Agora errors to help diagnose black-screen issues
+        engine.registerEventHandler({
+          onError: (err: number, msg: string) =>
+            console.warn("[Agora] onError:", err, msg),
+          onJoinChannelSuccess: (connection: any, elapsed: number) =>
+            console.log("[Agora] joined channel:", connection?.channelId, "elapsed:", elapsed),
+          onLocalVideoStateChanged: (source: any, state: number, reason: number) =>
+            console.log("[Agora] localVideoState source:", source, "state:", state, "reason:", reason),
+        });
+        engine.setClientRole(ClientRoleType.ClientRoleBroadcaster);
         engine.enableVideo();
         engine.enableAudio();
-        engine.setClientRole(ClientRoleType.ClientRoleBroadcaster);
+        // startPreview BEFORE the RtcTextureView mounts so the camera is
+        // already capturing when the view connects to it
+        engine.startPreview();
         engineRef.current = engine;
-      } catch (_e) {
-        // graceful degradation
+      } catch (e) {
+        console.warn("[Agora] init error:", e);
       }
     })();
 
@@ -134,25 +151,24 @@ export default function GoLiveScreen() {
     };
   }, []);
 
-  // After the live screen mounts its RtcSurfaceView, join the channel
+  // After the live screen mounts its RtcTextureView, join the channel
   useEffect(() => {
     if (!isLive || !isNative || !engineRef.current || !pendingJoinRef.current) return;
     const { token, channelId } = pendingJoinRef.current;
     pendingJoinRef.current = null;
 
-    // Small delay so the surface view finishes layout before we join
-    const t = setTimeout(async () => {
+    // Give the texture view one frame to attach before joining
+    const t = setTimeout(() => {
       try {
-        engineRef.current.startPreview();
-        await engineRef.current.joinChannel(token, channelId, user.uid, {
+        engineRef.current.joinChannel(token, channelId, user.uid, {
           clientRoleType: ClientRoleType.ClientRoleBroadcaster,
           publishMicrophoneTrack: true,
           publishCameraTrack: true,
         });
-      } catch (_e) {
-        // ignore
+      } catch (e) {
+        console.warn("[Agora] joinChannel error:", e);
       }
-    }, 200);
+    }, 300);
 
     return () => clearTimeout(t);
   }, [isLive, user.uid]);
@@ -217,8 +233,8 @@ export default function GoLiveScreen() {
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const catColor = CATEGORY_COLORS[category] ?? colors.primary;
 
-  // Narrow to non-null so TypeScript accepts it as JSX
-  const VideoView = RtcSurfaceViewComponent;
+  // RtcTextureView is more reliable than RtcSurfaceView for local camera on Android
+  const VideoView = RtcTextureViewComponent;
   const showNativeVideo = isNative && VideoView;
 
   // ── LIVE screen ──────────────────────────────────────────────────────────
