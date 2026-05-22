@@ -47,42 +47,25 @@ function DemoCamera({ color }: { color: string }) {
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: 1800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulse, {
-          toValue: 0.7,
-          duration: 1800,
-          useNativeDriver: true,
-        }),
+        Animated.timing(pulse, { toValue: 1, duration: 1800, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0.7, duration: 1800, useNativeDriver: true }),
       ]),
     ).start();
   }, [pulse]);
 
   return (
     <View style={[styles.demoCamera, { backgroundColor: color + "22" }]}>
-      <Animated.View
-        style={[
-          styles.demoCameraInner,
-          { backgroundColor: color + "44", opacity: pulse },
-        ]}
-      />
+      <Animated.View style={[styles.demoCameraInner, { backgroundColor: color + "44", opacity: pulse }]} />
       <View style={styles.demoCameraIcon}>
         <Ionicons name="videocam" size={48} color={color} />
-        <Text style={[styles.demoCameraLabel, { color }]}>
-          Demo Preview
-        </Text>
-        <Text style={styles.demoCameraNote}>
-          Camera requires native build
-        </Text>
+        <Text style={[styles.demoCameraLabel, { color }]}>Live Preview</Text>
+        <Text style={styles.demoCameraNote}>Camera requires native build</Text>
       </View>
     </View>
   );
 }
 
-async function requestPermissions() {
+async function requestPermissions(): Promise<boolean> {
   if (Platform.OS !== "android") return true;
   try {
     const granted = await PermissionsAndroid.requestMultiple([
@@ -109,28 +92,25 @@ export default function GoLiveScreen() {
   const [isLive, setIsLive] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [duration, setDuration] = useState(0);
-  const [cameraReady, setCameraReady] = useState(false);
 
   const channelIdRef = useRef("");
   const engineRef = useRef<any>(null);
   const durationRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Stores token+channelId waiting for the live view to mount
+  // Holds token+channelId until the live RtcSurfaceView is mounted
   const pendingJoinRef = useRef<{ token: string; channelId: string } | null>(null);
 
   const generateToken = useGenerateAgoraToken();
   const createStream = useCreateStream();
   const endStream = useEndStream();
 
-  // Initialise Agora engine and start camera preview on the setup screen
+  // Request permissions and initialise Agora engine on mount
   useEffect(() => {
     if (!isNative) return;
-
     let mounted = true;
 
     (async () => {
-      const ok = await requestPermissions();
-      if (!ok || !mounted) return;
-
+      await requestPermissions();
+      if (!mounted) return;
       try {
         const engine = createEngine();
         if (!engine) return;
@@ -141,12 +121,9 @@ export default function GoLiveScreen() {
         engine.enableVideo();
         engine.enableAudio();
         engine.setClientRole(ClientRoleType.ClientRoleBroadcaster);
-        // Start preview so the RtcSurfaceView on the setup screen shows the camera
-        engine.startPreview();
         engineRef.current = engine;
-        if (mounted) setCameraReady(true);
       } catch (_e) {
-        // ignore — graceful degradation
+        // graceful degradation
       }
     })();
 
@@ -157,16 +134,16 @@ export default function GoLiveScreen() {
     };
   }, []);
 
-  // Once the live screen is mounted, actually join the channel
+  // After the live screen mounts its RtcSurfaceView, join the channel
   useEffect(() => {
     if (!isLive || !isNative || !engineRef.current || !pendingJoinRef.current) return;
-
     const { token, channelId } = pendingJoinRef.current;
     pendingJoinRef.current = null;
 
-    // Tiny delay to ensure RtcSurfaceView is fully laid out before joining
+    // Small delay so the surface view finishes layout before we join
     const t = setTimeout(async () => {
       try {
+        engineRef.current.startPreview();
         await engineRef.current.joinChannel(token, channelId, user.uid, {
           clientRoleType: ClientRoleType.ClientRoleBroadcaster,
           publishMicrophoneTrack: true,
@@ -175,7 +152,7 @@ export default function GoLiveScreen() {
       } catch (_e) {
         // ignore
       }
-    }, 150);
+    }, 200);
 
     return () => clearTimeout(t);
   }, [isLive, user.uid]);
@@ -190,11 +167,7 @@ export default function GoLiveScreen() {
 
     try {
       const tokenData = await generateToken.mutateAsync({
-        data: {
-          channelName: channelId,
-          uid: user.uid,
-          role: "broadcaster",
-        },
+        data: { channelName: channelId, uid: user.uid, role: "broadcaster" },
       });
 
       await createStream.mutateAsync({
@@ -208,8 +181,6 @@ export default function GoLiveScreen() {
       });
 
       if (isNative && engineRef.current) {
-        // Store join params; the useEffect above will call joinChannel
-        // after isLive=true causes RtcSurfaceView to mount
         pendingJoinRef.current = { token: tokenData.token, channelId };
       }
 
@@ -238,8 +209,7 @@ export default function GoLiveScreen() {
     const h = Math.floor(secs / 3600);
     const m = Math.floor((secs % 3600) / 60);
     const s = secs % 60;
-    if (h > 0)
-      return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
 
@@ -247,7 +217,7 @@ export default function GoLiveScreen() {
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const catColor = CATEGORY_COLORS[category] ?? colors.primary;
 
-  // Narrow to a non-null component type so TypeScript accepts it as JSX
+  // Narrow to non-null so TypeScript accepts it as JSX
   const VideoView = RtcSurfaceViewComponent;
   const showNativeVideo = isNative && VideoView;
 
@@ -264,12 +234,7 @@ export default function GoLiveScreen() {
           <DemoCamera color={catColor} />
         )}
 
-        <View
-          style={[
-            styles.liveOverlay,
-            { paddingTop: topPad + 12, paddingBottom: bottomPad + 16 },
-          ]}
-        >
+        <View style={[styles.liveOverlay, { paddingTop: topPad + 12, paddingBottom: bottomPad + 16 }]}>
           <View style={styles.liveTopBar}>
             <View style={styles.liveBadgeRow}>
               <View style={styles.liveBadge}>
@@ -286,29 +251,18 @@ export default function GoLiveScreen() {
           </View>
 
           <View style={styles.liveInfoRow}>
-            <View
-              style={[
-                styles.liveAvatarBubble,
-                { backgroundColor: catColor + "33", borderColor: catColor },
-              ]}
-            >
+            <View style={[styles.liveAvatarBubble, { backgroundColor: catColor + "33", borderColor: catColor }]}>
               <Text style={[styles.liveAvatarText, { color: catColor }]}>
                 {user.name.slice(0, 2).toUpperCase()}
               </Text>
             </View>
             <View style={styles.liveInfoText}>
               <Text style={styles.liveHostName}>{user.name}</Text>
-              <Text style={styles.liveTitleText} numberOfLines={1}>
-                {title}
-              </Text>
+              <Text style={styles.liveTitleText} numberOfLines={1}>{title}</Text>
             </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.endLiveBtn}
-            onPress={stopLive}
-            activeOpacity={0.85}
-          >
+          <TouchableOpacity style={styles.endLiveBtn} onPress={stopLive} activeOpacity={0.85}>
             <Ionicons name="stop-circle" size={20} color="#FFF" />
             <Text style={styles.endLiveBtnText}>End Stream</Text>
           </TouchableOpacity>
@@ -320,24 +274,12 @@ export default function GoLiveScreen() {
   // ── SETUP screen ─────────────────────────────────────────────────────────
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Live camera preview behind the setup form */}
-      {showNativeVideo && VideoView && cameraReady ? (
-        <VideoView
-          canvas={{ uid: 0, sourceType: VideoSourceType.VideoSourceCamera }}
-          style={[StyleSheet.absoluteFill, styles.setupCameraPreview]}
-        />
-      ) : null}
-      {/* Scrim so the form is readable over the camera */}
-      {showNativeVideo && cameraReady ? (
-        <View style={styles.setupScrim} />
-      ) : null}
-
       <TouchableOpacity
         style={[styles.closeBtn, { top: topPad + 12 }]}
         onPress={() => router.back()}
         activeOpacity={0.8}
       >
-        <Ionicons name="close" size={20} color="#FFF" />
+        <Ionicons name="close" size={20} color={colors.foreground} />
       </TouchableOpacity>
 
       <ScrollView
@@ -347,50 +289,39 @@ export default function GoLiveScreen() {
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        <View
-          style={[
-            styles.setupIcon,
-            { backgroundColor: catColor + "22", borderColor: catColor + "55" },
-          ]}
-        >
+        <View style={[styles.setupIcon, { backgroundColor: catColor + "22", borderColor: catColor + "55" }]}>
           <Ionicons name="radio" size={40} color={catColor} />
         </View>
 
-        <Text style={styles.setupTitle}>
+        <Text style={[styles.setupTitle, { color: colors.foreground }]}>
           Start your stream
         </Text>
-        <Text style={styles.setupSubtitle}>
-          {isNative
-            ? "Tell viewers what you're streaming"
-            : "Demo mode — stream info saved, no camera on web"}
+        <Text style={[styles.setupSubtitle, { color: colors.mutedForeground }]}>
+          {isNative ? "Tell viewers what you're streaming" : "Demo mode — stream info saved, no camera on web"}
         </Text>
 
         <View style={styles.inputSection}>
-          <Text style={[styles.inputLabel, { color: "rgba(255,255,255,0.6)" }]}>
-            Stream title
-          </Text>
+          <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Stream title</Text>
           <TextInput
             style={[
               styles.titleInput,
               {
-                color: "#FFF",
-                borderColor: title ? catColor : "rgba(255,255,255,0.2)",
-                backgroundColor: "rgba(0,0,0,0.55)",
+                color: colors.foreground,
+                borderColor: title ? catColor : colors.border,
+                backgroundColor: colors.card,
               },
             ]}
             value={title}
             onChangeText={setTitle}
             placeholder="What are you streaming today?"
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={colors.mutedForeground}
             maxLength={80}
             returnKeyType="done"
           />
         </View>
 
         <View style={styles.inputSection}>
-          <Text style={[styles.inputLabel, { color: "rgba(255,255,255,0.6)" }]}>
-            Category
-          </Text>
+          <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Category</Text>
           <View style={styles.categoryGrid}>
             {CATEGORIES.map((cat) => {
               const selected = category === cat;
@@ -401,22 +332,14 @@ export default function GoLiveScreen() {
                   style={[
                     styles.categoryChip,
                     {
-                      backgroundColor: selected ? cc + "44" : "rgba(0,0,0,0.45)",
-                      borderColor: selected ? cc : "rgba(255,255,255,0.2)",
+                      backgroundColor: selected ? cc + "33" : colors.card,
+                      borderColor: selected ? cc : colors.border,
                     },
                   ]}
-                  onPress={() => {
-                    setCategory(cat);
-                    Haptics.selectionAsync();
-                  }}
+                  onPress={() => { setCategory(cat); Haptics.selectionAsync(); }}
                   activeOpacity={0.8}
                 >
-                  <Text
-                    style={[
-                      styles.categoryChipText,
-                      { color: selected ? cc : "rgba(255,255,255,0.6)" },
-                    ]}
-                  >
+                  <Text style={[styles.categoryChipText, { color: selected ? cc : colors.mutedForeground }]}>
                     {cat}
                   </Text>
                 </TouchableOpacity>
@@ -429,7 +352,7 @@ export default function GoLiveScreen() {
           style={[
             styles.goLiveBtn,
             {
-              backgroundColor: title.trim() ? catColor : "rgba(255,255,255,0.15)",
+              backgroundColor: title.trim() ? catColor : colors.muted,
               opacity: isStarting ? 0.7 : 1,
             },
           ]}
@@ -461,48 +384,21 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "rgba(0,0,0,0.4)",
+    backgroundColor: "rgba(255,255,255,0.1)",
     alignItems: "center",
     justifyContent: "center",
     zIndex: 10,
-  },
-  setupCameraPreview: {
-    zIndex: 0,
-  },
-  setupScrim: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    zIndex: 1,
   },
   demoCamera: {
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
   },
-  demoCameraInner: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 0,
-  },
-  demoCameraIcon: {
-    alignItems: "center",
-    gap: 10,
-  },
-  demoCameraLabel: {
-    fontSize: 18,
-    fontWeight: "700",
-    fontFamily: "Inter_700Bold",
-  },
-  demoCameraNote: {
-    color: "rgba(255,255,255,0.4)",
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-  },
-  setupContent: {
-    alignItems: "center",
-    paddingHorizontal: 24,
-    gap: 20,
-    zIndex: 2,
-  },
+  demoCameraInner: { ...StyleSheet.absoluteFillObject },
+  demoCameraIcon: { alignItems: "center", gap: 10 },
+  demoCameraLabel: { fontSize: 18, fontWeight: "700", fontFamily: "Inter_700Bold" },
+  demoCameraNote: { color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "Inter_400Regular" },
+  setupContent: { alignItems: "center", paddingHorizontal: 24, gap: 20 },
   setupIcon: {
     width: 88,
     height: 88,
@@ -511,20 +407,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  setupTitle: {
-    fontSize: 26,
-    fontWeight: "700",
-    fontFamily: "Inter_700Bold",
-    textAlign: "center",
-    color: "#FFF",
-  },
-  setupSubtitle: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
-    marginTop: -8,
-    color: "rgba(255,255,255,0.6)",
-  },
+  setupTitle: { fontSize: 26, fontWeight: "700", fontFamily: "Inter_700Bold", textAlign: "center" },
+  setupSubtitle: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: -8 },
   inputSection: { width: "100%", gap: 8 },
   inputLabel: {
     fontSize: 12,
@@ -533,25 +417,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textTransform: "uppercase",
   },
-  titleInput: {
-    borderWidth: 1.5,
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    fontFamily: "Inter_400Regular",
-  },
+  titleInput: { borderWidth: 1.5, borderRadius: 12, padding: 14, fontSize: 16, fontFamily: "Inter_400Regular" },
   categoryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 20,
-    borderWidth: 1.5,
-  },
-  categoryChipText: {
-    fontSize: 13,
-    fontWeight: "600",
-    fontFamily: "Inter_600SemiBold",
-  },
+  categoryChip: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 20, borderWidth: 1.5 },
+  categoryChipText: { fontSize: 13, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
   goLiveBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -562,28 +431,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 8,
   },
-  goLiveBtnText: {
-    color: "#FFF",
-    fontSize: 18,
-    fontWeight: "700",
-    fontFamily: "Inter_700Bold",
-  },
+  goLiveBtnText: { color: "#FFF", fontSize: 18, fontWeight: "700", fontFamily: "Inter_700Bold" },
   liveOverlay: {
     ...StyleSheet.absoluteFillObject,
     flexDirection: "column",
     justifyContent: "space-between",
     paddingHorizontal: 16,
   },
-  liveTopBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  liveBadgeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
+  liveTopBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  liveBadgeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   liveBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -593,24 +449,9 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 6,
   },
-  liveDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: "#FFF",
-  },
-  liveBadgeText: {
-    color: "#FFF",
-    fontSize: 11,
-    fontWeight: "700",
-    fontFamily: "Inter_700Bold",
-    letterSpacing: 0.5,
-  },
-  liveDuration: {
-    color: "#FFF",
-    fontSize: 14,
-    fontFamily: "Inter_500Medium",
-  },
+  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#FFF" },
+  liveBadgeText: { color: "#FFF", fontSize: 11, fontWeight: "700", fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
+  liveDuration: { color: "#FFF", fontSize: 14, fontFamily: "Inter_500Medium" },
   demoBadge: {
     backgroundColor: "rgba(255,255,255,0.15)",
     paddingHorizontal: 10,
@@ -619,31 +460,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.25)",
   },
-  demoBadgeText: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 10,
-    fontWeight: "700",
-    fontFamily: "Inter_700Bold",
-    letterSpacing: 1,
-  },
-  liveInfoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  liveAvatarBubble: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  liveAvatarText: {
-    fontSize: 16,
-    fontWeight: "700",
-    fontFamily: "Inter_700Bold",
-  },
+  demoBadgeText: { color: "rgba(255,255,255,0.7)", fontSize: 10, fontWeight: "700", fontFamily: "Inter_700Bold", letterSpacing: 1 },
+  liveInfoRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  liveAvatarBubble: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  liveAvatarText: { fontSize: 16, fontWeight: "700", fontFamily: "Inter_700Bold" },
   liveInfoText: { gap: 2 },
   liveHostName: {
     color: "#FFF",
@@ -654,12 +474,7 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
-  liveTitleText: {
-    color: "rgba(255,255,255,0.85)",
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    maxWidth: 200,
-  },
+  liveTitleText: { color: "rgba(255,255,255,0.85)", fontSize: 12, fontFamily: "Inter_400Regular", maxWidth: 200 },
   endLiveBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -670,10 +485,5 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 30,
   },
-  endLiveBtnText: {
-    color: "#FFF",
-    fontSize: 16,
-    fontWeight: "700",
-    fontFamily: "Inter_700Bold",
-  },
+  endLiveBtnText: { color: "#FFF", fontSize: 16, fontWeight: "700", fontFamily: "Inter_700Bold" },
 });
