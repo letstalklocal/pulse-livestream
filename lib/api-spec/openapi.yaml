@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: agora
+    description: Agora token operations
+  - name: streams
+    description: Live stream management
 paths:
   /healthz:
     get:
@@ -24,6 +28,155 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /agora/token:
+    post:
+      operationId: generateAgoraToken
+      tags: [agora]
+      summary: Generate Agora RTC token
+      description: Generates a token for joining a live stream channel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgoraTokenRequest"
+      responses:
+        "200":
+          description: Token generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgoraTokenResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /streams:
+    get:
+      operationId: listStreams
+      tags: [streams]
+      summary: List active live streams
+      description: Returns all currently active live streams
+      responses:
+        "200":
+          description: List of active streams
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StreamListResponse"
+
+    post:
+      operationId: createStream
+      tags: [streams]
+      summary: Start a new live stream
+      description: Register a new live stream session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStreamRequest"
+      responses:
+        "201":
+          description: Stream created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StreamResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /streams/{channelId}:
+    get:
+      operationId: getStream
+      tags: [streams]
+      summary: Get stream details
+      description: Returns details of a specific live stream
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Stream details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StreamResponse"
+        "404":
+          description: Stream not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: endStream
+      tags: [streams]
+      summary: End a live stream
+      description: Mark a stream as ended and remove it from active streams
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Stream ended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Stream not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /streams/{channelId}/viewers:
+    post:
+      operationId: updateViewerCount
+      tags: [streams]
+      summary: Update viewer count
+      description: Increment or decrement viewer count for a stream
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ViewerUpdateRequest"
+      responses:
+        "200":
+          description: Viewer count updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StreamResponse"
+        "404":
+          description: Stream not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +187,133 @@ components:
       required:
         - status
 
+    AgoraTokenRequest:
+      type: object
+      properties:
+        channelName:
+          type: string
+          description: The name of the channel to join
+        uid:
+          type: integer
+          description: User ID (0 for auto-assign)
+        role:
+          type: string
+          enum: [broadcaster, audience]
+          description: User role in the channel
+      required:
+        - channelName
+        - uid
+        - role
+
+    AgoraTokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: The RTC token
+        appId:
+          type: string
+          description: The Agora App ID
+        channelName:
+          type: string
+        uid:
+          type: integer
+        expiresAt:
+          type: integer
+          description: Token expiry timestamp (Unix seconds)
+      required:
+        - token
+        - appId
+        - channelName
+        - uid
+        - expiresAt
+
+    Stream:
+      type: object
+      properties:
+        channelId:
+          type: string
+        hostUid:
+          type: integer
+        hostName:
+          type: string
+        title:
+          type: string
+        viewerCount:
+          type: integer
+        startedAt:
+          type: string
+          format: date-time
+        category:
+          type: string
+      required:
+        - channelId
+        - hostUid
+        - hostName
+        - title
+        - viewerCount
+        - startedAt
+        - category
+
+    StreamListResponse:
+      type: object
+      properties:
+        streams:
+          type: array
+          items:
+            $ref: "#/components/schemas/Stream"
+      required:
+        - streams
+
+    StreamResponse:
+      type: object
+      properties:
+        stream:
+          $ref: "#/components/schemas/Stream"
+      required:
+        - stream
+
+    CreateStreamRequest:
+      type: object
+      properties:
+        channelId:
+          type: string
+        hostUid:
+          type: integer
+        hostName:
+          type: string
+        title:
+          type: string
+        category:
+          type: string
+      required:
+        - channelId
+        - hostUid
+        - hostName
+        - title
+        - category
+
+    ViewerUpdateRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [join, leave]
+      required:
+        - action
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error

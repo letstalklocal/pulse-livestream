@@ -1,22 +1,28 @@
 {
   "expo": {
-    "name": "LiveStream",
+    "name": "Pulse",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mobile",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#08080F"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Pulse needs camera access to broadcast live streams.",
+        "NSMicrophoneUsageDescription": "Pulse needs microphone access for live streaming audio."
+      }
     },
-    "android": {},
+    "android": {
+      "permissions": ["CAMERA", "RECORD_AUDIO", "INTERNET", "MODIFY_AUDIO_SETTINGS"]
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
