@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Platform,
   ScrollView,
   StyleSheet,
@@ -40,6 +41,46 @@ const CATEGORY_COLORS: Record<string, string> = {
   Other: "#4FC3F7",
 };
 
+function DemoCamera({ color }: { color: string }) {
+  const pulse = useRef(new Animated.Value(0.7)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 1800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0.7,
+          duration: 1800,
+          useNativeDriver: true,
+        }),
+      ]),
+    ).start();
+  }, [pulse]);
+
+  return (
+    <View style={[styles.demoCamera, { backgroundColor: color + "22" }]}>
+      <Animated.View
+        style={[
+          styles.demoCameraInner,
+          { backgroundColor: color + "44", opacity: pulse },
+        ]}
+      />
+      <View style={styles.demoCameraIcon}>
+        <Ionicons name="videocam" size={48} color={color} />
+        <Text style={[styles.demoCameraLabel, { color }]}>
+          Demo Preview
+        </Text>
+        <Text style={styles.demoCameraNote}>
+          Camera requires native build
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 export default function GoLiveScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -59,6 +100,7 @@ export default function GoLiveScreen() {
   const createStream = useCreateStream();
   const endStream = useEndStream();
 
+  // Only initialise the real Agora engine on native
   useEffect(() => {
     if (!isNative) return;
     try {
@@ -151,60 +193,25 @@ export default function GoLiveScreen() {
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const catColor = CATEGORY_COLORS[category] ?? colors.primary;
 
-  if (!isNative) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <TouchableOpacity
-          style={[styles.closeBtn, { top: topPad + 12 }]}
-          onPress={() => router.back()}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="close" size={20} color={colors.foreground} />
-        </TouchableOpacity>
-        <View style={styles.unsupportedContainer}>
-          <Ionicons
-            name="phone-portrait-outline"
-            size={56}
-            color={colors.mutedForeground}
-          />
-          <Text style={[styles.unsupportedTitle, { color: colors.foreground }]}>
-            Native app required
-          </Text>
-          <Text
-            style={[styles.unsupportedText, { color: colors.mutedForeground }]}
-          >
-            Live streaming requires the published iOS or Android app. Use Expo
-            Launch to build and test on your device.
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
+  // ── LIVE screen ──────────────────────────────────────────────────────────
   if (isLive) {
-    const LocalVideoView =
-      RtcSurfaceViewComponent ? (
-        <RtcSurfaceViewComponent
-          canvas={{
-            uid: 0,
-            sourceType: VideoSourceType.VideoSourceCamera,
-          }}
-          style={StyleSheet.absoluteFill}
-        />
-      ) : (
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: "#111" }]} />
-      );
+    const showNativeVideo = isNative && RtcSurfaceViewComponent;
 
     return (
       <View style={[styles.container, { backgroundColor: "#000" }]}>
-        {LocalVideoView}
+        {showNativeVideo ? (
+          <RtcSurfaceViewComponent
+            canvas={{ uid: 0, sourceType: VideoSourceType.VideoSourceCamera }}
+            style={StyleSheet.absoluteFill}
+          />
+        ) : (
+          <DemoCamera color={catColor} />
+        )}
+
         <View
           style={[
             styles.liveOverlay,
-            {
-              paddingTop: topPad + 12,
-              paddingBottom: bottomPad + 16,
-            },
+            { paddingTop: topPad + 12, paddingBottom: bottomPad + 16 },
           ]}
         >
           <View style={styles.liveTopBar}>
@@ -213,20 +220,20 @@ export default function GoLiveScreen() {
                 <View style={styles.liveDot} />
                 <Text style={styles.liveBadgeText}>LIVE</Text>
               </View>
-              <Text style={styles.liveDuration}>
-                {formatDuration(duration)}
-              </Text>
+              <Text style={styles.liveDuration}>{formatDuration(duration)}</Text>
             </View>
+            {!isNative && (
+              <View style={styles.demoBadge}>
+                <Text style={styles.demoBadgeText}>DEMO</Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.liveInfoRow}>
             <View
               style={[
                 styles.liveAvatarBubble,
-                {
-                  backgroundColor: catColor + "33",
-                  borderColor: catColor,
-                },
+                { backgroundColor: catColor + "33", borderColor: catColor },
               ]}
             >
               <Text style={[styles.liveAvatarText, { color: catColor }]}>
@@ -254,6 +261,7 @@ export default function GoLiveScreen() {
     );
   }
 
+  // ── SETUP screen ─────────────────────────────────────────────────────────
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <TouchableOpacity
@@ -267,20 +275,14 @@ export default function GoLiveScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.setupContent,
-          {
-            paddingTop: topPad + 60,
-            paddingBottom: bottomPad + 24,
-          },
+          { paddingTop: topPad + 60, paddingBottom: bottomPad + 24 },
         ]}
         keyboardShouldPersistTaps="handled"
       >
         <View
           style={[
             styles.setupIcon,
-            {
-              backgroundColor: catColor + "22",
-              borderColor: catColor + "55",
-            },
+            { backgroundColor: catColor + "22", borderColor: catColor + "55" },
           ]}
         >
           <Ionicons name="radio" size={40} color={catColor} />
@@ -290,7 +292,9 @@ export default function GoLiveScreen() {
           Start your stream
         </Text>
         <Text style={[styles.setupSubtitle, { color: colors.mutedForeground }]}>
-          Tell viewers what you're streaming
+          {isNative
+            ? "Tell viewers what you're streaming"
+            : "Demo mode — stream info saved, no camera on web"}
         </Text>
 
         <View style={styles.inputSection}>
@@ -370,7 +374,9 @@ export default function GoLiveScreen() {
           ) : (
             <>
               <Ionicons name="radio" size={20} color="#FFF" />
-              <Text style={styles.goLiveBtnText}>Go Live</Text>
+              <Text style={styles.goLiveBtnText}>
+                {isNative ? "Go Live" : "Go Live (Demo)"}
+              </Text>
             </>
           )}
         </TouchableOpacity>
@@ -392,24 +398,28 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     zIndex: 10,
   },
-  unsupportedContainer: {
-    flex: 1,
+  demoCamera: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 40,
-    gap: 16,
   },
-  unsupportedTitle: {
-    fontSize: 22,
+  demoCameraInner: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 0,
+  },
+  demoCameraIcon: {
+    alignItems: "center",
+    gap: 10,
+  },
+  demoCameraLabel: {
+    fontSize: 18,
     fontWeight: "700",
     fontFamily: "Inter_700Bold",
-    textAlign: "center",
   },
-  unsupportedText: {
-    fontSize: 14,
+  demoCameraNote: {
+    color: "rgba(255,255,255,0.4)",
+    fontSize: 12,
     fontFamily: "Inter_400Regular",
-    textAlign: "center",
-    lineHeight: 22,
   },
   setupContent: {
     alignItems: "center",
@@ -521,6 +531,21 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontSize: 14,
     fontFamily: "Inter_500Medium",
+  },
+  demoBadge: {
+    backgroundColor: "rgba(255,255,255,0.15)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+  },
+  demoBadgeText: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 10,
+    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1,
   },
   liveInfoRow: {
     flexDirection: "row",

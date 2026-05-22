@@ -6,6 +6,7 @@ import {
   FlatList,
   Platform,
   RefreshControl,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -59,39 +60,43 @@ export default function DiscoveryScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Category filter */}
-      <FlatList
-        data={CATEGORIES}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoryList}
-        keyExtractor={(item) => item}
-        renderItem={({ item }) => {
-          const active = item === selectedCategory;
-          return (
-            <TouchableOpacity
-              style={[
-                styles.categoryChip,
-                {
-                  backgroundColor: active ? colors.primary : colors.secondary,
-                  borderColor: active ? colors.primary : colors.border,
-                },
-              ]}
-              onPress={() => setSelectedCategory(item)}
-              activeOpacity={0.8}
-            >
-              <Text
+      {/* Category filter — fixed-height row, no layout shifts */}
+      <View style={styles.categoryRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryList}
+        >
+          {CATEGORIES.map((item) => {
+            const active = item === selectedCategory;
+            return (
+              <TouchableOpacity
+                key={item}
                 style={[
-                  styles.categoryChipText,
-                  { color: active ? "#FFF" : colors.mutedForeground },
+                  styles.categoryChip,
+                  {
+                    backgroundColor: active
+                      ? colors.primary
+                      : colors.secondary,
+                    borderColor: active ? colors.primary : colors.border,
+                  },
                 ]}
+                onPress={() => setSelectedCategory(item)}
+                activeOpacity={0.8}
               >
-                {item}
-              </Text>
-            </TouchableOpacity>
-          );
-        }}
-      />
+                <Text
+                  style={[
+                    styles.categoryChipText,
+                    { color: active ? "#FFF" : colors.mutedForeground },
+                  ]}
+                >
+                  {item}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
 
       {/* Stream grid */}
       {isLoading ? (
@@ -105,7 +110,10 @@ export default function DiscoveryScreen() {
           keyExtractor={(item) => item.channelId}
           contentContainerStyle={[
             styles.grid,
-            { paddingBottom: insets.bottom + (Platform.OS === "web" ? 34 : 0) + 80 },
+            {
+              paddingBottom:
+                insets.bottom + (Platform.OS === "web" ? 34 : 0) + 80,
+            },
           ]}
           columnWrapperStyle={styles.row}
           refreshControl={
@@ -115,14 +123,19 @@ export default function DiscoveryScreen() {
               tintColor={colors.primary}
             />
           }
-          scrollEnabled={filtered.length > 0}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Ionicons name="radio-outline" size={48} color={colors.mutedForeground} />
+              <Ionicons
+                name="radio-outline"
+                size={48}
+                color={colors.mutedForeground}
+              />
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
                 No live streams
               </Text>
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+              <Text
+                style={[styles.emptyText, { color: colors.mutedForeground }]}
+              >
                 Be the first to go live
               </Text>
               <TouchableOpacity
@@ -150,7 +163,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingBottom: 14,
   },
   appName: {
     fontSize: 24,
@@ -177,24 +190,33 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontFamily: "Inter_700Bold",
   },
+  /* Fixed-height pill row — never shifts when a chip is selected */
+  categoryRow: {
+    height: 52,
+    justifyContent: "center",
+  },
   categoryList: {
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    alignItems: "center",
     gap: 8,
   },
   categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    height: 34,
+    paddingHorizontal: 18,
+    borderRadius: 17,
     borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   categoryChipText: {
     fontSize: 13,
     fontWeight: "600",
     fontFamily: "Inter_600SemiBold",
+    lineHeight: 16,
   },
   grid: {
     paddingHorizontal: 16,
+    paddingTop: 4,
   },
   row: {
     justifyContent: "space-between",
