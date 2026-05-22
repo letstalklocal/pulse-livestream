@@ -101,6 +101,73 @@ export const EndStreamResponse = zod.object({
 
 
 /**
+ * @summary Get user profile
+ */
+export const GetUserParams = zod.object({
+  "uid": zod.coerce.number()
+})
+
+export const GetUserResponse = zod.object({
+  "user": zod.object({
+  "uid": zod.number(),
+  "name": zod.string(),
+  "bio": zod.string(),
+  "followersCount": zod.number(),
+  "followingCount": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+})
+
+
+/**
+ * @summary Create or update user profile
+ */
+export const UpsertUserParams = zod.object({
+  "uid": zod.coerce.number()
+})
+
+export const UpsertUserBody = zod.object({
+  "name": zod.string(),
+  "bio": zod.string().optional()
+})
+
+export const UpsertUserResponse = zod.object({
+  "user": zod.object({
+  "uid": zod.number(),
+  "name": zod.string(),
+  "bio": zod.string(),
+  "followersCount": zod.number(),
+  "followingCount": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+})
+
+
+/**
+ * @summary Get stream history for a user
+ */
+export const GetUserStreamsParams = zod.object({
+  "uid": zod.coerce.number()
+})
+
+export const GetUserStreamsResponse = zod.object({
+  "streams": zod.array(zod.object({
+  "id": zod.number(),
+  "channelId": zod.string(),
+  "hostUid": zod.number(),
+  "hostName": zod.string(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "startedAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullish(),
+  "peakViewers": zod.number()
+}))
+})
+
+
+/**
  * Called periodically by the broadcaster to keep the stream alive. Streams that miss heartbeats are automatically removed.
  * @summary Broadcaster heartbeat
  */

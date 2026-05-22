@@ -25,9 +25,12 @@ import type {
   CreateStreamRequest,
   ErrorResponse,
   HealthStatus,
+  StreamHistoryResponse,
   StreamListResponse,
   StreamResponse,
   SuccessResponse,
+  UpsertUserRequest,
+  UserResponse,
   ViewerUpdateRequest
 } from './api.schemas';
 
@@ -491,6 +494,232 @@ export const useEndStream = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getEndStreamMutationOptions(options));
     }
+
+export const getGetUserUrl = (uid: number,) => {
+
+
+
+
+  return `/api/users/${uid}`
+}
+
+/**
+ * @summary Get user profile
+ */
+export const getUser = async (uid: number, options?: RequestInit): Promise<UserResponse> => {
+
+  return customFetch<UserResponse>(getGetUserUrl(uid),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetUserQueryKey = (uid: number,) => {
+    return [
+    `/api/users/${uid}`
+    ] as const;
+    }
+
+
+export const getGetUserQueryOptions = <TData = Awaited<ReturnType<typeof getUser>>, TError = ErrorType<ErrorResponse>>(uid: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUser>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetUserQueryKey(uid);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getUser>>> = ({ signal }) => getUser(uid, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(uid), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getUser>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetUserQueryResult = NonNullable<Awaited<ReturnType<typeof getUser>>>
+export type GetUserQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get user profile
+ */
+
+export function useGetUser<TData = Awaited<ReturnType<typeof getUser>>, TError = ErrorType<ErrorResponse>>(
+ uid: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUser>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetUserQueryOptions(uid,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpsertUserUrl = (uid: number,) => {
+
+
+
+
+  return `/api/users/${uid}`
+}
+
+/**
+ * @summary Create or update user profile
+ */
+export const upsertUser = async (uid: number,
+    upsertUserRequest: UpsertUserRequest, options?: RequestInit): Promise<UserResponse> => {
+
+  return customFetch<UserResponse>(getUpsertUserUrl(uid),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      upsertUserRequest,)
+  }
+);}
+
+
+
+
+export const getUpsertUserMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertUser>>, TError,{uid: number;data: BodyType<UpsertUserRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof upsertUser>>, TError,{uid: number;data: BodyType<UpsertUserRequest>}, TContext> => {
+
+const mutationKey = ['upsertUser'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof upsertUser>>, {uid: number;data: BodyType<UpsertUserRequest>}> = (props) => {
+          const {uid,data} = props ?? {};
+
+          return  upsertUser(uid,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpsertUserMutationResult = NonNullable<Awaited<ReturnType<typeof upsertUser>>>
+    export type UpsertUserMutationBody = BodyType<UpsertUserRequest>
+    export type UpsertUserMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create or update user profile
+ */
+export const useUpsertUser = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertUser>>, TError,{uid: number;data: BodyType<UpsertUserRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof upsertUser>>,
+        TError,
+        {uid: number;data: BodyType<UpsertUserRequest>},
+        TContext
+      > => {
+      return useMutation(getUpsertUserMutationOptions(options));
+    }
+
+export const getGetUserStreamsUrl = (uid: number,) => {
+
+
+
+
+  return `/api/users/${uid}/streams`
+}
+
+/**
+ * @summary Get stream history for a user
+ */
+export const getUserStreams = async (uid: number, options?: RequestInit): Promise<StreamHistoryResponse> => {
+
+  return customFetch<StreamHistoryResponse>(getGetUserStreamsUrl(uid),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetUserStreamsQueryKey = (uid: number,) => {
+    return [
+    `/api/users/${uid}/streams`
+    ] as const;
+    }
+
+
+export const getGetUserStreamsQueryOptions = <TData = Awaited<ReturnType<typeof getUserStreams>>, TError = ErrorType<unknown>>(uid: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUserStreams>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetUserStreamsQueryKey(uid);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getUserStreams>>> = ({ signal }) => getUserStreams(uid, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(uid), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getUserStreams>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetUserStreamsQueryResult = NonNullable<Awaited<ReturnType<typeof getUserStreams>>>
+export type GetUserStreamsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get stream history for a user
+ */
+
+export function useGetUserStreams<TData = Awaited<ReturnType<typeof getUserStreams>>, TError = ErrorType<unknown>>(
+ uid: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUserStreams>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetUserStreamsQueryOptions(uid,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getHeartbeatStreamUrl = (channelId: string,) => {
 

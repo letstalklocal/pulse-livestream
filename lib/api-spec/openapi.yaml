@@ -14,6 +14,8 @@ tags:
     description: Agora token operations
   - name: streams
     description: Live stream management
+  - name: users
+    description: User profile management
 paths:
   /healthz:
     get:
@@ -144,6 +146,73 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  /users/{uid}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get user profile
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: upsertUser
+      tags: [users]
+      summary: Create or update user profile
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertUserRequest"
+      responses:
+        "200":
+          description: Updated user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+
+  /users/{uid}/streams:
+    get:
+      operationId: getUserStreams
+      tags: [users]
+      summary: Get stream history for a user
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Stream history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StreamHistoryResponse"
 
   /streams/{channelId}/heartbeat:
     post:
@@ -343,3 +412,93 @@ components:
           type: string
       required:
         - error
+
+    UserProfile:
+      type: object
+      properties:
+        uid:
+          type: integer
+        name:
+          type: string
+        bio:
+          type: string
+        followersCount:
+          type: integer
+        followingCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - uid
+        - name
+        - bio
+        - followersCount
+        - followingCount
+        - createdAt
+        - updatedAt
+
+    UserResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/UserProfile"
+      required:
+        - user
+
+    UpsertUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        bio:
+          type: string
+      required:
+        - name
+
+    StreamHistoryItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        channelId:
+          type: string
+        hostUid:
+          type: integer
+        hostName:
+          type: string
+        title:
+          type: string
+        category:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+        peakViewers:
+          type: integer
+      required:
+        - id
+        - channelId
+        - hostUid
+        - hostName
+        - title
+        - category
+        - startedAt
+        - peakViewers
+
+    StreamHistoryResponse:
+      type: object
+      properties:
+        streams:
+          type: array
+          items:
+            $ref: "#/components/schemas/StreamHistoryItem"
+      required:
+        - streams

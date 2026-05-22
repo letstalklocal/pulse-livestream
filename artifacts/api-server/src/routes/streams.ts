@@ -1,4 +1,6 @@
 import { Router } from "express";
+import { eq } from "drizzle-orm";
+import { db, streamHistoryTable } from "@workspace/db";
 import { CreateStreamBody, UpdateViewerCountBody } from "@workspace/api-zod";
 
 const router = Router();
@@ -11,7 +13,8 @@ interface StreamRecord {
   viewerCount: number;
   startedAt: string;
   category: string;
-  lastHeartbeat: number; // ms timestamp — seed streams use a far-future value
+  lastHeartbeat: number;
+  peakViewers: number;
 }
 
 const streams = new Map<string, StreamRecord>();
@@ -19,7 +22,7 @@ const streams = new Map<string, StreamRecord>();
 // How long without a heartbeat before a real stream is considered dead (60 s)
 const HEARTBEAT_TTL_MS = 60_000;
 
-// Seed data so discovery is never empty — use Infinity so they're never expired
+// Seed data — Infinity heartbeat so they never expire
 const seedStreams: StreamRecord[] = [
   {
     channelId: "pulse-gaming-demo",
@@ -30,6 +33,7 @@ const seedStreams: StreamRecord[] = [
     startedAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
     category: "Gaming",
     lastHeartbeat: Infinity,
+    peakViewers: 342,
   },
   {
     channelId: "pulse-music-demo",
@@ -40,6 +44,7 @@ const seedStreams: StreamRecord[] = [
     startedAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
     category: "Music",
     lastHeartbeat: Infinity,
+    peakViewers: 189,
   },
   {
     channelId: "pulse-talk-demo",
@@ -50,6 +55,7 @@ const seedStreams: StreamRecord[] = [
     startedAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
     category: "Talk",
     lastHeartbeat: Infinity,
+    peakViewers: 512,
   },
   {
     channelId: "pulse-art-demo",
@@ -60,6 +66,7 @@ const seedStreams: StreamRecord[] = [
     startedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
     category: "Art",
     lastHeartbeat: Infinity,
+    peakViewers: 97,
   },
 ];
 
@@ -67,15 +74,36 @@ for (const s of seedStreams) {
   streams.set(s.channelId, s);
 }
 
-// Purge stale real streams every 5 seconds
-setInterval(() => {
+// Purge stale real streams every 5 s; write ended streams to DB history
+setInterval(async () => {
   const now = Date.now();
   for (const [id, stream] of streams) {
     if (stream.lastHeartbeat !== Infinity && now - stream.lastHeartbeat > HEARTBEAT_TTL_MS) {
       streams.delete(id);
+      await saveStreamHistory(stream, new Date());
     }
   }
 }, 5_000);
+
+async function saveStreamHistory(stream: StreamRecord, endedAt: Date) {
+  try {
+    await db
+      .insert(streamHistoryTable)
+      .values({
+        channelId: stream.channelId,
+        hostUid: stream.hostUid,
+        hostName: stream.hostName,
+        title: stream.title,
+        category: stream.category,
+        startedAt: new Date(stream.startedAt),
+        endedAt,
+        peakViewers: stream.peakViewers,
+      })
+      .onConflictDoNothing();
+  } catch (_e) {
+    // best effort
+  }
+}
 
 router.get("/streams", (_req, res) => {
   const list = Array.from(streams.values()).sort(
@@ -107,6 +135,7 @@ router.post("/streams", (req, res) => {
     startedAt: new Date().toISOString(),
     category,
     lastHeartbeat: Date.now(),
+    peakViewers: 0,
   };
 
   streams.set(channelId, stream);
@@ -122,17 +151,20 @@ router.get("/streams/:channelId", (req, res) => {
   res.json({ stream });
 });
 
-router.delete("/streams/:channelId", (req, res) => {
+router.delete("/streams/:channelId", async (req, res) => {
   const channelId = req.params["channelId"] ?? "";
-  if (!streams.has(channelId)) {
+  const stream = streams.get(channelId);
+  if (!stream) {
     res.status(404).json({ error: "Stream not found" });
     return;
   }
   streams.delete(channelId);
+  // Persist to history (non-blocking)
+  void saveStreamHistory(stream, new Date());
   res.json({ success: true });
 });
 
-// Heartbeat — broadcaster calls this every ~8 s to prove they're still live
+// Heartbeat — broadcaster pings every ~30 s to prove they're still live
 router.post("/streams/:channelId/heartbeat", (req, res) => {
   const channelId = req.params["channelId"] ?? "";
   const stream = streams.get(channelId);
@@ -161,6 +193,7 @@ router.post("/streams/:channelId/viewers", (req, res) => {
   const { action } = parsed.data;
   if (action === "join") {
     stream.viewerCount += 1;
+    stream.peakViewers = Math.max(stream.peakViewers, stream.viewerCount);
   } else if (action === "leave" && stream.viewerCount > 0) {
     stream.viewerCount -= 1;
   }

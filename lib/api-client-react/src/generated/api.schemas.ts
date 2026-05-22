@@ -86,3 +86,38 @@ export interface ErrorResponse {
   error: string;
 }
 
+export interface UserProfile {
+  uid: number;
+  name: string;
+  bio: string;
+  followersCount: number;
+  followingCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserResponse {
+  user: UserProfile;
+}
+
+export interface UpsertUserRequest {
+  name: string;
+  bio?: string;
+}
+
+export interface StreamHistoryItem {
+  id: number;
+  channelId: string;
+  hostUid: number;
+  hostName: string;
+  title: string;
+  category: string;
+  startedAt: string;
+  endedAt?: string | null;
+  peakViewers: number;
+}
+
+export interface StreamHistoryResponse {
+  streams: StreamHistoryItem[];
+}
+

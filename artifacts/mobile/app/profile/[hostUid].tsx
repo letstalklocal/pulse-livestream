@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Dimensions,
   Platform,
   ScrollView,
@@ -13,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useGetUser, useGetUserStreams } from "@workspace/api-client-react";
 import { Avatar } from "@/components/Avatar";
 import { useColors } from "@/hooks/useColors";
 
@@ -21,44 +23,61 @@ const GRID_CELL = (width - 4) / 3;
 
 const CATEGORY_COLORS: Record<string, [string, string]> = {
   Gaming: ["#7B4FFF", "#3D1FA8"],
-  Music: ["#FF1966", "#8B0030"],
-  Talk: ["#00C896", "#006B51"],
-  Art: ["#FF8C00", "#8B4700"],
-  Dance: ["#FF1966", "#8B0030"],
-  Other: ["#4FC3F7", "#1565C0"],
+  Music:  ["#FF1966", "#8B0030"],
+  Talk:   ["#00C896", "#006B51"],
+  Art:    ["#FF8C00", "#8B4700"],
+  Dance:  ["#FF1966", "#8B0030"],
+  Other:  ["#4FC3F7", "#1565C0"],
 };
-const CATEGORIES = Object.keys(CATEGORY_COLORS);
 
-function mockGrid(uid: number) {
-  return Array.from({ length: 12 }, (_, i) => {
-    const cat = CATEGORIES[(uid + i) % CATEGORIES.length]!;
-    const [c1, c2] = CATEGORY_COLORS[cat]!;
-    return { id: String(i), cat, c1, c2 };
-  });
+function catColors(cat: string): [string, string] {
+  return CATEGORY_COLORS[cat] ?? ["#4FC3F7", "#1565C0"];
+}
+
+function formatDate(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function fmtCount(n: number): string {
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n);
 }
 
 export default function PublicProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { hostUid, name, avatarUri } = useLocalSearchParams<{
+  const { hostUid, name: paramName, avatarUri: paramAvatarUri } = useLocalSearchParams<{
     hostUid: string;
     name: string;
     avatarUri?: string;
   }>();
 
   const uid = parseInt(hostUid ?? "0", 10);
-  const displayName = name ?? "Unknown";
-  const grid = mockGrid(uid);
+  const topInset = Platform.OS === "web" ? 67 : insets.top;
+
+  const { data: userData, isLoading: userLoading } = useGetUser(uid, {
+    query: { refetchOnWindowFocus: false, retry: false } as any,
+  });
+  const { data: historyData } = useGetUserStreams(uid, {
+    query: { refetchOnWindowFocus: false } as any,
+  });
+
+  const profile = userData?.user;
+  const displayName = profile?.name ?? paramName ?? "Unknown";
+  const bio = profile?.bio ?? "Streaming live on Pulse";
+  const followersCount = profile?.followersCount ?? 0;
+  const followingCount = profile?.followingCount ?? 0;
+  const streamHistory = historyData?.streams ?? [];
 
   const [followed, setFollowed] = useState(false);
-  const [followers, setFollowers] = useState(Math.floor(uid % 9000) + 200);
-
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
+  const [localFollowers, setLocalFollowers] = useState<number | null>(null);
+  const shownFollowers = localFollowers ?? followersCount;
 
   const toggleFollow = () => {
     setFollowed((f) => {
-      setFollowers((c) => (f ? c - 1 : c + 1));
+      const base = localFollowers ?? followersCount;
+      setLocalFollowers(f ? base - 1 : base + 1);
       return !f;
     });
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -81,80 +100,97 @@ export default function PublicProfileScreen() {
         {/* Header space */}
         <View style={{ height: topInset + 56 }} />
 
-        {/* Profile info */}
-        <View style={styles.profileBlock}>
-          <Avatar uid={uid} name={displayName} avatarUri={avatarUri} size={88} borderWidth={2} />
+        {userLoading ? (
+          <ActivityIndicator color={colors.primary} style={{ marginTop: 32 }} />
+        ) : (
+          <>
+            {/* Profile info */}
+            <View style={styles.profileBlock}>
+              <Avatar uid={uid} name={displayName} avatarUri={paramAvatarUri} size={88} borderWidth={2} />
 
-          <Text style={[styles.displayName, { color: colors.foreground }]}>
-            {displayName}
-          </Text>
-          <Text style={[styles.bio, { color: colors.mutedForeground }]}>
-            Streaming live on Pulse 🎙️
-          </Text>
-
-          {/* Stats */}
-          <View style={styles.statsRow}>
-            <View style={styles.stat}>
-              <Text style={[styles.statValue, { color: colors.foreground }]}>
-                {followers >= 1000 ? `${(followers / 1000).toFixed(1)}K` : followers}
+              <Text style={[styles.displayName, { color: colors.foreground }]}>
+                {displayName}
               </Text>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Followers</Text>
-            </View>
-            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-            <View style={styles.stat}>
-              <Text style={[styles.statValue, { color: colors.foreground }]}>
-                {Math.floor((uid % 300) + 10)}
-              </Text>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Following</Text>
-            </View>
-            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-            <View style={styles.stat}>
-              <Text style={[styles.statValue, { color: colors.foreground }]}>
-                {Math.floor((uid % 80) + 3)}
-              </Text>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Streams</Text>
-            </View>
-          </View>
+              {bio ? (
+                <Text style={[styles.bio, { color: colors.mutedForeground }]}>{bio}</Text>
+              ) : null}
 
-          {/* Follow button */}
-          <TouchableOpacity
-            style={[
-              styles.followBtn,
-              {
-                backgroundColor: followed ? "transparent" : colors.primary,
-                borderColor: followed ? colors.border : colors.primary,
-                borderWidth: 1,
-              },
-            ]}
-            onPress={toggleFollow}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.followBtnText, { color: followed ? colors.foreground : "#FFF" }]}>
-              {followed ? "Following" : "Follow"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Grid header */}
-        <View style={[styles.gridHeader, { borderColor: colors.border }]}>
-          <Ionicons name="grid-outline" size={20} color={colors.primary} />
-        </View>
-
-        {/* 3-column past streams grid */}
-        <View style={styles.grid}>
-          {grid.map((item) => (
-            <View
-              key={item.id}
-              style={[styles.gridCell, { backgroundColor: item.c2 }]}
-            >
-              <View style={[StyleSheet.absoluteFill, { backgroundColor: item.c1, opacity: 0.5 }]} />
-              <View style={styles.gridCellBadge}>
-                <View style={styles.gridLiveDot} />
+              {/* Stats */}
+              <View style={styles.statsRow}>
+                <View style={styles.stat}>
+                  <Text style={[styles.statValue, { color: colors.foreground }]}>
+                    {fmtCount(shownFollowers)}
+                  </Text>
+                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Followers</Text>
+                </View>
+                <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+                <View style={styles.stat}>
+                  <Text style={[styles.statValue, { color: colors.foreground }]}>
+                    {fmtCount(followingCount)}
+                  </Text>
+                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Following</Text>
+                </View>
+                <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+                <View style={styles.stat}>
+                  <Text style={[styles.statValue, { color: colors.foreground }]}>
+                    {streamHistory.length}
+                  </Text>
+                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Streams</Text>
+                </View>
               </View>
-              <Text style={styles.gridCellLabel}>{item.cat.slice(0, 2).toUpperCase()}</Text>
+
+              {/* Follow button */}
+              <TouchableOpacity
+                style={[
+                  styles.followBtn,
+                  {
+                    backgroundColor: followed ? "transparent" : colors.primary,
+                    borderColor: followed ? colors.border : colors.primary,
+                    borderWidth: 1,
+                  },
+                ]}
+                onPress={toggleFollow}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.followBtnText, { color: followed ? colors.foreground : "#FFF" }]}>
+                  {followed ? "Following" : "Follow"}
+                </Text>
+              </TouchableOpacity>
             </View>
-          ))}
-        </View>
+
+            {/* Grid header */}
+            <View style={[styles.gridHeader, { borderColor: colors.border }]}>
+              <Ionicons name="grid-outline" size={20} color={colors.primary} />
+            </View>
+
+            {/* 3-column past streams grid */}
+            {streamHistory.length === 0 ? (
+              <View style={styles.emptyGrid}>
+                <Ionicons name="radio-outline" size={36} color={colors.mutedForeground} />
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                  No past streams yet
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.grid}>
+                {streamHistory.map((item) => {
+                  const [c1, c2] = catColors(item.category);
+                  return (
+                    <View key={item.id} style={[styles.gridCell, { backgroundColor: c2 }]}>
+                      <View style={[StyleSheet.absoluteFill, { backgroundColor: c1, opacity: 0.5 }]} />
+                      <Text style={styles.gridCellLabel}>{item.category.slice(0, 2).toUpperCase()}</Text>
+                      <Text style={styles.gridCellDate}>{formatDate(item.startedAt)}</Text>
+                      <View style={styles.gridCellViewers}>
+                        <Ionicons name="eye-outline" size={10} color="rgba(255,255,255,0.7)" />
+                        <Text style={styles.gridCellViewersText}>{item.peakViewers}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </>
+        )}
 
         <View style={{ height: insets.bottom + 24 }} />
       </ScrollView>
@@ -196,7 +232,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginTop: 6,
-    gap: 0,
   },
   stat: { flex: 1, alignItems: "center", gap: 2 },
   statDivider: { width: 1, height: 30, marginHorizontal: 12 },
@@ -217,6 +252,12 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderBottomWidth: 1,
   },
+  emptyGrid: {
+    alignItems: "center",
+    paddingVertical: 48,
+    gap: 8,
+  },
+  emptyText: { fontSize: 15, fontWeight: "600", fontFamily: "Inter_500Medium" },
   grid: { flexDirection: "row", flexWrap: "wrap" },
   gridCell: {
     width: GRID_CELL,
@@ -225,23 +266,31 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
+    padding: 6,
   },
-  gridCellBadge: {
-    position: "absolute",
-    top: 6,
-    left: 6,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#FF1966",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  gridLiveDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "#FFF" },
   gridCellLabel: {
     fontSize: 22,
     fontWeight: "800",
     color: "rgba(255,255,255,0.25)",
     fontFamily: "Inter_700Bold",
+  },
+  gridCellDate: {
+    fontSize: 9,
+    color: "rgba(255,255,255,0.6)",
+    fontFamily: "Inter_400Regular",
+    marginTop: 2,
+  },
+  gridCellViewers: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    position: "absolute",
+    bottom: 6,
+    right: 6,
+  },
+  gridCellViewersText: {
+    fontSize: 9,
+    color: "rgba(255,255,255,0.7)",
+    fontFamily: "Inter_400Regular",
   },
 });

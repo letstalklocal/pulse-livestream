@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { upsertUser } from "@workspace/api-client-react";
 import React, {
   createContext,
   useCallback,
@@ -49,6 +50,14 @@ const AuthContext = createContext<AuthContextValue>({
   updateUser: () => {},
 });
 
+async function syncUserToServer(user: User) {
+  try {
+    await upsertUser(user.uid, { name: user.name, bio: user.bio });
+  } catch {
+    // best effort — offline or server down
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User>(defaultUser);
 
@@ -58,11 +67,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const saved = JSON.parse(raw) as User;
           setUser(saved);
+          void syncUserToServer(saved);
         } catch {
           // ignore
         }
       } else {
         AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(defaultUser));
+        void syncUserToServer(defaultUser);
       }
     });
   }, []);
@@ -71,6 +82,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser((prev) => {
       const updated = { ...prev, ...fields };
       AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      // Sync name/bio to server (skip avatarUri — kept local only)
+      if (fields.name !== undefined || fields.bio !== undefined) {
+        void syncUserToServer(updated);
+      }
       return updated;
     });
   }, []);

@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useGetUserStreams } from "@workspace/api-client-react";
 import { Avatar } from "@/components/Avatar";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
@@ -31,14 +32,14 @@ const CATEGORY_COLORS: Record<string, [string, string]> = {
   Dance:  ["#FF1966", "#8B0030"],
   Other:  ["#4FC3F7", "#1565C0"],
 };
-const CATEGORIES = Object.keys(CATEGORY_COLORS);
 
-function mockGrid(uid: number) {
-  return Array.from({ length: 12 }, (_, i) => {
-    const cat = CATEGORIES[(uid + i) % CATEGORIES.length]!;
-    const [c1, c2] = CATEGORY_COLORS[cat]!;
-    return { id: String(i), cat, c1, c2 };
-  });
+function catColors(cat: string): [string, string] {
+  return CATEGORY_COLORS[cat] ?? ["#4FC3F7", "#1565C0"];
+}
+
+function formatDate(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 export default function ProfileScreen() {
@@ -52,7 +53,11 @@ export default function ProfileScreen() {
   const [editBio, setEditBio] = useState(user.bio);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
-  const grid = mockGrid(user.uid);
+
+  const { data: historyData } = useGetUserStreams(user.uid, {
+    query: { refetchOnWindowFocus: false } as any,
+  });
+  const streamHistory = historyData?.streams ?? [];
 
   const pickAvatar = async () => {
     if (Platform.OS === "web") {
@@ -183,7 +188,7 @@ export default function ProfileScreen() {
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.stat}>
-              <Text style={[styles.statValue, { color: colors.foreground }]}>0</Text>
+              <Text style={[styles.statValue, { color: colors.foreground }]}>{streamHistory.length}</Text>
               <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Streams</Text>
             </View>
           </View>
@@ -205,17 +210,34 @@ export default function ProfileScreen() {
         </View>
 
         {/* Past streams grid */}
-        <View style={styles.grid}>
-          {grid.map((item) => (
-            <View key={item.id} style={[styles.gridCell, { backgroundColor: item.c2 }]}>
-              <View style={[StyleSheet.absoluteFill, { backgroundColor: item.c1, opacity: 0.5 }]} />
-              <View style={styles.gridCellBadge}>
-                <View style={styles.gridLiveDot} />
-              </View>
-              <Text style={styles.gridCellLabel}>{item.cat.slice(0, 2).toUpperCase()}</Text>
-            </View>
-          ))}
-        </View>
+        {streamHistory.length === 0 ? (
+          <View style={styles.emptyGrid}>
+            <Ionicons name="radio-outline" size={36} color={colors.mutedForeground} />
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+              No past streams yet
+            </Text>
+            <Text style={[styles.emptySubText, { color: colors.mutedForeground }]}>
+              Go live to start building your history
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.grid}>
+            {streamHistory.map((item) => {
+              const [c1, c2] = catColors(item.category);
+              return (
+                <View key={item.id} style={[styles.gridCell, { backgroundColor: c2 }]}>
+                  <View style={[StyleSheet.absoluteFill, { backgroundColor: c1, opacity: 0.5 }]} />
+                  <Text style={styles.gridCellLabel}>{item.category.slice(0, 2).toUpperCase()}</Text>
+                  <Text style={styles.gridCellDate}>{formatDate(item.startedAt)}</Text>
+                  <View style={styles.gridCellViewers}>
+                    <Ionicons name="eye-outline" size={10} color="rgba(255,255,255,0.7)" />
+                    <Text style={styles.gridCellViewersText}>{item.peakViewers}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
 
         <View style={{ height: insets.bottom + (Platform.OS === "web" ? 34 : 0) + 80 }} />
       </ScrollView>
@@ -288,6 +310,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderBottomWidth: 1,
   },
+  emptyGrid: {
+    alignItems: "center",
+    paddingVertical: 48,
+    gap: 8,
+  },
+  emptyText: { fontSize: 15, fontWeight: "600", fontFamily: "Inter_500Medium" },
+  emptySubText: { fontSize: 13, fontFamily: "Inter_400Regular" },
   grid: { flexDirection: "row", flexWrap: "wrap" },
   gridCell: {
     width: GRID_CELL,
@@ -296,21 +325,31 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
+    padding: 6,
   },
-  gridCellBadge: {
-    position: "absolute",
-    top: 6,
-    left: 6,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#FF1966",
-  },
-  gridLiveDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "#FFF" },
   gridCellLabel: {
     fontSize: 22,
     fontWeight: "800",
     color: "rgba(255,255,255,0.25)",
     fontFamily: "Inter_700Bold",
+  },
+  gridCellDate: {
+    fontSize: 9,
+    color: "rgba(255,255,255,0.6)",
+    fontFamily: "Inter_400Regular",
+    marginTop: 2,
+  },
+  gridCellViewers: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    position: "absolute",
+    bottom: 6,
+    right: 6,
+  },
+  gridCellViewersText: {
+    fontSize: 9,
+    color: "rgba(255,255,255,0.7)",
+    fontFamily: "Inter_400Regular",
   },
 });
