@@ -159,9 +159,11 @@ export default function StreamScreen() {
         engineRef.current = engine;
 
         const tokenData = await generateToken.mutateAsync({
-          channelName: channelId,
-          uid: user.uid,
-          role: "audience",
+          data: {
+            channelName: channelId,
+            uid: user.uid,
+            role: "audience",
+          },
         });
         await engine.joinChannel(tokenData.token, channelId, user.uid, {
           clientRoleType: ClientRoleType.ClientRoleAudience,
@@ -202,8 +204,8 @@ export default function StreamScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: "#000" }]}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={0}
+      behavior="padding"
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
     >
       {/* Video / demo background */}
       {showNativeVideo ? (

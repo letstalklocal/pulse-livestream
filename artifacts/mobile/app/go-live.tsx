@@ -131,17 +131,21 @@ export default function GoLiveScreen() {
 
     try {
       const tokenData = await generateToken.mutateAsync({
-        channelName: channelId,
-        uid: user.uid,
-        role: "broadcaster",
+        data: {
+          channelName: channelId,
+          uid: user.uid,
+          role: "broadcaster",
+        },
       });
 
       await createStream.mutateAsync({
-        channelId,
-        hostUid: user.uid,
-        hostName: user.name,
-        title: title.trim(),
-        category,
+        data: {
+          channelId,
+          hostUid: user.uid,
+          hostName: user.name,
+          title: title.trim(),
+          category,
+        },
       });
 
       if (isNative && engineRef.current) {
