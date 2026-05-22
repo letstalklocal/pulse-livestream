@@ -46,7 +46,7 @@ function RootLayoutNav() {
       />
       <Stack.Screen
         name="stream/[channelId]"
-        options={{ headerShown: false, presentation: "fullScreenModal" }}
+        options={{ headerShown: false, presentation: "fullScreenModal", animation: "none" }}
       />
     </Stack>
   );

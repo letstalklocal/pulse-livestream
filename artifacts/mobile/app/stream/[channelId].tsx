@@ -287,24 +287,27 @@ export default function StreamScreen() {
   const showNativeVideo = isNative && joined && remoteUid !== null && VideoView;
 
   return (
+    <Animated.View
+      style={[styles.container, { backgroundColor: "#000", transform: [{ translateY: slideAnim }] }]}
+      {...panResponder.panHandlers}
+    >
     <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: "#000" }]}
+      style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={0}
     >
-      {/* Swipeable video area */}
-      <Animated.View
-        style={[StyleSheet.absoluteFill, { transform: [{ translateY: slideAnim }] }]}
-        {...panResponder.panHandlers}
+      {/* Full-screen video area */}
+      <View
+        style={StyleSheet.absoluteFill}
       >
         {showNativeVideo && VideoView ? (
           <VideoView canvas={{ uid: remoteUid! }} style={StyleSheet.absoluteFill} />
         ) : (
           <DemoVideo category={stream?.category} />
         )}
-      </Animated.View>
+      </View>
 
-      {/* Overlay UI — not part of pan responder so touches work normally */}
+      {/* Overlay UI */}
       <View
         style={[
           styles.overlay,
@@ -430,6 +433,7 @@ export default function StreamScreen() {
         </View>
       </View>
     </KeyboardAvoidingView>
+    </Animated.View>
   );
 }
 
