@@ -59,8 +59,6 @@ export function StreamCard({ stream }: Props) {
     >
       {/* Thumbnail */}
       <View style={[styles.thumbnail, { backgroundColor: bg2 }]}>
-        <View style={[styles.thumbnailGradient, { backgroundColor: bg1 }]} />
-
         {/* Centred avatar placeholder */}
         <View style={styles.thumbnailContent}>
           <Avatar uid={stream.hostUid} name={stream.hostName} size={48} />
@@ -119,11 +117,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
-  },
-  thumbnailGradient: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.6,
-    top: "40%",
   },
   thumbnailContent: { alignItems: "center", justifyContent: "center" },
   liveBadge: {
