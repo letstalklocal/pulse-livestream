@@ -37,7 +37,7 @@ const proxyUrl = process.env["EXPO_PUBLIC_CLERK_PROXY_URL"] || undefined;
 
 function RootLayoutNav() {
   return (
-    <Stack>
+    <Stack screenOptions={{ contentStyle: { backgroundColor: '#08080F' } }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="profile/[hostUid]" options={{ headerShown: false }} />

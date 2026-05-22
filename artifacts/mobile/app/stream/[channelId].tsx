@@ -240,7 +240,6 @@ export default function StreamScreen() {
       duration: 320,
       useNativeDriver: true,
     }).start(() => {
-      slideAnim.setValue(0);
       isNavigatingRef.current = false;
       router.replace(`/stream/${targetChannelId}?from=${direction}` as any);
     });
