@@ -101,7 +101,7 @@ function DemoVideo({ category }: { category?: string }) {
 export default function StreamScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { channelId, from } = useLocalSearchParams<{ channelId: string; from?: string }>();
+  const { channelId } = useLocalSearchParams<{ channelId: string }>();
   const SCREEN_H = Dimensions.get("window").height;
   const { user } = useAuth();
 
@@ -115,6 +115,10 @@ export default function StreamScreen() {
 
   // Slide animation for swipe transitions
   const slideAnim = useRef(new Animated.Value(0)).current;
+  // Overlay animation for the incoming stream during transition
+  const transitionAnim = useRef(new Animated.Value(SCREEN_H)).current;
+  const [transitionCategory, setTransitionCategory] = useState<string | undefined>(undefined);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   // Hint arrow fade-in
   const hintOpacity = useRef(new Animated.Value(0)).current;
   const isNavigatingRef = useRef(false);
@@ -137,20 +141,6 @@ export default function StreamScreen() {
 
   const generateToken = useGenerateAgoraToken();
   const updateViewers = useUpdateViewerCount();
-
-  // Entrance animation — slide in from below when navigated via swipe
-  useEffect(() => {
-    if (from === "up" || from === "down") {
-      const startY = from === "up" ? SCREEN_H : -SCREEN_H;
-      slideAnim.setValue(startY);
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 320,
-        useNativeDriver: true,
-      }).start();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Show swipe-up hint briefly when a next stream is available
   useEffect(() => {
@@ -234,14 +224,21 @@ export default function StreamScreen() {
     isNavigatingRef.current = true;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    const toValue = direction === "up" ? -SCREEN_H : SCREEN_H;
-    Animated.timing(slideAnim, {
-      toValue,
-      duration: 320,
-      useNativeDriver: true,
-    }).start(() => {
+    const exitValue = direction === "up" ? -SCREEN_H : SCREEN_H;
+    const entryStart = direction === "up" ? SCREEN_H : -SCREEN_H;
+    const targetCategory = allStreams.find((s) => s.channelId === targetChannelId)?.category;
+
+    transitionAnim.setValue(entryStart);
+    setTransitionCategory(targetCategory);
+    setIsTransitioning(true);
+
+    Animated.parallel([
+      Animated.timing(slideAnim, { toValue: exitValue, duration: 320, useNativeDriver: true }),
+      Animated.timing(transitionAnim, { toValue: 0, duration: 320, useNativeDriver: true }),
+    ]).start(() => {
       isNavigatingRef.current = false;
-      router.replace(`/stream/${targetChannelId}?from=${direction}` as any);
+      setIsTransitioning(false);
+      router.replace(`/stream/${targetChannelId}` as any);
     });
   };
 
@@ -302,8 +299,9 @@ export default function StreamScreen() {
   const showNativeVideo = isNative && joined && remoteUid !== null && VideoView;
 
   return (
+    <View style={styles.container}>
     <Animated.View
-      style={[styles.container, { backgroundColor: "#000", transform: [{ translateY: slideAnim }] }]}
+      style={[StyleSheet.absoluteFill, { backgroundColor: "#000", transform: [{ translateY: slideAnim }] }]}
       {...panResponder.panHandlers}
     >
     <KeyboardAvoidingView
@@ -449,6 +447,17 @@ export default function StreamScreen() {
       </View>
     </KeyboardAvoidingView>
     </Animated.View>
+
+    {/* Incoming stream overlay — slides in simultaneously with current screen sliding out */}
+    {isTransitioning && (
+      <Animated.View
+        style={[StyleSheet.absoluteFill, { transform: [{ translateY: transitionAnim }] }]}
+        pointerEvents="none"
+      >
+        <DemoVideo category={transitionCategory} />
+      </Animated.View>
+    )}
+    </View>
   );
 }
 
