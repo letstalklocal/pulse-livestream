@@ -24,7 +24,9 @@ import {
   useListStreams,
   useUpdateViewerCount,
 } from "@workspace/api-client-react";
+import type { Stream } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
+import { Avatar } from "@/components/Avatar";
 import {
   ChannelProfileType,
   ClientRoleType,
@@ -56,66 +58,99 @@ const CHAT_POOL = [
 const COLORS = ["#FF1966", "#7B4FFF", "#00C896", "#FF8C00", "#4FC3F7", "#FFD700"];
 
 const SEED_CHAT: ChatMsg[] = [
-  { id: "s1", sender: "viewer_neon",  text: "Wow amazing stream!",           color: "#FF1966" },
-  { id: "s2", sender: "cosmic_fan",   text: "First time watching, love it",  color: "#7B4FFF" },
-  { id: "s3", sender: "pulse_user99", text: "Keep it up! 🔥",               color: "#00C896" },
+  { id: "s1", sender: "viewer_neon",  text: "Wow amazing stream!",          color: "#FF1966" },
+  { id: "s2", sender: "cosmic_fan",   text: "First time watching, love it", color: "#7B4FFF" },
+  { id: "s3", sender: "pulse_user99", text: "Keep it up! 🔥",              color: "#00C896" },
 ];
 
-const CATEGORY_COLORS: Record<string, [string, string]> = {
-  Gaming: ["#7B4FFF", "#3D1FA8"],
-  Music:  ["#FF1966", "#8B0030"],
-  Talk:   ["#00C896", "#006B51"],
-  Art:    ["#FF8C00", "#8B4700"],
-  Dance:  ["#FF1966", "#8B0030"],
-  Other:  ["#4FC3F7", "#1565C0"],
+const CATEGORY_BG: Record<string, string> = {
+  Gaming: "#1A0A3D",
+  Music:  "#1A0010",
+  Talk:   "#001A12",
+  Art:    "#1A0800",
+  Dance:  "#1A0010",
+  Other:  "#050D1A",
 };
 
-// ─── Lightweight background tile for adjacent streams ──────────────────────
-function StreamTile({ category }: { category?: string }) {
-  const [bg1, bg2] = CATEGORY_COLORS[category ?? ""] ?? CATEGORY_COLORS["Other"]!;
-  const shift = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(shift, { toValue: 1, duration: 3000, useNativeDriver: false }),
-        Animated.timing(shift, { toValue: 0, duration: 3000, useNativeDriver: false }),
-      ]),
-    ).start();
-  }, [shift]);
-  const bgColor = shift.interpolate({ inputRange: [0, 1], outputRange: [bg2, bg1] });
+const CATEGORY_ACCENT: Record<string, string> = {
+  Gaming: "#7B4FFF",
+  Music:  "#FF1966",
+  Talk:   "#00C896",
+  Art:    "#FF8C00",
+  Dance:  "#FF1966",
+  Other:  "#4FC3F7",
+};
+
+// ─── Profile card shown while adjacent stream is off-screen ───────────────
+function StreamProfileCard({ stream }: { stream: Stream }) {
+  const bg     = CATEGORY_BG[stream.category]     ?? "#08080F";
+  const accent = CATEGORY_ACCENT[stream.category] ?? "#FF1966";
+
   return (
-    <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: bgColor }]}>
-      <View style={styles.videoCenter}>
-        <Text style={styles.videoInitials}>
-          {(category ?? "?").slice(0, 2).toUpperCase()}
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: bg }]}>
+      {/* Subtle radial glow behind avatar */}
+      <View style={[styles.cardGlow, { backgroundColor: accent + "22" }]} />
+
+      <View style={styles.cardContent}>
+        <Avatar uid={stream.hostUid} name={stream.hostName} size={160} borderWidth={3} />
+
+        <Text style={styles.cardName}>{stream.hostName}</Text>
+
+        <View style={[styles.cardLiveBadge, { backgroundColor: accent }]}>
+          <View style={styles.liveDot} />
+          <Text style={styles.cardLiveBadgeText}>LIVE</Text>
+        </View>
+
+        <View style={styles.cardViewers}>
+          <Ionicons name="eye" size={13} color="rgba(255,255,255,0.6)" />
+          <Text style={styles.cardViewersText}>
+            {stream.viewerCount >= 1000
+              ? `${(stream.viewerCount / 1000).toFixed(1)}K viewers`
+              : `${stream.viewerCount} viewers`}
+          </Text>
+        </View>
+
+        <Text style={styles.cardTitle} numberOfLines={2}>
+          {stream.title}
         </Text>
       </View>
-    </Animated.View>
+    </View>
   );
 }
 
-// ─── Full stream content (video + overlay) for the active slot ─────────────
+// ─── Full stream content: video + overlay (fades in after snap) ───────────
 interface StreamContentProps {
   channelId: string;
+  stream: Stream | undefined;
   panHandlers: object;
   onBack: () => void;
-  insets: { top: number; bottom: number };
+  topPad: number;
+  bottomPad: number;
 }
 
-function StreamContent({ channelId, panHandlers, onBack, insets }: StreamContentProps) {
+function StreamContent({ channelId, stream, panHandlers, onBack, topPad, bottomPad }: StreamContentProps) {
   const { user } = useAuth();
-  const [remoteUid, setRemoteUid] = useState<number | null>(null);
-  const [messages, setMessages] = useState<ChatMsg[]>(SEED_CHAT);
-  const [inputText, setInputText] = useState("");
-  const [joined, setJoined] = useState(false);
-  const [likeCount, setLikeCount] = useState(Math.floor(Math.random() * 500) + 50);
+  const [remoteUid, setRemoteUid]   = useState<number | null>(null);
+  const [messages,  setMessages]    = useState<ChatMsg[]>(SEED_CHAT);
+  const [inputText, setInputText]   = useState("");
+  const [joined,    setJoined]      = useState(false);
+  const [likeCount, setLikeCount]   = useState(Math.floor(Math.random() * 500) + 50);
   const engineRef = useRef<any>(null);
-  const listRef = useRef<FlatList>(null);
+  const listRef   = useRef<FlatList>(null);
 
-  const { data: streamData } = useGetStream(channelId, {
-    query: { enabled: !!channelId, refetchInterval: 5000 } as any,
-  });
-  const stream = streamData?.stream;
+  // Fade the overlay in after snap settles
+  const revealAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(revealAnim, {
+      toValue: 1,
+      duration: 380,
+      delay: 180,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const generateToken = useGenerateAgoraToken();
   const updateViewers = useUpdateViewerCount();
 
@@ -130,14 +165,13 @@ function StreamContent({ channelId, panHandlers, onBack, insets }: StreamContent
     return () => clearInterval(interval);
   }, []);
 
-  // Auto-scroll chat
   useEffect(() => {
     if (messages.length > 0) {
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
     }
   }, [messages]);
 
-  // Join Agora channel on native
+  // Join Agora
   useEffect(() => {
     if (!channelId || !isNative) return;
     let didUnmount = false;
@@ -154,9 +188,7 @@ function StreamContent({ channelId, panHandlers, onBack, insets }: StreamContent
         engine.addListener("onUserPublished", (_conn: any, uid: number) => {
           if (!didUnmount) { engine.subscribeVideo(uid, {}); setRemoteUid(uid); }
         });
-        engine.addListener("onUserOffline", () => {
-          if (!didUnmount) setRemoteUid(null);
-        });
+        engine.addListener("onUserOffline", () => { if (!didUnmount) setRemoteUid(null); });
         engineRef.current = engine;
         const tokenData = await generateToken.mutateAsync({
           data: { channelName: channelId, uid: user?.uid ?? 0, role: "audience" },
@@ -190,134 +222,140 @@ function StreamContent({ channelId, panHandlers, onBack, insets }: StreamContent
     Haptics.selectionAsync();
   };
 
-  const topPad    = Platform.OS === "web" ? 67 : insets.top;
-  const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const VideoView = RtcSurfaceViewComponent;
   const showNativeVideo = isNative && joined && remoteUid !== null && VideoView;
+  const bg     = CATEGORY_BG[stream?.category ?? ""]     ?? "#08080F";
+  const accent = CATEGORY_ACCENT[stream?.category ?? ""] ?? "#FF1966";
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={0}
-    >
-      {/* Full-screen video background */}
-      <View style={StyleSheet.absoluteFill}>
-        {showNativeVideo && VideoView ? (
-          <VideoView canvas={{ uid: remoteUid! }} style={StyleSheet.absoluteFill} />
-        ) : (
-          <StreamTile category={stream?.category} />
-        )}
-      </View>
-
-      {/* Swipe-gesture capture layer — middle of screen, passes touches to children */}
-      <View style={[StyleSheet.absoluteFill, styles.gestureLayer]} {...panHandlers} pointerEvents="box-none" />
-
-      {/* Overlay UI */}
-      <View
-        style={[styles.overlay, { paddingTop: topPad + 8, paddingBottom: bottomPad + 8 }]}
-        pointerEvents="box-none"
+    <Animated.View style={[StyleSheet.absoluteFill, { opacity: revealAnim }]}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={0}
       >
-        {/* Top bar */}
-        <View style={styles.topBar} pointerEvents="auto">
-          <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.8}>
-            <Ionicons name="chevron-down" size={22} color="#FFF" />
-          </TouchableOpacity>
-          <View style={styles.streamMeta}>
-            {stream && (
-              <View style={styles.hostRow}>
-                <Text style={styles.hostName}>{stream.hostName}</Text>
-                <View style={styles.liveBadge}>
-                  <View style={styles.liveDot} />
-                  <Text style={styles.liveBadgeText}>LIVE</Text>
+        {/* Video background */}
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: bg }]}>
+          {/* Accent glow */}
+          <View style={[styles.cardGlow, { backgroundColor: accent + "22" }]} />
+          {showNativeVideo && VideoView ? (
+            <VideoView canvas={{ uid: remoteUid! }} style={StyleSheet.absoluteFill} />
+          ) : (
+            /* Live stream art: avatar centred behind the UI */
+            <View style={styles.liveBackground}>
+              <Avatar uid={stream?.hostUid ?? 0} name={stream?.hostName ?? "?"} size={220} borderWidth={0} />
+            </View>
+          )}
+        </View>
+
+        {/* Gesture capture — sits between video and overlay */}
+        <View style={StyleSheet.absoluteFill} {...panHandlers} pointerEvents="box-none" />
+
+        {/* Overlay UI */}
+        <View
+          style={[styles.overlay, { paddingTop: topPad + 8, paddingBottom: bottomPad + 8 }]}
+          pointerEvents="box-none"
+        >
+          {/* Top bar */}
+          <View style={styles.topBar} pointerEvents="auto">
+            <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.8}>
+              <Ionicons name="chevron-down" size={22} color="#FFF" />
+            </TouchableOpacity>
+            <View style={styles.streamMeta}>
+              {stream && (
+                <View style={styles.hostRow}>
+                  <Text style={styles.hostName}>{stream.hostName}</Text>
+                  <View style={[styles.liveBadge, { backgroundColor: accent }]}>
+                    <View style={styles.liveDot} />
+                    <Text style={styles.liveBadgeText}>LIVE</Text>
+                  </View>
                 </View>
-              </View>
-            )}
+              )}
+            </View>
+            <View style={styles.viewerBadge}>
+              <Ionicons name="eye" size={13} color="#FFF" />
+              <Text style={styles.viewerText}>
+                {stream?.viewerCount != null
+                  ? stream.viewerCount >= 1000
+                    ? `${(stream.viewerCount / 1000).toFixed(1)}K`
+                    : stream.viewerCount
+                  : "—"}
+              </Text>
+            </View>
           </View>
-          <View style={styles.viewerBadge}>
-            <Ionicons name="eye" size={13} color="#FFF" />
-            <Text style={styles.viewerText}>
-              {stream?.viewerCount != null
-                ? stream.viewerCount >= 1000
-                  ? `${(stream.viewerCount / 1000).toFixed(1)}K`
-                  : stream.viewerCount
-                : "—"}
+
+          {stream && (
+            <Text style={styles.streamTitle} numberOfLines={2} pointerEvents="none">
+              {stream.title}
             </Text>
+          )}
+
+          <View style={styles.swipeZone} pointerEvents="none" />
+
+          {/* Live chat */}
+          <View style={styles.chatArea} pointerEvents="box-none">
+            <FlatList
+              ref={listRef}
+              data={messages}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.chatList}
+              showsVerticalScrollIndicator={false}
+              style={styles.chatScroll}
+              renderItem={({ item }) => (
+                <View style={styles.chatBubble}>
+                  <Text style={[styles.chatSender, { color: item.color }]}>{item.sender}: </Text>
+                  <Text style={styles.chatText}>{item.text}</Text>
+                </View>
+              )}
+            />
+          </View>
+
+          {/* Bottom actions */}
+          <View style={styles.bottomBar} pointerEvents="auto">
+            <TextInput
+              style={styles.chatInput}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Say something…"
+              placeholderTextColor="rgba(255,255,255,0.45)"
+              onSubmitEditing={sendMessage}
+              returnKeyType="send"
+              blurOnSubmit={false}
+            />
+            <TouchableOpacity
+              style={styles.actionBtn}
+              onPress={() => {
+                setLikeCount((c) => c + 1);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="heart" size={24} color="#FF1966" />
+              <Text style={styles.actionBtnText}>{likeCount}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7}>
+              <Ionicons name="gift-outline" size={24} color="#FFD700" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionBtn}
+              activeOpacity={0.7}
+              onPress={() => {
+                const domain = process.env["EXPO_PUBLIC_DOMAIN"] ?? "pulse.app";
+                Share.share({
+                  title: stream ? `${stream.hostName} is live on Pulse` : "Watch live on Pulse",
+                  message: stream
+                    ? `🔴 ${stream.hostName} is streaming "${stream.title}" on Pulse!\nhttps://${domain}/stream/${channelId}`
+                    : `Watch live streams on Pulse!\nhttps://${domain}`,
+                });
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+            >
+              <Ionicons name="share-outline" size={24} color="#FFF" />
+            </TouchableOpacity>
           </View>
         </View>
-
-        {stream && (
-          <Text style={styles.streamTitle} numberOfLines={2} pointerEvents="none">
-            {stream.title}
-          </Text>
-        )}
-
-        {/* Middle spacer (swipe zone) */}
-        <View style={styles.swipeZone} pointerEvents="none" />
-
-        {/* Live chat */}
-        <View style={styles.chatArea} pointerEvents="box-none">
-          <FlatList
-            ref={listRef}
-            data={messages}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.chatList}
-            showsVerticalScrollIndicator={false}
-            style={styles.chatScroll}
-            renderItem={({ item }) => (
-              <View style={styles.chatBubble}>
-                <Text style={[styles.chatSender, { color: item.color }]}>{item.sender}: </Text>
-                <Text style={styles.chatText}>{item.text}</Text>
-              </View>
-            )}
-          />
-        </View>
-
-        {/* Bottom actions */}
-        <View style={styles.bottomBar} pointerEvents="auto">
-          <TextInput
-            style={styles.chatInput}
-            value={inputText}
-            onChangeText={setInputText}
-            placeholder="Say something…"
-            placeholderTextColor="rgba(255,255,255,0.45)"
-            onSubmitEditing={sendMessage}
-            returnKeyType="send"
-            blurOnSubmit={false}
-          />
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => {
-              setLikeCount((c) => c + 1);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="heart" size={24} color="#FF1966" />
-            <Text style={styles.actionBtnText}>{likeCount}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7}>
-            <Ionicons name="gift-outline" size={24} color="#FFD700" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            activeOpacity={0.7}
-            onPress={() => {
-              const domain = process.env["EXPO_PUBLIC_DOMAIN"] ?? "pulse.app";
-              Share.share({
-                title: stream ? `${stream.hostName} is live on Pulse` : "Watch live on Pulse",
-                message: stream
-                  ? `🔴 ${stream.hostName} is streaming "${stream.title}" on Pulse!\nhttps://${domain}/stream/${channelId}`
-                  : `Watch live streams on Pulse!\nhttps://${domain}`,
-              });
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-          >
-            <Ionicons name="share-outline" size={24} color="#FFF" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </Animated.View>
   );
 }
 
@@ -327,7 +365,6 @@ export default function StreamScreen() {
   const router = useRouter();
   const { channelId: initialChannelId } = useLocalSearchParams<{ channelId: string }>();
 
-  // Active stream tracked in local state — no router.replace needed
   const [activeChannelId, setActiveChannelId] = useState(initialChannelId ?? "");
 
   const { data: allStreamsData } = useListStreams({
@@ -335,15 +372,18 @@ export default function StreamScreen() {
   });
   const allStreams = allStreamsData?.streams ?? [];
   const currentIndex = allStreams.findIndex((s) => s.channelId === activeChannelId);
-  const prevStream = currentIndex > 0 ? allStreams[currentIndex - 1] : null;
-  const nextStream = currentIndex >= 0 && currentIndex < allStreams.length - 1
-    ? allStreams[currentIndex + 1]
-    : null;
+  const prevStream   = currentIndex > 0 ? allStreams[currentIndex - 1] : null;
+  const nextStream   = currentIndex >= 0 && currentIndex < allStreams.length - 1
+    ? allStreams[currentIndex + 1] : null;
+  const activeStream = allStreams[currentIndex];
 
-  // Shared vertical offset — ALL slots move together
+  // Per-stream data for the active slot
+  const { data: streamData } = useGetStream(activeChannelId, {
+    query: { enabled: !!activeChannelId, refetchInterval: 5000 } as any,
+  });
+  const liveStream = streamData?.stream ?? activeStream;
+
   const panY = useRef(new Animated.Value(0)).current;
-
-  // Stable offset refs so PanResponder callbacks see latest streams
   const prevStreamRef = useRef(prevStream);
   const nextStreamRef = useRef(nextStream);
   useEffect(() => { prevStreamRef.current = prevStream; }, [prevStream]);
@@ -355,14 +395,12 @@ export default function StreamScreen() {
     if (isAnimatingRef.current) return;
     isAnimatingRef.current = true;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const toValue = direction === "up" ? -SCREEN_H : SCREEN_H;
     Animated.timing(panY, {
-      toValue,
-      duration: 320,
+      toValue: direction === "up" ? -SCREEN_H : SCREEN_H,
+      duration: 340,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start(() => {
-      // Switch active stream, reset pan — no navigation
       setActiveChannelId(targetChannelId);
       panY.setValue(0);
       isAnimatingRef.current = false;
@@ -370,12 +408,7 @@ export default function StreamScreen() {
   };
 
   const springBack = () => {
-    Animated.spring(panY, {
-      toValue: 0,
-      tension: 80,
-      friction: 12,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(panY, { toValue: 0, tension: 80, friction: 12, useNativeDriver: true }).start();
   };
 
   const panResponder = useRef(
@@ -385,73 +418,61 @@ export default function StreamScreen() {
         Math.abs(gs.dy) > 12 && Math.abs(gs.dy) > Math.abs(gs.dx) * 1.5,
       onPanResponderMove: (_evt, gs) => {
         if (isAnimatingRef.current) return;
-        // Resist drag past edges when no adjacent stream
-        if (gs.dy > 0 && !prevStreamRef.current) {
-          panY.setValue(gs.dy * 0.15);
-        } else if (gs.dy < 0 && !nextStreamRef.current) {
-          panY.setValue(gs.dy * 0.15);
-        } else {
-          panY.setValue(gs.dy);
-        }
+        if      (gs.dy > 0 && !prevStreamRef.current) panY.setValue(gs.dy * 0.12);
+        else if (gs.dy < 0 && !nextStreamRef.current) panY.setValue(gs.dy * 0.12);
+        else panY.setValue(gs.dy);
       },
       onPanResponderRelease: (_evt, gs) => {
         if (isAnimatingRef.current) return;
         const { dy, vy } = gs;
-        const threshold = 60;
-        const velocityThreshold = 0.4;
-        if ((dy < -threshold || vy < -velocityThreshold) && nextStreamRef.current) {
+        if ((dy < -55 || vy < -0.4) && nextStreamRef.current)
           snapTo(nextStreamRef.current.channelId, "up");
-        } else if ((dy > threshold || vy > velocityThreshold) && prevStreamRef.current) {
+        else if ((dy > 55 || vy > 0.4) && prevStreamRef.current)
           snapTo(prevStreamRef.current.channelId, "down");
-        } else {
-          springBack();
-        }
+        else springBack();
       },
       onPanResponderTerminate: () => springBack(),
     }),
   ).current;
 
-  // Slot Y positions: current at panY, prev at panY − SCREEN_H, next at panY + SCREEN_H
   const prevSlotY = useRef(Animated.add(panY, new Animated.Value(-SCREEN_H))).current;
   const nextSlotY = useRef(Animated.add(panY, new Animated.Value(SCREEN_H))).current;
 
-  const safeInsets = {
-    top: Platform.OS === "web" ? 67 : insets.top,
-    bottom: Platform.OS === "web" ? 34 : insets.bottom,
-  };
+  const topPad    = Platform.OS === "web" ? 67 : insets.top;
+  const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
   return (
-    <View style={[styles.container, { backgroundColor: "#08080F" }]}>
-      {/* Prev stream — background tile only */}
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: "#08080F" }]}>
+      {/* Prev profile card */}
       {prevStream && (
         <Animated.View
           style={[StyleSheet.absoluteFill, { transform: [{ translateY: prevSlotY }] }]}
           pointerEvents="none"
         >
-          <StreamTile category={prevStream.category} />
+          <StreamProfileCard stream={prevStream} />
         </Animated.View>
       )}
 
-      {/* Next stream — background tile only */}
+      {/* Next profile card */}
       {nextStream && (
         <Animated.View
           style={[StyleSheet.absoluteFill, { transform: [{ translateY: nextSlotY }] }]}
           pointerEvents="none"
         >
-          <StreamTile category={nextStream.category} />
+          <StreamProfileCard stream={nextStream} />
         </Animated.View>
       )}
 
-      {/* Current stream — full UI, moves with panY */}
-      <Animated.View
-        style={[StyleSheet.absoluteFill, { transform: [{ translateY: panY }] }]}
-      >
+      {/* Active stream — full UI, moves with finger */}
+      <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateY: panY }] }]}>
         <StreamContent
           key={activeChannelId}
           channelId={activeChannelId}
+          stream={liveStream}
           panHandlers={panResponder.panHandlers}
           onBack={() => router.back()}
-          insets={safeInsets}
+          topPad={topPad}
+          bottomPad={bottomPad}
         />
       </Animated.View>
     </View>
@@ -459,20 +480,73 @@ export default function StreamScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  gestureLayer: { zIndex: 1 },
-  videoCenter: {
+  // Profile card
+  cardGlow: {
+    position: "absolute",
+    width: 400,
+    height: 400,
+    borderRadius: 200,
+    alignSelf: "center",
+    top: "20%",
+  },
+  cardContent: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    gap: 14,
+    paddingHorizontal: 32,
   },
-  videoInitials: {
-    fontSize: 72,
-    fontWeight: "800",
-    color: "rgba(255,255,255,0.2)",
+  cardName: {
+    color: "#FFF",
+    fontSize: 28,
+    fontWeight: "700",
     fontFamily: "Inter_700Bold",
-    letterSpacing: 4,
+    textAlign: "center",
+    marginTop: 4,
   },
+  cardLiveBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  cardLiveBadgeText: {
+    color: "#FFF",
+    fontSize: 11,
+    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1,
+  },
+  cardViewers: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  cardViewersText: {
+    color: "rgba(255,255,255,0.6)",
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+  },
+  cardTitle: {
+    color: "rgba(255,255,255,0.5)",
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    lineHeight: 20,
+    marginTop: 4,
+  },
+
+  // Live background art
+  liveBackground: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    opacity: 0.25,
+  },
+
+  // Stream overlay
   overlay: {
     flex: 1,
     flexDirection: "column",
@@ -493,11 +567,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   streamMeta: { flex: 1 },
-  hostRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
+  hostRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   hostName: {
     color: "#FFF",
     fontSize: 15,
@@ -511,7 +581,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#FF1966",
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 5,
@@ -533,12 +602,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 14,
   },
-  viewerText: {
-    color: "#FFF",
-    fontSize: 12,
-    fontWeight: "600",
-    fontFamily: "Inter_600SemiBold",
-  },
+  viewerText: { color: "#FFF", fontSize: 12, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
   streamTitle: {
     color: "rgba(255,255,255,0.9)",
     fontSize: 13,
@@ -563,23 +627,9 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     maxWidth: "85%",
   },
-  chatSender: {
-    fontSize: 12,
-    fontWeight: "700",
-    fontFamily: "Inter_600SemiBold",
-  },
-  chatText: {
-    color: "#FFF",
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    flexShrink: 1,
-  },
-  bottomBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingTop: 10,
-  },
+  chatSender: { fontSize: 12, fontWeight: "700", fontFamily: "Inter_600SemiBold" },
+  chatText: { color: "#FFF", fontSize: 12, fontFamily: "Inter_400Regular", flexShrink: 1 },
+  bottomBar: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 10 },
   chatInput: {
     flex: 1,
     backgroundColor: "rgba(255,255,255,0.12)",
@@ -590,12 +640,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter_400Regular",
   },
-  actionBtn: {
-    alignItems: "center",
-    justifyContent: "center",
-    width: 44,
-    height: 44,
-  },
+  actionBtn: { alignItems: "center", justifyContent: "center", width: 44, height: 44 },
   actionBtnText: {
     color: "#FFF",
     fontSize: 10,
