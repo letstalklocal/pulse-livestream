@@ -90,7 +90,7 @@ export default function GoLiveScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isSignedIn } = useAuth();
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Gaming");
@@ -111,6 +111,7 @@ export default function GoLiveScreen() {
   const endStream = useEndStream();
   const heartbeat = useHeartbeatStream();
 
+  // If not signed in, show gate screen — hooks must be called unconditionally so this goes after them
   // Poll viewer count while live
   const { data: liveStreamData } = useGetStream(channelIdRef.current, {
     query: { enabled: isLive && !!channelIdRef.current, refetchInterval: 5000 } as any,
@@ -173,7 +174,7 @@ export default function GoLiveScreen() {
     // Give the texture view one frame to attach before joining
     const t = setTimeout(() => {
       try {
-        engineRef.current.joinChannel(token, channelId, user.uid, {
+        engineRef.current.joinChannel(token, channelId, user!.uid, {
           clientRoleType: ClientRoleType.ClientRoleBroadcaster,
           publishMicrophoneTrack: true,
           publishCameraTrack: true,
@@ -184,26 +185,26 @@ export default function GoLiveScreen() {
     }, 300);
 
     return () => clearTimeout(t);
-  }, [isLive, user.uid]);
+  }, [isLive, user?.uid]);
 
   const startLive = useCallback(async () => {
     if (!title.trim()) return;
     setIsStarting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
-    const channelId = `pulse-${user.uid}-${Date.now()}`;
+    const channelId = `pulse-${user!.uid}-${Date.now()}`;
     channelIdRef.current = channelId;
 
     try {
       const tokenData = await generateToken.mutateAsync({
-        data: { channelName: channelId, uid: user.uid, role: "broadcaster" },
+        data: { channelName: channelId, uid: user!.uid, role: "broadcaster" },
       });
 
       await createStream.mutateAsync({
         data: {
           channelId,
-          hostUid: user.uid,
-          hostName: user.name,
+          hostUid: user!.uid,
+          hostName: user!.name,
           title: title.trim(),
           category,
         },
@@ -274,6 +275,36 @@ export default function GoLiveScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const catColor = CATEGORY_COLORS[category] ?? colors.primary;
+
+  // Auth gate — must live after all hooks
+  if (!isSignedIn || !user) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: "center", alignItems: "center" }]}>
+        <TouchableOpacity
+          style={[styles.backBtnAlt, { top: insets.top + 10 }]}
+          onPress={() => router.back()}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="chevron-back" size={22} color={colors.foreground} />
+        </TouchableOpacity>
+        <Ionicons name="radio-outline" size={52} color={colors.primary} />
+        <Text style={[styles.gateTitle, { color: colors.foreground }]}>Sign in to go live</Text>
+        <Text style={[styles.gateSub, { color: colors.mutedForeground }]}>Create an account to start streaming to your audience</Text>
+        <TouchableOpacity
+          style={[styles.gateBtn, { backgroundColor: colors.primary }]}
+          onPress={() => router.push("/(auth)/sign-in" as any)}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.gateBtnText}>Sign in</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push("/(auth)/sign-up" as any)} style={{ marginTop: 12 }}>
+          <Text style={[styles.gateLink, { color: colors.mutedForeground }]}>
+            No account? <Text style={{ color: colors.primary }}>Sign up</Text>
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   // RtcTextureView is more reliable than RtcSurfaceView for local camera on Android
   const VideoView = RtcTextureViewComponent;
@@ -536,4 +567,20 @@ const styles = StyleSheet.create({
     borderRadius: 30,
   },
   endLiveBtnText: { color: "#FFF", fontSize: 16, fontWeight: "700", fontFamily: "Inter_700Bold" },
+  backBtnAlt: {
+    position: "absolute",
+    left: 16,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  },
+  gateTitle: { fontSize: 24, fontWeight: "800", fontFamily: "Inter_700Bold", marginTop: 20, marginBottom: 8, textAlign: "center" },
+  gateSub: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", paddingHorizontal: 32, lineHeight: 22, marginBottom: 28 },
+  gateBtn: { paddingHorizontal: 48, paddingVertical: 14, borderRadius: 30 },
+  gateBtnText: { color: "#FFF", fontSize: 16, fontWeight: "700", fontFamily: "Inter_700Bold" },
+  gateLink: { fontSize: 14, fontFamily: "Inter_400Regular" },
 });

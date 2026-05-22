@@ -191,9 +191,9 @@ export default function StreamScreen() {
         engineRef.current = engine;
 
         const tokenData = await generateToken.mutateAsync({
-          data: { channelName: channelId, uid: user.uid, role: "audience" },
+          data: { channelName: channelId, uid: user?.uid ?? 0, role: "audience" },
         });
-        await engine.joinChannel(tokenData.token, channelId, user.uid, {
+        await engine.joinChannel(tokenData.token, channelId, user?.uid ?? 0, {
           clientRoleType: ClientRoleType.ClientRoleAudience,
           autoSubscribeAudio: true,
           autoSubscribeVideo: true,
@@ -274,7 +274,7 @@ export default function StreamScreen() {
     if (!inputText.trim()) return;
     setMessages((prev) => [
       ...prev,
-      { id: Date.now().toString(), sender: user.name, text: inputText.trim(), color: "#FF1966" },
+      { id: Date.now().toString(), sender: user?.name ?? "Viewer", text: inputText.trim(), color: "#FF1966" },
     ]);
     setInputText("");
     Haptics.selectionAsync();

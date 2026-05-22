@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { eq } from "drizzle-orm";
-import { db, usersTable } from "@workspace/db";
+import { eq, desc } from "drizzle-orm";
+import { db, usersTable, streamHistoryTable } from "@workspace/db";
 
 const router = Router();
 
@@ -32,27 +32,60 @@ router.put("/users/:uid", async (req, res) => {
 
   const rows = await db
     .insert(usersTable)
-    .values({
-      uid,
-      name: name.trim(),
-      bio: (bio ?? "").trim(),
-    })
+    .values({ uid, name: name.trim(), bio: (bio ?? "").trim() })
     .onConflictDoUpdate({
       target: usersTable.uid,
-      set: {
-        name: name.trim(),
-        bio: (bio ?? "").trim(),
-        updatedAt: new Date(),
-      },
+      set: { name: name.trim(), bio: (bio ?? "").trim(), updatedAt: new Date() },
     })
     .returning();
 
   res.json({ user: rows[0] });
 });
 
+// Find-or-create a user by Clerk ID (called on every sign-in)
+router.post("/users/clerk-sync", async (req, res) => {
+  const { clerkId, name } = req.body as { clerkId?: string; name?: string };
+  if (!clerkId || !name) {
+    res.status(400).json({ error: "clerkId and name are required" });
+    return;
+  }
+
+  const existing = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.clerkId, clerkId))
+    .limit(1);
+
+  if (existing[0]) {
+    // Update name in case they changed it in Clerk
+    const updated = await db
+      .update(usersTable)
+      .set({ name: name.trim(), updatedAt: new Date() })
+      .where(eq(usersTable.clerkId, clerkId))
+      .returning();
+    res.json({ user: updated[0] });
+    return;
+  }
+
+  // Create new user — generate a random 5-digit numeric uid
+  let uid: number;
+  let attempts = 0;
+  while (true) {
+    uid = Math.floor(Math.random() * 90000) + 10000;
+    const clash = await db.select({ uid: usersTable.uid }).from(usersTable).where(eq(usersTable.uid, uid)).limit(1);
+    if (!clash[0]) break;
+    if (++attempts > 10) { uid = Date.now() % 1_000_000; break; }
+  }
+
+  const rows = await db
+    .insert(usersTable)
+    .values({ uid, clerkId, name: name.trim(), bio: "" })
+    .returning();
+
+  res.json({ user: rows[0] });
+});
+
 router.get("/users/:uid/streams", async (req, res) => {
-  const { streamHistoryTable } = await import("@workspace/db");
-  const { desc } = await import("drizzle-orm");
   const uid = parseInt(req.params["uid"] ?? "", 10);
   if (isNaN(uid)) {
     res.status(400).json({ error: "Invalid uid" });

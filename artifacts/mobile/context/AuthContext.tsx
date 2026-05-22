@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { upsertUser } from "@workspace/api-client-react";
+import { useAuth as useClerkAuth, useUser } from "@clerk/expo";
 import React, {
   createContext,
   useCallback,
@@ -10,6 +10,7 @@ import React, {
 
 export interface User {
   uid: number;
+  clerkId?: string;
   name: string;
   bio: string;
   avatarUri?: string;
@@ -18,80 +19,131 @@ export interface User {
 }
 
 interface AuthContextValue {
-  user: User;
-  updateUser: (fields: Partial<Omit<User, "uid">>) => void;
+  user: User | null;
+  isLoaded: boolean;
+  isSignedIn: boolean;
+  updateUser: (fields: Partial<Omit<User, "uid" | "clerkId">>) => void;
 }
 
-const STORAGE_KEY = "@pulse_user";
-
-function generateUid(): number {
-  return Math.floor(Math.random() * 90000) + 10000;
-}
-
-function generateName(): string {
-  const adjectives = ["Neon", "Cosmic", "Electric", "Shadow", "Nova", "Stellar", "Vibe"];
-  const nouns = ["Streamer", "Creator", "Vibes", "Wave", "Pulse", "Flow", "Star"];
-  const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
-  const noun = nouns[Math.floor(Math.random() * nouns.length)];
-  const num = Math.floor(Math.random() * 999);
-  return `${adj}${noun}${num}`;
-}
-
-const defaultUser: User = {
-  uid: generateUid(),
-  name: generateName(),
-  bio: "Streaming live on Pulse",
-  followersCount: 0,
-  followingCount: 0,
-};
+const STORAGE_KEY = "@pulse_user_v2";
 
 const AuthContext = createContext<AuthContextValue>({
-  user: defaultUser,
+  user: null,
+  isLoaded: false,
+  isSignedIn: false,
   updateUser: () => {},
 });
 
-async function syncUserToServer(user: User) {
+async function clerkSync(clerkId: string, name: string): Promise<User | null> {
   try {
-    await upsertUser(user.uid, { name: user.name, bio: user.bio });
+    const domain = process.env["EXPO_PUBLIC_DOMAIN"];
+    const base = domain ? `https://${domain}` : "";
+    const res = await fetch(`${base}/api/users/clerk-sync`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clerkId, name }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { user: User };
+    return data.user;
   } catch {
-    // best effort — offline or server down
+    return null;
+  }
+}
+
+async function syncBio(uid: number, name: string, bio: string) {
+  try {
+    const domain = process.env["EXPO_PUBLIC_DOMAIN"];
+    const base = domain ? `https://${domain}` : "";
+    await fetch(`${base}/api/users/${uid}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, bio }),
+    });
+  } catch {
+    // best effort
   }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User>(defaultUser);
+  const { isSignedIn, isLoaded: clerkLoaded } = useClerkAuth();
+  const { user: clerkUser } = useUser();
+  const [user, setUser] = useState<User | null>(null);
+  const [localLoaded, setLocalLoaded] = useState(false);
 
+  // When Clerk user signs in, sync with server to get/create DB record
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
+    if (!clerkLoaded) return;
+    if (!isSignedIn || !clerkUser) {
+      setUser(null);
+      setLocalLoaded(true);
+      return;
+    }
+
+    const clerkId = clerkUser.id;
+    const clerkName =
+      clerkUser.fullName ||
+      clerkUser.username ||
+      clerkUser.primaryEmailAddress?.emailAddress?.split("@")[0] ||
+      "Pulse User";
+
+    // Check AsyncStorage cache first (keyed by clerkId)
+    const storageKey = `${STORAGE_KEY}:${clerkId}`;
+    AsyncStorage.getItem(storageKey).then(async (raw) => {
       if (raw) {
         try {
-          const saved = JSON.parse(raw) as User;
-          setUser(saved);
-          void syncUserToServer(saved);
+          const cached = JSON.parse(raw) as User;
+          setUser(cached);
+          setLocalLoaded(true);
         } catch {
           // ignore
         }
-      } else {
-        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(defaultUser));
-        void syncUserToServer(defaultUser);
       }
-    });
-  }, []);
 
-  const updateUser = useCallback((fields: Partial<Omit<User, "uid">>) => {
-    setUser((prev) => {
-      const updated = { ...prev, ...fields };
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      // Sync name/bio to server (skip avatarUri — kept local only)
-      if (fields.name !== undefined || fields.bio !== undefined) {
-        void syncUserToServer(updated);
+      // Always sync with server (updates name if changed)
+      const synced = await clerkSync(clerkId, clerkName);
+      if (synced) {
+        const merged: User = {
+          ...(raw ? (JSON.parse(raw) as User) : {}),
+          ...synced,
+          // Preserve local-only fields
+          avatarUri: raw ? (JSON.parse(raw) as User).avatarUri : undefined,
+        };
+        setUser(merged);
+        setLocalLoaded(true);
+        await AsyncStorage.setItem(storageKey, JSON.stringify(merged));
+      } else {
+        setLocalLoaded(true);
       }
-      return updated;
     });
-  }, []);
+  }, [clerkLoaded, isSignedIn, clerkUser?.id]);
+
+  const updateUser = useCallback(
+    (fields: Partial<Omit<User, "uid" | "clerkId">>) => {
+      setUser((prev) => {
+        if (!prev) return prev;
+        const updated = { ...prev, ...fields };
+        const storageKey = `${STORAGE_KEY}:${prev.clerkId ?? prev.uid}`;
+        AsyncStorage.setItem(storageKey, JSON.stringify(updated));
+        // Sync name/bio to server
+        if (fields.name !== undefined || fields.bio !== undefined) {
+          void syncBio(prev.uid, updated.name, updated.bio);
+        }
+        return updated;
+      });
+    },
+    [],
+  );
 
   return (
-    <AuthContext.Provider value={{ user, updateUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoaded: clerkLoaded && localLoaded,
+        isSignedIn: !!isSignedIn && !!user,
+        updateUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

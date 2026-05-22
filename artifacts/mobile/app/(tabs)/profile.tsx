@@ -49,12 +49,12 @@ export default function ProfileScreen() {
   const { user, updateUser } = useAuth();
 
   const [editing, setEditing] = useState(false);
-  const [editName, setEditName] = useState(user.name);
-  const [editBio, setEditBio] = useState(user.bio);
+  const [editName, setEditName] = useState(user?.name ?? "");
+  const [editBio, setEditBio] = useState(user?.bio ?? "");
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
-  const { data: historyData } = useGetUserStreams(user.uid, {
+  const { data: historyData } = useGetUserStreams(user?.uid ?? 0, {
     query: { refetchOnWindowFocus: false } as any,
   });
   const streamHistory = historyData?.streams ?? [];
@@ -92,10 +92,37 @@ export default function ProfileScreen() {
   };
 
   const cancelEdit = () => {
-    setEditName(user.name);
-    setEditBio(user.bio);
+    setEditName(user?.name ?? "");
+    setEditBio(user?.bio ?? "");
     setEditing(false);
   };
+
+  // Sign-out / guest state
+  if (!user) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: "center", alignItems: "center", paddingHorizontal: 32 }]}>
+        <StatusBar barStyle="light-content" />
+        <Ionicons name="person-circle-outline" size={64} color={colors.mutedForeground} />
+        <Text style={[styles.headerTitle, { color: colors.foreground, marginTop: 16, marginBottom: 8 }]}>Your Profile</Text>
+        <Text style={[styles.bio, { color: colors.mutedForeground, textAlign: "center", marginBottom: 32 }]}>
+          Sign in to build your profile, go live, and grow your audience on Pulse.
+        </Text>
+        <TouchableOpacity
+          style={[styles.goLiveBtn, { backgroundColor: colors.primary, paddingHorizontal: 48 }]}
+          onPress={() => router.push("/(auth)/sign-in" as any)}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="log-in-outline" size={16} color="#FFF" />
+          <Text style={styles.goLiveBtnText}>Sign in</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push("/(auth)/sign-up" as any)} style={{ marginTop: 14 }}>
+          <Text style={[styles.bio, { color: colors.mutedForeground }]}>
+            No account? <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold" }}>Sign up</Text>
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -126,8 +153,8 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={[styles.iconBtn, { borderColor: colors.border }]}
               onPress={() => {
-                setEditName(user.name);
-                setEditBio(user.bio);
+                setEditName(user.name ?? "");
+                setEditBio(user.bio ?? "");
                 setEditing(true);
               }}
               activeOpacity={0.7}
