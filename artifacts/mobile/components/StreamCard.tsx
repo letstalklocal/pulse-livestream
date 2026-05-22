@@ -64,10 +64,9 @@ export function StreamCard({ stream }: Props) {
           <Avatar uid={stream.hostUid} name={stream.hostName} size={48} />
         </View>
 
-        {/* Top-left: LIVE badge */}
-        <View style={styles.liveBadge}>
-          <View style={styles.liveDot} />
-          <Text style={styles.liveText}>LIVE</Text>
+        {/* Top-left: category badge */}
+        <View style={[styles.categoryOverlayBadge, { backgroundColor: bg1 }]}>
+          <Text style={styles.categoryOverlayText}>{stream.category.toUpperCase()}</Text>
         </View>
 
         {/* Top-right: viewer count */}
@@ -93,9 +92,6 @@ export function StreamCard({ stream }: Props) {
           <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={2}>
             {stream.title}
           </Text>
-          <View style={[styles.categoryBadge, { backgroundColor: bg1 + "33" }]}>
-            <Text style={[styles.categoryText, { color: bg1 }]}>{stream.category}</Text>
-          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -119,20 +115,15 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   thumbnailContent: { alignItems: "center", justifyContent: "center" },
-  liveBadge: {
+  categoryOverlayBadge: {
     position: "absolute",
     top: 8,
     left: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FF1966",
-    paddingHorizontal: 6,
+    paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 4,
-    gap: 4,
   },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#FFF" },
-  liveText: { color: "#FFF", fontSize: 9, fontWeight: "700", fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
+  categoryOverlayText: { color: "#FFF", fontSize: 9, fontWeight: "700", fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
   viewerBadge: {
     position: "absolute",
     top: 8,
@@ -165,6 +156,4 @@ const styles = StyleSheet.create({
   },
   infoText: { gap: 4 },
   title: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
-  categoryBadge: { alignSelf: "flex-start", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 2 },
-  categoryText: { fontSize: 10, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
 });
