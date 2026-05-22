@@ -86,14 +86,6 @@ export function StreamCard({ stream }: Props) {
         </View>
       </View>
 
-      {/* Info below the card */}
-      <View style={styles.info}>
-        <View style={styles.infoText}>
-          <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={2}>
-            {stream.title}
-          </Text>
-        </View>
-      </View>
     </TouchableOpacity>
   );
 }
@@ -151,9 +143,4 @@ const styles = StyleSheet.create({
   },
   overlayNameWrap: { flex: 1 },
   hostName: { color: "#FFF", fontSize: 12, fontWeight: "700", fontFamily: "Inter_700Bold" },
-  info: {
-    padding: 10,
-  },
-  infoText: { gap: 4 },
-  title: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
 });
