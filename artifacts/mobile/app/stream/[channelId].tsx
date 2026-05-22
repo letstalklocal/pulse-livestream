@@ -122,13 +122,12 @@ function StreamProfileCard({ stream }: { stream: Stream }) {
 interface StreamContentProps {
   channelId: string;
   stream: Stream | undefined;
-  panHandlers: object;
   onBack: () => void;
   topPad: number;
   bottomPad: number;
 }
 
-function StreamContent({ channelId, stream, panHandlers, onBack, topPad, bottomPad }: StreamContentProps) {
+function StreamContent({ channelId, stream, onBack, topPad, bottomPad }: StreamContentProps) {
   const { user } = useAuth();
   const [remoteUid, setRemoteUid]   = useState<number | null>(null);
   const [messages,  setMessages]    = useState<ChatMsg[]>(SEED_CHAT);
@@ -247,9 +246,6 @@ function StreamContent({ channelId, stream, panHandlers, onBack, topPad, bottomP
             </View>
           )}
         </View>
-
-        {/* Gesture capture — sits between video and overlay */}
-        <View style={StyleSheet.absoluteFill} {...panHandlers} pointerEvents="box-none" />
 
         {/* Overlay UI */}
         <View
@@ -464,12 +460,14 @@ export default function StreamScreen() {
       )}
 
       {/* Active stream — full UI, moves with finger */}
-      <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateY: panY }] }]}>
+      <Animated.View
+        style={[StyleSheet.absoluteFill, { transform: [{ translateY: panY }] }]}
+        {...panResponder.panHandlers}
+      >
         <StreamContent
           key={activeChannelId}
           channelId={activeChannelId}
           stream={liveStream}
-          panHandlers={panResponder.panHandlers}
           onBack={() => router.back()}
           topPad={topPad}
           bottomPad={bottomPad}
