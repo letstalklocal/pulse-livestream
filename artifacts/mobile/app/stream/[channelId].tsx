@@ -223,7 +223,6 @@ function StreamContent({ channelId, stream, onBack, topPad, bottomPad }: StreamC
 
   const VideoView = RtcSurfaceViewComponent;
   const showNativeVideo = isNative && joined && remoteUid !== null && VideoView;
-  const bg     = CATEGORY_BG[stream?.category ?? ""]     ?? "#08080F";
   const accent = CATEGORY_ACCENT[stream?.category ?? ""] ?? "#FF1966";
 
   return (
@@ -234,16 +233,11 @@ function StreamContent({ channelId, stream, onBack, topPad, bottomPad }: StreamC
         keyboardVerticalOffset={0}
       >
         {/* Video background */}
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: bg }]}>
-          {/* Accent glow */}
-          <View style={[styles.cardGlow, { backgroundColor: accent + "22" }]} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: CATEGORY_BG[stream?.category ?? ""] ?? "#08080F" }]}>
           {showNativeVideo && VideoView ? (
             <VideoView canvas={{ uid: remoteUid! }} style={StyleSheet.absoluteFill} />
           ) : (
-            /* Live stream art: avatar centred behind the UI */
-            <View style={styles.liveBackground}>
-              <Avatar uid={stream?.hostUid ?? 0} name={stream?.hostName ?? "?"} size={220} borderWidth={0} />
-            </View>
+            <View style={[styles.cardGlow, { backgroundColor: accent + "22" }]} />
           )}
         </View>
 
@@ -279,12 +273,6 @@ function StreamContent({ channelId, stream, onBack, topPad, bottomPad }: StreamC
               </Text>
             </View>
           </View>
-
-          {stream && (
-            <Text style={styles.streamTitle} numberOfLines={2} pointerEvents="none">
-              {stream.title}
-            </Text>
-          )}
 
           <View style={styles.swipeZone} pointerEvents="none" />
 
@@ -536,14 +524,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // Live background art
-  liveBackground: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: "center",
-    justifyContent: "center",
-    opacity: 0.25,
-  },
-
   // Stream overlay
   overlay: {
     flex: 1,
@@ -601,16 +581,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   viewerText: { color: "#FFF", fontSize: 12, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
-  streamTitle: {
-    color: "rgba(255,255,255,0.9)",
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    lineHeight: 18,
-    marginBottom: 4,
-    textShadowColor: "rgba(0,0,0,0.8)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
   swipeZone: { flex: 1 },
   chatArea: { justifyContent: "flex-end" },
   chatScroll: { maxHeight: 240 },
