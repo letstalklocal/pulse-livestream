@@ -145,6 +145,32 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /streams/{channelId}/heartbeat:
+    post:
+      operationId: heartbeatStream
+      tags: [streams]
+      summary: Broadcaster heartbeat
+      description: Called periodically by the broadcaster to keep the stream alive. Streams that miss heartbeats are automatically removed.
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Heartbeat acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Stream not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /streams/{channelId}/viewers:
     post:
       operationId: updateViewerCount

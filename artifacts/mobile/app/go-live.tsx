@@ -20,6 +20,7 @@ import {
   useCreateStream,
   useEndStream,
   useGenerateAgoraToken,
+  useHeartbeatStream,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
@@ -107,6 +108,7 @@ export default function GoLiveScreen() {
   const generateToken = useGenerateAgoraToken();
   const createStream = useCreateStream();
   const endStream = useEndStream();
+  const heartbeat = useHeartbeatStream();
 
   // Request permissions and initialise Agora engine on mount
   useEffect(() => {
@@ -242,6 +244,17 @@ export default function GoLiveScreen() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Send a heartbeat every 8 s while live so the server knows the stream is active.
+  // If the app crashes or is killed, heartbeats stop and the server auto-removes
+  // the stream after 15 s (HEARTBEAT_TTL_MS).
+  useEffect(() => {
+    if (!isLive || !channelIdRef.current) return;
+    const id = setInterval(() => {
+      heartbeat.mutate({ channelId: channelIdRef.current });
+    }, 8_000);
+    return () => clearInterval(id);
+  }, [isLive, heartbeat]);
 
   const formatDuration = (secs: number) => {
     const h = Math.floor(secs / 3600);

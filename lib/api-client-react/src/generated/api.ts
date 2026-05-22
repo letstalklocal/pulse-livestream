@@ -492,6 +492,77 @@ export const useEndStream = <TError = ErrorType<ErrorResponse>,
       return useMutation(getEndStreamMutationOptions(options));
     }
 
+export const getHeartbeatStreamUrl = (channelId: string,) => {
+
+
+
+
+  return `/api/streams/${channelId}/heartbeat`
+}
+
+/**
+ * Called periodically by the broadcaster to keep the stream alive. Streams that miss heartbeats are automatically removed.
+ * @summary Broadcaster heartbeat
+ */
+export const heartbeatStream = async (channelId: string, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getHeartbeatStreamUrl(channelId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getHeartbeatStreamMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof heartbeatStream>>, TError,{channelId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof heartbeatStream>>, TError,{channelId: string}, TContext> => {
+
+const mutationKey = ['heartbeatStream'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof heartbeatStream>>, {channelId: string}> = (props) => {
+          const {channelId} = props ?? {};
+
+          return  heartbeatStream(channelId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type HeartbeatStreamMutationResult = NonNullable<Awaited<ReturnType<typeof heartbeatStream>>>
+
+    export type HeartbeatStreamMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Broadcaster heartbeat
+ */
+export const useHeartbeatStream = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof heartbeatStream>>, TError,{channelId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof heartbeatStream>>,
+        TError,
+        {channelId: string},
+        TContext
+      > => {
+      return useMutation(getHeartbeatStreamMutationOptions(options));
+    }
+
 export const getUpdateViewerCountUrl = (channelId: string,) => {
 
 

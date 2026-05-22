@@ -101,6 +101,19 @@ export const EndStreamResponse = zod.object({
 
 
 /**
+ * Called periodically by the broadcaster to keep the stream alive. Streams that miss heartbeats are automatically removed.
+ * @summary Broadcaster heartbeat
+ */
+export const HeartbeatStreamParams = zod.object({
+  "channelId": zod.coerce.string()
+})
+
+export const HeartbeatStreamResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
  * Increment or decrement viewer count for a stream
  * @summary Update viewer count
  */
