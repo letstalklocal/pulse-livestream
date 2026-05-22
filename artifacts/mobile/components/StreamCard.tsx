@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { Avatar } from "@/components/Avatar";
+import { useColors } from "@/hooks/useColors";
 
 interface Stream {
   channelId: string;
@@ -40,23 +41,29 @@ function formatViewers(count: number): string {
 }
 
 export function StreamCard({ stream }: Props) {
+  const colors = useColors();
   const router = useRouter();
   const [bg1, bg2] = CATEGORY_COLORS[stream.category] ?? CATEGORY_COLORS["Other"]!;
 
+  const goToProfile = () => {
+    router.push(
+      `/profile/${stream.hostUid}?name=${encodeURIComponent(stream.hostName)}` as any
+    );
+  };
+
   return (
     <TouchableOpacity
-      style={[styles.card]}
+      style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
       onPress={() => router.push(`/stream/${stream.channelId}` as any)}
       activeOpacity={0.85}
     >
-      {/* Full-card thumbnail */}
+      {/* Thumbnail */}
       <View style={[styles.thumbnail, { backgroundColor: bg2 }]}>
-        {/* Colour wash */}
-        <View style={[styles.wash, { backgroundColor: bg1 }]} />
+        <View style={[styles.thumbnailGradient, { backgroundColor: bg1 }]} />
 
         {/* Centred avatar placeholder */}
-        <View style={styles.centerAvatar}>
-          <Avatar uid={stream.hostUid} name={stream.hostName} size={52} />
+        <View style={styles.thumbnailContent}>
+          <Avatar uid={stream.hostUid} name={stream.hostName} size={48} />
         </View>
 
         {/* Top-left: LIVE badge */}
@@ -71,12 +78,25 @@ export function StreamCard({ stream }: Props) {
           <Text style={styles.viewerText}>{formatViewers(stream.viewerCount)}</Text>
         </View>
 
-        {/* Bottom overlay: avatar + name + title */}
+        {/* Bottom overlay: avatar + name only */}
         <View style={styles.bottomOverlay}>
-          <Avatar uid={stream.hostUid} name={stream.hostName} size={26} borderWidth={1} />
-          <View style={styles.overlayText}>
+          <TouchableOpacity onPress={goToProfile} activeOpacity={0.8}>
+            <Avatar uid={stream.hostUid} name={stream.hostName} size={26} borderWidth={1} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={goToProfile} activeOpacity={0.8} style={styles.overlayNameWrap}>
             <Text style={styles.hostName} numberOfLines={1}>{stream.hostName}</Text>
-            <Text style={styles.title} numberOfLines={1}>{stream.title}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Info below the card */}
+      <View style={styles.info}>
+        <View style={styles.infoText}>
+          <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={2}>
+            {stream.title}
+          </Text>
+          <View style={[styles.categoryBadge, { backgroundColor: bg1 + "33" }]}>
+            <Text style={[styles.categoryText, { color: bg1 }]}>{stream.category}</Text>
           </View>
         </View>
       </View>
@@ -89,6 +109,7 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     borderRadius: 14,
     overflow: "hidden",
+    borderWidth: 1,
     marginBottom: 12,
   },
   thumbnail: {
@@ -99,15 +120,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     overflow: "hidden",
   },
-  wash: {
+  thumbnailGradient: {
     ...StyleSheet.absoluteFillObject,
-    opacity: 0.55,
-    top: "35%",
+    opacity: 0.6,
+    top: "40%",
   },
-  centerAvatar: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  thumbnailContent: { alignItems: "center", justifyContent: "center" },
   liveBadge: {
     position: "absolute",
     top: 8,
@@ -142,12 +160,18 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
+    gap: 6,
     paddingHorizontal: 8,
-    paddingVertical: 8,
-    backgroundColor: "rgba(0,0,0,0.52)",
+    paddingVertical: 7,
+    backgroundColor: "rgba(0,0,0,0.48)",
   },
-  overlayText: { flex: 1 },
+  overlayNameWrap: { flex: 1 },
   hostName: { color: "#FFF", fontSize: 12, fontWeight: "700", fontFamily: "Inter_700Bold" },
-  title: { color: "rgba(255,255,255,0.65)", fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 1 },
+  info: {
+    padding: 10,
+  },
+  infoText: { gap: 4 },
+  title: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
+  categoryBadge: { alignSelf: "flex-start", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 2 },
+  categoryText: { fontSize: 10, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
 });
