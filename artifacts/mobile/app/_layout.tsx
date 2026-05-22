@@ -40,6 +40,7 @@ function RootLayoutNav() {
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      <Stack.Screen name="profile/[hostUid]" options={{ headerShown: false }} />
       <Stack.Screen
         name="go-live"
         options={{ headerShown: false, presentation: "fullScreenModal" }}
