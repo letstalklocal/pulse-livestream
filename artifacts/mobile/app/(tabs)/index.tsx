@@ -26,10 +26,18 @@ export default function DiscoveryScreen() {
   const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState("All");
 
-  const { data, isLoading, refetch, isRefetching } = useListStreams({
+  const [manualRefreshing, setManualRefreshing] = React.useState(false);
+
+  const { data, isLoading, refetch } = useListStreams({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    query: { refetchInterval: 5000 } as any,
+    query: { refetchInterval: 8000 } as any,
   });
+
+  const handleManualRefresh = React.useCallback(async () => {
+    setManualRefreshing(true);
+    await refetch();
+    setManualRefreshing(false);
+  }, [refetch]);
 
   const streams = data?.streams ?? [];
   const filtered =
@@ -119,8 +127,8 @@ export default function DiscoveryScreen() {
           columnWrapperStyle={styles.row}
           refreshControl={
             <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={refetch}
+              refreshing={manualRefreshing}
+              onRefresh={handleManualRefresh}
               tintColor={colors.primary}
             />
           }
