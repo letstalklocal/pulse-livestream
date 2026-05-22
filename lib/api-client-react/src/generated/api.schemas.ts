@@ -117,7 +117,19 @@ export interface StreamHistoryItem {
   peakViewers: number;
 }
 
+export interface FollowRequest {
+  followerUid: number;
+}
+
+export interface FollowStatusResponse {
+  isFollowing: boolean;
+}
+
 export interface StreamHistoryResponse {
   streams: StreamHistoryItem[];
 }
+
+export type GetFollowStatusParams = {
+followerUid: number;
+};
 

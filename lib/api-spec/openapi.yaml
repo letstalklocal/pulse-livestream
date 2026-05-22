@@ -195,6 +195,90 @@ paths:
               schema:
                 $ref: "#/components/schemas/UserResponse"
 
+  /users/{uid}/follow:
+    post:
+      operationId: followUser
+      tags: [users]
+      summary: Follow a user
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FollowRequest"
+      responses:
+        "200":
+          description: Now following
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "409":
+          description: Already following
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: unfollowUser
+      tags: [users]
+      summary: Unfollow a user
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FollowRequest"
+      responses:
+        "200":
+          description: Unfollowed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not following
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/{uid}/follow-status:
+    get:
+      operationId: getFollowStatus
+      tags: [users]
+      summary: Check if a user is following another
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: followerUid
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Follow status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FollowStatusResponse"
+
   /users/{uid}/streams:
     get:
       operationId: getUserStreams
@@ -492,6 +576,22 @@ components:
         - category
         - startedAt
         - peakViewers
+
+    FollowRequest:
+      type: object
+      properties:
+        followerUid:
+          type: integer
+      required:
+        - followerUid
+
+    FollowStatusResponse:
+      type: object
+      properties:
+        isFollowing:
+          type: boolean
+      required:
+        - isFollowing
 
     StreamHistoryResponse:
       type: object

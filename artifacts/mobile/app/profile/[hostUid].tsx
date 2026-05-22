@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import React, { useState } from "react";
+import React from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -14,9 +14,17 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useGetUser, useGetUserStreams } from "@workspace/api-client-react";
+import {
+  useGetUser,
+  useGetUserStreams,
+  useFollowUser,
+  useUnfollowUser,
+  useGetFollowStatus,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Avatar } from "@/components/Avatar";
 import { useColors } from "@/hooks/useColors";
+import { useAuth } from "@/context/AuthContext";
 
 const { width } = Dimensions.get("window");
 const GRID_CELL = (width - 4) / 3;
@@ -47,6 +55,9 @@ export default function PublicProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { user: currentUser } = useAuth();
+
   const { hostUid, name: paramName, avatarUri: paramAvatarUri } = useLocalSearchParams<{
     hostUid: string;
     name: string;
@@ -63,6 +74,20 @@ export default function PublicProfileScreen() {
     query: { refetchOnWindowFocus: false } as any,
   });
 
+  const followerUid = currentUser?.uid;
+  const canFollow = !!followerUid && followerUid !== uid;
+
+  const { data: followStatusData } = useGetFollowStatus(
+    uid,
+    { followerUid: followerUid ?? 0 },
+    { query: { enabled: canFollow, refetchOnWindowFocus: false } as any },
+  );
+
+  const isFollowing = followStatusData?.isFollowing ?? false;
+
+  const followMutation = useFollowUser();
+  const unfollowMutation = useUnfollowUser();
+
   const profile = userData?.user;
   const displayName = profile?.name ?? paramName ?? "Unknown";
   const bio = profile?.bio ?? "Streaming live on Pulse";
@@ -70,18 +95,28 @@ export default function PublicProfileScreen() {
   const followingCount = profile?.followingCount ?? 0;
   const streamHistory = historyData?.streams ?? [];
 
-  const [followed, setFollowed] = useState(false);
-  const [localFollowers, setLocalFollowers] = useState<number | null>(null);
-  const shownFollowers = localFollowers ?? followersCount;
+  const invalidateUser = () => {
+    void queryClient.invalidateQueries({ queryKey: ["getUser", uid] });
+    void queryClient.invalidateQueries({ queryKey: ["getFollowStatus", uid] });
+  };
 
   const toggleFollow = () => {
-    setFollowed((f) => {
-      const base = localFollowers ?? followersCount;
-      setLocalFollowers(f ? base - 1 : base + 1);
-      return !f;
-    });
+    if (!canFollow) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (isFollowing) {
+      unfollowMutation.mutate(
+        { uid, data: { followerUid: followerUid! } },
+        { onSettled: invalidateUser },
+      );
+    } else {
+      followMutation.mutate(
+        { uid, data: { followerUid: followerUid! } },
+        { onSettled: invalidateUser },
+      );
+    }
   };
+
+  const followPending = followMutation.isPending || unfollowMutation.isPending;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -119,7 +154,7 @@ export default function PublicProfileScreen() {
               <View style={styles.statsRow}>
                 <View style={styles.stat}>
                   <Text style={[styles.statValue, { color: colors.foreground }]}>
-                    {fmtCount(shownFollowers)}
+                    {fmtCount(followersCount)}
                   </Text>
                   <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Followers</Text>
                 </View>
@@ -139,23 +174,27 @@ export default function PublicProfileScreen() {
                 </View>
               </View>
 
-              {/* Follow button */}
-              <TouchableOpacity
-                style={[
-                  styles.followBtn,
-                  {
-                    backgroundColor: followed ? "transparent" : colors.primary,
-                    borderColor: followed ? colors.border : colors.primary,
-                    borderWidth: 1,
-                  },
-                ]}
-                onPress={toggleFollow}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.followBtnText, { color: followed ? colors.foreground : "#FFF" }]}>
-                  {followed ? "Following" : "Follow"}
-                </Text>
-              </TouchableOpacity>
+              {/* Follow button — only shown to signed-in users viewing someone else */}
+              {canFollow && (
+                <TouchableOpacity
+                  style={[
+                    styles.followBtn,
+                    {
+                      backgroundColor: isFollowing ? "transparent" : colors.primary,
+                      borderColor: isFollowing ? colors.border : colors.primary,
+                      borderWidth: 1,
+                      opacity: followPending ? 0.6 : 1,
+                    },
+                  ]}
+                  onPress={toggleFollow}
+                  activeOpacity={0.8}
+                  disabled={followPending}
+                >
+                  <Text style={[styles.followBtnText, { color: isFollowing ? colors.foreground : "#FFF" }]}>
+                    {followPending ? "…" : isFollowing ? "Following" : "Follow"}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Grid header */}

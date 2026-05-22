@@ -24,6 +24,9 @@ import type {
   AgoraTokenResponse,
   CreateStreamRequest,
   ErrorResponse,
+  FollowRequest,
+  FollowStatusResponse,
+  GetFollowStatusParams,
   HealthStatus,
   StreamHistoryResponse,
   StreamListResponse,
@@ -643,6 +646,239 @@ export const useUpsertUser = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getUpsertUserMutationOptions(options));
     }
+
+export const getFollowUserUrl = (uid: number,) => {
+
+
+
+
+  return `/api/users/${uid}/follow`
+}
+
+/**
+ * @summary Follow a user
+ */
+export const followUser = async (uid: number,
+    followRequest: FollowRequest, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getFollowUserUrl(uid),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      followRequest,)
+  }
+);}
+
+
+
+
+export const getFollowUserMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof followUser>>, TError,{uid: number;data: BodyType<FollowRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof followUser>>, TError,{uid: number;data: BodyType<FollowRequest>}, TContext> => {
+
+const mutationKey = ['followUser'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof followUser>>, {uid: number;data: BodyType<FollowRequest>}> = (props) => {
+          const {uid,data} = props ?? {};
+
+          return  followUser(uid,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type FollowUserMutationResult = NonNullable<Awaited<ReturnType<typeof followUser>>>
+    export type FollowUserMutationBody = BodyType<FollowRequest>
+    export type FollowUserMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Follow a user
+ */
+export const useFollowUser = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof followUser>>, TError,{uid: number;data: BodyType<FollowRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof followUser>>,
+        TError,
+        {uid: number;data: BodyType<FollowRequest>},
+        TContext
+      > => {
+      return useMutation(getFollowUserMutationOptions(options));
+    }
+
+export const getUnfollowUserUrl = (uid: number,) => {
+
+
+
+
+  return `/api/users/${uid}/follow`
+}
+
+/**
+ * @summary Unfollow a user
+ */
+export const unfollowUser = async (uid: number,
+    followRequest: FollowRequest, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getUnfollowUserUrl(uid),
+  {
+    ...options,
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      followRequest,)
+  }
+);}
+
+
+
+
+export const getUnfollowUserMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unfollowUser>>, TError,{uid: number;data: BodyType<FollowRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof unfollowUser>>, TError,{uid: number;data: BodyType<FollowRequest>}, TContext> => {
+
+const mutationKey = ['unfollowUser'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unfollowUser>>, {uid: number;data: BodyType<FollowRequest>}> = (props) => {
+          const {uid,data} = props ?? {};
+
+          return  unfollowUser(uid,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnfollowUserMutationResult = NonNullable<Awaited<ReturnType<typeof unfollowUser>>>
+    export type UnfollowUserMutationBody = BodyType<FollowRequest>
+    export type UnfollowUserMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Unfollow a user
+ */
+export const useUnfollowUser = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unfollowUser>>, TError,{uid: number;data: BodyType<FollowRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof unfollowUser>>,
+        TError,
+        {uid: number;data: BodyType<FollowRequest>},
+        TContext
+      > => {
+      return useMutation(getUnfollowUserMutationOptions(options));
+    }
+
+export const getGetFollowStatusUrl = (uid: number,
+    params: GetFollowStatusParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/users/${uid}/follow-status?${stringifiedParams}` : `/api/users/${uid}/follow-status`
+}
+
+/**
+ * @summary Check if a user is following another
+ */
+export const getFollowStatus = async (uid: number,
+    params: GetFollowStatusParams, options?: RequestInit): Promise<FollowStatusResponse> => {
+
+  return customFetch<FollowStatusResponse>(getGetFollowStatusUrl(uid,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFollowStatusQueryKey = (uid: number,
+    params?: GetFollowStatusParams,) => {
+    return [
+    `/api/users/${uid}/follow-status`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetFollowStatusQueryOptions = <TData = Awaited<ReturnType<typeof getFollowStatus>>, TError = ErrorType<unknown>>(uid: number,
+    params: GetFollowStatusParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFollowStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFollowStatusQueryKey(uid,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFollowStatus>>> = ({ signal }) => getFollowStatus(uid,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(uid), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFollowStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFollowStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getFollowStatus>>>
+export type GetFollowStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Check if a user is following another
+ */
+
+export function useGetFollowStatus<TData = Awaited<ReturnType<typeof getFollowStatus>>, TError = ErrorType<unknown>>(
+ uid: number,
+    params: GetFollowStatusParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFollowStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFollowStatusQueryOptions(uid,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getGetUserStreamsUrl = (uid: number,) => {
 

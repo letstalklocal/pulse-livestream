@@ -146,6 +146,54 @@ export const UpsertUserResponse = zod.object({
 
 
 /**
+ * @summary Follow a user
+ */
+export const FollowUserParams = zod.object({
+  "uid": zod.coerce.number()
+})
+
+export const FollowUserBody = zod.object({
+  "followerUid": zod.number()
+})
+
+export const FollowUserResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Unfollow a user
+ */
+export const UnfollowUserParams = zod.object({
+  "uid": zod.coerce.number()
+})
+
+export const UnfollowUserBody = zod.object({
+  "followerUid": zod.number()
+})
+
+export const UnfollowUserResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Check if a user is following another
+ */
+export const GetFollowStatusParams = zod.object({
+  "uid": zod.coerce.number()
+})
+
+export const GetFollowStatusQueryParams = zod.object({
+  "followerUid": zod.coerce.number()
+})
+
+export const GetFollowStatusResponse = zod.object({
+  "isFollowing": zod.boolean()
+})
+
+
+/**
  * @summary Get stream history for a user
  */
 export const GetUserStreamsParams = zod.object({
