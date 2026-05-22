@@ -11,6 +11,7 @@ export interface User {
   uid: number;
   name: string;
   bio: string;
+  avatarUri?: string;
   followersCount: number;
   followingCount: number;
 }

@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Avatar } from "@/components/Avatar";
 import { useColors } from "@/hooks/useColors";
 
 interface Stream {
@@ -28,10 +29,10 @@ const CARD_WIDTH = (Dimensions.get("window").width - 48) / 2;
 
 const CATEGORY_COLORS: Record<string, [string, string]> = {
   Gaming: ["#7B4FFF", "#3D1FA8"],
-  Music: ["#FF1966", "#8B0030"],
-  Talk: ["#00C896", "#006B51"],
-  Art: ["#FF8C00", "#8B4700"],
-  Other: ["#4FC3F7", "#1565C0"],
+  Music:  ["#FF1966", "#8B0030"],
+  Talk:   ["#00C896", "#006B51"],
+  Art:    ["#FF8C00", "#8B4700"],
+  Other:  ["#4FC3F7", "#1565C0"],
 };
 
 function formatViewers(count: number): string {
@@ -39,14 +40,16 @@ function formatViewers(count: number): string {
   return count.toString();
 }
 
-function getInitials(name: string): string {
-  return name.slice(0, 2).toUpperCase();
-}
-
 export function StreamCard({ stream }: Props) {
   const colors = useColors();
   const router = useRouter();
   const [bg1, bg2] = CATEGORY_COLORS[stream.category] ?? CATEGORY_COLORS["Other"]!;
+
+  const goToProfile = () => {
+    router.push(
+      `/profile/${stream.hostUid}?name=${encodeURIComponent(stream.hostName)}` as any
+    );
+  };
 
   return (
     <TouchableOpacity
@@ -58,29 +61,35 @@ export function StreamCard({ stream }: Props) {
       <View style={[styles.thumbnail, { backgroundColor: bg2 }]}>
         <View style={[styles.thumbnailGradient, { backgroundColor: bg1 }]} />
         <View style={styles.thumbnailContent}>
-          <Text style={styles.initials}>{getInitials(stream.hostName)}</Text>
+          <Avatar uid={stream.hostUid} name={stream.hostName} size={48} />
         </View>
-        {/* Live badge */}
         <View style={styles.liveBadge}>
           <View style={styles.liveDot} />
           <Text style={styles.liveText}>LIVE</Text>
         </View>
-        {/* Viewer count */}
         <View style={styles.viewerBadge}>
           <Ionicons name="eye" size={10} color="#FFF" />
           <Text style={styles.viewerText}>{formatViewers(stream.viewerCount)}</Text>
         </View>
       </View>
-      {/* Info */}
+
+      {/* Info row with tappable avatar */}
       <View style={styles.info}>
-        <Text style={[styles.hostName, { color: colors.foreground }]} numberOfLines={1}>
-          {stream.hostName}
-        </Text>
-        <Text style={[styles.title, { color: colors.mutedForeground }]} numberOfLines={2}>
-          {stream.title}
-        </Text>
-        <View style={[styles.categoryBadge, { backgroundColor: bg1 + "33" }]}>
-          <Text style={[styles.categoryText, { color: bg1 }]}>{stream.category}</Text>
+        <TouchableOpacity onPress={goToProfile} activeOpacity={0.8} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+          <Avatar uid={stream.hostUid} name={stream.hostName} size={30} borderWidth={1} />
+        </TouchableOpacity>
+        <View style={styles.infoText}>
+          <TouchableOpacity onPress={goToProfile} activeOpacity={0.8}>
+            <Text style={[styles.hostName, { color: colors.foreground }]} numberOfLines={1}>
+              {stream.hostName}
+            </Text>
+          </TouchableOpacity>
+          <Text style={[styles.title, { color: colors.mutedForeground }]} numberOfLines={2}>
+            {stream.title}
+          </Text>
+          <View style={[styles.categoryBadge, { backgroundColor: bg1 + "33" }]}>
+            <Text style={[styles.categoryText, { color: bg1 }]}>{stream.category}</Text>
+          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -108,16 +117,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
     top: "40%",
   },
-  thumbnailContent: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  initials: {
-    fontSize: 36,
-    fontWeight: "700",
-    color: "rgba(255,255,255,0.9)",
-    fontFamily: "Inter_700Bold",
-  },
+  thumbnailContent: { alignItems: "center", justifyContent: "center" },
   liveBadge: {
     position: "absolute",
     top: 8,
@@ -130,19 +130,8 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     gap: 4,
   },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#FFF",
-  },
-  liveText: {
-    color: "#FFF",
-    fontSize: 9,
-    fontWeight: "700",
-    fontFamily: "Inter_700Bold",
-    letterSpacing: 0.5,
-  },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#FFF" },
+  liveText: { color: "#FFF", fontSize: 9, fontWeight: "700", fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
   viewerBadge: {
     position: "absolute",
     bottom: 8,
@@ -155,36 +144,16 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     gap: 3,
   },
-  viewerText: {
-    color: "#FFF",
-    fontSize: 10,
-    fontWeight: "600",
-    fontFamily: "Inter_600SemiBold",
-  },
+  viewerText: { color: "#FFF", fontSize: 10, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
   info: {
     padding: 10,
-    gap: 4,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
   },
-  hostName: {
-    fontSize: 13,
-    fontWeight: "700",
-    fontFamily: "Inter_700Bold",
-  },
-  title: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-    lineHeight: 16,
-  },
-  categoryBadge: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginTop: 2,
-  },
-  categoryText: {
-    fontSize: 10,
-    fontWeight: "600",
-    fontFamily: "Inter_600SemiBold",
-  },
+  infoText: { flex: 1, gap: 3 },
+  hostName: { fontSize: 13, fontWeight: "700", fontFamily: "Inter_700Bold" },
+  title: { fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 16 },
+  categoryBadge: { alignSelf: "flex-start", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 2 },
+  categoryText: { fontSize: 10, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
 });
