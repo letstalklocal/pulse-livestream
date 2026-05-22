@@ -1,4 +1,5 @@
 import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface TokenCache {
   getToken(key: string): Promise<string | null | undefined>;
@@ -6,36 +7,17 @@ interface TokenCache {
   clearToken?(key: string): void | Promise<void>;
 }
 
-// Web: use localStorage — SecureStore is a native-only module, never import it on web
-const webCache: TokenCache = {
-  getToken: (key: string) => Promise.resolve(localStorage.getItem(key)),
-  saveToken: (key: string, value: string) => {
-    localStorage.setItem(key, value);
-    return Promise.resolve();
-  },
-  clearToken: (key: string) => {
-    localStorage.removeItem(key);
-  },
-};
-
-// Native: lazy-load SecureStore so the module is never evaluated on web
-let _nativeCache: TokenCache | null = null;
-async function nativeCache(): Promise<TokenCache> {
-  if (_nativeCache) return _nativeCache;
-  const SecureStore = await import("expo-secure-store");
-  _nativeCache = {
-    getToken: (key) => SecureStore.getItemAsync(key),
-    saveToken: (key, value) => SecureStore.setItemAsync(key, value),
-    clearToken: (key) => SecureStore.deleteItemAsync(key),
-  };
-  return _nativeCache;
-}
-
+// Use AsyncStorage on native (works in Expo Go + dev builds, no native linking needed)
+// Use localStorage on web
 export const tokenCache: TokenCache =
   Platform.OS === "web"
-    ? webCache
+    ? {
+        getToken: (key) => Promise.resolve(localStorage.getItem(key)),
+        saveToken: (key, value) => { localStorage.setItem(key, value); return Promise.resolve(); },
+        clearToken: (key) => localStorage.removeItem(key),
+      }
     : {
-        getToken: async (key) => (await nativeCache()).getToken(key),
-        saveToken: async (key, value) => (await nativeCache()).saveToken(key, value),
-        clearToken: async (key) => (await nativeCache()).clearToken!(key),
+        getToken: (key) => AsyncStorage.getItem(key),
+        saveToken: (key, value) => AsyncStorage.setItem(key, value),
+        clearToken: (key) => AsyncStorage.removeItem(key),
       };
