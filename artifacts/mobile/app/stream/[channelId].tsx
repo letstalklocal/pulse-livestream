@@ -162,11 +162,11 @@ export default function StreamScreen() {
   }, [channelId, nextStream, hintOpacity]);
 
   // Helper: spawn a floating gift on screen
-  const spawnGift = (gift: Gift, senderName: string) => {
-    const x = Math.random() * (SCREEN_W * 0.5) + 16;
+  const spawnGift = (gift: Gift, senderName: string, hero = false) => {
+    const x = Math.random() * (SCREEN_W * 0.55) + 16;
     setFloatingGifts((prev) => [
       ...prev,
-      { id: `${Date.now()}-${Math.random()}`, emoji: gift.emoji, name: gift.name, senderName, x },
+      { id: `${Date.now()}-${Math.random()}`, emoji: gift.emoji, name: gift.name, senderName, x, size: gift.size, hero },
     ]);
   };
 
@@ -501,7 +501,7 @@ export default function StreamScreen() {
       onClose={() => setShowGiftPicker(false)}
       onSend={(gift) => {
         setDemoCoins((c) => c - gift.coins);
-        spawnGift(gift, user?.name ?? "You");
+        spawnGift(gift, user?.name ?? "You", true);
         setShowGiftPicker(false);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }}
