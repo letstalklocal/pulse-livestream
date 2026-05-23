@@ -1,6 +1,7 @@
 import React from "react";
 import {
   Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -58,8 +59,12 @@ export function GiftPicker({ visible, onClose, onSend, coins }: Props) {
           </View>
         </View>
 
-        {/* Gift grid */}
-        <View style={styles.grid}>
+        {/* Gift row */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.row}
+        >
           {GIFTS.map((gift) => {
             const canAfford = coins >= gift.coins;
             return (
@@ -80,7 +85,7 @@ export function GiftPicker({ visible, onClose, onSend, coins }: Props) {
               </TouchableOpacity>
             );
           })}
-        </View>
+        </ScrollView>
 
         <Text style={styles.hint}>Demo mode — coins are free!</Text>
       </View>
@@ -136,20 +141,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter_700Bold",
   },
-  grid: {
+  row: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    justifyContent: "space-between",
+    gap: 10,
+    paddingHorizontal: 2,
     marginBottom: 16,
   },
   giftCell: {
-    width: "30%",
+    width: 78,
     backgroundColor: "rgba(255,255,255,0.06)",
     borderRadius: 14,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: "center",
-    gap: 6,
+    gap: 5,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
   },
