@@ -513,7 +513,7 @@ export default function StreamScreen() {
           <View style={[styles.bottomLeft, keyboardOpen && { flex: 1 }]}>
             <TextInput
               ref={inputRef}
-              style={styles.chatInput}
+              style={[styles.chatInput, keyboardOpen && styles.chatInputExpanded]}
               value={inputText}
               onChangeText={setInputText}
               placeholder="Say something…"
@@ -875,6 +875,12 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.18)",
+  },
+  chatInputExpanded: {
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
   },
   actionBtn: {
     alignItems: "center",
