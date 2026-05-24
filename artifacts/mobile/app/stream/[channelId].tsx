@@ -510,7 +510,7 @@ export default function StreamScreen() {
               activeOpacity={0.8}
               onPress={() => router.push(`/profile/${stream.hostUid}` as any)}
             >
-              <Avatar uid={stream.hostUid} name={stream.hostName} size={36} borderWidth={2} />
+              <Avatar uid={stream.hostUid} name={stream.hostName} size={28} borderWidth={1.5} />
               <Text style={styles.streamerName} numberOfLines={1}>{stream.hostName}</Text>
             </TouchableOpacity>
           )}
