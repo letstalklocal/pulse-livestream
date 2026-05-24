@@ -7,7 +7,6 @@ import {
   Animated,
   Dimensions,
   FlatList,
-  Keyboard,
   KeyboardAvoidingView,
   PanResponder,
   Platform,
@@ -30,7 +29,6 @@ import {
   useSpendCoins,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
-import { Avatar } from "@/components/Avatar";
 import { GiftPicker, GIFTS, type Gift } from "@/components/GiftPicker";
 import { GiftFloater, type FloatingGift } from "@/components/GiftFloater";
 import {
@@ -122,15 +120,6 @@ export default function StreamScreen() {
   const [likeCount, setLikeCount] = useState(Math.floor(Math.random() * 500) + 50);
   const [showGiftPicker, setShowGiftPicker] = useState(false);
   const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
-  const [streamCoins, setStreamCoins] = useState(0);
-  const inputRef = useRef<TextInput>(null);
-  const [keyboardOpen, setKeyboardOpen] = useState(false);
-
-  useEffect(() => {
-    const show = Keyboard.addListener("keyboardDidShow", () => setKeyboardOpen(true));
-    const hide = Keyboard.addListener("keyboardDidHide", () => setKeyboardOpen(false));
-    return () => { show.remove(); hide.remove(); };
-  }, []);
 
   const queryClient = useQueryClient();
   const coinBalanceQuery = useGetCoinBalance(
@@ -151,18 +140,6 @@ export default function StreamScreen() {
   // Hint arrow fade-in
   const hintOpacity = useRef(new Animated.Value(0)).current;
   const isNavigatingRef = useRef(false);
-  // Chat visibility (horizontal swipe)
-  const chatOpacity = useRef(new Animated.Value(1)).current;
-  const chatVisibleRef = useRef(true);
-
-  const toggleChat = (show: boolean) => {
-    chatVisibleRef.current = show;
-    Animated.timing(chatOpacity, {
-      toValue: show ? 1 : 0,
-      duration: 180,
-      useNativeDriver: true,
-    }).start();
-  };
 
   const { data: streamData } = useGetStream(channelId ?? "", {
     query: { enabled: !!channelId, refetchInterval: 5000 } as any,
@@ -203,7 +180,6 @@ export default function StreamScreen() {
       ...prev,
       { id: `${Date.now()}-${Math.random()}`, emoji: gift.emoji, name: gift.name, senderName, x, size: gift.size },
     ]);
-    setStreamCoins((c) => c + gift.coins);
   };
 
   // Simulate other viewers sending gifts occasionally
@@ -312,19 +288,11 @@ export default function StreamScreen() {
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_evt, gs) =>
-        Math.abs(gs.dy) > 10 || Math.abs(gs.dx) > 10,
+        Math.abs(gs.dy) > 10 && Math.abs(gs.dy) > Math.abs(gs.dx),
       onPanResponderRelease: (_evt, gs) => {
-        const horizontal = Math.abs(gs.dx) > Math.abs(gs.dy);
-        if (horizontal) {
-          if (gs.dx > 50) {
-            // Swipe right — hide chat
-            toggleChat(false);
-          } else if (gs.dx < -50) {
-            // Swipe left — show chat
-            toggleChat(true);
-          }
-        } else if (gs.dy < -60) {
+        if (gs.dy < -60) {
           // Swipe up — go to next stream
+          // Access via closure; use refs to avoid stale state
           swipeUpRef.current();
         } else if (gs.dy > 60) {
           // Swipe down — go to previous stream or back
@@ -403,76 +371,43 @@ export default function StreamScreen() {
       >
         {/* Top bar */}
         <View style={styles.topBar} pointerEvents="auto">
-          {/* Back arrow */}
           <TouchableOpacity
             style={styles.backBtn}
+            onPress={() => router.back()}
             activeOpacity={0.8}
-            onPress={() => { Keyboard.dismiss(); router.back(); }}
           >
-            <Ionicons name="arrow-back" size={20} color="#FFF" />
+            <Ionicons name="chevron-down" size={22} color="#FFF" />
           </TouchableOpacity>
 
-          {/* Spacer pushes pill + share to the right */}
-          <View style={{ flex: 1 }} />
-
-          {/* Middle pill — heart · coins · viewers */}
-          <View style={styles.topPill}>
-            <TouchableOpacity
-              style={styles.topPillItem}
-              onPress={() => {
-                setLikeCount((c) => c + 1);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="heart" size={13} color="#FF1966" />
-              <Text style={styles.topPillText}>{likeCount}</Text>
-            </TouchableOpacity>
-
-            {streamCoins > 0 && (
-              <>
-                <View style={styles.topPillDivider} />
-                <View style={styles.topPillItem}>
-                  <Text style={styles.coinEmoji}>🪙</Text>
-                  <Text style={styles.topPillText}>
-                    {streamCoins >= 1000 ? `${(streamCoins / 1000).toFixed(1)}K` : streamCoins}
-                  </Text>
+          <View style={styles.streamMeta}>
+            {stream && (
+              <View style={styles.hostRow}>
+                <Text style={styles.hostName}>{stream.hostName}</Text>
+                <View style={styles.liveBadge}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.liveBadgeText}>LIVE</Text>
                 </View>
-              </>
+              </View>
             )}
-
-            <View style={styles.topPillDivider} />
-            <View style={styles.topPillItem}>
-              <Ionicons name="eye" size={13} color="#FFF" />
-              <Text style={styles.topPillText}>
-                {stream?.viewerCount != null
-                  ? stream.viewerCount >= 1000
-                    ? `${(stream.viewerCount / 1000).toFixed(1)}K`
-                    : stream.viewerCount
-                  : "—"}
-              </Text>
-            </View>
           </View>
 
-          {/* Share */}
-          <TouchableOpacity
-            style={styles.backBtn}
-            activeOpacity={0.7}
-            onPress={() => {
-              const domain = process.env["EXPO_PUBLIC_DOMAIN"] ?? "pulse.app";
-              Share.share({
-                title: stream ? `${stream.hostName} is live on Pulse` : "Watch live on Pulse",
-                message: stream
-                  ? `🔴 ${stream.hostName} is streaming "${stream.title}" on Pulse!\nhttps://${domain}/stream/${channelId}`
-                  : `Watch live streams on Pulse!\nhttps://${domain}`,
-              });
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-          >
-            <Ionicons name="share-outline" size={20} color="#FFF" />
-          </TouchableOpacity>
+          <View style={styles.viewerBadge}>
+            <Ionicons name="eye" size={13} color="#FFF" />
+            <Text style={styles.viewerText}>
+              {stream?.viewerCount != null
+                ? stream.viewerCount >= 1000
+                  ? `${(stream.viewerCount / 1000).toFixed(1)}K`
+                  : stream.viewerCount
+                : "—"}
+            </Text>
+          </View>
         </View>
 
+        {stream && (
+          <Text style={styles.streamTitle} numberOfLines={2} pointerEvents="none">
+            {stream.title}
+          </Text>
+        )}
 
         {/* Middle spacer — swipe gestures pass through here */}
         <View style={styles.swipeZone} pointerEvents="none">
@@ -488,7 +423,7 @@ export default function StreamScreen() {
         </View>
 
         {/* Live chat */}
-        <Animated.View style={[styles.chatArea, { opacity: chatOpacity }]} pointerEvents="box-none">
+        <View style={styles.chatArea} pointerEvents="box-none">
           <FlatList
             ref={listRef}
             data={messages}
@@ -505,57 +440,31 @@ export default function StreamScreen() {
               </View>
             )}
           />
-        </Animated.View>
+        </View>
 
-        {/* Bottom actions — three sections: left | center | right */}
+        {/* Bottom actions */}
         <View style={styles.bottomBar} pointerEvents="auto">
-          {/* Left: chat input */}
-          <View style={[styles.bottomLeft, keyboardOpen && { flex: 1 }]}>
-            <TextInput
-              ref={inputRef}
-              style={[styles.chatInput, keyboardOpen && styles.chatInputExpanded]}
-              value={inputText}
-              onChangeText={setInputText}
-              placeholder="Say something…"
-              placeholderTextColor="rgba(255,255,255,0.45)"
-              onSubmitEditing={sendMessage}
-              returnKeyType="send"
-              blurOnSubmit={false}
-            />
-          </View>
-
-          {/* Center pill — avatar · name · follow, stretches to fill space */}
-          {!keyboardOpen && (
-            <View style={styles.centerPill}>
-              <TouchableOpacity
-                style={styles.centerPillLeft}
-                activeOpacity={0.8}
-                onPress={() => stream && router.push(`/profile/${stream.hostUid}` as any)}
-              >
-                <Avatar
-                  uid={stream?.hostUid ?? 0}
-                  name={stream?.hostName ?? ""}
-                  size={28}
-                  borderWidth={1.5}
-                />
-                <Text style={styles.streamerName} numberOfLines={1}>
-                  {stream?.hostName ?? ""}
-                </Text>
-              </TouchableOpacity>
-
-              <View style={styles.topPillDivider} />
-
-              <TouchableOpacity
-                style={styles.centerPillFollow}
-                activeOpacity={0.8}
-                onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-              >
-                <Ionicons name="add" size={22} color="#FFF" />
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Right: gift */}
+          <TextInput
+            style={styles.chatInput}
+            value={inputText}
+            onChangeText={setInputText}
+            placeholder="Say something…"
+            placeholderTextColor="rgba(255,255,255,0.45)"
+            onSubmitEditing={sendMessage}
+            returnKeyType="send"
+            blurOnSubmit={false}
+          />
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => {
+              setLikeCount((c) => c + 1);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="heart" size={24} color="#FF1966" />
+            <Text style={styles.actionBtnText}>{likeCount}</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionBtn}
             activeOpacity={0.7}
@@ -564,7 +473,23 @@ export default function StreamScreen() {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             }}
           >
-            <Ionicons name="gift-outline" size={26} color="#FFD700" />
+            <Ionicons name="gift-outline" size={24} color="#FFD700" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            activeOpacity={0.7}
+            onPress={() => {
+              const domain = process.env["EXPO_PUBLIC_DOMAIN"] ?? "pulse.app";
+              Share.share({
+                title: stream ? `${stream.hostName} is live on Pulse` : "Watch live on Pulse",
+                message: stream
+                  ? `🔴 ${stream.hostName} is streaming "${stream.title}" on Pulse!\nhttps://${domain}/stream/${channelId}`
+                  : `Watch live streams on Pulse!\nhttps://${domain}`,
+              });
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+          >
+            <Ionicons name="share-outline" size={24} color="#FFF" />
           </TouchableOpacity>
         </View>
       </View>
@@ -646,63 +571,8 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
     marginBottom: 4,
-  },
-  topPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.28)",
-    borderRadius: 20,
-    paddingHorizontal: 4,
-    paddingVertical: 5,
-    marginRight: 8,
-  },
-  topPillItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-  },
-  topPillDivider: {
-    width: 1,
-    height: 12,
-    backgroundColor: "rgba(255,255,255,0.2)",
-  },
-  topPillText: {
-    color: "#FFF",
-    fontSize: 12,
-    fontWeight: "600",
-    fontFamily: "Inter_600SemiBold",
-  },
-  streamerInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    minWidth: 140,
-    justifyContent: "center",
-  },
-  streamerName: {
-    color: "#FFF",
-    fontSize: 13,
-    fontWeight: "600",
-    fontFamily: "Inter_600SemiBold",
-    maxWidth: 110,
-    textShadowColor: "rgba(0,0,0,0.8)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  followBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#FF1966",
-    alignItems: "center",
-    justifyContent: "center",
   },
   backBtn: {
     width: 36,
@@ -761,22 +631,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "Inter_600SemiBold",
   },
-  coinsBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 14,
-  },
-  coinEmoji: { fontSize: 12 },
-  streamCoinText: {
-    color: "#FFD700",
-    fontSize: 12,
-    fontWeight: "600",
-    fontFamily: "Inter_600SemiBold",
-  },
   streamTitle: {
     color: "rgba(255,255,255,0.9)",
     fontSize: 13,
@@ -830,57 +684,20 @@ const styles = StyleSheet.create({
   bottomBar: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 10,
-  },
-  bottomLeft: {
-    alignItems: "flex-start",
-  },
-  centerPill: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.35)",
-    borderRadius: 24,
-    marginHorizontal: 10,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    overflow: "hidden",
-  },
-  centerPillLeft: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
     gap: 8,
-  },
-  centerPillFollow: {
-    paddingLeft: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  chatIconBtn: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingTop: 10,
   },
   chatInput: {
     flex: 1,
     backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     color: "#FFF",
-    fontSize: 10,
+    fontSize: 14,
     fontFamily: "Inter_400Regular",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.18)",
-  },
-  chatInputExpanded: {
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
   },
   actionBtn: {
     alignItems: "center",
