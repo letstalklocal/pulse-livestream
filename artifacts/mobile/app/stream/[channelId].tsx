@@ -156,6 +156,17 @@ export default function StreamScreen() {
   const hostUid = stream?.hostUid ?? null;
   const isOwnStream = !!user?.uid && user.uid === hostUid;
 
+  const AVATAR_COLORS = ["#FF1966","#7B2FFF","#FF6B35","#00C2A8","#FFB800","#0095FF"];
+  const hostInitials = (stream?.hostName ?? "?")
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  const hostAvatarColor = AVATAR_COLORS[
+    (stream?.hostName ?? "").split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % AVATAR_COLORS.length
+  ]!;
+
   // Host's received-gift coin balance (shown in the stats row)
   const hostCoinQuery = useGetCoinBalance(
     { uid: hostUid ?? 0 },
@@ -421,7 +432,12 @@ export default function StreamScreen() {
             onPress={() => router.back()}
             activeOpacity={0.8}
           >
-            <Ionicons name="chevron-down" size={22} color="#FFF" />
+            <View style={[styles.avatarCircle, { backgroundColor: hostAvatarColor }]}>
+              <Text style={styles.avatarInitials}>{hostInitials}</Text>
+            </View>
+            <View style={styles.avatarChevron}>
+              <Ionicons name="chevron-down" size={10} color="#FFF" />
+            </View>
           </TouchableOpacity>
 
           <View style={styles.streamMeta}>
@@ -665,12 +681,39 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(0,0,0,0.45)",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
+  },
+  avatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.35)",
+  },
+  avatarInitials: {
+    color: "#FFF",
+    fontSize: 13,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 0.5,
+  },
+  avatarChevron: {
+    position: "absolute",
+    bottom: -3,
+    right: -3,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
   },
   streamMeta: { flex: 1 },
   hostName: {
