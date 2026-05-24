@@ -494,34 +494,36 @@ export default function StreamScreen() {
           />
         </Animated.View>
 
-        {/* Bottom actions — single row */}
+        {/* Bottom actions — three sections: left | center | right */}
         <View style={styles.bottomBar} pointerEvents="auto">
-          {/* Chat — icon when idle, input when focused */}
-          {inputFocused ? (
-            <TextInput
-              ref={inputRef}
-              style={styles.chatInput}
-              value={inputText}
-              onChangeText={setInputText}
-              placeholder="Say something…"
-              placeholderTextColor="rgba(255,255,255,0.45)"
-              onSubmitEditing={sendMessage}
-              returnKeyType="send"
-              blurOnSubmit={false}
-              autoFocus
-              onBlur={() => setInputFocused(false)}
-            />
-          ) : (
-            <TouchableOpacity
-              style={styles.chatIconBtn}
-              activeOpacity={0.7}
-              onPress={() => setInputFocused(true)}
-            >
-              <Ionicons name="chatbubble-outline" size={24} color="rgba(255,255,255,0.85)" />
-            </TouchableOpacity>
-          )}
+          {/* Left: chat icon or input */}
+          <View style={styles.bottomLeft}>
+            {inputFocused ? (
+              <TextInput
+                ref={inputRef}
+                style={styles.chatInput}
+                value={inputText}
+                onChangeText={setInputText}
+                placeholder="Say something…"
+                placeholderTextColor="rgba(255,255,255,0.45)"
+                onSubmitEditing={sendMessage}
+                returnKeyType="send"
+                blurOnSubmit={false}
+                autoFocus
+                onBlur={() => setInputFocused(false)}
+              />
+            ) : (
+              <TouchableOpacity
+                style={styles.chatIconBtn}
+                activeOpacity={0.7}
+                onPress={() => setInputFocused(true)}
+              >
+                <Ionicons name="chatbubble-outline" size={24} color="rgba(255,255,255,0.85)" />
+              </TouchableOpacity>
+            )}
+          </View>
 
-          {/* Avatar + name inline */}
+          {/* Center: streamer pill */}
           {stream && (
             <TouchableOpacity
               style={styles.streamerInfo}
@@ -533,26 +535,26 @@ export default function StreamScreen() {
             </TouchableOpacity>
           )}
 
-          {/* Follow — white + on pink circle */}
-          <TouchableOpacity
-            style={styles.followBtn}
-            activeOpacity={0.8}
-            onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-          >
-            <Ionicons name="add" size={22} color="#FFF" />
-          </TouchableOpacity>
-
-          {/* Gift */}
-          <TouchableOpacity
-            style={styles.actionBtn}
-            activeOpacity={0.7}
-            onPress={() => {
-              setShowGiftPicker(true);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-          >
-            <Ionicons name="gift-outline" size={26} color="#FFD700" />
-          </TouchableOpacity>
+          {/* Right: follow + gift */}
+          <View style={styles.bottomRight}>
+            <TouchableOpacity
+              style={styles.followBtn}
+              activeOpacity={0.8}
+              onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+            >
+              <Ionicons name="add" size={22} color="#FFF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionBtn}
+              activeOpacity={0.7}
+              onPress={() => {
+                setShowGiftPicker(true);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+            >
+              <Ionicons name="gift-outline" size={26} color="#FFD700" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -798,8 +800,19 @@ const styles = StyleSheet.create({
   bottomBar: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    justifyContent: "space-between",
     paddingTop: 10,
+  },
+  bottomLeft: {
+    flex: 1,
+    alignItems: "flex-start",
+  },
+  bottomRight: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 10,
   },
   chatIconBtn: {
     width: 40,
