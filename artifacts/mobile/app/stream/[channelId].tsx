@@ -489,7 +489,6 @@ export default function StreamScreen() {
       <GiftFloater
         key={fg.id}
         gift={fg}
-        bottomOffset={(Platform.OS === "web" ? 34 : insets.bottom) + 90}
         onDone={(id) => setFloatingGifts((prev) => prev.filter((g) => g.id !== id))}
       />
     ))}

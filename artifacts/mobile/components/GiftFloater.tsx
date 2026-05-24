@@ -12,11 +12,10 @@ export interface FloatingGift {
 
 interface Props {
   gift: FloatingGift;
-  bottomOffset: number;
   onDone: (id: string) => void;
 }
 
-export function GiftFloater({ gift, bottomOffset, onDone }: Props) {
+export function GiftFloater({ gift, onDone }: Props) {
   const translateY = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.4)).current;
@@ -61,10 +60,7 @@ export function GiftFloater({ gift, bottomOffset, onDone }: Props) {
 
   return (
     <Animated.View
-      style={[
-        styles.wrapper,
-        { bottom: bottomOffset + 80, transform: [{ translateY }, { scale }], opacity },
-      ]}
+      style={[styles.wrapper, { transform: [{ translateY }, { scale }], opacity }]}
       pointerEvents="none"
     >
       <Text style={styles.emoji}>{gift.emoji}</Text>
@@ -79,9 +75,12 @@ export function GiftFloater({ gift, bottomOffset, onDone }: Props) {
 const styles = StyleSheet.create({
   wrapper: {
     position: "absolute",
+    top: 0,
+    bottom: 0,
     left: 0,
     right: 0,
     alignItems: "center",
+    justifyContent: "center",
     gap: 8,
   },
   emoji: {
