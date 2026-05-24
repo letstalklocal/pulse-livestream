@@ -436,14 +436,6 @@ export default function StreamScreen() {
                 <Text style={styles.avatarInitials}>{hostInitials}</Text>
               </View>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.avatarChevron}
-              onPress={() => router.back()}
-              activeOpacity={0.8}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            >
-              <Ionicons name="chevron-down" size={10} color="#FFF" />
-            </TouchableOpacity>
           </View>
 
           <View style={styles.streamMeta}>
