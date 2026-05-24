@@ -489,25 +489,21 @@ export default function StreamScreen() {
           />
         </Animated.View>
 
-        {/* Streamer info — centered above bottom bar */}
-        {stream && (
-          <TouchableOpacity
-            style={styles.streamerInfo}
-            activeOpacity={0.8}
-            onPress={() => router.push(`/profile/${stream.hostUid}` as any)}
-          >
-            <Avatar
-              uid={stream.hostUid}
-              name={stream.hostName}
-              size={48}
-              borderWidth={2}
-            />
-            <Text style={styles.hostName}>{stream.hostName}</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Bottom actions */}
+        {/* Bottom actions — single row */}
         <View style={styles.bottomBar} pointerEvents="auto">
+          {/* Avatar + name inline left */}
+          {stream && (
+            <TouchableOpacity
+              style={styles.streamerInfo}
+              activeOpacity={0.8}
+              onPress={() => router.push(`/profile/${stream.hostUid}` as any)}
+            >
+              <Avatar uid={stream.hostUid} name={stream.hostName} size={36} borderWidth={2} />
+              <Text style={styles.streamerName} numberOfLines={1}>{stream.hostName}</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Chat input */}
           <TextInput
             style={styles.chatInput}
             value={inputText}
@@ -518,14 +514,16 @@ export default function StreamScreen() {
             returnKeyType="send"
             blurOnSubmit={false}
           />
-          {/* Follow */}
+
+          {/* Follow — white + on pink circle */}
           <TouchableOpacity
-            style={styles.actionBtn}
-            activeOpacity={0.7}
+            style={styles.followBtn}
+            activeOpacity={0.8}
             onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
           >
-            <Ionicons name="add-circle-outline" size={28} color="#FF1966" />
+            <Ionicons name="add" size={22} color="#FFF" />
           </TouchableOpacity>
+
           {/* Gift */}
           <TouchableOpacity
             style={styles.actionBtn}
@@ -630,10 +628,27 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   streamerInfo: {
+    flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingVertical: 8,
-    alignSelf: "center",
+  },
+  streamerName: {
+    color: "#FFF",
+    fontSize: 12,
+    fontWeight: "600",
+    fontFamily: "Inter_600SemiBold",
+    maxWidth: 72,
+    textShadowColor: "rgba(0,0,0,0.8)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  followBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#FF1966",
+    alignItems: "center",
+    justifyContent: "center",
   },
   backBtn: {
     width: 36,
