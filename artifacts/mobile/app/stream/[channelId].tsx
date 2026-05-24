@@ -399,6 +399,9 @@ export default function StreamScreen() {
             <Ionicons name="arrow-back" size={20} color="#FFF" />
           </TouchableOpacity>
 
+          {/* Spacer pushes counters to the right */}
+          <View style={{ flex: 1 }} />
+
           {/* Heart count */}
           <TouchableOpacity
             style={styles.topBadge}
