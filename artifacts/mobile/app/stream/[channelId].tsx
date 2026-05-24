@@ -27,6 +27,9 @@ import {
   useGetCoinBalance,
   getGetCoinBalanceQueryKey,
   useSpendCoins,
+  useFollowUser,
+  useUnfollowUser,
+  useGetFollowStatus,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { GiftPicker, GIFTS, type Gift } from "@/components/GiftPicker";
@@ -145,6 +148,37 @@ export default function StreamScreen() {
     query: { enabled: !!channelId, refetchInterval: 5000 } as any,
   });
   const stream = streamData?.stream;
+
+  const hostUid = stream?.hostUid ?? null;
+  const isOwnStream = !!user?.uid && user.uid === hostUid;
+  const { data: followStatusData, refetch: refetchFollow } = useGetFollowStatus(
+    hostUid ?? 0,
+    { followerUid: user?.uid ?? 0 },
+    { query: { enabled: !!hostUid && !!user?.uid && !isOwnStream } as any },
+  );
+  const isFollowing = followStatusData?.isFollowing ?? false;
+  const followMutation = useFollowUser();
+  const unfollowMutation = useUnfollowUser();
+
+  const toggleFollow = () => {
+    if (!hostUid || !user?.uid) return;
+    if (isFollowing) {
+      unfollowMutation.mutate(
+        { uid: hostUid, data: { followerUid: user.uid } },
+        { onSuccess: () => { refetchFollow(); } },
+      );
+    } else {
+      followMutation.mutate(
+        { uid: hostUid, data: { followerUid: user.uid } },
+        {
+          onSuccess: () => {
+            refetchFollow();
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          },
+        },
+      );
+    }
+  };
 
   // Fetch the full stream list so we know prev/next
   const { data: allStreamsData } = useListStreams({
@@ -389,9 +423,6 @@ export default function StreamScreen() {
             <Text style={styles.coinEmoji}>🪙</Text>
             <Text style={styles.statsText}>{coins.toLocaleString()}</Text>
             <View style={styles.statsDivider} />
-            <Ionicons name="heart" size={12} color="#FF1966" />
-            <Text style={styles.statsText}>{likeCount}</Text>
-            <View style={styles.statsDivider} />
             <Ionicons name="eye" size={12} color="#FFF" />
             <Text style={styles.statsText}>
               {stream?.viewerCount != null
@@ -454,17 +485,20 @@ export default function StreamScreen() {
             returnKeyType="send"
             blurOnSubmit={false}
           />
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => {
-              setLikeCount((c) => c + 1);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="heart" size={24} color="#FF1966" />
-            <Text style={styles.actionBtnText}>{likeCount}</Text>
-          </TouchableOpacity>
+          {!isOwnStream && (
+            <TouchableOpacity
+              style={[styles.followBtn, isFollowing && styles.followBtnActive]}
+              onPress={toggleFollow}
+              activeOpacity={0.75}
+              disabled={followMutation.isPending || unfollowMutation.isPending}
+            >
+              <Ionicons
+                name={isFollowing ? "checkmark" : "add"}
+                size={22}
+                color="#FFF"
+              />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={styles.actionBtn}
             activeOpacity={0.7}
@@ -690,9 +724,17 @@ const styles = StyleSheet.create({
     gap: 2,
     minWidth: 36,
   },
-  actionBtnText: {
-    color: "#FFF",
-    fontSize: 10,
-    fontFamily: "Inter_500Medium",
+  followBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#FF1966",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  followBtnActive: {
+    backgroundColor: "rgba(255,25,102,0.25)",
+    borderWidth: 1.5,
+    borderColor: "#FF1966",
   },
 });
