@@ -468,11 +468,23 @@ export default function StreamScreen() {
           />
         </Animated.View>
 
-        {/* Bottom: streamer info + actions */}
+        {/* Bottom: single row — chat | streamer pill | follow | gift | share */}
         <View style={styles.bottomSection} pointerEvents="auto">
-          {/* Streamer avatar + name centered */}
+          {/* Chat icon */}
           <TouchableOpacity
-            style={styles.streamerCenter}
+            activeOpacity={0.7}
+            onPress={() => {
+              setChatMode(true);
+              setTimeout(() => inputRef.current?.focus(), 50);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+          >
+            <Ionicons name="chatbubble-outline" size={26} color="#FFF" />
+          </TouchableOpacity>
+
+          {/* Streamer pill */}
+          <TouchableOpacity
+            style={styles.streamerPill}
             activeOpacity={0.8}
             onPress={() =>
               stream?.hostUid
@@ -483,70 +495,51 @@ export default function StreamScreen() {
             <Avatar
               uid={stream?.hostUid ?? 0}
               name={stream?.hostName ?? ""}
-              size={52}
-              borderWidth={2}
+              size={28}
+              borderWidth={1}
             />
             {stream && (
-              <Text style={styles.hostName}>{stream.hostName}</Text>
+              <Text style={styles.pillName} numberOfLines={1}>{stream.hostName}</Text>
             )}
           </TouchableOpacity>
 
-          {/* Action row */}
-          <View style={styles.actionRow}>
-            <TouchableOpacity
-              style={styles.actionBtn}
-              activeOpacity={0.7}
-              onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-            >
-              <View style={styles.followBtn}>
-                <Ionicons name="add" size={22} color="#FFF" />
-              </View>
-              <Text style={styles.actionBtnText}>Follow</Text>
-            </TouchableOpacity>
+          {/* Follow button */}
+          <TouchableOpacity
+            style={styles.followBtn}
+            activeOpacity={0.7}
+            onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+          >
+            <Ionicons name="add" size={18} color="#FFF" />
+            <Text style={styles.followBtnText}>Follow</Text>
+          </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.actionBtn}
-              activeOpacity={0.7}
-              onPress={() => {
-                setChatMode(true);
-                setTimeout(() => inputRef.current?.focus(), 50);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
-            >
-              <Ionicons name="chatbubble-outline" size={26} color="#FFF" />
-              <Text style={styles.actionBtnText}>Chat</Text>
-            </TouchableOpacity>
+          {/* Gift */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => {
+              setShowGiftPicker(true);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+          >
+            <Ionicons name="gift-outline" size={26} color="#FFD700" />
+          </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.actionBtn}
-              activeOpacity={0.7}
-              onPress={() => {
-                setShowGiftPicker(true);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
-            >
-              <Ionicons name="gift-outline" size={26} color="#FFD700" />
-              <Text style={styles.actionBtnText}>Gift</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionBtn}
-              activeOpacity={0.7}
-              onPress={() => {
-                const domain = process.env["EXPO_PUBLIC_DOMAIN"] ?? "pulse.app";
-                Share.share({
-                  title: stream ? `${stream.hostName} is live on Pulse` : "Watch live on Pulse",
-                  message: stream
-                    ? `🔴 ${stream.hostName} is streaming "${stream.title}" on Pulse!\nhttps://${domain}/stream/${channelId}`
-                    : `Watch live streams on Pulse!\nhttps://${domain}`,
-                });
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
-            >
-              <Ionicons name="share-outline" size={26} color="#FFF" />
-              <Text style={styles.actionBtnText}>Share</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Share */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => {
+              const domain = process.env["EXPO_PUBLIC_DOMAIN"] ?? "pulse.app";
+              Share.share({
+                title: stream ? `${stream.hostName} is live on Pulse` : "Watch live on Pulse",
+                message: stream
+                  ? `🔴 ${stream.hostName} is streaming "${stream.title}" on Pulse!\nhttps://${domain}/stream/${channelId}`
+                  : `Watch live streams on Pulse!\nhttps://${domain}`,
+              });
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+          >
+            <Ionicons name="share-outline" size={26} color="#FFF" />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -776,27 +769,43 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   bottomSection: {
-    alignItems: "center",
-    gap: 12,
-    paddingTop: 8,
-  },
-  streamerCenter: {
-    alignItems: "center",
-    gap: 6,
-  },
-  actionRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 28,
+    gap: 14,
+    paddingTop: 8,
+  },
+  streamerPill: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 20,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    maxWidth: 180,
+  },
+  pillName: {
+    color: "#FFF",
+    fontSize: 13,
+    fontWeight: "600",
+    fontFamily: "Inter_600SemiBold",
+    flexShrink: 1,
   },
   followBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#FF1966",
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 3,
+    backgroundColor: "#FF1966",
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  followBtnText: {
+    color: "#FFF",
+    fontSize: 12,
+    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
   },
   actionBtn: {
     alignItems: "center",
