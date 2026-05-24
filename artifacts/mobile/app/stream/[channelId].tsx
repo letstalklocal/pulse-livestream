@@ -510,7 +510,7 @@ export default function StreamScreen() {
         {/* Bottom actions — three sections: left | center | right */}
         <View style={styles.bottomBar} pointerEvents="auto">
           {/* Left: chat input */}
-          <View style={styles.bottomLeft}>
+          <View style={[styles.bottomLeft, keyboardOpen && { flex: 1 }]}>
             <TextInput
               ref={inputRef}
               style={styles.chatInput}
