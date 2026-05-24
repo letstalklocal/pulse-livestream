@@ -381,19 +381,19 @@ export default function StreamScreen() {
 
           <View style={styles.streamMeta}>
             {stream && (
-              <View style={styles.hostRow}>
-                <Text style={styles.hostName}>{stream.hostName}</Text>
-                <View style={styles.liveBadge}>
-                  <View style={styles.liveDot} />
-                  <Text style={styles.liveBadgeText}>LIVE</Text>
-                </View>
-              </View>
+              <Text style={styles.hostName}>{stream.hostName}</Text>
             )}
           </View>
 
-          <View style={styles.viewerBadge}>
-            <Ionicons name="eye" size={13} color="#FFF" />
-            <Text style={styles.viewerText}>
+          <View style={styles.statsRow}>
+            <Text style={styles.coinEmoji}>🪙</Text>
+            <Text style={styles.statsText}>{coins.toLocaleString()}</Text>
+            <View style={styles.statsDivider} />
+            <Ionicons name="heart" size={12} color="#FF1966" />
+            <Text style={styles.statsText}>{likeCount}</Text>
+            <View style={styles.statsDivider} />
+            <Ionicons name="eye" size={12} color="#FFF" />
+            <Text style={styles.statsText}>
               {stream?.viewerCount != null
                 ? stream.viewerCount >= 1000
                   ? `${(stream.viewerCount / 1000).toFixed(1)}K`
@@ -583,11 +583,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   streamMeta: { flex: 1 },
-  hostRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
   hostName: {
     color: "#FFF",
     fontSize: 15,
@@ -597,39 +592,30 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
-  liveBadge: {
+  statsRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    backgroundColor: "#FF1966",
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 5,
-  },
-  liveDot: {
-    width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FFF",
-  },
-  liveBadgeText: {
-    color: "#FFF",
-    fontSize: 9,
-    fontWeight: "700",
-    fontFamily: "Inter_700Bold",
-    letterSpacing: 0.5,
-  },
-  viewerBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
+    gap: 5,
     backgroundColor: "rgba(0,0,0,0.5)",
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
-  viewerText: {
+  statsText: {
     color: "#FFF",
     fontSize: 12,
     fontWeight: "600",
     fontFamily: "Inter_600SemiBold",
+  },
+  coinEmoji: {
+    fontSize: 12,
+    lineHeight: 15,
+  },
+  statsDivider: {
+    width: 1,
+    height: 10,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    marginHorizontal: 2,
   },
   streamTitle: {
     color: "rgba(255,255,255,0.9)",
