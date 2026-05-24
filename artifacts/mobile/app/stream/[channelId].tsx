@@ -509,8 +509,7 @@ export default function StreamScreen() {
             activeOpacity={0.7}
             onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
           >
-            <Ionicons name="add" size={18} color="#FFF" />
-            <Text style={styles.followBtnText}>Follow</Text>
+            <Ionicons name="add" size={22} color="#FFF" />
           </TouchableOpacity>
 
           {/* Gift */}
@@ -783,7 +782,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingVertical: 5,
     paddingHorizontal: 8,
-    maxWidth: 180,
   },
   pillName: {
     color: "#FFF",
@@ -793,19 +791,12 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   followBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: "#FF1966",
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  followBtnText: {
-    color: "#FFF",
-    fontSize: 12,
-    fontWeight: "700",
-    fontFamily: "Inter_700Bold",
+    alignItems: "center",
+    justifyContent: "center",
   },
   actionBtn: {
     alignItems: "center",
