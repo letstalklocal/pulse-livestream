@@ -403,7 +403,7 @@ export default function StreamScreen() {
         {/* Top bar */}
         <View style={styles.topBar} pointerEvents="auto">
           {/* Back arrow */}
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => { Keyboard.dismiss(); router.back(); }} activeOpacity={0.8}>
             <Ionicons name="arrow-back" size={20} color="#FFF" />
           </TouchableOpacity>
 
