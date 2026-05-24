@@ -67,19 +67,23 @@ router.post("/coins/spend", async (req, res) => {
     description: description ?? "",
   });
 
-  // Credit recipient (streamer) if provided
+  // Credit recipient (streamer) if provided — silently skip if recipient has no user record
   if (recipientUid && typeof recipientUid === "number" && recipientUid !== uid) {
-    await getOrCreateBalance(recipientUid);
-    await db
-      .update(coinBalancesTable)
-      .set({ balance: sql`${coinBalancesTable.balance} + ${amount}`, updatedAt: new Date() })
-      .where(eq(coinBalancesTable.userId, recipientUid));
-    await db.insert(coinTransactionsTable).values({
-      userId: recipientUid,
-      amount,
-      type: "gift_received",
-      description: description ?? "",
-    });
+    try {
+      await getOrCreateBalance(recipientUid);
+      await db
+        .update(coinBalancesTable)
+        .set({ balance: sql`${coinBalancesTable.balance} + ${amount}`, updatedAt: new Date() })
+        .where(eq(coinBalancesTable.userId, recipientUid));
+      await db.insert(coinTransactionsTable).values({
+        userId: recipientUid,
+        amount,
+        type: "gift_received",
+        description: description ?? "",
+      });
+    } catch {
+      // Recipient may be a demo/seeded host without a real user record; sender deduction still stands
+    }
   }
 
   res.json({ balance: updated[0]?.balance ?? current - amount });
