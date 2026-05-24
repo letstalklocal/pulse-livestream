@@ -122,6 +122,8 @@ export default function StreamScreen() {
   const [showGiftPicker, setShowGiftPicker] = useState(false);
   const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
   const [streamCoins, setStreamCoins] = useState(0);
+  const [inputFocused, setInputFocused] = useState(false);
+  const inputRef = useRef<TextInput>(null);
 
   const queryClient = useQueryClient();
   const coinBalanceQuery = useGetCoinBalance(
@@ -494,17 +496,30 @@ export default function StreamScreen() {
 
         {/* Bottom actions — single row */}
         <View style={styles.bottomBar} pointerEvents="auto">
-          {/* Chat input — leftmost */}
-          <TextInput
-            style={styles.chatInput}
-            value={inputText}
-            onChangeText={setInputText}
-            placeholder="Say something…"
-            placeholderTextColor="rgba(255,255,255,0.45)"
-            onSubmitEditing={sendMessage}
-            returnKeyType="send"
-            blurOnSubmit={false}
-          />
+          {/* Chat — icon when idle, input when focused */}
+          {inputFocused ? (
+            <TextInput
+              ref={inputRef}
+              style={styles.chatInput}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Say something…"
+              placeholderTextColor="rgba(255,255,255,0.45)"
+              onSubmitEditing={sendMessage}
+              returnKeyType="send"
+              blurOnSubmit={false}
+              autoFocus
+              onBlur={() => setInputFocused(false)}
+            />
+          ) : (
+            <TouchableOpacity
+              style={styles.chatIconBtn}
+              activeOpacity={0.7}
+              onPress={() => setInputFocused(true)}
+            >
+              <Ionicons name="chatbubble-outline" size={24} color="rgba(255,255,255,0.85)" />
+            </TouchableOpacity>
+          )}
 
           {/* Avatar + name inline */}
           {stream && (
@@ -781,6 +796,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     paddingTop: 10,
+  },
+  chatIconBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
   chatInput: {
     flex: 1,
