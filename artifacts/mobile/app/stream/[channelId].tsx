@@ -126,8 +126,16 @@ export default function StreamScreen() {
   const [inputFocused, setInputFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
+  const pendingBackRef = useRef(false);
+
   useEffect(() => {
-    const sub = Keyboard.addListener("keyboardDidHide", () => setInputFocused(false));
+    const sub = Keyboard.addListener("keyboardDidHide", () => {
+      setInputFocused(false);
+      if (pendingBackRef.current) {
+        pendingBackRef.current = false;
+        router.back();
+      }
+    });
     return () => sub.remove();
   }, []);
 
@@ -403,7 +411,18 @@ export default function StreamScreen() {
         {/* Top bar */}
         <View style={styles.topBar} pointerEvents="auto">
           {/* Back arrow */}
-          <TouchableOpacity style={styles.backBtn} onPress={() => { Keyboard.dismiss(); router.back(); }} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            activeOpacity={0.8}
+            onPress={() => {
+              if (inputFocused) {
+                pendingBackRef.current = true;
+                Keyboard.dismiss();
+              } else {
+                router.back();
+              }
+            }}
+          >
             <Ionicons name="arrow-back" size={20} color="#FFF" />
           </TouchableOpacity>
 
