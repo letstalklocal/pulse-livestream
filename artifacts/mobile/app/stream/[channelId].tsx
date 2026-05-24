@@ -407,44 +407,46 @@ export default function StreamScreen() {
             <Ionicons name="arrow-back" size={20} color="#FFF" />
           </TouchableOpacity>
 
-          {/* Spacer pushes counters to the right */}
+          {/* Spacer pushes pill + share to the right */}
           <View style={{ flex: 1 }} />
 
-          {/* Heart count */}
-          <TouchableOpacity
-            style={styles.topBadge}
-            onPress={() => {
-              setLikeCount((c) => c + 1);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="heart" size={14} color="#FF1966" />
-            <Text style={styles.viewerText}>{likeCount}</Text>
-          </TouchableOpacity>
+          {/* Middle pill — heart · coins · viewers */}
+          <View style={styles.topPill}>
+            <TouchableOpacity
+              style={styles.topPillItem}
+              onPress={() => {
+                setLikeCount((c) => c + 1);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="heart" size={13} color="#FF1966" />
+              <Text style={styles.topPillText}>{likeCount}</Text>
+            </TouchableOpacity>
 
-          {/* Coins received */}
-          {streamCoins > 0 && (
-            <View style={styles.coinsBadge}>
-              <Text style={styles.coinEmoji}>🪙</Text>
-              <Text style={styles.streamCoinText}>
-                {streamCoins >= 1000
-                  ? `${(streamCoins / 1000).toFixed(1)}K`
-                  : streamCoins}
+            {streamCoins > 0 && (
+              <>
+                <View style={styles.topPillDivider} />
+                <View style={styles.topPillItem}>
+                  <Text style={styles.coinEmoji}>🪙</Text>
+                  <Text style={styles.topPillText}>
+                    {streamCoins >= 1000 ? `${(streamCoins / 1000).toFixed(1)}K` : streamCoins}
+                  </Text>
+                </View>
+              </>
+            )}
+
+            <View style={styles.topPillDivider} />
+            <View style={styles.topPillItem}>
+              <Ionicons name="eye" size={13} color="#FFF" />
+              <Text style={styles.topPillText}>
+                {stream?.viewerCount != null
+                  ? stream.viewerCount >= 1000
+                    ? `${(stream.viewerCount / 1000).toFixed(1)}K`
+                    : stream.viewerCount
+                  : "—"}
               </Text>
             </View>
-          )}
-
-          {/* Viewer count */}
-          <View style={styles.viewerBadge}>
-            <Ionicons name="eye" size={13} color="#FFF" />
-            <Text style={styles.viewerText}>
-              {stream?.viewerCount != null
-                ? stream.viewerCount >= 1000
-                  ? `${(stream.viewerCount / 1000).toFixed(1)}K`
-                  : stream.viewerCount
-                : "—"}
-            </Text>
           </View>
 
           {/* Share */}
@@ -643,14 +645,31 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 4,
   },
-  topBadge: {
+  topPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.28)",
+    borderRadius: 20,
+    paddingHorizontal: 4,
+    paddingVertical: 5,
+    marginRight: 8,
+  },
+  topPillItem: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "rgba(0,0,0,0.5)",
     paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 14,
+  },
+  topPillDivider: {
+    width: 1,
+    height: 12,
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  topPillText: {
+    color: "#FFF",
+    fontSize: 12,
+    fontWeight: "600",
+    fontFamily: "Inter_600SemiBold",
   },
   streamerInfo: {
     flexDirection: "row",
