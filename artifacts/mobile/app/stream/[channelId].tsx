@@ -427,18 +427,24 @@ export default function StreamScreen() {
       >
         {/* Top bar */}
         <View style={styles.topBar} pointerEvents="auto">
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => router.back()}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.avatarCircle, { backgroundColor: hostAvatarColor }]}>
-              <Text style={styles.avatarInitials}>{hostInitials}</Text>
-            </View>
-            <View style={styles.avatarChevron}>
+          <View style={styles.backBtn}>
+            <TouchableOpacity
+              onPress={() => hostUid ? router.push(`/profile/${hostUid}`) : undefined}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.avatarCircle, { backgroundColor: hostAvatarColor }]}>
+                <Text style={styles.avatarInitials}>{hostInitials}</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.avatarChevron}
+              onPress={() => router.back()}
+              activeOpacity={0.8}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
               <Ionicons name="chevron-down" size={10} color="#FFF" />
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.streamMeta}>
             {stream && (
