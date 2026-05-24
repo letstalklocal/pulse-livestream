@@ -459,11 +459,6 @@ export default function StreamScreen() {
           </View>
         </View>
 
-        {stream && (
-          <Text style={styles.streamTitle} numberOfLines={2} pointerEvents="none">
-            {stream.title}
-          </Text>
-        )}
 
         {/* Middle spacer — swipe gestures pass through here */}
         <View style={styles.swipeZone} pointerEvents="none">
