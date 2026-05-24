@@ -544,24 +544,30 @@ export default function StreamScreen() {
 
       {/* Chat input — slides up with keyboard when in chat mode */}
       {chatMode && (
-        <View style={styles.chatInputOverlay}>
-          <TextInput
-            ref={inputRef}
-            style={styles.chatInput}
-            value={inputText}
-            onChangeText={setInputText}
-            placeholder="Say something…"
-            placeholderTextColor="rgba(255,255,255,0.45)"
-            onSubmitEditing={() => {
-              sendMessage();
-              setChatMode(false);
-            }}
-            onBlur={() => setChatMode(false)}
-            returnKeyType="send"
-            blurOnSubmit={false}
-            autoFocus
-          />
-        </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.chatInputKAV}
+          keyboardVerticalOffset={0}
+        >
+          <View style={[styles.chatInputOverlay, { paddingBottom: bottomPad + 12 }]}>
+            <TextInput
+              ref={inputRef}
+              style={styles.chatInput}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Say something…"
+              placeholderTextColor="rgba(255,255,255,0.45)"
+              onSubmitEditing={() => {
+                sendMessage();
+                setChatMode(false);
+              }}
+              onBlur={() => setChatMode(false)}
+              returnKeyType="send"
+              blurOnSubmit={false}
+              autoFocus
+            />
+          </View>
+        </KeyboardAvoidingView>
       )}
     </KeyboardAvoidingView>
     </Animated.View>
@@ -807,15 +813,16 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: "Inter_500Medium",
   },
-  chatInputOverlay: {
+  chatInputKAV: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
+  },
+  chatInputOverlay: {
     paddingHorizontal: 14,
-    paddingBottom: 12,
     paddingTop: 10,
-    backgroundColor: "rgba(8,8,15,0.85)",
+    backgroundColor: "rgba(8,8,15,0.92)",
   },
   chatInput: {
     backgroundColor: "rgba(255,255,255,0.12)",
