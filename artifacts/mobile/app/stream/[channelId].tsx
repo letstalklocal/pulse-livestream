@@ -8,6 +8,7 @@ import {
   Dimensions,
   FlatList,
   KeyboardAvoidingView,
+  Modal,
   PanResponder,
   Platform,
   Share,
@@ -15,6 +16,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -123,6 +125,7 @@ export default function StreamScreen() {
   const [likeCount, setLikeCount] = useState(Math.floor(Math.random() * 500) + 50);
   const [showGiftPicker, setShowGiftPicker] = useState(false);
   const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
+  const [showKebabMenu, setShowKebabMenu] = useState(false);
 
   const queryClient = useQueryClient();
   // Viewer's own spendable balance (for the gift picker)
@@ -521,17 +524,11 @@ export default function StreamScreen() {
             style={styles.actionBtn}
             activeOpacity={0.7}
             onPress={() => {
-              const domain = process.env["EXPO_PUBLIC_DOMAIN"] ?? "pulse.app";
-              Share.share({
-                title: stream ? `${stream.hostName} is live on Pulse` : "Watch live on Pulse",
-                message: stream
-                  ? `🔴 ${stream.hostName} is streaming "${stream.title}" on Pulse!\nhttps://${domain}/stream/${channelId}`
-                  : `Watch live streams on Pulse!\nhttps://${domain}`,
-              });
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowKebabMenu(true);
             }}
           >
-            <Ionicons name="share-outline" size={24} color="#FFF" />
+            <Ionicons name="ellipsis-vertical" size={24} color="#FFF" />
           </TouchableOpacity>
         </View>
       </View>
@@ -588,6 +585,52 @@ export default function StreamScreen() {
         <DemoVideo category={transitionCategory} />
       </Animated.View>
     )}
+    {/* Kebab menu */}
+    <Modal
+      transparent
+      visible={showKebabMenu}
+      animationType="fade"
+      onRequestClose={() => setShowKebabMenu(false)}
+    >
+      <TouchableWithoutFeedback onPress={() => setShowKebabMenu(false)}>
+        <View style={styles.kebabBackdrop}>
+          <TouchableWithoutFeedback>
+            <View style={styles.kebabMenu}>
+              <TouchableOpacity
+                style={styles.kebabItem}
+                activeOpacity={0.7}
+                onPress={() => {
+                  setShowKebabMenu(false);
+                  const domain = process.env["EXPO_PUBLIC_DOMAIN"] ?? "pulse.app";
+                  Share.share({
+                    title: stream ? `${stream.hostName} is live on Pulse` : "Watch live on Pulse",
+                    message: stream
+                      ? `🔴 ${stream.hostName} is streaming "${stream.title}" on Pulse!\nhttps://${domain}/stream/${channelId}`
+                      : `Watch live streams on Pulse!\nhttps://${domain}`,
+                  });
+                }}
+              >
+                <Ionicons name="share-outline" size={20} color="#FFF" />
+                <Text style={styles.kebabItemText}>Share</Text>
+              </TouchableOpacity>
+              <View style={styles.kebabDivider} />
+              <TouchableOpacity
+                style={styles.kebabItem}
+                activeOpacity={0.7}
+                onPress={() => {
+                  setShowKebabMenu(false);
+                  Alert.alert("Report", "Thank you for your report. Our team will review this stream shortly.", [{ text: "OK" }]);
+                }}
+              >
+                <Ionicons name="flag-outline" size={20} color="#FF453A" />
+                <Text style={[styles.kebabItemText, { color: "#FF453A" }]}>Report</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+
     </View>
   );
 }
@@ -749,5 +792,36 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,25,102,0.25)",
     borderWidth: 1.5,
     borderColor: "#FF1966",
+  },
+  kebabBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "flex-end",
+    paddingBottom: 40,
+    paddingHorizontal: 16,
+  },
+  kebabMenu: {
+    backgroundColor: "#1A1A2E",
+    borderRadius: 16,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  kebabItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+  },
+  kebabItemText: {
+    color: "#FFF",
+    fontSize: 16,
+    fontFamily: "Inter_500Medium",
+  },
+  kebabDivider: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    marginHorizontal: 20,
   },
 });
