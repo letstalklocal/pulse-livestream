@@ -392,6 +392,17 @@ export default function StreamScreen() {
             )}
           </View>
 
+          {streamCoins > 0 && (
+            <View style={styles.coinsBadge}>
+              <Text style={styles.coinEmoji}>🪙</Text>
+              <Text style={styles.streamCoinText}>
+                {streamCoins >= 1000
+                  ? `${(streamCoins / 1000).toFixed(1)}K`
+                  : streamCoins}
+              </Text>
+            </View>
+          )}
+
           <View style={styles.viewerBadge}>
             <Ionicons name="eye" size={13} color="#FFF" />
             <Text style={styles.viewerText}>
@@ -401,17 +412,6 @@ export default function StreamScreen() {
                   : stream.viewerCount
                 : "—"}
             </Text>
-            {streamCoins > 0 && (
-              <>
-                <Text style={styles.viewerDivider}>·</Text>
-                <Text style={styles.coinEmoji}>🪙</Text>
-                <Text style={styles.streamCoinText}>
-                  {streamCoins >= 1000
-                    ? `${(streamCoins / 1000).toFixed(1)}K`
-                    : streamCoins}
-                </Text>
-              </>
-            )}
           </View>
         </View>
 
@@ -638,9 +638,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "Inter_600SemiBold",
   },
-  viewerDivider: {
-    color: "rgba(255,255,255,0.4)",
-    fontSize: 12,
+  coinsBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 14,
   },
   coinEmoji: { fontSize: 12 },
   streamCoinText: {
