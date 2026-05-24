@@ -135,6 +135,7 @@ export interface CoinBalanceResponse {
 
 export interface CoinSpendRequest {
   uid: number;
+  recipientUid?: number;
   amount: number;
   description?: string;
 }

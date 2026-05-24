@@ -270,6 +270,7 @@ export const GetCoinBalanceResponse = zod.object({
  */
 export const SpendCoinsBody = zod.object({
   "uid": zod.number(),
+  "recipientUid": zod.number().optional(),
   "amount": zod.number(),
   "description": zod.string().optional()
 })

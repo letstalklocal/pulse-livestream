@@ -125,11 +125,12 @@ export default function StreamScreen() {
   const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
 
   const queryClient = useQueryClient();
+  // Viewer's own spendable balance (for the gift picker)
   const coinBalanceQuery = useGetCoinBalance(
     { uid: user?.uid ?? 0 },
     { query: { enabled: !!user?.uid, refetchOnWindowFocus: false } as any },
   );
-  const coins = coinBalanceQuery.data?.balance ?? 0;
+  const viewerCoins = coinBalanceQuery.data?.balance ?? 0;
   const spendMutation = useSpendCoins();
   const engineRef = useRef<any>(null);
   const listRef = useRef<FlatList>(null);
@@ -151,6 +152,13 @@ export default function StreamScreen() {
 
   const hostUid = stream?.hostUid ?? null;
   const isOwnStream = !!user?.uid && user.uid === hostUid;
+
+  // Host's received-gift coin balance (shown in the stats row)
+  const hostCoinQuery = useGetCoinBalance(
+    { uid: hostUid ?? 0 },
+    { query: { enabled: !!hostUid, refetchOnWindowFocus: false } as any },
+  );
+  const hostCoins = hostCoinQuery.data?.balance ?? 0;
   const { data: followStatusData, refetch: refetchFollow } = useGetFollowStatus(
     hostUid ?? 0,
     { followerUid: user?.uid ?? 0 },
@@ -421,7 +429,7 @@ export default function StreamScreen() {
 
           <View style={styles.statsRow}>
             <Text style={styles.coinEmoji}>🪙</Text>
-            <Text style={styles.statsText}>{coins.toLocaleString()}</Text>
+            <Text style={styles.statsText}>{hostCoins.toLocaleString()}</Text>
             <View style={styles.statsDivider} />
             <Ionicons name="eye" size={12} color="#FFF" />
             <Text style={styles.statsText}>
@@ -542,19 +550,24 @@ export default function StreamScreen() {
     {/* Gift picker */}
     <GiftPicker
       visible={showGiftPicker}
-      coins={coins}
+      coins={viewerCoins}
       onClose={() => setShowGiftPicker(false)}
       onSend={(gift) => {
         if (!user?.uid) return;
         setShowGiftPicker(false);
         spendMutation.mutate(
-          { data: { uid: user.uid, amount: gift.coins, description: `gift:${gift.id}` } },
+          { data: { uid: user.uid, recipientUid: hostUid ?? undefined, amount: gift.coins, description: `gift:${gift.id}` } },
           {
             onSuccess: (data) => {
+              // Update viewer's own balance in cache
               queryClient.setQueryData(
                 getGetCoinBalanceQueryKey({ uid: user.uid }),
                 { balance: data.balance },
               );
+              // Invalidate host balance so the stats row reflects the credit
+              queryClient.invalidateQueries({
+                queryKey: getGetCoinBalanceQueryKey({ uid: hostUid ?? 0 }),
+              });
               spawnGift(gift, user.name ?? "You");
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             },

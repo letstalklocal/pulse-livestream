@@ -699,6 +699,8 @@ components:
       properties:
         uid:
           type: integer
+        recipientUid:
+          type: integer
         amount:
           type: integer
         description:

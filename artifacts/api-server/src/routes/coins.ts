@@ -32,8 +32,9 @@ router.get("/coins/balance", async (req, res) => {
 
 // POST /coins/spend
 router.post("/coins/spend", async (req, res) => {
-  const { uid, amount, description } = req.body as {
+  const { uid, recipientUid, amount, description } = req.body as {
     uid?: number;
+    recipientUid?: number;
     amount?: number;
     description?: string;
   };
@@ -52,6 +53,7 @@ router.post("/coins/spend", async (req, res) => {
     return;
   }
 
+  // Deduct from sender
   const updated = await db
     .update(coinBalancesTable)
     .set({ balance: sql`${coinBalancesTable.balance} - ${amount}`, updatedAt: new Date() })
@@ -64,6 +66,21 @@ router.post("/coins/spend", async (req, res) => {
     type: "spend",
     description: description ?? "",
   });
+
+  // Credit recipient (streamer) if provided
+  if (recipientUid && typeof recipientUid === "number" && recipientUid !== uid) {
+    await getOrCreateBalance(recipientUid);
+    await db
+      .update(coinBalancesTable)
+      .set({ balance: sql`${coinBalancesTable.balance} + ${amount}`, updatedAt: new Date() })
+      .where(eq(coinBalancesTable.userId, recipientUid));
+    await db.insert(coinTransactionsTable).values({
+      userId: recipientUid,
+      amount,
+      type: "gift_received",
+      description: description ?? "",
+    });
+  }
 
   res.json({ balance: updated[0]?.balance ?? current - amount });
 });
