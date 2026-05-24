@@ -7,7 +7,6 @@ import {
   Animated,
   Dimensions,
   FlatList,
-  Keyboard,
   KeyboardAvoidingView,
   PanResponder,
   Platform,
@@ -123,8 +122,6 @@ export default function StreamScreen() {
   const [showGiftPicker, setShowGiftPicker] = useState(false);
   const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
   const [streamCoins, setStreamCoins] = useState(0);
-  const [chatMode, setChatMode] = useState(false);
-  const inputRef = useRef<TextInput>(null);
 
   const queryClient = useQueryClient();
   const coinBalanceQuery = useGetCoinBalance(
@@ -157,15 +154,6 @@ export default function StreamScreen() {
       useNativeDriver: true,
     }).start();
   };
-
-  // Exit chat mode only after keyboard has fully hidden — avoids abrupt cut-off
-  useEffect(() => {
-    if (!chatMode) return;
-    const sub = Keyboard.addListener("keyboardDidHide", () => {
-      setChatMode(false);
-    });
-    return () => sub.remove();
-  }, [chatMode]);
 
   const { data: streamData } = useGetStream(channelId ?? "", {
     query: { enabled: !!channelId, refetchInterval: 5000 } as any,
@@ -406,32 +394,39 @@ export default function StreamScreen() {
       >
         {/* Top bar */}
         <View style={styles.topBar} pointerEvents="auto">
-          {/* Back arrow */}
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
-            <Ionicons name="chevron-back" size={22} color="#FFF" />
+          <TouchableOpacity
+            onPress={() =>
+              stream?.hostUid
+                ? router.push(`/profile/${stream.hostUid}` as any)
+                : router.back()
+            }
+            activeOpacity={0.8}
+          >
+            <Avatar
+              uid={stream?.hostUid ?? 0}
+              name={stream?.hostName ?? ""}
+              size={40}
+              borderWidth={2}
+            />
           </TouchableOpacity>
 
-          <View style={{ flex: 1 }} />
-
-          {/* Hearts badge */}
-          <View style={styles.viewerBadge}>
-            <Ionicons name="heart" size={13} color="#FF1966" />
-            <Text style={styles.viewerText}>
-              {likeCount >= 1000 ? `${(likeCount / 1000).toFixed(1)}K` : likeCount}
-            </Text>
+          <View style={styles.streamMeta}>
+            {stream && (
+              <Text style={styles.hostName}>{stream.hostName}</Text>
+            )}
           </View>
 
-          {/* Coins badge */}
           {streamCoins > 0 && (
             <View style={styles.coinsBadge}>
               <Text style={styles.coinEmoji}>🪙</Text>
               <Text style={styles.streamCoinText}>
-                {streamCoins >= 1000 ? `${(streamCoins / 1000).toFixed(1)}K` : streamCoins}
+                {streamCoins >= 1000
+                  ? `${(streamCoins / 1000).toFixed(1)}K`
+                  : streamCoins}
               </Text>
             </View>
           )}
 
-          {/* Viewers badge */}
           <View style={styles.viewerBadge}>
             <Ionicons name="eye" size={13} color="#FFF" />
             <Text style={styles.viewerText}>
@@ -478,63 +473,41 @@ export default function StreamScreen() {
           />
         </Animated.View>
 
-        {/* Bottom: single row — chat | streamer pill | follow | gift | share */}
-        <View style={styles.bottomSection} pointerEvents="auto">
-          {/* Chat icon */}
+        {/* Bottom actions */}
+        <View style={styles.bottomBar} pointerEvents="auto">
+          <TextInput
+            style={styles.chatInput}
+            value={inputText}
+            onChangeText={setInputText}
+            placeholder="Say something…"
+            placeholderTextColor="rgba(255,255,255,0.45)"
+            onSubmitEditing={sendMessage}
+            returnKeyType="send"
+            blurOnSubmit={false}
+          />
           <TouchableOpacity
-            activeOpacity={0.7}
+            style={styles.actionBtn}
             onPress={() => {
-              setChatMode(true);
-              setTimeout(() => inputRef.current?.focus(), 50);
+              setLikeCount((c) => c + 1);
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             }}
-          >
-            <Ionicons name="chatbubble-outline" size={26} color="#FFF" />
-          </TouchableOpacity>
-
-          {/* Streamer pill */}
-          <TouchableOpacity
-            style={styles.streamerPill}
-            activeOpacity={0.8}
-            onPress={() =>
-              stream?.hostUid
-                ? router.push(`/profile/${stream.hostUid}` as any)
-                : undefined
-            }
-          >
-            <Avatar
-              uid={stream?.hostUid ?? 0}
-              name={stream?.hostName ?? ""}
-              size={28}
-              borderWidth={1}
-            />
-            {stream && (
-              <Text style={styles.pillName} numberOfLines={1}>{stream.hostName}</Text>
-            )}
-          </TouchableOpacity>
-
-          {/* Follow button */}
-          <TouchableOpacity
-            style={styles.followBtn}
             activeOpacity={0.7}
-            onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
           >
-            <Ionicons name="add" size={22} color="#FFF" />
+            <Ionicons name="heart" size={24} color="#FF1966" />
+            <Text style={styles.actionBtnText}>{likeCount}</Text>
           </TouchableOpacity>
-
-          {/* Gift */}
           <TouchableOpacity
+            style={styles.actionBtn}
             activeOpacity={0.7}
             onPress={() => {
               setShowGiftPicker(true);
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             }}
           >
-            <Ionicons name="gift-outline" size={26} color="#FFD700" />
+            <Ionicons name="gift-outline" size={24} color="#FFD700" />
           </TouchableOpacity>
-
-          {/* Share */}
           <TouchableOpacity
+            style={styles.actionBtn}
             activeOpacity={0.7}
             onPress={() => {
               const domain = process.env["EXPO_PUBLIC_DOMAIN"] ?? "pulse.app";
@@ -547,37 +520,10 @@ export default function StreamScreen() {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             }}
           >
-            <Ionicons name="share-outline" size={26} color="#FFF" />
+            <Ionicons name="share-outline" size={24} color="#FFF" />
           </TouchableOpacity>
         </View>
       </View>
-
-      {/* Chat input — slides up with keyboard when in chat mode */}
-      {chatMode && (
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.chatInputKAV}
-          keyboardVerticalOffset={0}
-        >
-          <View style={[styles.chatInputOverlay, { paddingBottom: bottomPad + 12 }]}>
-            <TextInput
-              ref={inputRef}
-              style={styles.chatInput}
-              value={inputText}
-              onChangeText={setInputText}
-              placeholder="Say something…"
-              placeholderTextColor="rgba(255,255,255,0.45)"
-              onSubmitEditing={() => {
-                sendMessage();
-                Keyboard.dismiss();
-              }}
-              returnKeyType="send"
-              blurOnSubmit={false}
-              autoFocus
-            />
-          </View>
-        </KeyboardAvoidingView>
-      )}
     </KeyboardAvoidingView>
     </Animated.View>
 
@@ -782,66 +728,32 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     flexShrink: 1,
   },
-  bottomSection: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    paddingTop: 8,
-  },
-  streamerPill: {
-    flex: 1,
+  bottomBar: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    borderRadius: 20,
-    paddingVertical: 5,
-    paddingHorizontal: 8,
-  },
-  pillName: {
-    color: "#FFF",
-    fontSize: 13,
-    fontWeight: "600",
-    fontFamily: "Inter_600SemiBold",
-    flexShrink: 1,
-  },
-  followBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "#FF1966",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  actionBtn: {
-    alignItems: "center",
-    gap: 4,
-  },
-  actionBtnText: {
-    color: "rgba(255,255,255,0.85)",
-    fontSize: 11,
-    fontFamily: "Inter_500Medium",
-  },
-  chatInputKAV: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  chatInputOverlay: {
-    paddingHorizontal: 14,
     paddingTop: 10,
-    backgroundColor: "rgba(8,8,15,0.92)",
   },
   chatInput: {
+    flex: 1,
     backgroundColor: "rgba(255,255,255,0.12)",
     borderRadius: 24,
     paddingHorizontal: 16,
-    paddingVertical: 11,
+    paddingVertical: 10,
     color: "#FFF",
     fontSize: 14,
     fontFamily: "Inter_400Regular",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.18)",
+  },
+  actionBtn: {
+    alignItems: "center",
+    gap: 2,
+    minWidth: 36,
+  },
+  actionBtnText: {
+    color: "#FFF",
+    fontSize: 10,
+    fontFamily: "Inter_500Medium",
   },
 });
