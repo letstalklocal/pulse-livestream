@@ -491,19 +491,7 @@ export default function StreamScreen() {
 
         {/* Bottom actions — single row */}
         <View style={styles.bottomBar} pointerEvents="auto">
-          {/* Avatar + name inline left */}
-          {stream && (
-            <TouchableOpacity
-              style={styles.streamerInfo}
-              activeOpacity={0.8}
-              onPress={() => router.push(`/profile/${stream.hostUid}` as any)}
-            >
-              <Avatar uid={stream.hostUid} name={stream.hostName} size={36} borderWidth={2} />
-              <Text style={styles.streamerName} numberOfLines={1}>{stream.hostName}</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Chat input */}
+          {/* Chat input — leftmost */}
           <TextInput
             style={styles.chatInput}
             value={inputText}
@@ -514,6 +502,18 @@ export default function StreamScreen() {
             returnKeyType="send"
             blurOnSubmit={false}
           />
+
+          {/* Avatar + name inline */}
+          {stream && (
+            <TouchableOpacity
+              style={styles.streamerInfo}
+              activeOpacity={0.8}
+              onPress={() => router.push(`/profile/${stream.hostUid}` as any)}
+            >
+              <Avatar uid={stream.hostUid} name={stream.hostName} size={36} borderWidth={2} />
+              <Text style={styles.streamerName} numberOfLines={1}>{stream.hostName}</Text>
+            </TouchableOpacity>
+          )}
 
           {/* Follow — white + on pink circle */}
           <TouchableOpacity
