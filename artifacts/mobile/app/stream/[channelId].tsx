@@ -123,21 +123,7 @@ export default function StreamScreen() {
   const [showGiftPicker, setShowGiftPicker] = useState(false);
   const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
   const [streamCoins, setStreamCoins] = useState(0);
-  const [inputFocused, setInputFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
-
-  const pendingBackRef = useRef(false);
-
-  useEffect(() => {
-    const sub = Keyboard.addListener("keyboardDidHide", () => {
-      setInputFocused(false);
-      if (pendingBackRef.current) {
-        pendingBackRef.current = false;
-        router.back();
-      }
-    });
-    return () => sub.remove();
-  }, []);
 
   const queryClient = useQueryClient();
   const coinBalanceQuery = useGetCoinBalance(
@@ -414,14 +400,7 @@ export default function StreamScreen() {
           <TouchableOpacity
             style={styles.backBtn}
             activeOpacity={0.8}
-            onPress={() => {
-              if (inputFocused) {
-                pendingBackRef.current = true;
-                Keyboard.dismiss();
-              } else {
-                router.back();
-              }
-            }}
+            onPress={() => { Keyboard.dismiss(); router.back(); }}
           >
             <Ionicons name="arrow-back" size={20} color="#FFF" />
           </TouchableOpacity>
@@ -523,30 +502,19 @@ export default function StreamScreen() {
 
         {/* Bottom actions — three sections: left | center | right */}
         <View style={styles.bottomBar} pointerEvents="auto">
-          {/* Left: chat icon or input */}
+          {/* Left: chat input */}
           <View style={styles.bottomLeft}>
-            {inputFocused ? (
-              <TextInput
-                ref={inputRef}
-                style={styles.chatInput}
-                value={inputText}
-                onChangeText={setInputText}
-                placeholder="Say something…"
-                placeholderTextColor="rgba(255,255,255,0.45)"
-                onSubmitEditing={sendMessage}
-                returnKeyType="send"
-                blurOnSubmit={false}
-                autoFocus
-              />
-            ) : (
-              <TouchableOpacity
-                style={styles.chatIconBtn}
-                activeOpacity={0.7}
-                onPress={() => setInputFocused(true)}
-              >
-                <Ionicons name="chatbubble-outline" size={24} color="rgba(255,255,255,0.85)" />
-              </TouchableOpacity>
-            )}
+            <TextInput
+              ref={inputRef}
+              style={styles.chatInput}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Say something…"
+              placeholderTextColor="rgba(255,255,255,0.45)"
+              onSubmitEditing={sendMessage}
+              returnKeyType="send"
+              blurOnSubmit={false}
+            />
           </View>
 
           {/* Center pill — avatar · name · follow, stretches to fill space */}
