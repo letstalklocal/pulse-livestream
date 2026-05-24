@@ -142,6 +142,18 @@ export default function StreamScreen() {
   // Hint arrow fade-in
   const hintOpacity = useRef(new Animated.Value(0)).current;
   const isNavigatingRef = useRef(false);
+  // Chat visibility (horizontal swipe)
+  const chatOpacity = useRef(new Animated.Value(1)).current;
+  const chatVisibleRef = useRef(true);
+
+  const toggleChat = (show: boolean) => {
+    chatVisibleRef.current = show;
+    Animated.timing(chatOpacity, {
+      toValue: show ? 1 : 0,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+  };
 
   const { data: streamData } = useGetStream(channelId ?? "", {
     query: { enabled: !!channelId, refetchInterval: 5000 } as any,
@@ -291,11 +303,19 @@ export default function StreamScreen() {
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_evt, gs) =>
-        Math.abs(gs.dy) > 10 && Math.abs(gs.dy) > Math.abs(gs.dx),
+        Math.abs(gs.dy) > 10 || Math.abs(gs.dx) > 10,
       onPanResponderRelease: (_evt, gs) => {
-        if (gs.dy < -60) {
+        const horizontal = Math.abs(gs.dx) > Math.abs(gs.dy);
+        if (horizontal) {
+          if (gs.dx > 50) {
+            // Swipe right — hide chat
+            toggleChat(false);
+          } else if (gs.dx < -50) {
+            // Swipe left — show chat
+            toggleChat(true);
+          }
+        } else if (gs.dy < -60) {
           // Swipe up — go to next stream
-          // Access via closure; use refs to avoid stale state
           swipeUpRef.current();
         } else if (gs.dy > 60) {
           // Swipe down — go to previous stream or back
@@ -434,7 +454,7 @@ export default function StreamScreen() {
         </View>
 
         {/* Live chat */}
-        <View style={styles.chatArea} pointerEvents="box-none">
+        <Animated.View style={[styles.chatArea, { opacity: chatOpacity }]} pointerEvents="box-none">
           <FlatList
             ref={listRef}
             data={messages}
@@ -451,7 +471,7 @@ export default function StreamScreen() {
               </View>
             )}
           />
-        </View>
+        </Animated.View>
 
         {/* Bottom actions */}
         <View style={styles.bottomBar} pointerEvents="auto">
