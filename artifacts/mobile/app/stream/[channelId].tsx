@@ -137,6 +137,9 @@ export default function StreamScreen() {
   const slideAnim = useRef(new Animated.Value(0)).current;
   // Overlay animation for the incoming stream during transition
   const transitionAnim = useRef(new Animated.Value(SCREEN_H)).current;
+  // Chat hide/show animation (translateX)
+  const chatSlideX = useRef(new Animated.Value(0)).current;
+  const chatVisibleRef = useRef(true);
   const [transitionCategory, setTransitionCategory] = useState<string | undefined>(undefined);
   const [isTransitioning, setIsTransitioning] = useState(false);
   // Hint arrow fade-in
@@ -286,19 +289,37 @@ export default function StreamScreen() {
     });
   };
 
-  // PanResponder for swipe-up / swipe-down on the video area
+  // PanResponder for swipe-up / swipe-down / swipe-right (hide chat) / swipe-left (show chat)
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_evt, gs) =>
-        Math.abs(gs.dy) > 10 && Math.abs(gs.dy) > Math.abs(gs.dx),
+        Math.abs(gs.dy) > 10 || Math.abs(gs.dx) > 10,
       onPanResponderRelease: (_evt, gs) => {
-        if (gs.dy < -60) {
-          // Swipe up — go to next stream
-          // Access via closure; use refs to avoid stale state
+        const absX = Math.abs(gs.dx);
+        const absY = Math.abs(gs.dy);
+        if (absX > absY && absX > 40) {
+          // Horizontal swipe — toggle chat
+          if (gs.dx > 0 && chatVisibleRef.current) {
+            // Swipe right → hide chat
+            chatVisibleRef.current = false;
+            Animated.timing(chatSlideX, {
+              toValue: SCREEN_W,
+              duration: 180,
+              useNativeDriver: true,
+            }).start();
+          } else if (gs.dx < 0 && !chatVisibleRef.current) {
+            // Swipe left → show chat
+            chatVisibleRef.current = true;
+            Animated.timing(chatSlideX, {
+              toValue: 0,
+              duration: 180,
+              useNativeDriver: true,
+            }).start();
+          }
+        } else if (gs.dy < -60) {
           swipeUpRef.current();
         } else if (gs.dy > 60) {
-          // Swipe down — go to previous stream or back
           swipeDownRef.current();
         }
       },
@@ -433,6 +454,11 @@ export default function StreamScreen() {
           )}
         </View>
 
+        {/* Live chat + bottom bar — slides out on swipe-right, in on swipe-left */}
+        <Animated.View
+          style={[styles.chatAndBar, { transform: [{ translateX: chatSlideX }] }]}
+          pointerEvents="box-none"
+        >
         {/* Live chat */}
         <View style={styles.chatArea} pointerEvents="box-none">
           <FlatList
@@ -503,6 +529,7 @@ export default function StreamScreen() {
             <Ionicons name="share-outline" size={24} color="#FFF" />
           </TouchableOpacity>
         </View>
+        </Animated.View>
       </View>
     </KeyboardAvoidingView>
     </Animated.View>
@@ -667,6 +694,14 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(0,0,0,0.8)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
+  },
+  chatAndBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    top: 0,
+    pointerEvents: "box-none",
   },
   swipeZone: {
     flex: 1,
