@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 
 export interface FloatingGift {
   id: string;
@@ -22,35 +22,40 @@ export function GiftFloater({ gift, onDone }: Props) {
 
   useEffect(() => {
     Animated.sequence([
+      // Pop in — single curve with natural overshoot, no second spring needed
       Animated.parallel([
-        Animated.spring(scale, {
-          toValue: 1.15,
-          tension: 220,
-          friction: 6,
+        Animated.timing(scale, {
+          toValue: 1,
+          duration: 380,
+          easing: Easing.out(Easing.back(2.2)),
           useNativeDriver: true,
         }),
         Animated.timing(opacity, {
           toValue: 1,
-          duration: 150,
+          duration: 180,
+          easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
       ]),
-      Animated.spring(scale, {
-        toValue: 1,
-        tension: 300,
-        friction: 10,
-        useNativeDriver: true,
-      }),
-      Animated.delay(1400),
+      Animated.delay(1100),
+      // Float up — grows slightly as it rises so the exit feels like a continuation
       Animated.parallel([
         Animated.timing(translateY, {
-          toValue: -160,
-          duration: 800,
+          toValue: -150,
+          duration: 720,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(scale, {
+          toValue: 1.12,
+          duration: 720,
+          easing: Easing.in(Easing.quad),
           useNativeDriver: true,
         }),
         Animated.timing(opacity, {
           toValue: 0,
-          duration: 800,
+          duration: 720,
+          easing: Easing.in(Easing.quad),
           useNativeDriver: true,
         }),
       ]),
