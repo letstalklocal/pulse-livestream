@@ -22,10 +22,14 @@ import type {
 import type {
   AgoraTokenRequest,
   AgoraTokenResponse,
+  CoinBalanceResponse,
+  CoinGrantRequest,
+  CoinSpendRequest,
   CreateStreamRequest,
   ErrorResponse,
   FollowRequest,
   FollowStatusResponse,
+  GetCoinBalanceParams,
   GetFollowStatusParams,
   HealthStatus,
   StreamHistoryResponse,
@@ -1099,5 +1103,231 @@ export const useUpdateViewerCount = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getUpdateViewerCountMutationOptions(options));
+    }
+
+export const getGetCoinBalanceUrl = (params: GetCoinBalanceParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/coins/balance?${stringifiedParams}` : `/api/coins/balance`
+}
+
+/**
+ * @summary Get coin balance
+ */
+export const getCoinBalance = async (params: GetCoinBalanceParams, options?: RequestInit): Promise<CoinBalanceResponse> => {
+
+  return customFetch<CoinBalanceResponse>(getGetCoinBalanceUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCoinBalanceQueryKey = (params?: GetCoinBalanceParams,) => {
+    return [
+    `/api/coins/balance`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetCoinBalanceQueryOptions = <TData = Awaited<ReturnType<typeof getCoinBalance>>, TError = ErrorType<ErrorResponse>>(params: GetCoinBalanceParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCoinBalance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCoinBalanceQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCoinBalance>>> = ({ signal }) => getCoinBalance(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCoinBalance>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCoinBalanceQueryResult = NonNullable<Awaited<ReturnType<typeof getCoinBalance>>>
+export type GetCoinBalanceQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get coin balance
+ */
+
+export function useGetCoinBalance<TData = Awaited<ReturnType<typeof getCoinBalance>>, TError = ErrorType<ErrorResponse>>(
+ params: GetCoinBalanceParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCoinBalance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCoinBalanceQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSpendCoinsUrl = () => {
+
+
+
+
+  return `/api/coins/spend`
+}
+
+/**
+ * @summary Spend coins on a gift
+ */
+export const spendCoins = async (coinSpendRequest: CoinSpendRequest, options?: RequestInit): Promise<CoinBalanceResponse> => {
+
+  return customFetch<CoinBalanceResponse>(getSpendCoinsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      coinSpendRequest,)
+  }
+);}
+
+
+
+
+export const getSpendCoinsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof spendCoins>>, TError,{data: BodyType<CoinSpendRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof spendCoins>>, TError,{data: BodyType<CoinSpendRequest>}, TContext> => {
+
+const mutationKey = ['spendCoins'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof spendCoins>>, {data: BodyType<CoinSpendRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  spendCoins(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SpendCoinsMutationResult = NonNullable<Awaited<ReturnType<typeof spendCoins>>>
+    export type SpendCoinsMutationBody = BodyType<CoinSpendRequest>
+    export type SpendCoinsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Spend coins on a gift
+ */
+export const useSpendCoins = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof spendCoins>>, TError,{data: BodyType<CoinSpendRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof spendCoins>>,
+        TError,
+        {data: BodyType<CoinSpendRequest>},
+        TContext
+      > => {
+      return useMutation(getSpendCoinsMutationOptions(options));
+    }
+
+export const getGrantCoinsUrl = () => {
+
+
+
+
+  return `/api/coins/grant`
+}
+
+/**
+ * @summary Manually grant coins (dev / testing only)
+ */
+export const grantCoins = async (coinGrantRequest: CoinGrantRequest, options?: RequestInit): Promise<CoinBalanceResponse> => {
+
+  return customFetch<CoinBalanceResponse>(getGrantCoinsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      coinGrantRequest,)
+  }
+);}
+
+
+
+
+export const getGrantCoinsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof grantCoins>>, TError,{data: BodyType<CoinGrantRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof grantCoins>>, TError,{data: BodyType<CoinGrantRequest>}, TContext> => {
+
+const mutationKey = ['grantCoins'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof grantCoins>>, {data: BodyType<CoinGrantRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  grantCoins(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GrantCoinsMutationResult = NonNullable<Awaited<ReturnType<typeof grantCoins>>>
+    export type GrantCoinsMutationBody = BodyType<CoinGrantRequest>
+    export type GrantCoinsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Manually grant coins (dev / testing only)
+ */
+export const useGrantCoins = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof grantCoins>>, TError,{data: BodyType<CoinGrantRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof grantCoins>>,
+        TError,
+        {data: BodyType<CoinGrantRequest>},
+        TContext
+      > => {
+      return useMutation(getGrantCoinsMutationOptions(options));
     }
 

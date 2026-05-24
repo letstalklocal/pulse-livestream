@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   Dimensions,
   FlatList,
@@ -17,11 +18,15 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useGenerateAgoraToken,
   useGetStream,
   useListStreams,
   useUpdateViewerCount,
+  useGetCoinBalance,
+  getGetCoinBalanceQueryKey,
+  useSpendCoins,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { GiftPicker, GIFTS, type Gift } from "@/components/GiftPicker";
@@ -114,8 +119,15 @@ export default function StreamScreen() {
   const [joined, setJoined] = useState(false);
   const [likeCount, setLikeCount] = useState(Math.floor(Math.random() * 500) + 50);
   const [showGiftPicker, setShowGiftPicker] = useState(false);
-  const [demoCoins, setDemoCoins] = useState(1000);
   const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
+
+  const queryClient = useQueryClient();
+  const coinBalanceQuery = useGetCoinBalance(
+    { uid: user?.uid ?? 0 },
+    { query: { enabled: !!user?.uid, refetchOnWindowFocus: false } as any },
+  );
+  const coins = coinBalanceQuery.data?.balance ?? 0;
+  const spendMutation = useSpendCoins();
   const engineRef = useRef<any>(null);
   const listRef = useRef<FlatList>(null);
 
@@ -496,13 +508,27 @@ export default function StreamScreen() {
     {/* Gift picker */}
     <GiftPicker
       visible={showGiftPicker}
-      coins={demoCoins}
+      coins={coins}
       onClose={() => setShowGiftPicker(false)}
       onSend={(gift) => {
-        setDemoCoins((c) => c - gift.coins);
-        spawnGift(gift, user?.name ?? "You");
+        if (!user?.uid) return;
         setShowGiftPicker(false);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        spendMutation.mutate(
+          { data: { uid: user.uid, amount: gift.coins, description: `gift:${gift.id}` } },
+          {
+            onSuccess: (data) => {
+              queryClient.setQueryData(
+                getGetCoinBalanceQueryKey({ uid: user.uid }),
+                { balance: data.balance },
+              );
+              spawnGift(gift, user.name ?? "You");
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            },
+            onError: () => {
+              Alert.alert("Not enough coins", "Add more coins from your profile.");
+            },
+          },
+        );
       }}
     />
 

@@ -253,3 +253,43 @@ export const UpdateViewerCountResponse = zod.object({
 })
 
 
+/**
+ * @summary Get coin balance
+ */
+export const GetCoinBalanceQueryParams = zod.object({
+  "uid": zod.coerce.number()
+})
+
+export const GetCoinBalanceResponse = zod.object({
+  "balance": zod.number()
+})
+
+
+/**
+ * @summary Spend coins on a gift
+ */
+export const SpendCoinsBody = zod.object({
+  "uid": zod.number(),
+  "amount": zod.number(),
+  "description": zod.string().optional()
+})
+
+export const SpendCoinsResponse = zod.object({
+  "balance": zod.number()
+})
+
+
+/**
+ * @summary Manually grant coins (dev / testing only)
+ */
+export const GrantCoinsBody = zod.object({
+  "uid": zod.number(),
+  "amount": zod.number(),
+  "note": zod.string().optional()
+})
+
+export const GrantCoinsResponse = zod.object({
+  "balance": zod.number()
+})
+
+

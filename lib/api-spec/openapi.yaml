@@ -16,6 +16,8 @@ tags:
     description: Live stream management
   - name: users
     description: User profile management
+  - name: coins
+    description: Coin balance and transactions
 paths:
   /healthz:
     get:
@@ -356,6 +358,87 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /coins/balance:
+    get:
+      operationId: getCoinBalance
+      tags: [coins]
+      summary: Get coin balance
+      parameters:
+        - name: uid
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Current balance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoinBalanceResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /coins/spend:
+    post:
+      operationId: spendCoins
+      tags: [coins]
+      summary: Spend coins on a gift
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CoinSpendRequest"
+      responses:
+        "200":
+          description: Coins spent, new balance returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoinBalanceResponse"
+        "402":
+          description: Insufficient coins
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /coins/grant:
+    post:
+      operationId: grantCoins
+      tags: [coins]
+      summary: Manually grant coins (dev / testing only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CoinGrantRequest"
+      responses:
+        "200":
+          description: Coins granted, new balance returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoinBalanceResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -602,3 +685,37 @@ components:
             $ref: "#/components/schemas/StreamHistoryItem"
       required:
         - streams
+
+    CoinBalanceResponse:
+      type: object
+      properties:
+        balance:
+          type: integer
+      required:
+        - balance
+
+    CoinSpendRequest:
+      type: object
+      properties:
+        uid:
+          type: integer
+        amount:
+          type: integer
+        description:
+          type: string
+      required:
+        - uid
+        - amount
+
+    CoinGrantRequest:
+      type: object
+      properties:
+        uid:
+          type: integer
+        amount:
+          type: integer
+        note:
+          type: string
+      required:
+        - uid
+        - amount

@@ -129,7 +129,27 @@ export interface StreamHistoryResponse {
   streams: StreamHistoryItem[];
 }
 
+export interface CoinBalanceResponse {
+  balance: number;
+}
+
+export interface CoinSpendRequest {
+  uid: number;
+  amount: number;
+  description?: string;
+}
+
+export interface CoinGrantRequest {
+  uid: number;
+  amount: number;
+  note?: string;
+}
+
 export type GetFollowStatusParams = {
 followerUid: number;
+};
+
+export type GetCoinBalanceParams = {
+uid: number;
 };
 

@@ -16,7 +16,9 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useGetCoinBalance, useGrantCoins, getGetCoinBalanceQueryKey } from "@workspace/api-client-react";
 import { useGetUserStreams } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Avatar } from "@/components/Avatar";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
@@ -54,10 +56,38 @@ export default function ProfileScreen() {
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
+  const queryClient = useQueryClient();
+
   const { data: historyData } = useGetUserStreams(user?.uid ?? 0, {
     query: { refetchOnWindowFocus: false } as any,
   });
   const streamHistory = historyData?.streams ?? [];
+
+  const { data: coinData, refetch: refetchCoins } = useGetCoinBalance(
+    { uid: user?.uid ?? 0 },
+    { query: { enabled: !!user?.uid, refetchOnWindowFocus: false } as any },
+  );
+  const coinBalance = coinData?.balance ?? 0;
+
+  const grantMutation = useGrantCoins();
+
+  const addTestCoins = () => {
+    if (!user?.uid) return;
+    grantMutation.mutate(
+      { data: { uid: user.uid, amount: 500, note: "dev grant" } },
+      {
+        onSuccess: (data) => {
+          queryClient.setQueryData(
+            getGetCoinBalanceQueryKey({ uid: user.uid }),
+            { balance: data.balance },
+          );
+          refetchCoins();
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          Alert.alert("Coins added", `+500 coins  •  Balance: ${data.balance.toLocaleString()} 🪙`);
+        },
+      },
+    );
+  };
 
   const pickAvatar = async () => {
     if (Platform.OS === "web") {
@@ -220,6 +250,13 @@ export default function ProfileScreen() {
             </View>
           </View>
 
+          {/* Coin balance */}
+          <View style={[styles.coinRow, { backgroundColor: "rgba(255,215,0,0.1)", borderColor: "rgba(255,215,0,0.2)" }]}>
+            <Text style={styles.coinEmoji}>🪙</Text>
+            <Text style={[styles.coinAmount, { color: "#FFD700" }]}>{coinBalance.toLocaleString()}</Text>
+            <Text style={[styles.coinLabel, { color: colors.mutedForeground }]}>coins</Text>
+          </View>
+
           {/* Go Live CTA */}
           <TouchableOpacity
             style={[styles.goLiveBtn, { backgroundColor: colors.primary }]}
@@ -228,6 +265,18 @@ export default function ProfileScreen() {
           >
             <Ionicons name="radio" size={16} color="#FFF" />
             <Text style={styles.goLiveBtnText}>Go Live</Text>
+          </TouchableOpacity>
+
+          {/* Dev: add test coins */}
+          <TouchableOpacity
+            style={[styles.devBtn, { borderColor: "rgba(255,215,0,0.3)" }]}
+            onPress={addTestCoins}
+            activeOpacity={0.7}
+            disabled={grantMutation.isPending}
+          >
+            <Text style={styles.devBtnText}>
+              {grantMutation.isPending ? "Adding…" : "+ 500 coins  (dev)"}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -319,6 +368,18 @@ const styles = StyleSheet.create({
   statDivider: { width: 1, height: 30, marginHorizontal: 12 },
   statValue: { fontSize: 18, fontWeight: "700", fontFamily: "Inter_700Bold" },
   statLabel: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  coinRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  coinEmoji: { fontSize: 16 },
+  coinAmount: { fontSize: 16, fontWeight: "700", fontFamily: "Inter_700Bold" },
+  coinLabel: { fontSize: 13, fontFamily: "Inter_400Regular" },
   goLiveBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -329,6 +390,18 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   goLiveBtnText: { color: "#FFF", fontSize: 15, fontWeight: "700", fontFamily: "Inter_700Bold" },
+  devBtn: {
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 7,
+  },
+  devBtnText: {
+    color: "#FFD700",
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    opacity: 0.8,
+  },
   gridHeader: {
     flexDirection: "row",
     justifyContent: "center",

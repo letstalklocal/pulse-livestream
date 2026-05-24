@@ -87,7 +87,7 @@ export function GiftPicker({ visible, onClose, onSend, coins }: Props) {
           })}
         </ScrollView>
 
-        <Text style={styles.hint}>Demo mode — coins are free!</Text>
+        <Text style={styles.hint}>Tap a gift to send it live</Text>
       </View>
     </Modal>
   );
