@@ -7,6 +7,7 @@ import {
   Animated,
   Dimensions,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   PanResponder,
   Platform,
@@ -124,6 +125,11 @@ export default function StreamScreen() {
   const [streamCoins, setStreamCoins] = useState(0);
   const [inputFocused, setInputFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    const sub = Keyboard.addListener("keyboardDidHide", () => setInputFocused(false));
+    return () => sub.remove();
+  }, []);
 
   const queryClient = useQueryClient();
   const coinBalanceQuery = useGetCoinBalance(
@@ -510,7 +516,6 @@ export default function StreamScreen() {
                 returnKeyType="send"
                 blurOnSubmit={false}
                 autoFocus
-                onBlur={() => setInputFocused(false)}
               />
             ) : (
               <TouchableOpacity
