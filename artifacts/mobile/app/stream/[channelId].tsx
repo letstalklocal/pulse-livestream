@@ -29,6 +29,7 @@ import {
   useSpendCoins,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
+import { Avatar } from "@/components/Avatar";
 import { GiftPicker, GIFTS, type Gift } from "@/components/GiftPicker";
 import { GiftFloater, type FloatingGift } from "@/components/GiftFloater";
 import {
@@ -120,6 +121,7 @@ export default function StreamScreen() {
   const [likeCount, setLikeCount] = useState(Math.floor(Math.random() * 500) + 50);
   const [showGiftPicker, setShowGiftPicker] = useState(false);
   const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
+  const [streamCoins, setStreamCoins] = useState(0);
 
   const queryClient = useQueryClient();
   const coinBalanceQuery = useGetCoinBalance(
@@ -180,6 +182,7 @@ export default function StreamScreen() {
       ...prev,
       { id: `${Date.now()}-${Math.random()}`, emoji: gift.emoji, name: gift.name, senderName, x, size: gift.size },
     ]);
+    setStreamCoins((c) => c + gift.coins);
   };
 
   // Simulate other viewers sending gifts occasionally
@@ -372,22 +375,20 @@ export default function StreamScreen() {
         {/* Top bar */}
         <View style={styles.topBar} pointerEvents="auto">
           <TouchableOpacity
-            style={styles.backBtn}
             onPress={() => router.back()}
             activeOpacity={0.8}
           >
-            <Ionicons name="chevron-down" size={22} color="#FFF" />
+            <Avatar
+              uid={stream?.hostUid ?? 0}
+              name={stream?.hostName ?? ""}
+              size={40}
+              borderWidth={2}
+            />
           </TouchableOpacity>
 
           <View style={styles.streamMeta}>
             {stream && (
-              <View style={styles.hostRow}>
-                <Text style={styles.hostName}>{stream.hostName}</Text>
-                <View style={styles.liveBadge}>
-                  <View style={styles.liveDot} />
-                  <Text style={styles.liveBadgeText}>LIVE</Text>
-                </View>
-              </View>
+              <Text style={styles.hostName}>{stream.hostName}</Text>
             )}
           </View>
 
@@ -400,14 +401,20 @@ export default function StreamScreen() {
                   : stream.viewerCount
                 : "—"}
             </Text>
+            {streamCoins > 0 && (
+              <>
+                <Text style={styles.viewerDivider}>·</Text>
+                <Text style={styles.coinEmoji}>🪙</Text>
+                <Text style={styles.streamCoinText}>
+                  {streamCoins >= 1000
+                    ? `${(streamCoins / 1000).toFixed(1)}K`
+                    : streamCoins}
+                </Text>
+              </>
+            )}
           </View>
         </View>
 
-        {stream && (
-          <Text style={styles.streamTitle} numberOfLines={2} pointerEvents="none">
-            {stream.title}
-          </Text>
-        )}
 
         {/* Middle spacer — swipe gestures pass through here */}
         <View style={styles.swipeZone} pointerEvents="none">
@@ -627,6 +634,17 @@ const styles = StyleSheet.create({
   },
   viewerText: {
     color: "#FFF",
+    fontSize: 12,
+    fontWeight: "600",
+    fontFamily: "Inter_600SemiBold",
+  },
+  viewerDivider: {
+    color: "rgba(255,255,255,0.4)",
+    fontSize: 12,
+  },
+  coinEmoji: { fontSize: 12 },
+  streamCoinText: {
+    color: "#FFD700",
     fontSize: 12,
     fontWeight: "600",
     fontFamily: "Inter_600SemiBold",
