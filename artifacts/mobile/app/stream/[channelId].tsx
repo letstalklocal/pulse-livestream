@@ -375,7 +375,11 @@ export default function StreamScreen() {
         {/* Top bar */}
         <View style={styles.topBar} pointerEvents="auto">
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() =>
+              stream?.hostUid
+                ? router.push(`/profile/${stream.hostUid}` as any)
+                : router.back()
+            }
             activeOpacity={0.8}
           >
             <Avatar
