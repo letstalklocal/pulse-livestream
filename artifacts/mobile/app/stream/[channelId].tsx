@@ -530,38 +530,46 @@ export default function StreamScreen() {
             )}
           </View>
 
-          {/* Center: streamer pill */}
-          {stream && (
+          {/* Center pill — avatar · name · follow, stretches to fill space */}
+          <View style={styles.centerPill}>
             <TouchableOpacity
-              style={styles.streamerInfo}
+              style={styles.centerPillLeft}
               activeOpacity={0.8}
-              onPress={() => router.push(`/profile/${stream.hostUid}` as any)}
+              onPress={() => stream && router.push(`/profile/${stream.hostUid}` as any)}
             >
-              <Avatar uid={stream.hostUid} name={stream.hostName} size={28} borderWidth={1.5} />
-              <Text style={styles.streamerName} numberOfLines={1}>{stream.hostName}</Text>
+              <Avatar
+                uid={stream?.hostUid ?? 0}
+                name={stream?.hostName ?? ""}
+                size={28}
+                borderWidth={1.5}
+              />
+              <Text style={styles.streamerName} numberOfLines={1}>
+                {stream?.hostName ?? ""}
+              </Text>
             </TouchableOpacity>
-          )}
 
-          {/* Right: follow + gift */}
-          <View style={styles.bottomRight}>
+            <View style={styles.topPillDivider} />
+
             <TouchableOpacity
-              style={styles.followBtn}
+              style={styles.centerPillFollow}
               activeOpacity={0.8}
               onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
             >
               <Ionicons name="add" size={22} color="#FFF" />
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionBtn}
-              activeOpacity={0.7}
-              onPress={() => {
-                setShowGiftPicker(true);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
-            >
-              <Ionicons name="gift-outline" size={26} color="#FFD700" />
-            </TouchableOpacity>
           </View>
+
+          {/* Right: gift */}
+          <TouchableOpacity
+            style={styles.actionBtn}
+            activeOpacity={0.7}
+            onPress={() => {
+              setShowGiftPicker(true);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+          >
+            <Ionicons name="gift-outline" size={26} color="#FFD700" />
+          </TouchableOpacity>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -830,15 +838,29 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   bottomLeft: {
-    flex: 1,
     alignItems: "flex-start",
   },
-  bottomRight: {
+  centerPill: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-end",
-    gap: 10,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    borderRadius: 24,
+    marginHorizontal: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    overflow: "hidden",
+  },
+  centerPillLeft: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  centerPillFollow: {
+    paddingLeft: 10,
+    alignItems: "center",
+    justifyContent: "center",
   },
   chatIconBtn: {
     width: 40,
