@@ -7,6 +7,7 @@ import {
   Animated,
   Dimensions,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   PanResponder,
   Platform,
@@ -156,6 +157,15 @@ export default function StreamScreen() {
       useNativeDriver: true,
     }).start();
   };
+
+  // Exit chat mode only after keyboard has fully hidden — avoids abrupt cut-off
+  useEffect(() => {
+    if (!chatMode) return;
+    const sub = Keyboard.addListener("keyboardDidHide", () => {
+      setChatMode(false);
+    });
+    return () => sub.remove();
+  }, [chatMode]);
 
   const { data: streamData } = useGetStream(channelId ?? "", {
     query: { enabled: !!channelId, refetchInterval: 5000 } as any,
@@ -559,9 +569,8 @@ export default function StreamScreen() {
               placeholderTextColor="rgba(255,255,255,0.45)"
               onSubmitEditing={() => {
                 sendMessage();
-                setChatMode(false);
+                Keyboard.dismiss();
               }}
-              onBlur={() => setChatMode(false)}
               returnKeyType="send"
               blurOnSubmit={false}
               autoFocus
