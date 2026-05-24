@@ -124,6 +124,13 @@ export default function StreamScreen() {
   const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
   const [streamCoins, setStreamCoins] = useState(0);
   const inputRef = useRef<TextInput>(null);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardDidShow", () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener("keyboardDidHide", () => setKeyboardOpen(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   const queryClient = useQueryClient();
   const coinBalanceQuery = useGetCoinBalance(
@@ -518,33 +525,35 @@ export default function StreamScreen() {
           </View>
 
           {/* Center pill — avatar · name · follow, stretches to fill space */}
-          <View style={styles.centerPill}>
-            <TouchableOpacity
-              style={styles.centerPillLeft}
-              activeOpacity={0.8}
-              onPress={() => stream && router.push(`/profile/${stream.hostUid}` as any)}
-            >
-              <Avatar
-                uid={stream?.hostUid ?? 0}
-                name={stream?.hostName ?? ""}
-                size={28}
-                borderWidth={1.5}
-              />
-              <Text style={styles.streamerName} numberOfLines={1}>
-                {stream?.hostName ?? ""}
-              </Text>
-            </TouchableOpacity>
+          {!keyboardOpen && (
+            <View style={styles.centerPill}>
+              <TouchableOpacity
+                style={styles.centerPillLeft}
+                activeOpacity={0.8}
+                onPress={() => stream && router.push(`/profile/${stream.hostUid}` as any)}
+              >
+                <Avatar
+                  uid={stream?.hostUid ?? 0}
+                  name={stream?.hostName ?? ""}
+                  size={28}
+                  borderWidth={1.5}
+                />
+                <Text style={styles.streamerName} numberOfLines={1}>
+                  {stream?.hostName ?? ""}
+                </Text>
+              </TouchableOpacity>
 
-            <View style={styles.topPillDivider} />
+              <View style={styles.topPillDivider} />
 
-            <TouchableOpacity
-              style={styles.centerPillFollow}
-              activeOpacity={0.8}
-              onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-            >
-              <Ionicons name="add" size={22} color="#FFF" />
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity
+                style={styles.centerPillFollow}
+                activeOpacity={0.8}
+                onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+              >
+                <Ionicons name="add" size={22} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Right: gift */}
           <TouchableOpacity
