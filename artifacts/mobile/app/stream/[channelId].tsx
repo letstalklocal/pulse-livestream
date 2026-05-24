@@ -394,28 +394,25 @@ export default function StreamScreen() {
       >
         {/* Top bar */}
         <View style={styles.topBar} pointerEvents="auto">
-          <TouchableOpacity
-            onPress={() =>
-              stream?.hostUid
-                ? router.push(`/profile/${stream.hostUid}` as any)
-                : router.back()
-            }
-            activeOpacity={0.8}
-          >
-            <Avatar
-              uid={stream?.hostUid ?? 0}
-              name={stream?.hostName ?? ""}
-              size={40}
-              borderWidth={2}
-            />
+          {/* Back arrow */}
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
+            <Ionicons name="arrow-back" size={20} color="#FFF" />
           </TouchableOpacity>
 
-          <View style={styles.streamMeta}>
-            {stream && (
-              <Text style={styles.hostName}>{stream.hostName}</Text>
-            )}
-          </View>
+          {/* Heart count */}
+          <TouchableOpacity
+            style={styles.topBadge}
+            onPress={() => {
+              setLikeCount((c) => c + 1);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="heart" size={14} color="#FF1966" />
+            <Text style={styles.viewerText}>{likeCount}</Text>
+          </TouchableOpacity>
 
+          {/* Coins received */}
           {streamCoins > 0 && (
             <View style={styles.coinsBadge}>
               <Text style={styles.coinEmoji}>🪙</Text>
@@ -427,6 +424,7 @@ export default function StreamScreen() {
             </View>
           )}
 
+          {/* Viewer count */}
           <View style={styles.viewerBadge}>
             <Ionicons name="eye" size={13} color="#FFF" />
             <Text style={styles.viewerText}>
@@ -437,6 +435,24 @@ export default function StreamScreen() {
                 : "—"}
             </Text>
           </View>
+
+          {/* Share */}
+          <TouchableOpacity
+            style={styles.backBtn}
+            activeOpacity={0.7}
+            onPress={() => {
+              const domain = process.env["EXPO_PUBLIC_DOMAIN"] ?? "pulse.app";
+              Share.share({
+                title: stream ? `${stream.hostName} is live on Pulse` : "Watch live on Pulse",
+                message: stream
+                  ? `🔴 ${stream.hostName} is streaming "${stream.title}" on Pulse!\nhttps://${domain}/stream/${channelId}`
+                  : `Watch live streams on Pulse!\nhttps://${domain}`,
+              });
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+          >
+            <Ionicons name="share-outline" size={20} color="#FFF" />
+          </TouchableOpacity>
         </View>
 
 
@@ -473,6 +489,23 @@ export default function StreamScreen() {
           />
         </Animated.View>
 
+        {/* Streamer info — centered above bottom bar */}
+        {stream && (
+          <TouchableOpacity
+            style={styles.streamerInfo}
+            activeOpacity={0.8}
+            onPress={() => router.push(`/profile/${stream.hostUid}` as any)}
+          >
+            <Avatar
+              uid={stream.hostUid}
+              name={stream.hostName}
+              size={48}
+              borderWidth={2}
+            />
+            <Text style={styles.hostName}>{stream.hostName}</Text>
+          </TouchableOpacity>
+        )}
+
         {/* Bottom actions */}
         <View style={styles.bottomBar} pointerEvents="auto">
           <TextInput
@@ -485,17 +518,15 @@ export default function StreamScreen() {
             returnKeyType="send"
             blurOnSubmit={false}
           />
+          {/* Follow */}
           <TouchableOpacity
             style={styles.actionBtn}
-            onPress={() => {
-              setLikeCount((c) => c + 1);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
             activeOpacity={0.7}
+            onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
           >
-            <Ionicons name="heart" size={24} color="#FF1966" />
-            <Text style={styles.actionBtnText}>{likeCount}</Text>
+            <Ionicons name="add-circle-outline" size={28} color="#FF1966" />
           </TouchableOpacity>
+          {/* Gift */}
           <TouchableOpacity
             style={styles.actionBtn}
             activeOpacity={0.7}
@@ -504,23 +535,7 @@ export default function StreamScreen() {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             }}
           >
-            <Ionicons name="gift-outline" size={24} color="#FFD700" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            activeOpacity={0.7}
-            onPress={() => {
-              const domain = process.env["EXPO_PUBLIC_DOMAIN"] ?? "pulse.app";
-              Share.share({
-                title: stream ? `${stream.hostName} is live on Pulse` : "Watch live on Pulse",
-                message: stream
-                  ? `🔴 ${stream.hostName} is streaming "${stream.title}" on Pulse!\nhttps://${domain}/stream/${channelId}`
-                  : `Watch live streams on Pulse!\nhttps://${domain}`,
-              });
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-          >
-            <Ionicons name="share-outline" size={24} color="#FFF" />
+            <Ionicons name="gift-outline" size={26} color="#FFD700" />
           </TouchableOpacity>
         </View>
       </View>
@@ -602,8 +617,23 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     marginBottom: 4,
+  },
+  topBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  streamerInfo: {
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    alignSelf: "center",
   },
   backBtn: {
     width: 36,
