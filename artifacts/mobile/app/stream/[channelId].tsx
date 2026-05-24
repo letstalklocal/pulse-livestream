@@ -427,7 +427,7 @@ export default function StreamScreen() {
       >
         {/* Top bar */}
         <View style={styles.topBar} pointerEvents="auto">
-          <View style={styles.avatarCol}>
+          <View style={styles.backBtn}>
             <TouchableOpacity
               onPress={() => hostUid ? router.push(`/profile/${hostUid}`) : undefined}
               activeOpacity={0.8}
@@ -437,12 +437,19 @@ export default function StreamScreen() {
               </View>
             </TouchableOpacity>
             <TouchableOpacity
+              style={styles.avatarChevron}
               onPress={() => router.back()}
               activeOpacity={0.8}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
-              <Ionicons name="chevron-down" size={18} color="#FFF" />
+              <Ionicons name="chevron-down" size={10} color="#FFF" />
             </TouchableOpacity>
+          </View>
+
+          <View style={styles.streamMeta}>
+            {stream && (
+              <Text style={styles.hostName}>{stream.hostName}</Text>
+            )}
           </View>
 
           <View style={styles.statsRow}>
@@ -679,24 +686,40 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 4,
   },
-  avatarCol: {
-    alignItems: "center",
-    gap: 4,
-  },
-  avatarCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1.5,
+  },
+  avatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
     borderColor: "rgba(255,255,255,0.35)",
   },
   avatarInitials: {
     color: "#FFF",
-    fontSize: 11,
+    fontSize: 13,
     fontFamily: "Inter_700Bold",
     letterSpacing: 0.5,
+  },
+  avatarChevron: {
+    position: "absolute",
+    bottom: -3,
+    right: -3,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
   },
   streamMeta: { flex: 1 },
   hostName: {
