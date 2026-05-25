@@ -356,13 +356,27 @@ export default function GoLiveScreen() {
 
   // ── SETUP screen ─────────────────────────────────────────────────────────
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: "#000" }]}>
+      {/* Camera preview fills the whole screen */}
+      {showNativeVideo && VideoView ? (
+        <VideoView
+          canvas={{ uid: 0, sourceType: VideoSourceType.VideoSourceCamera }}
+          style={StyleSheet.absoluteFill}
+          renderMode={RenderModeType.RenderModeFit}
+        />
+      ) : (
+        <DemoCamera color={catColor} />
+      )}
+
+      {/* Dark scrim so the form text is readable */}
+      <View style={styles.setupScrim} />
+
       <TouchableOpacity
         style={[styles.closeBtn, { top: topPad + 12 }]}
         onPress={() => router.back()}
         activeOpacity={0.8}
       >
-        <Ionicons name="close" size={20} color={colors.foreground} />
+        <Ionicons name="close" size={20} color="#FFF" />
       </TouchableOpacity>
 
       <ScrollView
@@ -373,34 +387,30 @@ export default function GoLiveScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.inputSection}>
-          <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Stream title</Text>
+          <Text style={[styles.inputLabel, { color: "rgba(255,255,255,0.6)" }]}>Stream title</Text>
           <TextInput
             style={[
               styles.titleInput,
               {
-                color: colors.foreground,
-                borderColor: title ? catColor : colors.border,
-                backgroundColor: colors.card,
+                color: "#FFF",
+                borderColor: title ? catColor : "rgba(255,255,255,0.25)",
+                backgroundColor: "rgba(0,0,0,0.45)",
               },
             ]}
             value={title}
             onChangeText={setTitle}
             placeholder="What are you streaming today?"
-            placeholderTextColor={colors.mutedForeground}
+            placeholderTextColor="rgba(255,255,255,0.35)"
             maxLength={80}
             returnKeyType="done"
             autoFocus
           />
         </View>
 
-        <View style={[styles.setupIcon, { backgroundColor: catColor + "22", borderColor: catColor + "55" }]}>
-          <Ionicons name="radio" size={40} color={catColor} />
-        </View>
-
-        <Text style={[styles.setupTitle, { color: colors.foreground }]}>
+        <Text style={styles.setupTitle}>
           Start your stream
         </Text>
-        <Text style={[styles.setupSubtitle, { color: colors.mutedForeground }]}>
+        <Text style={styles.setupSubtitle}>
           {isNative ? "Choose a category and go live" : "Demo mode — stream info saved, no camera on web"}
         </Text>
 
@@ -416,14 +426,14 @@ export default function GoLiveScreen() {
                   style={[
                     styles.categoryChip,
                     {
-                      backgroundColor: selected ? cc + "33" : colors.card,
-                      borderColor: selected ? cc : colors.border,
+                      backgroundColor: selected ? cc + "44" : "rgba(0,0,0,0.4)",
+                      borderColor: selected ? cc : "rgba(255,255,255,0.25)",
                     },
                   ]}
                   onPress={() => { setCategory(cat); Haptics.selectionAsync(); }}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.categoryChipText, { color: selected ? cc : colors.mutedForeground }]}>
+                  <Text style={[styles.categoryChipText, { color: selected ? cc : "rgba(255,255,255,0.7)" }]}>
                     {cat}
                   </Text>
                 </TouchableOpacity>
@@ -482,17 +492,13 @@ const styles = StyleSheet.create({
   demoCameraIcon: { alignItems: "center", gap: 10 },
   demoCameraLabel: { fontSize: 18, fontWeight: "700", fontFamily: "Inter_700Bold" },
   demoCameraNote: { color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "Inter_400Regular" },
-  setupContent: { alignItems: "center", paddingHorizontal: 24, gap: 20 },
-  setupIcon: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    borderWidth: 2,
-    alignItems: "center",
-    justifyContent: "center",
+  setupScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.55)",
   },
-  setupTitle: { fontSize: 26, fontWeight: "700", fontFamily: "Inter_700Bold", textAlign: "center" },
-  setupSubtitle: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: -8 },
+  setupContent: { alignItems: "center", paddingHorizontal: 24, gap: 20 },
+  setupTitle: { fontSize: 26, fontWeight: "700", fontFamily: "Inter_700Bold", textAlign: "center", color: "#FFF" },
+  setupSubtitle: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: -8, color: "rgba(255,255,255,0.6)" },
   inputSection: { width: "100%", gap: 8 },
   inputLabel: {
     fontSize: 12,
