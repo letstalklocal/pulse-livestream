@@ -1,8 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect, useRef } from "react";
+import React from "react";
 import {
-  Animated,
   Dimensions,
   StyleSheet,
   Text,
@@ -41,36 +40,6 @@ function formatViewers(count: number): string {
   return count.toString();
 }
 
-function PulsingDot() {
-  const scale = useRef(new Animated.Value(1)).current;
-  const opacity = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(scale, { toValue: 1.8, duration: 700, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 0, duration: 700, useNativeDriver: true }),
-        ]),
-        Animated.parallel([
-          Animated.timing(scale, { toValue: 1, duration: 0, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 1, duration: 0, useNativeDriver: true }),
-        ]),
-        Animated.delay(400),
-      ])
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, [scale, opacity]);
-
-  return (
-    <View style={styles.dotWrapper}>
-      <Animated.View style={[styles.dotRing, { transform: [{ scale }], opacity }]} />
-      <View style={styles.dot} />
-    </View>
-  );
-}
-
 export function StreamCard({ stream }: Props) {
   const colors = useColors();
   const router = useRouter();
@@ -88,20 +57,16 @@ export function StreamCard({ stream }: Props) {
       onPress={() => router.push(`/stream/${stream.channelId}` as any)}
       activeOpacity={0.85}
     >
-      {/* Thumbnail */}
       <View style={[styles.thumbnail, { backgroundColor: bg2 }]}>
-        {/* Gradient-like inner glow */}
-        <View style={[styles.innerGlow, { backgroundColor: bg1 + "55" }]} />
+        <View style={[styles.innerGlow, { backgroundColor: bg1 + "44" }]} />
 
-        {/* Centred avatar placeholder */}
         <View style={styles.thumbnailContent}>
           <Avatar uid={stream.hostUid} name={stream.hostName} size={52} borderWidth={2} />
         </View>
 
-        {/* Top-left: LIVE badge with pulsing dot */}
-        <View style={styles.liveBadge}>
-          <PulsingDot />
-          <Text style={styles.liveText}>LIVE</Text>
+        {/* Top-left: category */}
+        <View style={[styles.categoryBadge, { backgroundColor: bg1 }]}>
+          <Text style={styles.categoryText}>{stream.category.toUpperCase()}</Text>
         </View>
 
         {/* Top-right: viewer count */}
@@ -110,22 +75,16 @@ export function StreamCard({ stream }: Props) {
           <Text style={styles.viewerText}>{formatViewers(stream.viewerCount)}</Text>
         </View>
 
-        {/* Bottom overlay: avatar + name + category */}
+        {/* Bottom: avatar + name */}
         <View style={styles.bottomOverlay}>
           <TouchableOpacity onPress={goToProfile} activeOpacity={0.8}>
             <Avatar uid={stream.hostUid} name={stream.hostName} size={26} borderWidth={1} />
           </TouchableOpacity>
-          <View style={styles.overlayNameWrap}>
-            <TouchableOpacity onPress={goToProfile} activeOpacity={0.8}>
-              <Text style={styles.hostName} numberOfLines={1}>{stream.hostName}</Text>
-            </TouchableOpacity>
-            <View style={[styles.categoryPill, { backgroundColor: bg1 + "CC" }]}>
-              <Text style={styles.categoryPillText}>{stream.category}</Text>
-            </View>
-          </View>
+          <TouchableOpacity onPress={goToProfile} activeOpacity={0.8} style={styles.nameWrap}>
+            <Text style={styles.hostName} numberOfLines={1}>{stream.hostName}</Text>
+          </TouchableOpacity>
         </View>
       </View>
-
     </TouchableOpacity>
   );
 }
@@ -148,46 +107,22 @@ const styles = StyleSheet.create({
   },
   innerGlow: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 14,
   },
   thumbnailContent: { alignItems: "center", justifyContent: "center" },
-  liveBadge: {
+  categoryBadge: {
     position: "absolute",
     top: 8,
     left: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FF1966",
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 4,
-    gap: 4,
   },
-  liveText: {
+  categoryText: {
     color: "#FFF",
     fontSize: 9,
     fontWeight: "700",
     fontFamily: "Inter_700Bold",
-    letterSpacing: 0.8,
-  },
-  dotWrapper: {
-    width: 8,
-    height: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dotRing: {
-    position: "absolute",
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#FFF",
-  },
-  dot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: "#FFF",
+    letterSpacing: 0.5,
   },
   viewerBadge: {
     position: "absolute",
@@ -212,20 +147,8 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 8,
     paddingVertical: 7,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: "rgba(0,0,0,0.55)",
   },
-  overlayNameWrap: { flex: 1, gap: 3 },
+  nameWrap: { flex: 1 },
   hostName: { color: "#FFF", fontSize: 12, fontWeight: "700", fontFamily: "Inter_700Bold" },
-  categoryPill: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 3,
-  },
-  categoryPillText: {
-    color: "#FFF",
-    fontSize: 9,
-    fontWeight: "600",
-    fontFamily: "Inter_600SemiBold",
-  },
 });
