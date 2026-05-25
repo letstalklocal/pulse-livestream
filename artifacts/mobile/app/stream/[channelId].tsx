@@ -39,7 +39,8 @@ import { GiftFloater, type FloatingGift } from "@/components/GiftFloater";
 import {
   ChannelProfileType,
   ClientRoleType,
-  RtcSurfaceViewComponent,
+  RtcTextureViewComponent,
+  VideoSourceType,
   createEngine,
 } from "@/utils/agora";
 
@@ -285,11 +286,20 @@ export default function StreamScreen() {
         });
         engine.enableVideo();
         engine.enableAudio();
-        engine.addListener("onUserPublished", (_conn: any, uid: number) => {
-          if (!didUnmount) { engine.subscribeVideo(uid, {}); setRemoteUid(uid); }
-        });
-        engine.addListener("onUserOffline", () => {
-          if (!didUnmount) setRemoteUid(null);
+        engine.registerEventHandler({
+          onError: (err: number, msg: string) =>
+            console.warn("[Agora viewer] onError:", err, msg),
+          onJoinChannelSuccess: (connection: any, elapsed: number) =>
+            console.log("[Agora viewer] joined:", connection?.channelId, elapsed),
+          onUserPublished: (_conn: any, uid: number, mediaType: number) => {
+            // mediaType: 0 = audio, 1 = video, 2 = both
+            if (!didUnmount && mediaType !== 0) {
+              setRemoteUid(uid);
+            }
+          },
+          onUserOffline: (_conn: any, _uid: number) => {
+            if (!didUnmount) setRemoteUid(null);
+          },
         });
         engineRef.current = engine;
 
@@ -303,7 +313,9 @@ export default function StreamScreen() {
         });
         if (!didUnmount) setJoined(true);
         updateViewers.mutate({ channelId, data: { action: "join" } });
-      } catch (_e) {}
+      } catch (e) {
+        console.warn("[Agora viewer] setup error:", e);
+      }
     };
 
     setup();
@@ -392,7 +404,7 @@ export default function StreamScreen() {
   const topPad    = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
-  const VideoView = RtcSurfaceViewComponent;
+  const VideoView = RtcTextureViewComponent;
   const showNativeVideo = isNative && joined && remoteUid !== null && VideoView;
 
   return (
@@ -411,7 +423,10 @@ export default function StreamScreen() {
         style={StyleSheet.absoluteFill}
       >
         {showNativeVideo && VideoView ? (
-          <VideoView canvas={{ uid: remoteUid! }} style={StyleSheet.absoluteFill} />
+          <VideoView
+            canvas={{ uid: remoteUid!, sourceType: VideoSourceType.VideoSourceRemote }}
+            style={StyleSheet.absoluteFill}
+          />
         ) : (
           <DemoVideo category={stream?.category} />
         )}

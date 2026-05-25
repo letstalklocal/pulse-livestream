@@ -10,6 +10,7 @@ export const ChannelProfileType = {
 };
 export const VideoSourceType = {
   VideoSourceCamera: 0,
+  VideoSourceRemote: 1,
 };
 export const RenderModeType = {
   RenderModeFit: 1,
