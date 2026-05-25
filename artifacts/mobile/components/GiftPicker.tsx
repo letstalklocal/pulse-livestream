@@ -87,7 +87,11 @@ export function GiftPicker({ visible, onClose, onSend, coins }: Props) {
           })}
         </ScrollView>
 
-        <Text style={styles.hint}>Tap a gift to send it live</Text>
+        {coins === 0 ? (
+          <Text style={styles.hintEmpty}>You're out of coins — top up from your profile</Text>
+        ) : (
+          <Text style={styles.hint}>Tap a gift to send it live</Text>
+        )}
       </View>
     </Modal>
   );
@@ -189,6 +193,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textAlign: "center",
     fontFamily: "Inter_400Regular",
+    marginBottom: 4,
+  },
+  hintEmpty: {
+    color: "#FF1966",
+    fontSize: 12,
+    textAlign: "center",
+    fontFamily: "Inter_500Medium",
     marginBottom: 4,
   },
 });

@@ -74,7 +74,7 @@ export default function ProfileScreen() {
   const addTestCoins = () => {
     if (!user?.uid) return;
     grantMutation.mutate(
-      { data: { uid: user.uid, amount: 500, note: "dev grant" } },
+      { data: { uid: user.uid, amount: 10000, note: "dev grant" } },
       {
         onSuccess: (data) => {
           queryClient.setQueryData(
@@ -83,7 +83,7 @@ export default function ProfileScreen() {
           );
           refetchCoins();
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          Alert.alert("Coins added", `+500 coins  •  Balance: ${data.balance.toLocaleString()} 🪙`);
+          Alert.alert("Coins added", `+10,000 coins  •  Balance: ${data.balance.toLocaleString()} 🪙`);
         },
       },
     );
