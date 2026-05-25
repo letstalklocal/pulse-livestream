@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { Avatar } from "@/components/Avatar";
+import { LivePreviewThumbnail } from "@/components/LivePreviewThumbnail";
 import { useColors } from "@/hooks/useColors";
 
 interface Stream {
@@ -60,6 +61,10 @@ export function StreamCard({ stream }: Props) {
       <View style={[styles.thumbnail, { backgroundColor: bg2 }]}>
         <View style={[styles.innerGlow, { backgroundColor: bg1 + "44" }]} />
 
+        {/* Live video preview — renders on top of gradient for real streams */}
+        <LivePreviewThumbnail channelId={stream.channelId} hostUid={stream.hostUid} />
+
+        {/* Avatar placeholder — hidden behind video once it loads */}
         <View style={styles.thumbnailContent}>
           <Avatar uid={stream.hostUid} name={stream.hostName} size={52} borderWidth={2} />
         </View>
