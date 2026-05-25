@@ -292,12 +292,14 @@ export default function StreamScreen() {
           onJoinChannelSuccess: (connection: any, elapsed: number) =>
             console.log("[Agora viewer] joined:", connection?.channelId, elapsed),
           onUserPublished: (_conn: any, uid: number, mediaType: number) => {
-            // mediaType: 0 = audio, 1 = video, 2 = both
+            console.log("[Agora viewer] onUserPublished uid:", uid, "mediaType:", mediaType);
+            // mediaType: 0 = audio only, 1 = video, 2 = audio+video
             if (!didUnmount && mediaType !== 0) {
               setRemoteUid(uid);
             }
           },
-          onUserOffline: (_conn: any, _uid: number) => {
+          onUserOffline: (_conn: any, uid: number, reason: number) => {
+            console.log("[Agora viewer] onUserOffline uid:", uid, "reason:", reason);
             if (!didUnmount) setRemoteUid(null);
           },
         });
@@ -327,6 +329,16 @@ export default function StreamScreen() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId]);
+
+  // Once joined, pre-set the remote uid from the known host uid so the
+  // RtcTextureView mounts immediately — don't wait for onUserPublished
+  // (which can fire before React has a chance to mount the view).
+  useEffect(() => {
+    if (joined && hostUid != null && remoteUid === null) {
+      console.log("[Agora viewer] pre-setting remoteUid from hostUid:", hostUid);
+      setRemoteUid(hostUid);
+    }
+  }, [joined, hostUid, remoteUid]);
 
   const navigateToStream = (targetChannelId: string, direction: "up" | "down") => {
     if (isNavigatingRef.current) return;
