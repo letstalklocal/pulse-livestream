@@ -154,7 +154,16 @@ export default function StreamScreen() {
   });
   const stream = streamData?.stream;
 
-  const hostUid = stream?.hostUid ?? null;
+  // Parse hostUid directly from channelId (format: pulse-{uid}-{timestamp})
+  // so we always have it even if the HTTP stream fetch returns 404
+  const hostUidFromChannel = React.useMemo(() => {
+    if (!channelId) return null;
+    const parts = channelId.split("-");
+    const parsed = parseInt(parts[1] ?? "", 10);
+    return isNaN(parsed) ? null : parsed;
+  }, [channelId]);
+
+  const hostUid = stream?.hostUid ?? hostUidFromChannel;
   const isOwnStream = !!user?.uid && user.uid === hostUid;
 
   const AVATAR_COLORS = ["#FF1966","#7B2FFF","#FF6B35","#00C2A8","#FFB800","#0095FF"];
@@ -313,6 +322,10 @@ export default function StreamScreen() {
           autoSubscribeAudio: true,
           autoSubscribeVideo: true,
         });
+        // Explicitly unmute remote streams — Agora v4 can default to muted
+        engine.muteAllRemoteVideoStreams(false);
+        engine.muteAllRemoteAudioStreams(false);
+        console.log("[Agora viewer] joined and unmuted remote streams");
         if (!didUnmount) setJoined(true);
         updateViewers.mutate({ channelId, data: { action: "join" } });
       } catch (e) {
