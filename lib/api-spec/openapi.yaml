@@ -358,6 +358,60 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /streams/{channelId}/chat:
+    get:
+      operationId: getStreamChat
+      tags: [streams]
+      summary: Get chat messages for a stream
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: since
+          in: query
+          required: false
+          schema:
+            type: integer
+            description: Unix ms timestamp — only return messages after this time
+      responses:
+        "200":
+          description: Chat messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessagesResponse"
+    post:
+      operationId: sendChatMessage
+      tags: [streams]
+      summary: Send a chat message to a stream
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendChatMessageRequest"
+      responses:
+        "200":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessageResponse"
+        "404":
+          description: Stream not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /coins/balance:
     get:
       operationId: getCoinBalance
@@ -727,3 +781,53 @@ components:
       required:
         - uid
         - amount
+
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: string
+        senderName:
+          type: string
+        text:
+          type: string
+        color:
+          type: string
+        ts:
+          type: integer
+      required:
+        - id
+        - senderName
+        - text
+        - color
+        - ts
+
+    ChatMessagesResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatMessage"
+      required:
+        - messages
+
+    SendChatMessageRequest:
+      type: object
+      properties:
+        senderName:
+          type: string
+        text:
+          type: string
+        color:
+          type: string
+      required:
+        - text
+
+    ChatMessageResponse:
+      type: object
+      properties:
+        message:
+          $ref: "#/components/schemas/ChatMessage"
+      required:
+        - message

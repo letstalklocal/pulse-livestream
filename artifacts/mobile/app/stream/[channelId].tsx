@@ -24,7 +24,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useGenerateAgoraToken,
   useGetStream,
+  useGetStreamChat,
   useListStreams,
+  useSendChatMessage,
   useUpdateViewerCount,
   useGetCoinBalance,
   getGetCoinBalanceQueryKey,
@@ -137,6 +139,7 @@ export default function StreamScreen() {
   );
   const viewerCoins = coinBalanceQuery.data?.balance ?? 0;
   const spendMutation = useSpendCoins();
+  const sendChatMutation = useSendChatMessage();
   const engineRef = useRef<any>(null);
   const listRef = useRef<FlatList>(null);
 
@@ -154,6 +157,23 @@ export default function StreamScreen() {
     query: { enabled: !!channelId, refetchInterval: 5000 } as any,
   });
   const stream = streamData?.stream;
+
+  // Poll real chat for non-demo streams
+  const { data: chatPollData } = useGetStreamChat(channelId ?? "", undefined, {
+    query: { enabled: !!channelId && !isDemo, refetchInterval: 3000 } as any,
+  });
+
+  useEffect(() => {
+    if (!chatPollData?.messages) return;
+    setMessages((prev) => {
+      const existingIds = new Set(prev.map((m) => m.id));
+      const next = chatPollData.messages
+        .filter((m) => !existingIds.has(m.id))
+        .map((m) => ({ id: m.id, sender: m.senderName, text: m.text, color: m.color }));
+      if (next.length === 0) return prev;
+      return [...prev, ...next].slice(-100);
+    });
+  }, [chatPollData]);
 
   // Parse hostUid directly from channelId (format: pulse-{uid}-{timestamp})
   // so we always have it even if the HTTP stream fetch returns 404
@@ -420,13 +440,22 @@ export default function StreamScreen() {
   });
 
   const sendMessage = () => {
-    if (!inputText.trim()) return;
+    const text = inputText.trim();
+    if (!text) return;
+    const tempId = `local-${Date.now()}`;
+    const senderName = user?.name ?? "Viewer";
     setMessages((prev) => [
       ...prev,
-      { id: Date.now().toString(), sender: user?.name ?? "Viewer", text: inputText.trim(), color: "#FF1966" },
+      { id: tempId, sender: senderName, text, color: "#FF1966" },
     ]);
     setInputText("");
     Haptics.selectionAsync();
+    if (channelId && !isDemo) {
+      sendChatMutation.mutate({
+        channelId,
+        data: { senderName, text, color: "#FF1966" },
+      });
+    }
   };
 
   const topPad    = Platform.OS === "web" ? 67 : insets.top;

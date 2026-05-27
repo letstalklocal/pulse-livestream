@@ -258,6 +258,52 @@ export const UpdateViewerCountResponse = zod.object({
 
 
 /**
+ * @summary Get chat messages for a stream
+ */
+export const GetStreamChatParams = zod.object({
+  "channelId": zod.coerce.string()
+})
+
+export const GetStreamChatQueryParams = zod.object({
+  "since": zod.coerce.number().optional()
+})
+
+export const GetStreamChatResponse = zod.object({
+  "messages": zod.array(zod.object({
+  "id": zod.string(),
+  "senderName": zod.string(),
+  "text": zod.string(),
+  "color": zod.string(),
+  "ts": zod.number()
+}))
+})
+
+
+/**
+ * @summary Send a chat message to a stream
+ */
+export const SendChatMessageParams = zod.object({
+  "channelId": zod.coerce.string()
+})
+
+export const SendChatMessageBody = zod.object({
+  "senderName": zod.string().optional(),
+  "text": zod.string(),
+  "color": zod.string().optional()
+})
+
+export const SendChatMessageResponse = zod.object({
+  "message": zod.object({
+  "id": zod.string(),
+  "senderName": zod.string(),
+  "text": zod.string(),
+  "color": zod.string(),
+  "ts": zod.number()
+})
+})
+
+
+/**
  * @summary Get coin balance
  */
 export const GetCoinBalanceQueryParams = zod.object({

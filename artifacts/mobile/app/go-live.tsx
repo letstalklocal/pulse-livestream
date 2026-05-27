@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
+  FlatList,
   KeyboardAvoidingView,
   PermissionsAndroid,
   Platform,
@@ -22,7 +23,9 @@ import {
   useEndStream,
   useGenerateAgoraToken,
   useGetStream,
+  useGetStreamChat,
   useHeartbeatStream,
+  useSendChatMessage,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
@@ -103,6 +106,8 @@ export default function GoLiveScreen() {
   const chatInputRef = useRef<TextInput>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [duration, setDuration] = useState(0);
+  const [chatMessages, setChatMessages] = useState<Array<{ id: string; senderName: string; text: string; color: string; ts: number }>>([]);
+  const chatListRef = useRef<FlatList>(null);
 
   const channelIdRef = useRef("");
   const isLiveRef = useRef(false);
@@ -116,6 +121,7 @@ export default function GoLiveScreen() {
   const createStream = useCreateStream();
   const endStream = useEndStream();
   const heartbeat = useHeartbeatStream();
+  const sendChatMutation = useSendChatMessage();
 
   // If not signed in, show gate screen — hooks must be called unconditionally so this goes after them
   // Poll viewer count while live
@@ -123,6 +129,23 @@ export default function GoLiveScreen() {
     query: { enabled: isLive && !!channelIdRef.current, refetchInterval: 5000 } as any,
   });
   const viewerCount = liveStreamData?.stream?.viewerCount ?? 0;
+
+  // Poll chat messages while live (broadcaster sees viewer messages too)
+  const { data: chatPollData } = useGetStreamChat(channelIdRef.current, undefined, {
+    query: { enabled: isLive && !!channelIdRef.current, refetchInterval: 3000 } as any,
+  });
+
+  useEffect(() => {
+    if (!chatPollData?.messages) return;
+    setChatMessages((prev) => {
+      const existingIds = new Set(prev.map((m) => m.id));
+      const next = chatPollData.messages.filter((m) => !existingIds.has(m.id));
+      if (next.length === 0) return prev;
+      const updated = [...prev, ...next].slice(-100);
+      setTimeout(() => chatListRef.current?.scrollToEnd({ animated: true }), 60);
+      return updated;
+    });
+  }, [chatPollData]);
 
   // Request permissions and initialise Agora engine on mount
   useEffect(() => {
@@ -370,6 +393,24 @@ export default function GoLiveScreen() {
             </View>
           </View>
 
+          {/* Chat messages overlay */}
+          <View style={styles.liveChatArea} pointerEvents="box-none">
+            <FlatList
+              ref={chatListRef}
+              data={chatMessages}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <View style={styles.liveChatBubble}>
+                  <Text style={[styles.liveChatSender, { color: item.color }]}>{item.senderName} </Text>
+                  <Text style={styles.liveChatText}>{item.text}</Text>
+                </View>
+              )}
+              contentContainerStyle={{ gap: 4, paddingBottom: 6 }}
+              scrollEnabled={false}
+              showsVerticalScrollIndicator={false}
+            />
+          </View>
+
           <View style={[styles.liveBottom, { paddingBottom: bottomPad + 12, paddingHorizontal: 16 }]}>
             {showChat && (
               <View style={styles.chatInputRow}>
@@ -382,6 +423,19 @@ export default function GoLiveScreen() {
                   placeholderTextColor="rgba(255,255,255,0.4)"
                   returnKeyType="send"
                   onSubmitEditing={() => {
+                    const text = chatText.trim();
+                    if (text) {
+                      const tempId = `local-${Date.now()}`;
+                      setChatMessages((prev) => [
+                        ...prev,
+                        { id: tempId, senderName: user!.name, text, color: "#FF1966", ts: Date.now() },
+                      ]);
+                      setTimeout(() => chatListRef.current?.scrollToEnd({ animated: true }), 60);
+                      sendChatMutation.mutate({
+                        channelId: channelIdRef.current,
+                        data: { senderName: user!.name, text, color: "#FF1966" },
+                      });
+                    }
                     setChatText("");
                     setShowChat(false);
                   }}
@@ -581,8 +635,28 @@ const styles = StyleSheet.create({
   liveOverlay: {
     ...StyleSheet.absoluteFillObject,
     flexDirection: "column",
-    justifyContent: "space-between",
+  },
+  liveChatArea: {
+    flex: 1,
+    justifyContent: "flex-end",
     paddingHorizontal: 16,
+    paddingBottom: 8,
+    maxHeight: 260,
+  },
+  liveChatBubble: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignSelf: "flex-start",
+  },
+  liveChatSender: {
+    fontSize: 13,
+    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
+  },
+  liveChatText: {
+    color: "#FFF",
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
   },
   liveTopBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   liveTopRight: { flexDirection: "row", alignItems: "center", gap: 8 },

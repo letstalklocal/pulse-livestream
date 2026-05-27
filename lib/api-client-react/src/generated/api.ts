@@ -22,6 +22,8 @@ import type {
 import type {
   AgoraTokenRequest,
   AgoraTokenResponse,
+  ChatMessageResponse,
+  ChatMessagesResponse,
   CoinBalanceResponse,
   CoinGrantRequest,
   CoinSpendRequest,
@@ -31,7 +33,9 @@ import type {
   FollowStatusResponse,
   GetCoinBalanceParams,
   GetFollowStatusParams,
+  GetStreamChatParams,
   HealthStatus,
+  SendChatMessageRequest,
   StreamHistoryResponse,
   StreamListResponse,
   StreamResponse,
@@ -1103,6 +1107,167 @@ export const useUpdateViewerCount = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getUpdateViewerCountMutationOptions(options));
+    }
+
+export const getGetStreamChatUrl = (channelId: string,
+    params?: GetStreamChatParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/streams/${channelId}/chat?${stringifiedParams}` : `/api/streams/${channelId}/chat`
+}
+
+/**
+ * @summary Get chat messages for a stream
+ */
+export const getStreamChat = async (channelId: string,
+    params?: GetStreamChatParams, options?: RequestInit): Promise<ChatMessagesResponse> => {
+
+  return customFetch<ChatMessagesResponse>(getGetStreamChatUrl(channelId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStreamChatQueryKey = (channelId: string,
+    params?: GetStreamChatParams,) => {
+    return [
+    `/api/streams/${channelId}/chat`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetStreamChatQueryOptions = <TData = Awaited<ReturnType<typeof getStreamChat>>, TError = ErrorType<unknown>>(channelId: string,
+    params?: GetStreamChatParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStreamChat>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStreamChatQueryKey(channelId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStreamChat>>> = ({ signal }) => getStreamChat(channelId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(channelId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStreamChat>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStreamChatQueryResult = NonNullable<Awaited<ReturnType<typeof getStreamChat>>>
+export type GetStreamChatQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get chat messages for a stream
+ */
+
+export function useGetStreamChat<TData = Awaited<ReturnType<typeof getStreamChat>>, TError = ErrorType<unknown>>(
+ channelId: string,
+    params?: GetStreamChatParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStreamChat>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStreamChatQueryOptions(channelId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSendChatMessageUrl = (channelId: string,) => {
+
+
+
+
+  return `/api/streams/${channelId}/chat`
+}
+
+/**
+ * @summary Send a chat message to a stream
+ */
+export const sendChatMessage = async (channelId: string,
+    sendChatMessageRequest: SendChatMessageRequest, options?: RequestInit): Promise<ChatMessageResponse> => {
+
+  return customFetch<ChatMessageResponse>(getSendChatMessageUrl(channelId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      sendChatMessageRequest,)
+  }
+);}
+
+
+
+
+export const getSendChatMessageMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendChatMessage>>, TError,{channelId: string;data: BodyType<SendChatMessageRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendChatMessage>>, TError,{channelId: string;data: BodyType<SendChatMessageRequest>}, TContext> => {
+
+const mutationKey = ['sendChatMessage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendChatMessage>>, {channelId: string;data: BodyType<SendChatMessageRequest>}> = (props) => {
+          const {channelId,data} = props ?? {};
+
+          return  sendChatMessage(channelId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendChatMessageMutationResult = NonNullable<Awaited<ReturnType<typeof sendChatMessage>>>
+    export type SendChatMessageMutationBody = BodyType<SendChatMessageRequest>
+    export type SendChatMessageMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Send a chat message to a stream
+ */
+export const useSendChatMessage = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendChatMessage>>, TError,{channelId: string;data: BodyType<SendChatMessageRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendChatMessage>>,
+        TError,
+        {channelId: string;data: BodyType<SendChatMessageRequest>},
+        TContext
+      > => {
+      return useMutation(getSendChatMessageMutationOptions(options));
     }
 
 export const getGetCoinBalanceUrl = (params: GetCoinBalanceParams,) => {

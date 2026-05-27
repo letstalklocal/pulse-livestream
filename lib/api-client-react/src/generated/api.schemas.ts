@@ -148,8 +148,37 @@ export interface CoinGrantRequest {
   note?: string;
 }
 
+export interface ChatMessage {
+  id: string;
+  senderName: string;
+  text: string;
+  color: string;
+  ts: number;
+}
+
+export interface ChatMessagesResponse {
+  messages: ChatMessage[];
+}
+
+export interface SendChatMessageRequest {
+  senderName?: string;
+  text: string;
+  color?: string;
+}
+
+export interface ChatMessageResponse {
+  message: ChatMessage;
+}
+
 export type GetFollowStatusParams = {
 followerUid: number;
+};
+
+export type GetStreamChatParams = {
+/**
+ * Unix ms timestamp — only return messages after this time
+ */
+since?: number;
 };
 
 export type GetCoinBalanceParams = {
