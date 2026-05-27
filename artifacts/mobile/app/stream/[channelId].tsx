@@ -120,7 +120,8 @@ export default function StreamScreen() {
   const { user } = useAuth();
 
   const [remoteUid, setRemoteUid] = useState<number | null>(null);
-  const [messages, setMessages] = useState<ChatMsg[]>(SEED_CHAT);
+  const isDemo = (channelId ?? "").endsWith("-demo");
+  const [messages, setMessages] = useState<ChatMsg[]>(isDemo ? SEED_CHAT : []);
   const [inputText, setInputText] = useState("");
   const [joined, setJoined] = useState(false);
   const [likeCount, setLikeCount] = useState(Math.floor(Math.random() * 500) + 50);
@@ -248,8 +249,9 @@ export default function StreamScreen() {
     ]);
   };
 
-  // Simulate other viewers sending gifts occasionally
+  // Simulate other viewers sending gifts occasionally — demo streams only
   useEffect(() => {
+    if (!isDemo) return;
     const names = ["neon_fox", "cosmic_ray", "techwave", "vibe_check", "l33tcode"];
     const interval = setInterval(() => {
       if (Math.random() < 0.35) {
@@ -260,10 +262,11 @@ export default function StreamScreen() {
     }, 4500);
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [SCREEN_W]);
+  }, [SCREEN_W, isDemo]);
 
-  // Simulate live chat
+  // Simulate live chat — demo streams only
   useEffect(() => {
+    if (!isDemo) return;
     const interval = setInterval(() => {
       const sender = VIEWER_NAMES[Math.floor(Math.random() * VIEWER_NAMES.length)]!;
       const text   = CHAT_POOL[Math.floor(Math.random() * CHAT_POOL.length)]!;
@@ -271,7 +274,7 @@ export default function StreamScreen() {
       setMessages((prev) => [...prev.slice(-40), { id: Date.now().toString(), sender, text, color }]);
     }, 2200);
     return () => clearInterval(interval);
-  }, []);
+  }, [isDemo]);
 
   // Auto-scroll chat to bottom
   useEffect(() => {
