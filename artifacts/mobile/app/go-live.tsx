@@ -205,6 +205,7 @@ export default function GoLiveScreen() {
           channelId,
           hostUid: user!.uid,
           hostName: user!.name,
+          hostAvatarUrl: user!.avatarUri ?? null,
           title: title.trim(),
           category,
         },

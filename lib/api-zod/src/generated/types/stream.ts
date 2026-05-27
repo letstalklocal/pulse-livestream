@@ -10,6 +10,7 @@ export interface Stream {
   channelId: string;
   hostUid: number;
   hostName: string;
+  hostAvatarUrl?: string | null;
   title: string;
   viewerCount: number;
   startedAt: Date;

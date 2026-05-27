@@ -9,6 +9,7 @@ interface StreamRecord {
   channelId: string;
   hostUid: number;
   hostName: string;
+  hostAvatarUrl?: string | null;
   title: string;
   viewerCount: number;
   startedAt: string;
@@ -119,7 +120,7 @@ router.post("/streams", (req, res) => {
     return;
   }
 
-  const { channelId, hostUid, hostName, title, category } = parsed.data;
+  const { channelId, hostUid, hostName, hostAvatarUrl, title, category } = parsed.data;
 
   if (streams.has(channelId)) {
     res.status(400).json({ error: "Stream already exists" });
@@ -130,6 +131,7 @@ router.post("/streams", (req, res) => {
     channelId,
     hostUid,
     hostName,
+    hostAvatarUrl: hostAvatarUrl ?? null,
     title,
     viewerCount: 0,
     startedAt: new Date().toISOString(),

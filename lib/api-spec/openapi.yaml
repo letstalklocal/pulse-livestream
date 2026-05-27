@@ -499,6 +499,9 @@ components:
           type: integer
         hostName:
           type: string
+        hostAvatarUrl:
+          type: string
+          nullable: true
         title:
           type: string
         viewerCount:
@@ -544,6 +547,9 @@ components:
           type: integer
         hostName:
           type: string
+        hostAvatarUrl:
+          type: string
+          nullable: true
         title:
           type: string
         category:

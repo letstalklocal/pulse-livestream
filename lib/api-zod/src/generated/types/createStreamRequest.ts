@@ -10,6 +10,7 @@ export interface CreateStreamRequest {
   channelId: string;
   hostUid: number;
   hostName: string;
+  hostAvatarUrl?: string | null;
   title: string;
   category: string;
 }

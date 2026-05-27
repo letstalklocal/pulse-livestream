@@ -106,8 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const merged: User = {
           ...(raw ? (JSON.parse(raw) as User) : {}),
           ...synced,
-          // Preserve local-only fields
-          avatarUri: raw ? (JSON.parse(raw) as User).avatarUri : undefined,
+          avatarUri: clerkUser.imageUrl ?? undefined,
         };
         setUser(merged);
         setLocalLoaded(true);

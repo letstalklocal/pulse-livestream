@@ -45,6 +45,7 @@ export const ListStreamsResponse = zod.object({
   "channelId": zod.string(),
   "hostUid": zod.number(),
   "hostName": zod.string(),
+  "hostAvatarUrl": zod.string().nullish(),
   "title": zod.string(),
   "viewerCount": zod.number(),
   "startedAt": zod.coerce.date(),
@@ -61,6 +62,7 @@ export const CreateStreamBody = zod.object({
   "channelId": zod.string(),
   "hostUid": zod.number(),
   "hostName": zod.string(),
+  "hostAvatarUrl": zod.string().nullish(),
   "title": zod.string(),
   "category": zod.string()
 })
@@ -79,6 +81,7 @@ export const GetStreamResponse = zod.object({
   "channelId": zod.string(),
   "hostUid": zod.number(),
   "hostName": zod.string(),
+  "hostAvatarUrl": zod.string().nullish(),
   "title": zod.string(),
   "viewerCount": zod.number(),
   "startedAt": zod.coerce.date(),
@@ -245,6 +248,7 @@ export const UpdateViewerCountResponse = zod.object({
   "channelId": zod.string(),
   "hostUid": zod.number(),
   "hostName": zod.string(),
+  "hostAvatarUrl": zod.string().nullish(),
   "title": zod.string(),
   "viewerCount": zod.number(),
   "startedAt": zod.coerce.date(),

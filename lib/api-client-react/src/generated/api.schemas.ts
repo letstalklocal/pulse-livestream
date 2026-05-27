@@ -44,6 +44,7 @@ export interface Stream {
   channelId: string;
   hostUid: number;
   hostName: string;
+  hostAvatarUrl?: string | null;
   title: string;
   viewerCount: number;
   startedAt: string;
@@ -62,6 +63,7 @@ export interface CreateStreamRequest {
   channelId: string;
   hostUid: number;
   hostName: string;
+  hostAvatarUrl?: string | null;
   title: string;
   category: string;
 }

@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import React from "react";
 import {
   Dimensions,
+  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -16,6 +17,7 @@ interface Stream {
   channelId: string;
   hostUid: number;
   hostName: string;
+  hostAvatarUrl?: string | null;
   title: string;
   viewerCount: number;
   startedAt: string;
@@ -62,7 +64,16 @@ export function StreamCard({ stream, isVisible = false }: Props) {
       <View style={[styles.thumbnail, { backgroundColor: bg2 }]}>
         <View style={[styles.innerGlow, { backgroundColor: bg1 + "44" }]} />
 
-        {/* Live video preview — 4s delay then 3s live, then back to background */}
+        {/* Profile photo — shown when no live preview is active */}
+        {stream.hostAvatarUrl ? (
+          <Image
+            source={{ uri: stream.hostAvatarUrl }}
+            style={styles.profileImage}
+            resizeMode="cover"
+          />
+        ) : null}
+
+        {/* Live video preview — 3s delay then 5s live, then back to background */}
         <LivePreviewThumbnail channelId={stream.channelId} hostUid={stream.hostUid} isVisible={isVisible} />
 
         {/* Top-left: category */}
@@ -109,7 +120,9 @@ const styles = StyleSheet.create({
   innerGlow: {
     ...StyleSheet.absoluteFillObject,
   },
-  thumbnailContent: { alignItems: "center", justifyContent: "center" },
+  profileImage: {
+    ...StyleSheet.absoluteFillObject,
+  },
   categoryBadge: {
     position: "absolute",
     top: 8,
