@@ -704,6 +704,18 @@ export default function StreamScreen() {
                 <Ionicons name="flag-outline" size={20} color="#FF453A" />
                 <Text style={[styles.kebabItemText, { color: "#FF453A" }]}>Report</Text>
               </TouchableOpacity>
+              <View style={styles.kebabDivider} />
+              <TouchableOpacity
+                style={styles.kebabItem}
+                activeOpacity={0.7}
+                onPress={() => {
+                  setShowKebabMenu(false);
+                  router.back();
+                }}
+              >
+                <Ionicons name="exit-outline" size={20} color="#FFF" />
+                <Text style={styles.kebabItemText}>Exit Live</Text>
+              </TouchableOpacity>
             </View>
           </TouchableWithoutFeedback>
         </View>
