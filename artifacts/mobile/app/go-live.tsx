@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
+  KeyboardAvoidingView,
   PermissionsAndroid,
   Platform,
   ScrollView,
@@ -96,6 +97,10 @@ export default function GoLiveScreen() {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Gaming");
   const [isLive, setIsLive] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [chatText, setChatText] = useState("");
+  const chatInputRef = useRef<TextInput>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [duration, setDuration] = useState(0);
 
@@ -226,6 +231,13 @@ export default function GoLiveScreen() {
     }
   }, [title, category, user, generateToken, createStream]);
 
+  const toggleMute = useCallback(() => {
+    const next = !isMuted;
+    setIsMuted(next);
+    engineRef.current?.muteLocalAudioStream?.(next);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, [isMuted]);
+
   const stopLive = useCallback(async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     if (durationRef.current) clearInterval(durationRef.current);
@@ -331,33 +343,75 @@ export default function GoLiveScreen() {
           <DemoCamera color={catColor} />
         )}
 
-        <View style={[styles.liveOverlay, { paddingTop: topPad + 12, paddingBottom: bottomPad + 16 }]}>
-          <View style={styles.liveTopBar}>
-            <View style={styles.liveBadgeRow}>
-              <View style={styles.liveBadge}>
-                <View style={styles.liveDot} />
-                <Text style={styles.liveBadgeText}>LIVE</Text>
-              </View>
-              <Text style={styles.liveDuration}>{formatDuration(duration)}</Text>
-            </View>
-            <View style={styles.liveTopRight}>
-              {!isNative && (
-                <View style={styles.demoBadge}>
-                  <Text style={styles.demoBadgeText}>DEMO</Text>
+        <KeyboardAvoidingView
+          style={styles.liveOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <View style={{ paddingTop: topPad + 12, paddingHorizontal: 16 }}>
+            <View style={styles.liveTopBar}>
+              <View style={styles.liveBadgeRow}>
+                <View style={styles.liveBadge}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.liveBadgeText}>LIVE</Text>
                 </View>
-              )}
-              <View style={styles.viewerPill}>
-                <Ionicons name="eye" size={13} color="#FFF" />
-                <Text style={styles.viewerPillText}>{viewerCount}</Text>
+                <Text style={styles.liveDuration}>{formatDuration(duration)}</Text>
+              </View>
+              <View style={styles.liveTopRight}>
+                {!isNative && (
+                  <View style={styles.demoBadge}>
+                    <Text style={styles.demoBadgeText}>DEMO</Text>
+                  </View>
+                )}
+                <View style={styles.viewerPill}>
+                  <Ionicons name="eye" size={13} color="#FFF" />
+                  <Text style={styles.viewerPillText}>{viewerCount}</Text>
+                </View>
               </View>
             </View>
           </View>
 
-          <TouchableOpacity style={styles.endLiveBtn} onPress={stopLive} activeOpacity={0.85}>
-            <Ionicons name="stop-circle" size={20} color="#FFF" />
-            <Text style={styles.endLiveBtnText}>End Stream</Text>
-          </TouchableOpacity>
-        </View>
+          <View style={[styles.liveBottom, { paddingBottom: bottomPad + 12, paddingHorizontal: 16 }]}>
+            {showChat && (
+              <View style={styles.chatInputRow}>
+                <TextInput
+                  ref={chatInputRef}
+                  style={styles.chatInput}
+                  value={chatText}
+                  onChangeText={setChatText}
+                  placeholder="Say something..."
+                  placeholderTextColor="rgba(255,255,255,0.4)"
+                  returnKeyType="send"
+                  onSubmitEditing={() => {
+                    setChatText("");
+                    setShowChat(false);
+                  }}
+                  onBlur={() => setShowChat(false)}
+                  autoFocus
+                />
+              </View>
+            )}
+            <View style={styles.liveBottomBar}>
+              <TouchableOpacity
+                style={styles.liveIconBtn}
+                onPress={() => {
+                  setShowChat(true);
+                  setTimeout(() => chatInputRef.current?.focus(), 50);
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="chatbubble-ellipses" size={26} color="#FFF" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.endLiveIconBtn} onPress={stopLive} activeOpacity={0.85}>
+                <Ionicons name="stop-circle" size={32} color="#FFF" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.liveIconBtn} onPress={toggleMute} activeOpacity={0.7}>
+                <Ionicons name={isMuted ? "mic-off" : "mic"} size={26} color={isMuted ? "#FF4444" : "#FFF"} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </View>
     );
   }
@@ -564,17 +618,46 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.25)",
   },
   demoBadgeText: { color: "rgba(255,255,255,0.7)", fontSize: 10, fontWeight: "700", fontFamily: "Inter_700Bold", letterSpacing: 1 },
-  endLiveBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    alignSelf: "center",
-    backgroundColor: "#FF4444",
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 30,
+  liveBottom: {
+    gap: 10,
   },
-  endLiveBtnText: { color: "#FFF", fontSize: 16, fontWeight: "700", fontFamily: "Inter_700Bold" },
+  liveBottomBar: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.45)",
+    borderRadius: 40,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+  },
+  liveIconBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  endLiveIconBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#FF4444",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  chatInputRow: {
+    backgroundColor: "rgba(0,0,0,0.55)",
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+  },
+  chatInput: {
+    color: "#FFF",
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
+    paddingVertical: 10,
+    minHeight: 40,
+  },
   backBtnAlt: {
     position: "absolute",
     left: 16,
