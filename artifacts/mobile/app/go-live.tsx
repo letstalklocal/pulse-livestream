@@ -25,7 +25,6 @@ import {
   useGenerateAgoraToken,
   useGetStream,
   useGetStreamChat,
-  useGetStreamEarnings,
   useHeartbeatStream,
   useSendChatMessage,
 } from "@workspace/api-client-react";
@@ -132,11 +131,40 @@ export default function GoLiveScreen() {
   });
   const viewerCount = liveStreamData?.stream?.viewerCount ?? 0;
 
-  // Poll coins earned this stream
-  const { data: earningsData } = useGetStreamEarnings(channelIdRef.current, {
-    query: { enabled: isLive && !!channelIdRef.current, refetchInterval: 1000 } as any,
-  });
-  const streamCoins = earningsData?.coins ?? 0;
+  // WebSocket push — server sends { type: "earnings", coins } whenever a gift lands
+  const [streamCoins, setStreamCoins] = useState(0);
+  const wsRef = useRef<WebSocket | null>(null);
+
+  useEffect(() => {
+    const channelId = channelIdRef.current;
+    if (!isLive || !channelId) return;
+
+    const domain = process.env["EXPO_PUBLIC_DOMAIN"];
+    if (!domain) return;
+
+    const ws = new WebSocket(`wss://${domain}/api/ws`);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: "subscribe", channelId }));
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(String(event.data)) as { type?: string; coins?: number };
+        if (msg.type === "earnings" && typeof msg.coins === "number") {
+          setStreamCoins(msg.coins);
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    return () => {
+      ws.close();
+      wsRef.current = null;
+    };
+  }, [isLive]);
 
   // Poll chat messages while live (broadcaster sees viewer messages too)
   const { data: chatPollData } = useGetStreamChat(channelIdRef.current, undefined, {

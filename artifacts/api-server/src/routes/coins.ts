@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { eq, sql, and } from "drizzle-orm";
 import { db, coinBalancesTable, coinTransactionsTable } from "@workspace/db";
+import * as wsHub from "../lib/wsHub";
 
 const router = Router();
 
@@ -97,6 +98,20 @@ router.post("/coins/spend", async (req, res) => {
     channelId:   channelId ?? null,
     description: description ?? "",
   });
+
+  // Push updated earnings total to broadcaster's WebSocket immediately
+  if (channelId) {
+    const rows = await db
+      .select({ total: sql<number>`coalesce(sum(${coinTransactionsTable.amount}), 0)` })
+      .from(coinTransactionsTable)
+      .where(
+        and(
+          eq(coinTransactionsTable.channelId, channelId),
+          eq(coinTransactionsTable.type, "gift"),
+        ),
+      );
+    wsHub.pushEarnings(channelId, Number(rows[0]?.total ?? 0));
+  }
 
   res.json({ balance: updated[0]?.balance ?? current - amount });
 });
