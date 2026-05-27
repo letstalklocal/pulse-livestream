@@ -20,6 +20,7 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
   const [remoteUid, setRemoteUid] = useState<number | null>(null);
   const engineRef = useRef<any>(null);
   const liveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasPlayedRef = useRef(false);
   const generateToken = useGenerateAgoraToken();
   const VideoView = RtcTextureViewComponent;
   const isNative = Platform.OS !== "web";
@@ -32,8 +33,11 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
       engineRef.current = null;
       setShowLive(false);
       setRemoteUid(null);
+      hasPlayedRef.current = false;
       return;
     }
+
+    if (hasPlayedRef.current) return;
 
     let didUnmount = false;
 
@@ -88,11 +92,12 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
           engineRef.current = null;
           setShowLive(false);
           setRemoteUid(null);
-        }, 3000);
+          hasPlayedRef.current = true;
+        }, 5000);
       } catch {
         // Preview is best-effort
       }
-    }, 4000);
+    }, 3000);
 
     return () => {
       didUnmount = true;
@@ -103,6 +108,7 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
       engineRef.current = null;
       setShowLive(false);
       setRemoteUid(null);
+      hasPlayedRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId, isVisible]);
