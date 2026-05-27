@@ -24,6 +24,7 @@ interface Stream {
 
 interface Props {
   stream: Stream;
+  isVisible?: boolean;
 }
 
 const CARD_WIDTH = (Dimensions.get("window").width - 48) / 2;
@@ -41,7 +42,7 @@ function formatViewers(count: number): string {
   return count.toString();
 }
 
-export function StreamCard({ stream }: Props) {
+export function StreamCard({ stream, isVisible = false }: Props) {
   const colors = useColors();
   const router = useRouter();
   const [bg1, bg2] = CATEGORY_COLORS[stream.category] ?? CATEGORY_COLORS["Other"]!;
@@ -61,13 +62,8 @@ export function StreamCard({ stream }: Props) {
       <View style={[styles.thumbnail, { backgroundColor: bg2 }]}>
         <View style={[styles.innerGlow, { backgroundColor: bg1 + "44" }]} />
 
-        {/* Live video preview — renders on top of gradient for real streams */}
-        <LivePreviewThumbnail channelId={stream.channelId} hostUid={stream.hostUid} />
-
-        {/* Avatar placeholder — hidden behind video once it loads */}
-        <View style={styles.thumbnailContent}>
-          <Avatar uid={stream.hostUid} name={stream.hostName} size={52} borderWidth={2} />
-        </View>
+        {/* Live video preview — 4s delay then 3s live, then back to background */}
+        <LivePreviewThumbnail channelId={stream.channelId} hostUid={stream.hostUid} isVisible={isVisible} />
 
         {/* Top-left: category */}
         <View style={[styles.categoryBadge, { backgroundColor: bg1 }]}>

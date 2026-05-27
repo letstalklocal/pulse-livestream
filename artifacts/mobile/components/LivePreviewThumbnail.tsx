@@ -12,29 +12,37 @@ import {
 interface Props {
   channelId: string;
   hostUid: number;
+  isVisible?: boolean;
 }
 
-/**
- * Joins a real Agora channel as a silent audience member and renders
- * the host's live video feed. Audio always muted.
- * Skipped for demo channels (no real broadcaster) and on web.
- */
-export function LivePreviewThumbnail({ channelId, hostUid }: Props) {
+export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: Props) {
+  const [showLive, setShowLive] = useState(false);
   const [remoteUid, setRemoteUid] = useState<number | null>(null);
   const engineRef = useRef<any>(null);
+  const liveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const generateToken = useGenerateAgoraToken();
   const VideoView = RtcTextureViewComponent;
   const isNative = Platform.OS !== "web";
 
   useEffect(() => {
-    if (!isNative || channelId.endsWith("-demo")) return;
+    if (!isNative || channelId.endsWith("-demo") || !isVisible) {
+      if (liveTimerRef.current) clearTimeout(liveTimerRef.current);
+      engineRef.current?.leaveChannel?.();
+      engineRef.current?.release?.();
+      engineRef.current = null;
+      setShowLive(false);
+      setRemoteUid(null);
+      return;
+    }
 
     let didUnmount = false;
 
-    const setup = async () => {
+    const profileTimer = setTimeout(async () => {
+      if (didUnmount) return;
+
       try {
         const engine = createEngine();
-        if (!engine) return;
+        if (!engine || didUnmount) return;
 
         engine.initialize({
           appId: process.env["EXPO_PUBLIC_AGORA_APP_ID"] ?? "",
@@ -57,6 +65,8 @@ export function LivePreviewThumbnail({ channelId, hostUid }: Props) {
           data: { channelName: channelId, uid: 0, role: "audience" },
         });
 
+        if (didUnmount) return;
+
         await engine.joinChannel(tokenData.token, channelId, 0, {
           clientRoleType: ClientRoleType.ClientRoleAudience,
           autoSubscribeVideo: true,
@@ -66,24 +76,38 @@ export function LivePreviewThumbnail({ channelId, hostUid }: Props) {
         engine.muteAllRemoteVideoStreams(false);
         engine.muteAllRemoteAudioStreams(true);
 
-        if (!didUnmount) setRemoteUid(hostUid);
+        if (!didUnmount) {
+          setShowLive(true);
+          setRemoteUid(hostUid);
+        }
+
+        liveTimerRef.current = setTimeout(() => {
+          if (didUnmount) return;
+          engineRef.current?.leaveChannel?.();
+          engineRef.current?.release?.();
+          engineRef.current = null;
+          setShowLive(false);
+          setRemoteUid(null);
+        }, 3000);
       } catch {
         // Preview is best-effort
       }
-    };
-
-    setup();
+    }, 4000);
 
     return () => {
       didUnmount = true;
+      clearTimeout(profileTimer);
+      if (liveTimerRef.current) clearTimeout(liveTimerRef.current);
       engineRef.current?.leaveChannel?.();
       engineRef.current?.release?.();
       engineRef.current = null;
+      setShowLive(false);
+      setRemoteUid(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channelId]);
+  }, [channelId, isVisible]);
 
-  if (!isNative || !VideoView || remoteUid === null) return null;
+  if (!isNative || !VideoView || !showLive || remoteUid === null) return null;
 
   return (
     <VideoView

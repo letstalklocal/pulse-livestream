@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -12,6 +12,8 @@ import {
   Text,
   TouchableOpacity,
   View,
+  type ViewabilityConfig,
+  type ViewToken,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useListStreams } from "@workspace/api-client-react";
@@ -25,8 +27,26 @@ export default function DiscoveryScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState("All");
-
   const [manualRefreshing, setManualRefreshing] = React.useState(false);
+  const [visibleChannelIds, setVisibleChannelIds] = useState<Set<string>>(new Set());
+
+  const VIEWABILITY_CONFIG = useRef<ViewabilityConfig>({
+    itemVisiblePercentThreshold: 40,
+  }).current;
+
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      setVisibleChannelIds(new Set(viewableItems.map((t) => t.key as string)));
+    },
+    [],
+  );
+
+  const viewabilityCallbackRef = useRef(onViewableItemsChanged);
+  viewabilityCallbackRef.current = onViewableItemsChanged;
+  const stableOnViewableItemsChanged = useCallback(
+    (info: { viewableItems: ViewToken[] }) => viewabilityCallbackRef.current(info),
+    [],
+  );
 
   const { data, isLoading, refetch } = useListStreams({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -156,7 +176,14 @@ export default function DiscoveryScreen() {
               </TouchableOpacity>
             </View>
           }
-          renderItem={({ item }) => <StreamCard stream={item} />}
+          onViewableItemsChanged={stableOnViewableItemsChanged}
+          viewabilityConfig={VIEWABILITY_CONFIG}
+          renderItem={({ item }) => (
+            <StreamCard
+              stream={item}
+              isVisible={visibleChannelIds.has(item.channelId)}
+            />
+          )}
         />
       )}
     </View>
