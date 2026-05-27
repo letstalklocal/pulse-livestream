@@ -34,6 +34,7 @@ import {
   VideoSourceType,
   createEngine,
 } from "@/utils/agora";
+import { setIsBroadcasting } from "@/utils/agoraState";
 
 const isNative = Platform.OS === "ios" || Platform.OS === "android";
 
@@ -216,6 +217,7 @@ export default function GoLiveScreen() {
       }
 
       isLiveRef.current = true;
+      setIsBroadcasting(true);
       setIsLive(true);
       setIsStarting(false);
       durationRef.current = setInterval(() => setDuration((d) => d + 1), 1000);
@@ -230,6 +232,7 @@ export default function GoLiveScreen() {
     if (durationRef.current) clearInterval(durationRef.current);
     // Mark not-live before async ops so the unmount cleanup doesn't double-delete
     isLiveRef.current = false;
+    setIsBroadcasting(false);
     try {
       engineRef.current?.leaveChannel?.();
       await endStream.mutateAsync({ channelId: channelIdRef.current });

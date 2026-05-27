@@ -8,6 +8,7 @@ import {
   ChannelProfileType,
   VideoSourceType,
 } from "@/utils/agora";
+import { isBroadcasting } from "@/utils/agoraState";
 
 let engineInitialized = false;
 
@@ -29,7 +30,7 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
   const isNative = Platform.OS !== "web";
 
   useEffect(() => {
-    if (!isNative || channelId.endsWith("-demo") || !isVisible) {
+    if (!isNative || channelId.endsWith("-demo") || !isVisible || isBroadcasting()) {
       if (liveTimerRef.current) clearTimeout(liveTimerRef.current);
       if (engineRef.current && eventHandlerRef.current) {
         engineRef.current.unregisterEventHandler(eventHandlerRef.current);
