@@ -9,6 +9,8 @@ import {
   VideoSourceType,
 } from "@/utils/agora";
 
+let engineInitialized = false;
+
 interface Props {
   channelId: string;
   hostUid: number;
@@ -21,6 +23,7 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
   const engineRef = useRef<any>(null);
   const liveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasPlayedRef = useRef(false);
+  const eventHandlerRef = useRef<any>(null);
   const generateToken = useGenerateAgoraToken();
   const VideoView = RtcTextureViewComponent;
   const isNative = Platform.OS !== "web";
@@ -28,6 +31,10 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
   useEffect(() => {
     if (!isNative || channelId.endsWith("-demo") || !isVisible) {
       if (liveTimerRef.current) clearTimeout(liveTimerRef.current);
+      if (engineRef.current && eventHandlerRef.current) {
+        engineRef.current.unregisterEventHandler(eventHandlerRef.current);
+        eventHandlerRef.current = null;
+      }
       engineRef.current?.leaveChannel?.();
       engineRef.current = null;
       setShowLive(false);
@@ -47,20 +54,28 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
         const engine = createEngine();
         if (!engine || didUnmount) return;
 
-        engine.initialize({
-          appId: process.env["EXPO_PUBLIC_AGORA_APP_ID"] ?? "",
-          channelProfile: ChannelProfileType.ChannelProfileLiveBroadcasting,
-        });
-        engine.enableVideo();
+        if (!engineInitialized) {
+          engine.initialize({
+            appId: process.env["EXPO_PUBLIC_AGORA_APP_ID"] ?? "",
+            channelProfile: ChannelProfileType.ChannelProfileLiveBroadcasting,
+          });
+          engine.enableVideo();
+          engineInitialized = true;
+        }
 
-        engine.registerEventHandler({
+        if (eventHandlerRef.current) {
+          engine.unregisterEventHandler(eventHandlerRef.current);
+        }
+        const handler = {
           onUserPublished: (_conn: any, uid: number, mediaType: number) => {
             if (!didUnmount && mediaType !== 0) setRemoteUid(uid);
           },
           onUserOffline: () => {
             if (!didUnmount) setRemoteUid(null);
           },
-        });
+        };
+        engine.registerEventHandler(handler);
+        eventHandlerRef.current = handler;
 
         engineRef.current = engine;
 
@@ -86,6 +101,10 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
 
         liveTimerRef.current = setTimeout(() => {
           if (didUnmount) return;
+          if (engineRef.current && eventHandlerRef.current) {
+            engineRef.current.unregisterEventHandler(eventHandlerRef.current);
+            eventHandlerRef.current = null;
+          }
           engineRef.current?.leaveChannel?.();
           engineRef.current = null;
           setShowLive(false);
@@ -101,6 +120,10 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
       didUnmount = true;
       clearTimeout(profileTimer);
       if (liveTimerRef.current) clearTimeout(liveTimerRef.current);
+      if (engineRef.current && eventHandlerRef.current) {
+        engineRef.current.unregisterEventHandler(eventHandlerRef.current);
+        eventHandlerRef.current = null;
+      }
       engineRef.current?.leaveChannel?.();
       engineRef.current = null;
       setShowLive(false);
