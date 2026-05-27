@@ -401,12 +401,12 @@ export default function GoLiveScreen() {
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <View style={styles.liveChatBubble}>
-                  <Text style={[styles.liveChatSender, { color: item.color }]}>{item.senderName} </Text>
+                  <Text style={[styles.liveChatSender, { color: item.color }]}>{item.senderName}: </Text>
                   <Text style={styles.liveChatText}>{item.text}</Text>
                 </View>
               )}
-              contentContainerStyle={{ gap: 4, paddingBottom: 6 }}
-              scrollEnabled={false}
+              contentContainerStyle={styles.liveChatList}
+              style={styles.liveChatScroll}
               showsVerticalScrollIndicator={false}
             />
           </View>
@@ -641,22 +641,29 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     paddingHorizontal: 16,
     paddingBottom: 8,
-    maxHeight: 260,
   },
+  liveChatScroll: { maxHeight: 240 },
+  liveChatList: { gap: 5, paddingBottom: 4 },
   liveChatBubble: {
     flexDirection: "row",
     flexWrap: "wrap",
+    backgroundColor: "rgba(0,0,0,0.42)",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     alignSelf: "flex-start",
+    maxWidth: "85%",
   },
   liveChatSender: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Inter_600SemiBold",
   },
   liveChatText: {
     color: "#FFF",
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: "Inter_400Regular",
+    flexShrink: 1,
   },
   liveTopBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   liveTopRight: { flexDirection: "row", alignItems: "center", gap: 8 },
