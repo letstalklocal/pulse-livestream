@@ -25,6 +25,7 @@ import {
   useGenerateAgoraToken,
   useGetStream,
   useGetStreamChat,
+  getGetStreamChatQueryKey,
   useListStreams,
   useSendChatMessage,
   useUpdateViewerCount,
@@ -442,19 +443,16 @@ export default function StreamScreen() {
   const sendMessage = () => {
     const text = inputText.trim();
     if (!text) return;
-    const tempId = `local-${Date.now()}`;
-    const senderName = user?.name ?? "Viewer";
-    setMessages((prev) => [
-      ...prev,
-      { id: tempId, sender: senderName, text, color: "#FF1966" },
-    ]);
     setInputText("");
     Haptics.selectionAsync();
     if (channelId && !isDemo) {
-      sendChatMutation.mutate({
+      const senderName = user?.name ?? "Viewer";
+      sendChatMutation.mutateAsync({
         channelId,
         data: { senderName, text, color: "#FF1966" },
-      });
+      }).then(() => {
+        void queryClient.invalidateQueries({ queryKey: getGetStreamChatQueryKey(channelId) });
+      }).catch(() => {});
     }
   };
 

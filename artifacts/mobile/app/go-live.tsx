@@ -19,6 +19,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   getListStreamsQueryKey,
+  getGetStreamChatQueryKey,
   useCreateStream,
   useEndStream,
   useGenerateAgoraToken,
@@ -424,20 +425,18 @@ export default function GoLiveScreen() {
                   returnKeyType="send"
                   onSubmitEditing={() => {
                     const text = chatText.trim();
-                    if (text) {
-                      const tempId = `local-${Date.now()}`;
-                      setChatMessages((prev) => [
-                        ...prev,
-                        { id: tempId, senderName: user!.name, text, color: "#FF1966", ts: Date.now() },
-                      ]);
-                      setTimeout(() => chatListRef.current?.scrollToEnd({ animated: true }), 60);
-                      sendChatMutation.mutate({
-                        channelId: channelIdRef.current,
-                        data: { senderName: user!.name, text, color: "#FF1966" },
-                      });
-                    }
                     setChatText("");
                     setShowChat(false);
+                    if (text) {
+                      sendChatMutation.mutateAsync({
+                        channelId: channelIdRef.current,
+                        data: { senderName: user!.name, text, color: "#FF1966" },
+                      }).then(() => {
+                        void queryClient.invalidateQueries({
+                          queryKey: getGetStreamChatQueryKey(channelIdRef.current),
+                        });
+                      }).catch(() => {});
+                    }
                   }}
                   onBlur={() => setShowChat(false)}
                   autoFocus
