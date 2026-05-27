@@ -7,8 +7,14 @@
  */
 
 export interface CoinSpendRequest {
+  /** Sender user ID */
   uid: number;
+  /** Recipient (streamer) user ID */
   recipientUid?: number;
   amount: number;
+  /** Name of the gift item sent */
+  giftName?: string;
+  /** Stream channel where the gift was sent */
+  channelId?: string;
   description?: string;
 }

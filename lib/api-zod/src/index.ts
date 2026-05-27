@@ -21,5 +21,4 @@ export * from "./generated/types/viewerUpdateRequestAction";
 export * from "./generated/types/chatMessage";
 export * from "./generated/types/chatMessageResponse";
 export * from "./generated/types/chatMessagesResponse";
-export * from "./generated/types/getStreamChatParams";
 export * from "./generated/types/sendChatMessageRequest";

@@ -632,7 +632,7 @@ export default function StreamScreen() {
         if (!user?.uid) return;
         setShowGiftPicker(false);
         spendMutation.mutate(
-          { data: { uid: user.uid, recipientUid: hostUid ?? undefined, amount: gift.coins, description: `gift:${gift.id}` } },
+          { data: { uid: user.uid, recipientUid: hostUid ?? undefined, amount: gift.coins, giftName: gift.name, channelId: channelId ?? undefined, description: gift.name } },
           {
             onSuccess: (data) => {
               // Update viewer's own balance in cache

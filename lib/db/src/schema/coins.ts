@@ -9,9 +9,13 @@ export const coinBalancesTable = pgTable("coin_balances", {
 
 export const coinTransactionsTable = pgTable("coin_transactions", {
   id:          serial("id").primaryKey(),
-  userId:      integer("user_id").notNull().references(() => usersTable.uid),
+  // Unified sender/receiver columns — both set for gifts, only toUserId set for grants
+  fromUserId:  integer("from_user_id").references(() => usersTable.uid),
+  toUserId:    integer("to_user_id").references(() => usersTable.uid),
   amount:      integer("amount").notNull(),
-  type:        text("type").notNull(),
+  type:        text("type").notNull(), // "gift" | "grant"
+  giftName:    text("gift_name"),
+  channelId:   text("channel_id"),
   description: text("description").notNull().default(""),
   createdAt:   timestamp("created_at").defaultNow().notNull(),
 });

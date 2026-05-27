@@ -319,9 +319,11 @@ export const GetCoinBalanceResponse = zod.object({
  * @summary Spend coins on a gift
  */
 export const SpendCoinsBody = zod.object({
-  "uid": zod.number(),
-  "recipientUid": zod.number().optional(),
+  "uid": zod.number().describe('Sender user ID'),
+  "recipientUid": zod.number().optional().describe('Recipient (streamer) user ID'),
   "amount": zod.number(),
+  "giftName": zod.string().optional().describe('Name of the gift item sent'),
+  "channelId": zod.string().optional().describe('Stream channel where the gift was sent'),
   "description": zod.string().optional()
 })
 

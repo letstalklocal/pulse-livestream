@@ -759,10 +759,18 @@ components:
       properties:
         uid:
           type: integer
+          description: Sender user ID
         recipientUid:
           type: integer
+          description: Recipient (streamer) user ID
         amount:
           type: integer
+        giftName:
+          type: string
+          description: Name of the gift item sent
+        channelId:
+          type: string
+          description: Stream channel where the gift was sent
         description:
           type: string
       required:

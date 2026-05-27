@@ -32,12 +32,15 @@ router.get("/coins/balance", async (req, res) => {
 
 // POST /coins/spend
 router.post("/coins/spend", async (req, res) => {
-  const { uid, recipientUid, amount, description } = req.body as {
+  const { uid, recipientUid, amount, giftName, channelId, description } = req.body as {
     uid?: number;
     recipientUid?: number;
     amount?: number;
+    giftName?: string;
+    channelId?: string;
     description?: string;
   };
+
   if (!uid || typeof uid !== "number") {
     res.status(400).json({ error: "uid is required" });
     return;
@@ -60,13 +63,6 @@ router.post("/coins/spend", async (req, res) => {
     .where(eq(coinBalancesTable.userId, uid))
     .returning();
 
-  await db.insert(coinTransactionsTable).values({
-    userId: uid,
-    amount: -amount,
-    type: "spend",
-    description: description ?? "",
-  });
-
   // Credit recipient (streamer) if provided
   if (recipientUid && typeof recipientUid === "number" && recipientUid !== uid) {
     await getOrCreateBalance(recipientUid);
@@ -74,13 +70,18 @@ router.post("/coins/spend", async (req, res) => {
       .update(coinBalancesTable)
       .set({ balance: sql`${coinBalancesTable.balance} + ${amount}`, updatedAt: new Date() })
       .where(eq(coinBalancesTable.userId, recipientUid));
-    await db.insert(coinTransactionsTable).values({
-      userId: recipientUid,
-      amount,
-      type: "gift_received",
-      description: description ?? "",
-    });
   }
+
+  // Single unified transaction row — captures both sides, channel, and gift name
+  await db.insert(coinTransactionsTable).values({
+    fromUserId:  uid,
+    toUserId:    recipientUid ?? null,
+    amount,
+    type:        "gift",
+    giftName:    giftName ?? null,
+    channelId:   channelId ?? null,
+    description: description ?? "",
+  });
 
   res.json({ balance: updated[0]?.balance ?? current - amount });
 });
@@ -110,9 +111,12 @@ router.post("/coins/grant", async (req, res) => {
     .returning();
 
   await db.insert(coinTransactionsTable).values({
-    userId: uid,
+    fromUserId:  null,
+    toUserId:    uid,
     amount,
-    type: "grant",
+    type:        "grant",
+    giftName:    null,
+    channelId:   null,
     description: note ?? "manual grant",
   });
 
