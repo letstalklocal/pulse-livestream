@@ -162,7 +162,6 @@ export default function GoLiveScreen() {
     return () => {
       mounted = false;
       engineRef.current?.stopPreview?.();
-      engineRef.current?.release?.();
     };
   }, []);
 
@@ -257,16 +256,21 @@ export default function GoLiveScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Send a heartbeat every 8 s while live so the server knows the stream is active.
-  // If the app crashes or is killed, heartbeats stop and the server auto-removes
-  // the stream after 15 s (HEARTBEAT_TTL_MS).
+  // Keep a stable ref to heartbeat.mutate so the interval below never needs to
+  // reset when the mutation object gets a new reference after each settled call.
+  const heartbeatMutateRef = useRef(heartbeat.mutate);
+  useEffect(() => { heartbeatMutateRef.current = heartbeat.mutate; });
+
+  // Send a heartbeat every 20 s while live (TTL is 60 s, so 3 chances before expiry).
+  // Depends only on isLive — not on the mutation object — so the interval is stable.
   useEffect(() => {
     if (!isLive || !channelIdRef.current) return;
+    heartbeatMutateRef.current({ channelId: channelIdRef.current });
     const id = setInterval(() => {
-      heartbeat.mutate({ channelId: channelIdRef.current });
-    }, 30_000);
+      heartbeatMutateRef.current({ channelId: channelIdRef.current });
+    }, 20_000);
     return () => clearInterval(id);
-  }, [isLive, heartbeat]);
+  }, [isLive]);
 
   const formatDuration = (secs: number) => {
     const h = Math.floor(secs / 3600);
