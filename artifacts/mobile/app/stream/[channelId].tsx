@@ -337,7 +337,7 @@ export default function StreamScreen() {
     return () => {
       didUnmount = true;
       engineRef.current?.leaveChannel?.();
-      engineRef.current?.release?.();
+      engineRef.current = null;
       try { updateViewers.mutate({ channelId, data: { action: "leave" } }); } catch (_e) {}
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
