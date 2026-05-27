@@ -33,6 +33,7 @@
       "favicon": "./assets/images/icon.png"
     },
     "plugins": [
+      "./plugins/withAndroidBuildFix",
       [
         "expo-router",
         {
