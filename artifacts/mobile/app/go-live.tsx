@@ -134,7 +134,7 @@ export default function GoLiveScreen() {
 
   // Poll coins earned this stream
   const { data: earningsData } = useGetStreamEarnings(channelIdRef.current, {
-    query: { enabled: isLive && !!channelIdRef.current, refetchInterval: 5000 } as any,
+    query: { enabled: isLive && !!channelIdRef.current, refetchInterval: 1000 } as any,
   });
   const streamCoins = earningsData?.coins ?? 0;
 
