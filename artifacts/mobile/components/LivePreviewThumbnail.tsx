@@ -29,7 +29,6 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
     if (!isNative || channelId.endsWith("-demo") || !isVisible) {
       if (liveTimerRef.current) clearTimeout(liveTimerRef.current);
       engineRef.current?.leaveChannel?.();
-      engineRef.current?.release?.();
       engineRef.current = null;
       setShowLive(false);
       setRemoteUid(null);
@@ -88,7 +87,6 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
         liveTimerRef.current = setTimeout(() => {
           if (didUnmount) return;
           engineRef.current?.leaveChannel?.();
-          engineRef.current?.release?.();
           engineRef.current = null;
           setShowLive(false);
           setRemoteUid(null);
@@ -104,7 +102,6 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
       clearTimeout(profileTimer);
       if (liveTimerRef.current) clearTimeout(liveTimerRef.current);
       engineRef.current?.leaveChannel?.();
-      engineRef.current?.release?.();
       engineRef.current = null;
       setShowLive(false);
       setRemoteUid(null);
