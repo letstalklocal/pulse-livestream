@@ -25,6 +25,7 @@ import {
   useGenerateAgoraToken,
   useGetStream,
   useGetStreamChat,
+  useGetStreamEarnings,
   useHeartbeatStream,
   useSendChatMessage,
 } from "@workspace/api-client-react";
@@ -130,6 +131,12 @@ export default function GoLiveScreen() {
     query: { enabled: isLive && !!channelIdRef.current, refetchInterval: 5000 } as any,
   });
   const viewerCount = liveStreamData?.stream?.viewerCount ?? 0;
+
+  // Poll coins earned this stream
+  const { data: earningsData } = useGetStreamEarnings(channelIdRef.current, {
+    query: { enabled: isLive && !!channelIdRef.current, refetchInterval: 5000 } as any,
+  });
+  const streamCoins = earningsData?.coins ?? 0;
 
   // Poll chat messages while live (broadcaster sees viewer messages too)
   const { data: chatPollData } = useGetStreamChat(channelIdRef.current, undefined, {
@@ -386,6 +393,9 @@ export default function GoLiveScreen() {
                     <Text style={styles.demoBadgeText}>DEMO</Text>
                   </View>
                 )}
+                <View style={styles.viewerPill}>
+                  <Text style={styles.viewerPillText}>🪙 {streamCoins.toLocaleString()}</Text>
+                </View>
                 <View style={styles.viewerPill}>
                   <Ionicons name="eye" size={13} color="#FFF" />
                   <Text style={styles.viewerPillText}>{viewerCount}</Text>

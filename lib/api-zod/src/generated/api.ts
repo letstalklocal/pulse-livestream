@@ -304,6 +304,18 @@ export const SendChatMessageResponse = zod.object({
 
 
 /**
+ * @summary Total coins gifted to the host during a specific stream
+ */
+export const GetStreamEarningsParams = zod.object({
+  "channelId": zod.coerce.string()
+})
+
+export const GetStreamEarningsResponse = zod.object({
+  "coins": zod.number().describe('Total coins earned by the host during this stream')
+})
+
+
+/**
  * @summary Get coin balance
  */
 export const GetCoinBalanceQueryParams = zod.object({

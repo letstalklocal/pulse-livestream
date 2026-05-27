@@ -412,6 +412,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /streams/{channelId}/earnings:
+    get:
+      operationId: getStreamEarnings
+      tags: [streams]
+      summary: Total coins gifted to the host during a specific stream
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Stream earnings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StreamEarningsResponse"
+
   /coins/balance:
     get:
       operationId: getCoinBalance
@@ -789,6 +808,15 @@ components:
       required:
         - uid
         - amount
+
+    StreamEarningsResponse:
+      type: object
+      properties:
+        coins:
+          type: integer
+          description: Total coins earned by the host during this stream
+      required:
+        - coins
 
     ChatMessage:
       type: object

@@ -154,6 +154,11 @@ export interface CoinGrantRequest {
   note?: string;
 }
 
+export interface StreamEarningsResponse {
+  /** Total coins earned by the host during this stream */
+  coins: number;
+}
+
 export interface ChatMessage {
   id: string;
   senderName: string;

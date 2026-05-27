@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import { db, coinBalancesTable, coinTransactionsTable } from "@workspace/db";
 
 const router = Router();
@@ -18,6 +18,21 @@ async function getOrCreateBalance(userId: number): Promise<number> {
 
   return rows[0]?.balance ?? 0;
 }
+
+// GET /streams/:channelId/earnings — total coins gifted during a specific stream
+router.get("/streams/:channelId/earnings", async (req, res) => {
+  const channelId = req.params["channelId"] ?? "";
+  const rows = await db
+    .select({ total: sql<number>`coalesce(sum(${coinTransactionsTable.amount}), 0)` })
+    .from(coinTransactionsTable)
+    .where(
+      and(
+        eq(coinTransactionsTable.channelId, channelId),
+        eq(coinTransactionsTable.type, "gift"),
+      ),
+    );
+  res.json({ coins: Number(rows[0]?.total ?? 0) });
+});
 
 // GET /coins/balance?uid=123
 router.get("/coins/balance", async (req, res) => {

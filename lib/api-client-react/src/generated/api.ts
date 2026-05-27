@@ -36,6 +36,7 @@ import type {
   GetStreamChatParams,
   HealthStatus,
   SendChatMessageRequest,
+  StreamEarningsResponse,
   StreamHistoryResponse,
   StreamListResponse,
   StreamResponse,
@@ -1269,6 +1270,83 @@ export const useSendChatMessage = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getSendChatMessageMutationOptions(options));
     }
+
+export const getGetStreamEarningsUrl = (channelId: string,) => {
+
+
+
+
+  return `/api/streams/${channelId}/earnings`
+}
+
+/**
+ * @summary Total coins gifted to the host during a specific stream
+ */
+export const getStreamEarnings = async (channelId: string, options?: RequestInit): Promise<StreamEarningsResponse> => {
+
+  return customFetch<StreamEarningsResponse>(getGetStreamEarningsUrl(channelId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStreamEarningsQueryKey = (channelId: string,) => {
+    return [
+    `/api/streams/${channelId}/earnings`
+    ] as const;
+    }
+
+
+export const getGetStreamEarningsQueryOptions = <TData = Awaited<ReturnType<typeof getStreamEarnings>>, TError = ErrorType<unknown>>(channelId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStreamEarnings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStreamEarningsQueryKey(channelId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStreamEarnings>>> = ({ signal }) => getStreamEarnings(channelId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(channelId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStreamEarnings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStreamEarningsQueryResult = NonNullable<Awaited<ReturnType<typeof getStreamEarnings>>>
+export type GetStreamEarningsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Total coins gifted to the host during a specific stream
+ */
+
+export function useGetStreamEarnings<TData = Awaited<ReturnType<typeof getStreamEarnings>>, TError = ErrorType<unknown>>(
+ channelId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStreamEarnings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStreamEarningsQueryOptions(channelId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getGetCoinBalanceUrl = (params: GetCoinBalanceParams,) => {
   const normalizedParams = new URLSearchParams();

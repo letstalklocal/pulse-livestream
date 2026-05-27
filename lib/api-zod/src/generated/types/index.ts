@@ -25,6 +25,7 @@ export * from './getStreamChatParams';
 export * from './healthStatus';
 export * from './sendChatMessageRequest';
 export * from './stream';
+export * from './streamEarningsResponse';
 export * from './streamHistoryItem';
 export * from './streamHistoryResponse';
 export * from './streamListResponse';
