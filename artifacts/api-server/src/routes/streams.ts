@@ -2,6 +2,7 @@ import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { db, streamHistoryTable } from "@workspace/db";
 import { CreateStreamBody, UpdateViewerCountBody } from "@workspace/api-zod";
+import * as wsHub from "../lib/wsHub";
 
 const router = Router();
 
@@ -161,6 +162,8 @@ router.delete("/streams/:channelId", async (req, res) => {
     return;
   }
   streams.delete(channelId);
+  // Notify all viewers watching this channel that the stream has ended
+  wsHub.pushStreamEnded(channelId);
   // Persist to history (non-blocking)
   void saveStreamHistory(stream, new Date());
   res.json({ success: true });

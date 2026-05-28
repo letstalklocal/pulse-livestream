@@ -36,3 +36,7 @@ export function pushEarnings(channelId: string, coins: number): void {
 export function pushGift(channelId: string, giftName: string, senderName: string, coins: number): void {
   broadcast(channelId, { type: "gift", channelId, giftName, senderName, coins });
 }
+
+export function pushStreamEnded(channelId: string): void {
+  broadcast(channelId, { type: "stream_ended", channelId });
+}

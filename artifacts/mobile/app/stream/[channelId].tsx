@@ -131,6 +131,8 @@ export default function StreamScreen() {
   const [showGiftPicker, setShowGiftPicker] = useState(false);
   const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
   const [showKebabMenu, setShowKebabMenu] = useState(false);
+  const [streamEnded, setStreamEnded] = useState(false);
+  const [countdown, setCountdown] = useState(10);
 
   const queryClient = useQueryClient();
   // Viewer's own spendable balance (for the gift picker)
@@ -303,6 +305,31 @@ export default function StreamScreen() {
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
     }
   }, [messages]);
+
+  // WebSocket — subscribe to channel events (stream_ended, gifts, etc.)
+  useEffect(() => {
+    if (!channelId || isDemo) return;
+    const domain = process.env["EXPO_PUBLIC_DOMAIN"];
+    if (!domain) return;
+
+    const ws = new WebSocket(`wss://${domain}/api/ws`);
+    ws.onopen = () => ws.send(JSON.stringify({ type: "subscribe", channelId }));
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(String(event.data)) as { type?: string };
+        if (msg.type === "stream_ended") setStreamEnded(true);
+      } catch { /* ignore */ }
+    };
+    return () => ws.close();
+  }, [channelId, isDemo]);
+
+  // Countdown + auto-navigate when stream ends
+  useEffect(() => {
+    if (!streamEnded) return;
+    if (countdown <= 0) { router.back(); return; }
+    const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [streamEnded, countdown, router]);
 
   // Join Agora channel on native
   useEffect(() => {
@@ -722,6 +749,16 @@ export default function StreamScreen() {
       </TouchableWithoutFeedback>
     </Modal>
 
+    {/* Stream ended overlay */}
+    {streamEnded && (
+      <View style={styles.endedOverlay} pointerEvents="none">
+        <View style={styles.endedCard}>
+          <Text style={styles.endedTitle}>Stream has ended</Text>
+          <Text style={styles.endedCountdown}>{countdown}</Text>
+          <Text style={styles.endedSub}>Returning to streams…</Text>
+        </View>
+      </View>
+    )}
     </View>
   );
 }
@@ -941,5 +978,36 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "rgba(255,255,255,0.08)",
     marginHorizontal: 20,
+  },
+  endedOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.82)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 99,
+  },
+  endedCard: {
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 40,
+  },
+  endedTitle: {
+    color: "#FFF",
+    fontSize: 24,
+    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
+    textAlign: "center",
+  },
+  endedCountdown: {
+    color: "#FF1966",
+    fontSize: 64,
+    fontWeight: "800",
+    fontFamily: "Inter_700Bold",
+    lineHeight: 72,
+  },
+  endedSub: {
+    color: "rgba(255,255,255,0.5)",
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
   },
 });
