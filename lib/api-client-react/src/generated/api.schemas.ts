@@ -143,6 +143,8 @@ export interface CoinSpendRequest {
   amount: number;
   /** Name of the gift item sent */
   giftName?: string;
+  /** Display name of the viewer sending the gift */
+  senderName?: string;
   /** Stream channel where the gift was sent */
   channelId?: string;
   description?: string;

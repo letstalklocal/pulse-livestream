@@ -18,13 +18,21 @@ export function unsubscribe(channelId: string, ws: WebSocket): void {
   if (sockets.size === 0) channels.delete(channelId);
 }
 
-export function pushEarnings(channelId: string, coins: number): void {
+function broadcast(channelId: string, payload: object): void {
   const sockets = channels.get(channelId);
   if (!sockets || sockets.size === 0) return;
-  const message = JSON.stringify({ type: "earnings", channelId, coins });
+  const message = JSON.stringify(payload);
   for (const ws of sockets) {
     if ((ws.readyState as number) === 1 /* OPEN */) {
       ws.send(message);
     }
   }
+}
+
+export function pushEarnings(channelId: string, coins: number): void {
+  broadcast(channelId, { type: "earnings", channelId, coins });
+}
+
+export function pushGift(channelId: string, giftName: string, senderName: string, coins: number): void {
+  broadcast(channelId, { type: "gift", channelId, giftName, senderName, coins });
 }

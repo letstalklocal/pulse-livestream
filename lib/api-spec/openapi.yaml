@@ -787,6 +787,9 @@ components:
         giftName:
           type: string
           description: Name of the gift item sent
+        senderName:
+          type: string
+          description: Display name of the viewer sending the gift
         channelId:
           type: string
           description: Stream channel where the gift was sent

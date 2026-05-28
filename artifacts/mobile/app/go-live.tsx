@@ -40,6 +40,8 @@ import {
   createEngine,
 } from "@/utils/agora";
 import { setIsBroadcasting } from "@/utils/agoraState";
+import { GiftFloater, type FloatingGift } from "@/components/GiftFloater";
+import { GIFTS } from "@/components/GiftPicker";
 
 const isNative = Platform.OS === "ios" || Platform.OS === "android";
 
@@ -131,8 +133,9 @@ export default function GoLiveScreen() {
   });
   const viewerCount = liveStreamData?.stream?.viewerCount ?? 0;
 
-  // WebSocket push — server sends { type: "earnings", coins } whenever a gift lands
+  // WebSocket push — server sends earnings + gift events in real time
   const [streamCoins, setStreamCoins] = useState(0);
+  const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -151,9 +154,22 @@ export default function GoLiveScreen() {
 
     ws.onmessage = (event) => {
       try {
-        const msg = JSON.parse(String(event.data)) as { type?: string; coins?: number };
+        const msg = JSON.parse(String(event.data)) as {
+          type?: string;
+          coins?: number;
+          giftName?: string;
+          senderName?: string;
+        };
         if (msg.type === "earnings" && typeof msg.coins === "number") {
           setStreamCoins(msg.coins);
+        }
+        if (msg.type === "gift" && msg.giftName) {
+          const gift = GIFTS.find((g) => g.name === msg.giftName) ?? GIFTS[0]!;
+          const x = 60 + Math.random() * 200;
+          setFloatingGifts((prev) => [
+            ...prev,
+            { id: `${Date.now()}-${Math.random()}`, emoji: gift.emoji, name: gift.name, senderName: msg.senderName ?? "Viewer", x, size: gift.size },
+          ]);
         }
       } catch {
         // ignore
@@ -503,6 +519,15 @@ export default function GoLiveScreen() {
             </View>
           </View>
         </KeyboardAvoidingView>
+
+        {/* Floating gift animations — rendered above everything */}
+        {floatingGifts.map((fg) => (
+          <GiftFloater
+            key={fg.id}
+            gift={fg}
+            onDone={(id) => setFloatingGifts((prev) => prev.filter((g) => g.id !== id))}
+          />
+        ))}
       </View>
     );
   }

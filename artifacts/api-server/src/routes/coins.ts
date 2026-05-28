@@ -48,11 +48,12 @@ router.get("/coins/balance", async (req, res) => {
 
 // POST /coins/spend
 router.post("/coins/spend", async (req, res) => {
-  const { uid, recipientUid, amount, giftName, channelId, description } = req.body as {
+  const { uid, recipientUid, amount, giftName, senderName, channelId, description } = req.body as {
     uid?: number;
     recipientUid?: number;
     amount?: number;
     giftName?: string;
+    senderName?: string;
     channelId?: string;
     description?: string;
   };
@@ -110,7 +111,9 @@ router.post("/coins/spend", async (req, res) => {
           eq(coinTransactionsTable.type, "gift"),
         ),
       );
-    wsHub.pushEarnings(channelId, Number(rows[0]?.total ?? 0));
+    const total = Number(rows[0]?.total ?? 0);
+    wsHub.pushEarnings(channelId, total);
+    wsHub.pushGift(channelId, giftName ?? "", senderName ?? "Viewer", total);
   }
 
   res.json({ balance: updated[0]?.balance ?? current - amount });
