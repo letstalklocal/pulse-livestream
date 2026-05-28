@@ -8,9 +8,18 @@ module.exports = function withAndroidBuildFix(config) {
     if (prevMod) props = await prevMod(props);
 
     let contents = props.modResults.contents;
+
     if (!contents.includes("META-INF/versions/9/OSGI-INF/MANIFEST.MF")) {
       const packagingBlock =
-        "\n    packaging {\n        resources {\n            excludes += ['META-INF/versions/9/OSGI-INF/MANIFEST.MF']\n            pickFirsts += ['**/*.so']\n        }\n    }";
+        "\n    packaging {\n" +
+        "        resources {\n" +
+        "            excludes += ['META-INF/versions/9/OSGI-INF/MANIFEST.MF']\n" +
+        "            pickFirsts += ['**/*.so']\n" +
+        "        }\n" +
+        "        jniLibs {\n" +
+        "            pickFirsts += ['**/*.so']\n" +
+        "        }\n" +
+        "    }";
       contents = contents.replace(/android\s*\{/, `android {${packagingBlock}`);
       props.modResults.contents = contents;
     }
