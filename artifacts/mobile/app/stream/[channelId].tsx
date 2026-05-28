@@ -206,9 +206,10 @@ export default function StreamScreen() {
 
   // Coins earned by the streamer during this specific live (filtered by channelId)
   const streamEarningsQuery = useGetStreamEarnings(channelId ?? "", {
-    query: { enabled: !!channelId && !isDemo, refetchInterval: 5000 } as any,
+    query: { enabled: !!channelId && !isDemo, refetchInterval: 30000 } as any,
   });
-  const hostCoins = streamEarningsQuery.data?.coins ?? 0;
+  const [realtimeCoins, setRealtimeCoins] = useState<number | null>(null);
+  const hostCoins = realtimeCoins ?? streamEarningsQuery.data?.coins ?? 0;
   const { data: followStatusData, refetch: refetchFollow } = useGetFollowStatus(
     hostUid ?? 0,
     { followerUid: user?.uid ?? 0 },
@@ -318,8 +319,21 @@ export default function StreamScreen() {
     ws.onopen = () => ws.send(JSON.stringify({ type: "subscribe", channelId }));
     ws.onmessage = (event) => {
       try {
-        const msg = JSON.parse(String(event.data)) as { type?: string };
-        if (msg.type === "stream_ended") setStreamEnded(true);
+        const msg = JSON.parse(String(event.data)) as {
+          type?: string;
+          coins?: number;
+          giftName?: string;
+          senderName?: string;
+        };
+        if (msg.type === "stream_ended") {
+          setStreamEnded(true);
+        } else if (msg.type === "earnings" && typeof msg.coins === "number") {
+          setRealtimeCoins(msg.coins);
+        } else if (msg.type === "gift" && msg.giftName) {
+          if (typeof msg.coins === "number") setRealtimeCoins(msg.coins);
+          const gift = GIFTS.find((g) => g.name === msg.giftName);
+          if (gift) spawnGift(gift, msg.senderName ?? "Viewer");
+        }
       } catch { /* ignore */ }
     };
     return () => ws.close();

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, sql, and } from "drizzle-orm";
+import { eq, sql, and, inArray } from "drizzle-orm";
 import { db, coinBalancesTable, coinTransactionsTable } from "@workspace/db";
 import * as wsHub from "../lib/wsHub";
 
@@ -43,7 +43,7 @@ router.get("/streams/:channelId/leaderboard", async (req, res) => {
   const uids = rows.map((r) => r.uid).filter((u): u is number => u !== null);
   const { usersTable } = await import("@workspace/db");
   const userRows = uids.length
-    ? await db.select({ uid: usersTable.uid, name: usersTable.name }).from(usersTable).where(sql`${usersTable.uid} = any(${uids})`)
+    ? await db.select({ uid: usersTable.uid, name: usersTable.name }).from(usersTable).where(inArray(usersTable.uid, uids))
     : [];
   const nameMap = new Map(userRows.map((u) => [u.uid, u.name]));
 
