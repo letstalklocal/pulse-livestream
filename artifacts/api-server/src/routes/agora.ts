@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { RtcTokenBuilder, RtcRole, RtmTokenBuilder } from "agora-token";
+import { RtcTokenBuilder, RtcRole } from "agora-token";
 import { GenerateAgoraTokenBody } from "@workspace/api-zod";
 
 const router = Router();
@@ -59,10 +59,14 @@ router.post("/agora/rtm-token", (req, res) => {
   const expiresInSeconds = 3600;
   const currentTs = Math.floor(Date.now() / 1000);
   const privilegeExpireTs = currentTs + expiresInSeconds;
-  const token = RtmTokenBuilder.buildToken(
+  // RTM SDK 2.x requires AccessToken2 with RTM privileges — use buildTokenWithRtm
+  const token = RtcTokenBuilder.buildTokenWithRtm(
     APP_ID,
     APP_CERTIFICATE,
-    String(uid),
+    "",           // channelName — empty string for RTM-only (no specific RTC channel)
+    String(uid),  // account (must match RtmConfig.userId on the client)
+    RtcRole.PUBLISHER,
+    privilegeExpireTs,
     privilegeExpireTs,
   );
   res.json({ token, appId: APP_ID, uid: String(uid), expiresAt: privilegeExpireTs });
