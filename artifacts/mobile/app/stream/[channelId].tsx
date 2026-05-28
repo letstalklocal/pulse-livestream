@@ -40,6 +40,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { GiftPicker, GIFTS, type Gift } from "@/components/GiftPicker";
 import { GiftFloater, type FloatingGift } from "@/components/GiftFloater";
+import { GiftLeaderboard } from "@/components/GiftLeaderboard";
 import {
   ChannelProfileType,
   ClientRoleType,
@@ -132,6 +133,7 @@ export default function StreamScreen() {
   const [showGiftPicker, setShowGiftPicker] = useState(false);
   const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
   const [showKebabMenu, setShowKebabMenu] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [streamEnded, setStreamEnded] = useState(false);
   const [countdown, setCountdown] = useState(10);
 
@@ -541,7 +543,7 @@ export default function StreamScreen() {
             )}
           </View>
 
-          <View style={styles.statsRow}>
+          <TouchableOpacity style={styles.statsRow} onPress={() => setShowLeaderboard(true)} activeOpacity={0.75}>
             <Text style={styles.coinEmoji}>🪙</Text>
             <Text style={styles.statsText}>{hostCoins.toLocaleString()}</Text>
             <View style={styles.statsDivider} />
@@ -553,7 +555,7 @@ export default function StreamScreen() {
                   : stream.viewerCount
                 : "—"}
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
 
@@ -748,6 +750,12 @@ export default function StreamScreen() {
         </View>
       </TouchableWithoutFeedback>
     </Modal>
+
+    <GiftLeaderboard
+      channelId={channelId ?? ""}
+      visible={showLeaderboard}
+      onClose={() => setShowLeaderboard(false)}
+    />
 
     {/* Stream ended overlay */}
     {streamEnded && (

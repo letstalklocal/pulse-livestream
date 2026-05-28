@@ -179,6 +179,17 @@ export interface SendChatMessageRequest {
   color?: string;
 }
 
+export interface LeaderboardEntry {
+  rank: number;
+  uid: number;
+  name: string;
+  coins: number;
+}
+
+export interface StreamLeaderboardResponse {
+  entries: LeaderboardEntry[];
+}
+
 export interface ChatMessageResponse {
   message: ChatMessage;
 }

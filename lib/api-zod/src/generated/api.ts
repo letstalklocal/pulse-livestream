@@ -316,6 +316,23 @@ export const GetStreamEarningsResponse = zod.object({
 
 
 /**
+ * @summary Top gifters for a stream sorted by coins sent
+ */
+export const GetStreamLeaderboardParams = zod.object({
+  "channelId": zod.coerce.string()
+})
+
+export const GetStreamLeaderboardResponse = zod.object({
+  "entries": zod.array(zod.object({
+  "rank": zod.number(),
+  "uid": zod.number(),
+  "name": zod.string(),
+  "coins": zod.number()
+}))
+})
+
+
+/**
  * @summary Get coin balance
  */
 export const GetCoinBalanceQueryParams = zod.object({

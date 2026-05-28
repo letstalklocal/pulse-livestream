@@ -20,6 +20,45 @@ async function getOrCreateBalance(userId: number): Promise<number> {
   return rows[0]?.balance ?? 0;
 }
 
+// GET /streams/:channelId/leaderboard — top gifters for a stream
+router.get("/streams/:channelId/leaderboard", async (req, res) => {
+  const channelId = req.params["channelId"] ?? "";
+  const rows = await db
+    .select({
+      uid: coinTransactionsTable.fromUserId,
+      coins: sql<number>`cast(sum(${coinTransactionsTable.amount}) as int)`,
+    })
+    .from(coinTransactionsTable)
+    .where(
+      and(
+        eq(coinTransactionsTable.channelId, channelId),
+        eq(coinTransactionsTable.type, "gift"),
+      ),
+    )
+    .groupBy(coinTransactionsTable.fromUserId)
+    .orderBy(sql`sum(${coinTransactionsTable.amount}) desc`)
+    .limit(10);
+
+  // Fetch names for all uids in one query
+  const uids = rows.map((r) => r.uid).filter((u): u is number => u !== null);
+  const { usersTable } = await import("@workspace/db");
+  const userRows = uids.length
+    ? await db.select({ uid: usersTable.uid, name: usersTable.name }).from(usersTable).where(sql`${usersTable.uid} = any(${uids})`)
+    : [];
+  const nameMap = new Map(userRows.map((u) => [u.uid, u.name]));
+
+  const entries = rows
+    .filter((r) => r.uid !== null)
+    .map((r, i) => ({
+      rank: i + 1,
+      uid: r.uid as number,
+      name: nameMap.get(r.uid as number) ?? "Viewer",
+      coins: Number(r.coins),
+    }));
+
+  res.json({ entries });
+});
+
 // GET /streams/:channelId/earnings — total coins gifted during a specific stream
 router.get("/streams/:channelId/earnings", async (req, res) => {
   const channelId = req.params["channelId"] ?? "";

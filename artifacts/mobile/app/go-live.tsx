@@ -42,6 +42,7 @@ import {
 import { setIsBroadcasting } from "@/utils/agoraState";
 import { GiftFloater, type FloatingGift } from "@/components/GiftFloater";
 import { GIFTS } from "@/components/GiftPicker";
+import { GiftLeaderboard } from "@/components/GiftLeaderboard";
 
 const isNative = Platform.OS === "ios" || Platform.OS === "android";
 
@@ -132,6 +133,8 @@ export default function GoLiveScreen() {
     query: { enabled: isLive && !!channelIdRef.current, refetchInterval: 5000 } as any,
   });
   const viewerCount = liveStreamData?.stream?.viewerCount ?? 0;
+
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   // WebSocket push — server sends earnings + gift events in real time
   const [streamCoins, setStreamCoins] = useState(0);
@@ -437,9 +440,13 @@ export default function GoLiveScreen() {
                     <Text style={styles.demoBadgeText}>DEMO</Text>
                   </View>
                 )}
-                <View style={styles.viewerPill}>
+                <TouchableOpacity
+                  style={styles.viewerPill}
+                  onPress={() => setShowLeaderboard(true)}
+                  activeOpacity={0.75}
+                >
                   <Text style={styles.viewerPillText}>🪙 {streamCoins.toLocaleString()}</Text>
-                </View>
+                </TouchableOpacity>
                 <View style={styles.viewerPill}>
                   <Ionicons name="eye" size={13} color="#FFF" />
                   <Text style={styles.viewerPillText}>{viewerCount}</Text>
@@ -519,6 +526,12 @@ export default function GoLiveScreen() {
             </View>
           </View>
         </KeyboardAvoidingView>
+
+        <GiftLeaderboard
+          channelId={channelIdRef.current}
+          visible={showLeaderboard}
+          onClose={() => setShowLeaderboard(false)}
+        />
 
         {/* Floating gift animations — rendered above everything */}
         {floatingGifts.map((fg) => (

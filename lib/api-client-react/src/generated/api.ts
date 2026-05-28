@@ -38,6 +38,7 @@ import type {
   SendChatMessageRequest,
   StreamEarningsResponse,
   StreamHistoryResponse,
+  StreamLeaderboardResponse,
   StreamListResponse,
   StreamResponse,
   SuccessResponse,
@@ -1336,6 +1337,83 @@ export function useGetStreamEarnings<TData = Awaited<ReturnType<typeof getStream
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetStreamEarningsQueryOptions(channelId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetStreamLeaderboardUrl = (channelId: string,) => {
+
+
+
+
+  return `/api/streams/${channelId}/leaderboard`
+}
+
+/**
+ * @summary Top gifters for a stream sorted by coins sent
+ */
+export const getStreamLeaderboard = async (channelId: string, options?: RequestInit): Promise<StreamLeaderboardResponse> => {
+
+  return customFetch<StreamLeaderboardResponse>(getGetStreamLeaderboardUrl(channelId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStreamLeaderboardQueryKey = (channelId: string,) => {
+    return [
+    `/api/streams/${channelId}/leaderboard`
+    ] as const;
+    }
+
+
+export const getGetStreamLeaderboardQueryOptions = <TData = Awaited<ReturnType<typeof getStreamLeaderboard>>, TError = ErrorType<unknown>>(channelId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStreamLeaderboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStreamLeaderboardQueryKey(channelId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStreamLeaderboard>>> = ({ signal }) => getStreamLeaderboard(channelId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(channelId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStreamLeaderboard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStreamLeaderboardQueryResult = NonNullable<Awaited<ReturnType<typeof getStreamLeaderboard>>>
+export type GetStreamLeaderboardQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Top gifters for a stream sorted by coins sent
+ */
+
+export function useGetStreamLeaderboard<TData = Awaited<ReturnType<typeof getStreamLeaderboard>>, TError = ErrorType<unknown>>(
+ channelId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStreamLeaderboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStreamLeaderboardQueryOptions(channelId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

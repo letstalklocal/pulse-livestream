@@ -431,6 +431,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/StreamEarningsResponse"
 
+  /streams/{channelId}/leaderboard:
+    get:
+      operationId: getStreamLeaderboard
+      tags: [streams]
+      summary: Top gifters for a stream sorted by coins sent
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gift leaderboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StreamLeaderboardResponse"
+
   /coins/balance:
     get:
       operationId: getCoinBalance
@@ -862,6 +881,33 @@ components:
           type: string
       required:
         - text
+
+    LeaderboardEntry:
+      type: object
+      properties:
+        rank:
+          type: integer
+        uid:
+          type: integer
+        name:
+          type: string
+        coins:
+          type: integer
+      required:
+        - rank
+        - uid
+        - name
+        - coins
+
+    StreamLeaderboardResponse:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaderboardEntry"
+      required:
+        - entries
 
     ChatMessageResponse:
       type: object
