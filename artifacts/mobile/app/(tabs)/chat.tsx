@@ -23,7 +23,7 @@ export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
-  const { ready, conversations } = useRtm();
+  const { conversations } = useRtm();
   const [showNewDm, setShowNewDm] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -77,12 +77,6 @@ export default function ChatScreen() {
           <Ionicons name="create-outline" size={20} color={colors.primary} />
         </TouchableOpacity>
       </View>
-
-      {!ready && (
-        <View style={styles.connectingBanner}>
-          <Text style={styles.connectingText}>Connecting to messaging…</Text>
-        </View>
-      )}
 
       {conversations.length === 0 ? (
         <View style={styles.empty}>
@@ -211,17 +205,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-  },
-  connectingBanner: {
-    backgroundColor: "rgba(255,25,102,0.08)",
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-  },
-  connectingText: {
-    color: "#FF1966",
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
   },
   empty: {
     flex: 1,

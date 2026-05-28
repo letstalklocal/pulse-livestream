@@ -174,30 +174,41 @@ export default function PublicProfileScreen() {
                 </View>
               </View>
 
-              {/* Follow + Message buttons */}
-              {canFollow && (
+              {/* Follow + Message buttons — show for any user viewing another person's profile */}
+              {uid !== 0 && uid !== followerUid && (
                 <View style={styles.actionRow}>
+                  {canFollow && (
+                    <TouchableOpacity
+                      style={[
+                        styles.followBtn,
+                        {
+                          backgroundColor: isFollowing ? "transparent" : colors.primary,
+                          borderColor: isFollowing ? colors.border : colors.primary,
+                          borderWidth: 1,
+                          opacity: followPending ? 0.6 : 1,
+                        },
+                      ]}
+                      onPress={toggleFollow}
+                      activeOpacity={0.8}
+                      disabled={followPending}
+                    >
+                      <Text style={[styles.followBtnText, { color: isFollowing ? colors.foreground : "#FFF" }]}>
+                        {followPending ? "…" : isFollowing ? "Following" : "Follow"}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity
                     style={[
-                      styles.followBtn,
-                      {
-                        backgroundColor: isFollowing ? "transparent" : colors.primary,
-                        borderColor: isFollowing ? colors.border : colors.primary,
-                        borderWidth: 1,
-                        opacity: followPending ? 0.6 : 1,
-                      },
+                      styles.messageBtn,
+                      { borderColor: colors.border, flex: canFollow ? undefined : 1 },
                     ]}
-                    onPress={toggleFollow}
-                    activeOpacity={0.8}
-                    disabled={followPending}
-                  >
-                    <Text style={[styles.followBtnText, { color: isFollowing ? colors.foreground : "#FFF" }]}>
-                      {followPending ? "…" : isFollowing ? "Following" : "Follow"}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.messageBtn, { borderColor: colors.border }]}
-                    onPress={() => router.push({ pathname: "/dm/[peerId]", params: { peerId: hostUid, peerName: displayName } })}
+                    onPress={() => {
+                      if (!followerUid) {
+                        router.push("/(auth)/sign-in");
+                        return;
+                      }
+                      router.push({ pathname: "/dm/[peerId]", params: { peerId: hostUid, peerName: displayName } });
+                    }}
                     activeOpacity={0.8}
                   >
                     <Ionicons name="chatbubble-outline" size={16} color={colors.foreground} style={{ marginRight: 6 }} />
