@@ -621,13 +621,16 @@ export default function StreamScreen() {
           {!isOwnStream && (
             <TouchableOpacity
               style={[styles.followBtn, isFollowing && styles.followBtnActive]}
-              onPress={toggleFollow}
+              onPress={isFollowing
+                ? () => router.push({ pathname: "/dm/[peerId]", params: { peerId: String(hostUid ?? ""), peerName: stream?.hostName ?? "" } })
+                : toggleFollow
+              }
               activeOpacity={0.75}
-              disabled={followMutation.isPending || unfollowMutation.isPending}
+              disabled={!isFollowing && (followMutation.isPending || unfollowMutation.isPending)}
             >
               <Ionicons
-                name={isFollowing ? "checkmark" : "add"}
-                size={22}
+                name={isFollowing ? "chatbubble-ellipses" : "add"}
+                size={isFollowing ? 19 : 22}
                 color="#FFF"
               />
             </TouchableOpacity>

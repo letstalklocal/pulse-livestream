@@ -17,6 +17,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { setBaseUrl } from "@workspace/api-client-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/context/AuthContext";
+import { RtmProvider } from "@/context/RtmContext";
 
 const domain = process.env["EXPO_PUBLIC_DOMAIN"];
 if (domain) setBaseUrl(`https://${domain}`);
@@ -49,6 +50,7 @@ function RootLayoutNav() {
         name="stream/[channelId]"
         options={{ headerShown: false, presentation: "fullScreenModal", animation: "none" }}
       />
+      <Stack.Screen name="dm/[peerId]" options={{ headerShown: false }} />
     </Stack>
   );
 }
@@ -78,7 +80,9 @@ export default function RootLayout() {
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardProvider>
                   <AuthProvider>
-                    <RootLayoutNav />
+                    <RtmProvider>
+                      <RootLayoutNav />
+                    </RtmProvider>
                   </AuthProvider>
                 </KeyboardProvider>
               </GestureHandlerRootView>

@@ -190,6 +190,27 @@ export interface StreamLeaderboardResponse {
   entries: LeaderboardEntry[];
 }
 
+export interface AgoraRtmTokenRequest {
+  /** User ID string for RTM */
+  uid: string;
+}
+
+export interface AgoraRtmTokenResponse {
+  token: string;
+  appId: string;
+  uid: string;
+  expiresAt: number;
+}
+
+export interface FollowingUser {
+  uid: number;
+  name: string;
+}
+
+export interface FollowingListResponse {
+  users: FollowingUser[];
+}
+
 export interface ChatMessageResponse {
   message: ChatMessage;
 }

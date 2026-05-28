@@ -20,6 +20,8 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AgoraRtmTokenRequest,
+  AgoraRtmTokenResponse,
   AgoraTokenRequest,
   AgoraTokenResponse,
   ChatMessageResponse,
@@ -31,6 +33,7 @@ import type {
   ErrorResponse,
   FollowRequest,
   FollowStatusResponse,
+  FollowingListResponse,
   GetCoinBalanceParams,
   GetFollowStatusParams,
   GetStreamChatParams,
@@ -1651,4 +1654,153 @@ export const useGrantCoins = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getGrantCoinsMutationOptions(options));
     }
+
+export const getGenerateAgoraRtmTokenUrl = () => {
+
+
+
+
+  return `/api/agora/rtm-token`
+}
+
+/**
+ * Generates a token for connecting to Agora RTM / Signaling for DMs
+ * @summary Generate Agora RTM (Signaling) token
+ */
+export const generateAgoraRtmToken = async (agoraRtmTokenRequest: AgoraRtmTokenRequest, options?: RequestInit): Promise<AgoraRtmTokenResponse> => {
+
+  return customFetch<AgoraRtmTokenResponse>(getGenerateAgoraRtmTokenUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      agoraRtmTokenRequest,)
+  }
+);}
+
+
+
+
+export const getGenerateAgoraRtmTokenMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateAgoraRtmToken>>, TError,{data: BodyType<AgoraRtmTokenRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateAgoraRtmToken>>, TError,{data: BodyType<AgoraRtmTokenRequest>}, TContext> => {
+
+const mutationKey = ['generateAgoraRtmToken'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateAgoraRtmToken>>, {data: BodyType<AgoraRtmTokenRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  generateAgoraRtmToken(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateAgoraRtmTokenMutationResult = NonNullable<Awaited<ReturnType<typeof generateAgoraRtmToken>>>
+    export type GenerateAgoraRtmTokenMutationBody = BodyType<AgoraRtmTokenRequest>
+    export type GenerateAgoraRtmTokenMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Generate Agora RTM (Signaling) token
+ */
+export const useGenerateAgoraRtmToken = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateAgoraRtmToken>>, TError,{data: BodyType<AgoraRtmTokenRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateAgoraRtmToken>>,
+        TError,
+        {data: BodyType<AgoraRtmTokenRequest>},
+        TContext
+      > => {
+      return useMutation(getGenerateAgoraRtmTokenMutationOptions(options));
+    }
+
+export const getGetUserFollowingUrl = (uid: number,) => {
+
+
+
+
+  return `/api/users/${uid}/following`
+}
+
+/**
+ * @summary List users that a user follows
+ */
+export const getUserFollowing = async (uid: number, options?: RequestInit): Promise<FollowingListResponse> => {
+
+  return customFetch<FollowingListResponse>(getGetUserFollowingUrl(uid),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetUserFollowingQueryKey = (uid: number,) => {
+    return [
+    `/api/users/${uid}/following`
+    ] as const;
+    }
+
+
+export const getGetUserFollowingQueryOptions = <TData = Awaited<ReturnType<typeof getUserFollowing>>, TError = ErrorType<unknown>>(uid: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUserFollowing>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetUserFollowingQueryKey(uid);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getUserFollowing>>> = ({ signal }) => getUserFollowing(uid, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(uid), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getUserFollowing>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetUserFollowingQueryResult = NonNullable<Awaited<ReturnType<typeof getUserFollowing>>>
+export type GetUserFollowingQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List users that a user follows
+ */
+
+export function useGetUserFollowing<TData = Awaited<ReturnType<typeof getUserFollowing>>, TError = ErrorType<unknown>>(
+ uid: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUserFollowing>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetUserFollowingQueryOptions(uid,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 

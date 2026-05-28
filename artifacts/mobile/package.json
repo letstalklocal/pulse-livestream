@@ -60,6 +60,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
+    "agora-react-native-rtm": "^2.2.6",
     "expo-dev-client": "~6.0.21",
     "react-native-agora": "^4.5.4"
   }

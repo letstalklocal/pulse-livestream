@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { RtcTokenBuilder, RtcRole } from "agora-token";
+import { RtcTokenBuilder, RtcRole, RtmTokenBuilder } from "agora-token";
 import { GenerateAgoraTokenBody } from "@workspace/api-zod";
 
 const router = Router();
@@ -44,6 +44,28 @@ router.post("/agora/token", (req, res) => {
     uid,
     expiresAt: privilegeExpireTs,
   });
+});
+
+router.post("/agora/rtm-token", (req, res) => {
+  const { uid } = req.body as { uid?: string | number };
+  if (!uid) {
+    res.status(400).json({ error: "uid is required" });
+    return;
+  }
+  if (!APP_ID || !APP_CERTIFICATE) {
+    res.status(500).json({ error: "Agora credentials not configured" });
+    return;
+  }
+  const expiresInSeconds = 3600;
+  const currentTs = Math.floor(Date.now() / 1000);
+  const privilegeExpireTs = currentTs + expiresInSeconds;
+  const token = RtmTokenBuilder.buildToken(
+    APP_ID,
+    APP_CERTIFICATE,
+    String(uid),
+    privilegeExpireTs,
+  );
+  res.json({ token, appId: APP_ID, uid: String(uid), expiresAt: privilegeExpireTs });
 });
 
 export default router;

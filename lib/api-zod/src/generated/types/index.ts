@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './agoraRtmTokenRequest';
+export * from './agoraRtmTokenResponse';
 export * from './agoraTokenRequest';
 export * from './agoraTokenRequestRole';
 export * from './agoraTokenResponse';
@@ -17,6 +19,8 @@ export * from './coinGrantRequest';
 export * from './coinSpendRequest';
 export * from './createStreamRequest';
 export * from './errorResponse';
+export * from './followingListResponse';
+export * from './followingUser';
 export * from './followRequest';
 export * from './followStatusResponse';
 export * from './getCoinBalanceParams';

@@ -22,3 +22,7 @@ export * from "./generated/types/chatMessage";
 export * from "./generated/types/chatMessageResponse";
 export * from "./generated/types/chatMessagesResponse";
 export * from "./generated/types/sendChatMessageRequest";
+export * from "./generated/types/agoraRtmTokenRequest";
+export * from "./generated/types/agoraRtmTokenResponse";
+export * from "./generated/types/followingUser";
+export * from "./generated/types/followingListResponse";

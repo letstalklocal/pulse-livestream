@@ -15,6 +15,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "play.circle", selected: "play.circle.fill" }} />
         <Label>Discover</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="chat">
+        <Icon sf={{ default: "message", selected: "message.fill" }} />
+        <Label>Messages</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person.circle", selected: "person.circle.fill" }} />
         <Label>Profile</Label>
@@ -70,6 +74,26 @@ function ClassicTabLayout() {
             ) : (
               <Ionicons
                 name={focused ? "play-circle" : "play-circle-outline"}
+                size={24}
+                color={color}
+              />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="chat"
+        options={{
+          title: "Messages",
+          tabBarIcon: ({ color, focused }) =>
+            isIOS ? (
+              <SymbolView
+                name={focused ? "message.fill" : "message"}
+                tintColor={color}
+                size={24}
+              />
+            ) : (
+              <Ionicons
+                name={focused ? "chatbubbles" : "chatbubbles-outline"}
                 size={24}
                 color={color}
               />

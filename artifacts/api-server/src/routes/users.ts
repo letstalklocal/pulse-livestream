@@ -171,6 +171,21 @@ router.get("/users/:uid/follow-status", async (req, res) => {
   res.json({ isFollowing: !!row[0] });
 });
 
+router.get("/users/:uid/following", async (req, res) => {
+  const uid = parseInt(req.params["uid"] ?? "", 10);
+  if (isNaN(uid)) {
+    res.status(400).json({ error: "Invalid uid" });
+    return;
+  }
+  const rows = await db
+    .select({ uid: usersTable.uid, name: usersTable.name })
+    .from(followsTable)
+    .innerJoin(usersTable, eq(usersTable.uid, followsTable.followedId))
+    .where(eq(followsTable.followerId, uid))
+    .orderBy(usersTable.name);
+  res.json({ users: rows });
+});
+
 router.get("/users/:uid/streams", async (req, res) => {
   const uid = parseInt(req.params["uid"] ?? "", 10);
   if (isNaN(uid)) {

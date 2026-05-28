@@ -237,6 +237,9 @@ importers:
 
   artifacts/mobile:
     dependencies:
+      agora-react-native-rtm:
+        specifier: ^2.2.6
+        version: 2.2.6(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       expo-dev-client:
         specifier: ~6.0.21
         version: 6.0.21(expo@54.0.34)
@@ -2829,6 +2832,13 @@ packages:
   agent-base@7.1.4:
     resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
     engines: {node: '>= 14'}
+
+  agora-react-native-rtm@2.2.6:
+    resolution: {integrity: sha512-e+riAgw+ryFlqodIODxqnSA6pOTkF83Et9Teq3BCnltMdpZ2pegQZTl/xXL+oDavbrR4FMKXahAgs8bn8kj1cA==}
+    engines: {node: '>= 18.0.0'}
+    peerDependencies:
+      react: '*'
+      react-native: '*'
 
   agora-token@2.0.5:
     resolution: {integrity: sha512-0NcbzC3iuutlksv3b4bCMKHrW3pko6gdiGEMRo6APDice24kfXAuWyAlG9hRBrrPBVDShwm9/GUz2Scd3zuZQw==}
@@ -9384,6 +9394,13 @@ snapshots:
   acorn@8.16.0: {}
 
   agent-base@7.1.4: {}
+
+  agora-react-native-rtm@2.2.6(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
+    dependencies:
+      buffer: 6.0.3
+      eventemitter3: 5.0.4
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0)
 
   agora-token@2.0.5:
     dependencies:

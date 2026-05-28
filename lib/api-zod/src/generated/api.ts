@@ -376,3 +376,34 @@ export const GrantCoinsResponse = zod.object({
 })
 
 
+/**
+ * Generates a token for connecting to Agora RTM / Signaling for DMs
+ * @summary Generate Agora RTM (Signaling) token
+ */
+export const GenerateAgoraRtmTokenBody = zod.object({
+  "uid": zod.string().describe('User ID string for RTM')
+})
+
+export const GenerateAgoraRtmTokenResponse = zod.object({
+  "token": zod.string(),
+  "appId": zod.string(),
+  "uid": zod.string(),
+  "expiresAt": zod.number()
+})
+
+
+/**
+ * @summary List users that a user follows
+ */
+export const GetUserFollowingParams = zod.object({
+  "uid": zod.coerce.number()
+})
+
+export const GetUserFollowingResponse = zod.object({
+  "users": zod.array(zod.object({
+  "uid": zod.number(),
+  "name": zod.string()
+}))
+})
+
+

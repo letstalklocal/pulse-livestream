@@ -531,6 +531,51 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /agora/rtm-token:
+    post:
+      operationId: generateAgoraRtmToken
+      tags: [agora]
+      summary: Generate Agora RTM (Signaling) token
+      description: Generates a token for connecting to Agora RTM / Signaling for DMs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgoraRtmTokenRequest"
+      responses:
+        "200":
+          description: RTM token generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgoraRtmTokenResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/{uid}/following:
+    get:
+      operationId: getUserFollowing
+      tags: [users]
+      summary: List users that a user follows
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of followed users
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FollowingListResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -908,6 +953,53 @@ components:
             $ref: "#/components/schemas/LeaderboardEntry"
       required:
         - entries
+
+    AgoraRtmTokenRequest:
+      type: object
+      properties:
+        uid:
+          type: string
+          description: User ID string for RTM
+      required:
+        - uid
+
+    AgoraRtmTokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        appId:
+          type: string
+        uid:
+          type: string
+        expiresAt:
+          type: integer
+      required:
+        - token
+        - appId
+        - uid
+        - expiresAt
+
+    FollowingUser:
+      type: object
+      properties:
+        uid:
+          type: integer
+        name:
+          type: string
+      required:
+        - uid
+        - name
+
+    FollowingListResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/FollowingUser"
+      required:
+        - users
 
     ChatMessageResponse:
       type: object
