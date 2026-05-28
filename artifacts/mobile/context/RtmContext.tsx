@@ -30,31 +30,31 @@ export interface Conversation {
 
 interface RtmContextValue {
   ready: boolean;
+  rtmError: string | null;
   conversations: Conversation[];
   getMessages: (peerId: string) => DmMessage[];
-  sendDm: (peerId: string, peerName: string, text: string) => Promise<void>;
+  sendDm: (peerId: string, peerName: string, text: string) => Promise<{ ok: boolean; error?: string }>;
   markRead: (peerId: string) => void;
 }
 
 const RtmContext = createContext<RtmContextValue>({
   ready: false,
+  rtmError: null,
   conversations: [],
   getMessages: () => [],
-  sendDm: async () => {},
+  sendDm: async () => ({ ok: false, error: "Not connected" }),
   markRead: () => {},
 });
 
-// In-memory message store keyed by peerId — survives re-renders within session
 const messageStore: Record<string, DmMessage[]> = {};
 
 export function RtmProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [ready, setReady] = useState(false);
+  const [rtmError, setRtmError] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  // tick forces re-render when new messages arrive
   const [, setTick] = useState(0);
 
-  // Use unknown so we don't import RTMClient type at module level (native-only)
   const rtmClientRef = useRef<unknown>(null);
 
   const uid = user?.uid;
@@ -90,6 +90,7 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!uidStr) {
       setReady(false);
+      setRtmError(null);
       return;
     }
 
@@ -97,11 +98,9 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
 
     const init = async () => {
       try {
-        // Dynamic import — agora-react-native-rtm is native only
         const rtmSdk = await import("agora-react-native-rtm");
         const { createAgoraRtmClient, RtmConfig } = rtmSdk;
 
-        // Fetch RTM token
         const resp = await fetch(`${BASE_URL}/api/agora/rtm-token`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -113,15 +112,15 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
         const config = new RtmConfig();
         config.appId = tokenData.appId;
         config.userId = uidStr;
+        // Embed token in config — RTM v2 prefers this over passing in login()
+        (config as any).token = tokenData.token;
 
         const client = createAgoraRtmClient(config);
         rtmClientRef.current = client;
 
-        // Listen for incoming DMs
         client.addEventListener("message", (event) => {
           if (!mounted) return;
           const senderId = event.publisher ?? "unknown";
-          // Only handle user-channel (DM) messages
           const text = typeof event.message === "string"
             ? event.message
             : String(event.message);
@@ -138,10 +137,24 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
           setTick((t) => t + 1);
         });
 
-        await client.login({ token: tokenData.token });
-        if (mounted) setReady(true);
+        // Try login with token embedded in config (empty options)
+        try {
+          await client.login({ token: tokenData.token });
+          if (mounted) {
+            setReady(true);
+            setRtmError(null);
+          }
+        } catch (loginErr: unknown) {
+          const code = (loginErr as { errorCode?: number })?.errorCode;
+          // -10015 = token/app issue; -10007 = not initialized
+          const msg = code
+            ? `RTM login failed (code ${code}). Check Agora console RTM service.`
+            : "RTM login failed.";
+          if (mounted) setRtmError(msg);
+          console.warn("[RTM] login error:", loginErr);
+        }
       } catch {
-        // RTM unavailable in web/simulator — silently degrade
+        // RTM native module not linked (web/simulator) — silent degrade
       }
     };
 
@@ -158,15 +171,18 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
     };
   }, [uidStr, upsertConversation]);
 
-  const sendDm = useCallback(async (peerId: string, peerName: string, text: string) => {
+  const sendDm = useCallback(async (
+    peerId: string,
+    peerName: string,
+    text: string,
+  ): Promise<{ ok: boolean; error?: string }> => {
+    if (!uidStr || !text.trim()) return { ok: false, error: "Nothing to send" };
+
     const client = rtmClientRef.current as {
       publish: (channelName: string, message: string, options?: { channelType?: number }) => Promise<unknown>;
     } | null;
-    if (!client || !uidStr || !text.trim()) return;
 
-    // channelType 3 = user (RtmChannelType.user)
-    await client.publish(peerId, text, { channelType: 3 });
-
+    // Optimistically add to local store so UI feels instant
     const msg: DmMessage = {
       messageId: `${uidStr}-${Date.now()}-${Math.random()}`,
       senderId: uidStr,
@@ -178,6 +194,23 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
     messageStore[peerId]!.push(msg);
     upsertConversation(peerId, peerName, text, msg.ts, 0);
     setTick((t) => t + 1);
+
+    if (!client) {
+      return { ok: false, error: "Messaging not available on this device." };
+    }
+
+    try {
+      // channelType 3 = RtmChannelType.user (peer-to-peer DM)
+      await client.publish(peerId, text, { channelType: 3 });
+      return { ok: true };
+    } catch (err: unknown) {
+      const code = (err as { errorCode?: number })?.errorCode;
+      console.warn("[RTM] publish error:", err);
+      if (code === -10025) {
+        return { ok: false, error: "Not connected to messaging. Try again." };
+      }
+      return { ok: false, error: `Send failed (code ${code ?? "?"})` };
+    }
   }, [uidStr, user?.name, upsertConversation]);
 
   const getMessages = useCallback((peerId: string): DmMessage[] => {
@@ -191,7 +224,7 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <RtmContext.Provider value={{ ready, conversations, getMessages, sendDm, markRead }}>
+    <RtmContext.Provider value={{ ready, rtmError, conversations, getMessages, sendDm, markRead }}>
       {children}
     </RtmContext.Provider>
   );

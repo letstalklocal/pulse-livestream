@@ -52,12 +52,18 @@ export default function DmScreen() {
     }
   }, [messages.length]);
 
+  const [sendError, setSendError] = useState<string | null>(null);
+
   const send = async () => {
     const text = inputText.trim();
     if (!text) return;
     setInputText("");
+    setSendError(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await sendDm(peerIdStr, name, text);
+    const result = await sendDm(peerIdStr, name, text);
+    if (!result.ok && result.error) {
+      setSendError(result.error);
+    }
   };
 
   const myUidStr = user?.uid != null ? String(user.uid) : null;
@@ -118,6 +124,13 @@ export default function DmScreen() {
           </View>
         }
       />
+
+      {/* Send error */}
+      {sendError && (
+        <View style={[styles.errorBanner, { backgroundColor: "rgba(255,25,102,0.12)" }]}>
+          <Text style={styles.errorText}>{sendError}</Text>
+        </View>
+      )}
 
       {/* Input bar */}
       <View style={[styles.inputBar, { borderTopColor: colors.border, paddingBottom: insets.bottom + 8 }]}>
@@ -225,6 +238,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Inter_400Regular",
     maxHeight: 100,
+  },
+  errorBanner: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+  },
+  errorText: {
+    color: "#FF1966",
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
   },
   sendBtn: {
     width: 38,
