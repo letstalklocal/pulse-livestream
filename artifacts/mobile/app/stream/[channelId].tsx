@@ -31,6 +31,7 @@ import {
   useUpdateViewerCount,
   useGetCoinBalance,
   getGetCoinBalanceQueryKey,
+  useGetStreamEarnings,
   useSpendCoins,
   useFollowUser,
   useUnfollowUser,
@@ -201,12 +202,11 @@ export default function StreamScreen() {
     (stream?.hostName ?? "").split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % AVATAR_COLORS.length
   ]!;
 
-  // Host's received-gift coin balance (shown in the stats row)
-  const hostCoinQuery = useGetCoinBalance(
-    { uid: hostUid ?? 0 },
-    { query: { enabled: !!hostUid, refetchOnWindowFocus: false } as any },
-  );
-  const hostCoins = hostCoinQuery.data?.balance ?? 0;
+  // Coins earned by the streamer during this specific live (filtered by channelId)
+  const streamEarningsQuery = useGetStreamEarnings(channelId ?? "", {
+    query: { enabled: !!channelId && !isDemo, refetchInterval: 5000 } as any,
+  });
+  const hostCoins = streamEarningsQuery.data?.coins ?? 0;
   const { data: followStatusData, refetch: refetchFollow } = useGetFollowStatus(
     hostUid ?? 0,
     { followerUid: user?.uid ?? 0 },
