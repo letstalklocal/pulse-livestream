@@ -30,9 +30,14 @@ A live streaming mobile app (Expo/React Native) similar to Tango, powered by Ago
 - `lib/api-zod/src/` — auto-generated Zod schemas (do not edit); `index.ts` manually enumerates exports to avoid duplicates
 - `artifacts/api-server/src/routes/` — Express route handlers
 - `artifacts/api-server/src/routes/streams.ts` — in-memory stream registry, heartbeat TTL, seeded demo streams
+- `artifacts/api-server/src/routes/coins.ts` — coin balance, spend (gifting), grant, per-stream earnings, and leaderboard endpoints
+- `artifacts/api-server/src/lib/wsHub.ts` — WebSocket hub; broadcasts `earnings`, `gift`, `stream_ended` events to all subscribers of a channel
 - `artifacts/mobile/app/(tabs)/index.tsx` — home screen, stream list, viewability tracking
-- `artifacts/mobile/app/go-live.tsx` — broadcaster screen (Agora broadcaster role, heartbeat, stream lifecycle)
-- `artifacts/mobile/app/stream/[channelId].tsx` — full-screen viewer screen
+- `artifacts/mobile/app/go-live.tsx` — broadcaster screen (Agora broadcaster role, heartbeat, stream lifecycle, real-time coin counter)
+- `artifacts/mobile/app/stream/[channelId].tsx` — full-screen viewer screen (gift picker, real-time coin/gift updates via WebSocket)
+- `artifacts/mobile/components/GiftPicker.tsx` — bottom-sheet gift picker modal (Heart 5🪙, Party 10🪙, Diamond 50🪙, Rocket 100🪙, Crown 500🪙)
+- `artifacts/mobile/components/GiftFloater.tsx` — animated floating gift emoji that rises and fades after a gift is sent or received
+- `artifacts/mobile/components/GiftLeaderboard.tsx` — bottom-sheet leaderboard of top gifters for the current stream (updates every 10s while open)
 - `artifacts/mobile/components/StreamCard.tsx` — stream list card with avatar + live preview overlay
 - `artifacts/mobile/components/LivePreviewThumbnail.tsx` — 3s profile delay → 5s Agora audience preview → stop
 - `artifacts/mobile/context/AuthContext.tsx` — wraps Clerk, syncs to DB, exposes local `User` type
@@ -57,6 +62,58 @@ A live streaming mobile app (Expo/React Native) similar to Tango, powered by Ago
 - Go Live: authenticated users can start a broadcast with a title and category. Camera preview shown before going live. Heartbeat keeps the stream alive on the server.
 - Stream viewer: full-screen live view with real-time chat (simulated), gifts, follow/unfollow, viewer count.
 - Auth: Clerk email+password. Anonymous users can browse and watch; login required to broadcast.
+
+## Coins & Gifts
+
+### How coins work
+
+- Every user has a coin balance stored in `coin_balances` (PostgreSQL). Balances are created on first access with `getOrCreateBalance()`.
+- Coins are granted manually via `POST /api/coins/grant` (dev/testing) or will be sold via in-app purchase in production.
+- Spending is atomic: `POST /api/coins/spend` deducts from the sender, credits the recipient (streamer), and writes a single `coin_transactions` row capturing both sides, the channel, and the gift name.
+- If the sender has insufficient balance, the server returns HTTP 402 — the client shows an error and does not deduct.
+
+### Gift flow — viewer side (`stream/[channelId].tsx`)
+
+1. Viewer taps the 🎁 button → `GiftPicker` bottom sheet opens showing five gift tiers.
+2. Viewer selects a gift → `POST /api/coins/spend` is called with `{ uid, recipientUid, amount, giftName, senderName, channelId }`.
+3. On success: a `GiftFloater` animation spawns locally for the sending viewer immediately.
+4. The server pushes two WebSocket events to **all subscribers** of that channel:
+   - `{ type: "earnings", channelId, coins }` — updated running total for the stream
+   - `{ type: "gift", channelId, giftName, senderName, coins }` — individual gift event
+5. The viewer's WebSocket handler receives both events: coin counter updates instantly (`realtimeCoins` state), and a `GiftFloater` animation spawns on screen for other viewers watching the same stream.
+6. The coin counter on the stats row (top of viewer screen) shows `realtimeCoins` (WebSocket-driven) and falls back to a 30s HTTP poll only if WebSocket is unavailable.
+
+### Gift flow — streamer side (`go-live.tsx`)
+
+1. The streamer's WebSocket connects to `wss://{EXPO_PUBLIC_DOMAIN}/api/ws` and subscribes to their own channel as soon as they go live.
+2. Incoming `earnings` event → `streamCoins` state updates instantly, animating the 🪙 coin pill in the top-right HUD.
+3. Incoming `gift` event → a `GiftFloater` rises on the broadcaster's screen showing who sent what gift, plus the updated coin total.
+4. The coin pill is tappable — opens `GiftLeaderboard` showing top gifters ranked by total coins sent this stream.
+
+### Gift leaderboard (`GiftLeaderboard.tsx`)
+
+- Available on both the viewer and streamer screens by tapping the 🪙 coin count.
+- Fetches `GET /api/streams/:channelId/leaderboard` — aggregates `coin_transactions` by `fromUserId` for the current channel, joins with `users` for display names, returns top 10.
+- Refreshes every 10 seconds while the sheet is open.
+- Shows 🥇🥈🥉 medals for ranks 1–3, numbered ranks for the rest.
+- Empty state shown if no gifts have been sent yet.
+
+### DB tables
+
+| Table | Purpose |
+|---|---|
+| `coin_balances` | One row per user — current spendable balance |
+| `coin_transactions` | Immutable ledger — every spend/grant/gift event with `channelId`, `fromUserId`, `toUserId`, `amount`, `type`, `giftName` |
+
+### API endpoints (all under `/api`)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/coins/balance?uid=` | Fetch a user's current balance |
+| POST | `/coins/spend` | Deduct coins from viewer, credit streamer, push WS events |
+| POST | `/coins/grant` | Add coins to a user (dev/admin use) |
+| GET | `/streams/:channelId/earnings` | Total coins gifted during a specific stream (fallback poll) |
+| GET | `/streams/:channelId/leaderboard` | Top 10 gifters ranked by coins sent, with display names |
 
 ## User preferences
 
