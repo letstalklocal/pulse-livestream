@@ -173,6 +173,12 @@ export default function SignInScreen() {
             <Text style={styles.errorText}>{errors.fields.password.message}</Text>
           )}
 
+          <Link href="/(auth)/forgot-password" asChild>
+            <Pressable style={styles.forgotRow}>
+              <Text style={[styles.forgotText, { color: colors.primary }]}>Forgot password?</Text>
+            </Pressable>
+          </Link>
+
           <TouchableOpacity
             style={[
               styles.primaryBtn,
@@ -295,4 +301,6 @@ const styles = StyleSheet.create({
   footerLink: { fontSize: 14, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
   linkRow: { alignItems: "center", marginTop: 16 },
   linkText: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  forgotRow: { alignSelf: "flex-end", marginTop: 2 },
+  forgotText: { fontSize: 13, fontFamily: "Inter_400Regular" },
 });
