@@ -215,28 +215,6 @@ export interface ChatMessageResponse {
   message: ChatMessage;
 }
 
-export interface SendDmRequest {
-  fromUid: number;
-  toUid: number;
-  text: string;
-}
-
-export interface DmMessage {
-  id: number;
-  fromUserId: number;
-  toUserId: number;
-  text: string;
-  createdAt: string;
-}
-
-export interface DmMessageResponse {
-  message: DmMessage;
-}
-
-export interface DmConversationResponse {
-  messages: DmMessage[];
-}
-
 export type GetFollowStatusParams = {
 followerUid: number;
 };
@@ -250,11 +228,5 @@ since?: number;
 
 export type GetCoinBalanceParams = {
 uid: number;
-};
-
-export type GetDmConversationParams = {
-fromUid: number;
-toUid: number;
-limit?: number;
 };
 

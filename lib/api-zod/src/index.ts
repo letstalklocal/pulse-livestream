@@ -26,8 +26,3 @@ export * from "./generated/types/agoraRtmTokenRequest";
 export * from "./generated/types/agoraRtmTokenResponse";
 export * from "./generated/types/followingUser";
 export * from "./generated/types/followingListResponse";
-export * from "./generated/types/dmMessage";
-export * from "./generated/types/dmMessageResponse";
-export * from "./generated/types/dmConversationResponse";
-export * from "./generated/types/sendDmRequest";
-export * from "./generated/types/getDmConversationParams";

@@ -30,19 +30,15 @@ import type {
   CoinGrantRequest,
   CoinSpendRequest,
   CreateStreamRequest,
-  DmConversationResponse,
-  DmMessageResponse,
   ErrorResponse,
   FollowRequest,
   FollowStatusResponse,
   FollowingListResponse,
   GetCoinBalanceParams,
-  GetDmConversationParams,
   GetFollowStatusParams,
   GetStreamChatParams,
   HealthStatus,
   SendChatMessageRequest,
-  SendDmRequest,
   StreamEarningsResponse,
   StreamHistoryResponse,
   StreamLeaderboardResponse,
@@ -1796,161 +1792,6 @@ export function useGetUserFollowing<TData = Awaited<ReturnType<typeof getUserFol
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetUserFollowingQueryOptions(uid,options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-
-
-
-
-
-
-export const getSendDmUrl = () => {
-
-
-
-
-  return `/api/dm/send`
-}
-
-/**
- * @summary Send a direct message (persisted to DB, RTM delivery attempted separately)
- */
-export const sendDm = async (sendDmRequest: SendDmRequest, options?: RequestInit): Promise<DmMessageResponse> => {
-
-  return customFetch<DmMessageResponse>(getSendDmUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      sendDmRequest,)
-  }
-);}
-
-
-
-
-export const getSendDmMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendDm>>, TError,{data: BodyType<SendDmRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof sendDm>>, TError,{data: BodyType<SendDmRequest>}, TContext> => {
-
-const mutationKey = ['sendDm'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendDm>>, {data: BodyType<SendDmRequest>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  sendDm(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type SendDmMutationResult = NonNullable<Awaited<ReturnType<typeof sendDm>>>
-    export type SendDmMutationBody = BodyType<SendDmRequest>
-    export type SendDmMutationError = ErrorType<ErrorResponse>
-
-    /**
- * @summary Send a direct message (persisted to DB, RTM delivery attempted separately)
- */
-export const useSendDm = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendDm>>, TError,{data: BodyType<SendDmRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof sendDm>>,
-        TError,
-        {data: BodyType<SendDmRequest>},
-        TContext
-      > => {
-      return useMutation(getSendDmMutationOptions(options));
-    }
-
-export const getGetDmConversationUrl = (params: GetDmConversationParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/api/dm/conversation?${stringifiedParams}` : `/api/dm/conversation`
-}
-
-/**
- * @summary Fetch conversation history between two users
- */
-export const getDmConversation = async (params: GetDmConversationParams, options?: RequestInit): Promise<DmConversationResponse> => {
-
-  return customFetch<DmConversationResponse>(getGetDmConversationUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetDmConversationQueryKey = (params?: GetDmConversationParams,) => {
-    return [
-    `/api/dm/conversation`, ...(params ? [params] : [])
-    ] as const;
-    }
-
-
-export const getGetDmConversationQueryOptions = <TData = Awaited<ReturnType<typeof getDmConversation>>, TError = ErrorType<unknown>>(params: GetDmConversationParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDmConversation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetDmConversationQueryKey(params);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDmConversation>>> = ({ signal }) => getDmConversation(params, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDmConversation>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetDmConversationQueryResult = NonNullable<Awaited<ReturnType<typeof getDmConversation>>>
-export type GetDmConversationQueryError = ErrorType<unknown>
-
-
-/**
- * @summary Fetch conversation history between two users
- */
-
-export function useGetDmConversation<TData = Awaited<ReturnType<typeof getDmConversation>>, TError = ErrorType<unknown>>(
- params: GetDmConversationParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDmConversation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetDmConversationQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
