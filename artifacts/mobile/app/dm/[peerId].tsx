@@ -23,7 +23,7 @@ export default function DmScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
-  const { getMessages, sendDm, markRead } = useRtm();
+  const { getMessages, loadConversation, sendDm, markRead } = useRtm();
 
   const { peerId, peerName } = useLocalSearchParams<{ peerId: string; peerName: string }>();
   const peerIdStr = peerId ?? "";
@@ -44,7 +44,8 @@ export default function DmScreen() {
 
   useEffect(() => {
     markRead(peerIdStr);
-  }, [peerIdStr, markRead]);
+    void loadConversation(peerIdStr);
+  }, [peerIdStr, markRead, loadConversation]);
 
   useEffect(() => {
     if (messages.length > 0) {

@@ -576,6 +576,61 @@ paths:
               schema:
                 $ref: "#/components/schemas/FollowingListResponse"
 
+  /dm/send:
+    post:
+      operationId: sendDm
+      tags: [dm]
+      summary: Send a direct message (persisted to DB, RTM delivery attempted separately)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendDmRequest"
+      responses:
+        "200":
+          description: Message stored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DmMessageResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /dm/conversation:
+    get:
+      operationId: getDmConversation
+      tags: [dm]
+      summary: Fetch conversation history between two users
+      parameters:
+        - name: fromUid
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: toUid
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: List of messages between two users (chronological)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DmConversationResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -1008,3 +1063,55 @@ components:
           $ref: "#/components/schemas/ChatMessage"
       required:
         - message
+
+    SendDmRequest:
+      type: object
+      properties:
+        fromUid:
+          type: integer
+        toUid:
+          type: integer
+        text:
+          type: string
+      required:
+        - fromUid
+        - toUid
+        - text
+
+    DmMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+        fromUserId:
+          type: integer
+        toUserId:
+          type: integer
+        text:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - fromUserId
+        - toUserId
+        - text
+        - createdAt
+
+    DmMessageResponse:
+      type: object
+      properties:
+        message:
+          $ref: "#/components/schemas/DmMessage"
+      required:
+        - message
+
+    DmConversationResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/DmMessage"
+      required:
+        - messages
