@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useSignUp, useAuth } from "@clerk/expo";
 import { Link, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -30,10 +30,9 @@ export default function SignUpScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [verifyCode, setVerifyCode] = useState("");
 
-  if (isSignedIn) {
-    router.replace("/(tabs)/profile");
-    return null;
-  }
+  useEffect(() => {
+    if (isSignedIn) router.replace("/(tabs)/profile");
+  }, [isSignedIn]);
 
   const handleSubmit = async () => {
     const { error } = await signUp.password({ emailAddress: email, password });
