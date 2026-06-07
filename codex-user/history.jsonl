@@ -1,0 +1,17 @@
+{"session_id":"019ea275-9e78-7e01-9fa7-8d9154c92d99","ts":1780842096,"text":"hi"}
+{"session_id":"019ea275-9e78-7e01-9fa7-8d9154c92d99","ts":1780842167,"text":"which directory am i in"}
+{"session_id":"019ea275-9e78-7e01-9fa7-8d9154c92d99","ts":1780842187,"text":"list the other directories"}
+{"session_id":"019ea275-9e78-7e01-9fa7-8d9154c92d99","ts":1780842409,"text":"is the pulse code found here"}
+{"session_id":"019ea275-9e78-7e01-9fa7-8d9154c92d99","ts":1780842451,"text":"the app is named pulse the code is called Stream Connect"}
+{"session_id":"019ea275-9e78-7e01-9fa7-8d9154c92d99","ts":1780842502,"text":"is there documentation"}
+{"session_id":"019ea275-9e78-7e01-9fa7-8d9154c92d99","ts":1780842667,"text":"ok read the code and confirm you understand it"}
+{"session_id":"019ea275-9e78-7e01-9fa7-8d9154c92d99","ts":1780844889,"text":"Your LiveStream artifact encountered an error"}
+{"session_id":"019ea275-9e78-7e01-9fa7-8d9154c92d99","ts":1780845000,"text":"we are on Replit"}
+{"session_id":"019ea275-9e78-7e01-9fa7-8d9154c92d99","ts":1780845066,"text":"no"}
+{"session_id":"019ea275-9e78-7e01-9fa7-8d9154c92d99","ts":1780845145,"text":"what changes did you make"}
+{"session_id":"019ea275-9e78-7e01-9fa7-8d9154c92d99","ts":1780845158,"text":"back out the changes you made"}
+{"session_id":"019ea275-9e78-7e01-9fa7-8d9154c92d99","ts":1780845215,"text":"it 8081 is already bein gused it means either we need to stop and star the app again"}
+{"session_id":"019ea275-9e78-7e01-9fa7-8d9154c92d99","ts":1780845256,"text":"it was stopped and I clicked on start"}
+{"session_id":"019ea275-9e78-7e01-9fa7-8d9154c92d99","ts":1780845359,"text":"ok stop it"}
+{"session_id":"019ea275-9e78-7e01-9fa7-8d9154c92d99","ts":1780845685,"text":"start it again"}
+{"session_id":"019ea275-9e78-7e01-9fa7-8d9154c92d99","ts":1780845906,"text":"3109f86ef06a/node_modules/expo-router/entry.js (1594 modules)\nAndroid Bundled 25609ms node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__950497bba3dbc1f6b1863109f86ef06a/node_modules/expo-router/entry.js (1934 modules)\n LOG  [web] Logs will appear in the browser console\n ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/mobile@0.0.0 dev: `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=$CLERK_PUBLISHABLE_KEY EXPO_PACKAGER_PROXY_URL=https://$REPLIT_EXPO_DEV_DOMAIN EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_REPL_ID=$REPL_ID REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN pnpm exec expo start --localhost --port $PORT`\nCommand failed with signal \"SIGTERM\""}
