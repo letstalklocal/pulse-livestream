@@ -20,7 +20,7 @@ A live streaming mobile app (Expo/React Native) similar to Tango, powered by Ago
 - Validation: Zod (`zod/v4`), `drizzle-zod`
 - API codegen: Orval (from OpenAPI spec)
 - Build: esbuild (CJS bundle)
-- Mobile: Expo SDK 54, React Native, react-native-agora v4.5.4, newArchEnabled: true
+- Mobile: Expo SDK 57, React Native 0.86.2, react-native-agora v4.5.4, newArchEnabled: true
 - Auth: Clerk (email+password)
 
 ## Where things live
@@ -119,6 +119,7 @@ A live streaming mobile app (Expo/React Native) similar to Tango, powered by Ago
 
 - Dark theme: electric pink `#FF1966`, background `#08080F`
 - EAS build profile: `development`, platform: `android`, buildType: `apk`
+- SDK 57 release packages added to `minimumReleaseAgeExclude` in `pnpm-workspace.yaml` (published Jul 29 2026, within 1-day firewall window)
 - EAS project: `4119aa26-5e2a-4825-81e0-9612267f331c`, owner: `eespana`
 - No rebuild needed for JS-only changes — Metro hot reload picks them up
 

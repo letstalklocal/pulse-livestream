@@ -33,6 +33,41 @@ minimumReleaseAgeExclude:
   # this setting guards against does not apply to our own packages.
   - '@replit/*'
   - stripe-replit-sync
+  # Expo SDK 57 packages — published by Expo (trusted). Added to allow the
+  # SDK 57 release packages which were just published within the 1-day window.
+  - expo
+  - '@expo/cli'
+  - '@expo/metro-runtime'
+  - expo-router
+  - expo-dev-client
+  - expo-system-ui
+  - expo-auth-session
+  - expo-blur
+  - expo-constants
+  - expo-crypto
+  - expo-font
+  - expo-glass-effect
+  - expo-haptics
+  - expo-image
+  - expo-image-picker
+  - expo-linear-gradient
+  - expo-linking
+  - expo-location
+  - expo-secure-store
+  - expo-splash-screen
+  - expo-status-bar
+  - expo-symbols
+  - expo-web-browser
+  - react-native
+  - react-native-screens
+  - react-native-safe-area-context
+  - react-native-reanimated
+  - react-native-gesture-handler
+  - react-native-worklets
+  - react-native-keyboard-controller
+  - react-native-svg
+  - react
+  - react-dom
 
 packages:
   - artifacts/*
@@ -56,9 +91,9 @@ catalog:
   framer-motion: ^12.23.24
   lucide-react: ^0.545.0
   # Must be this exact version because expo requires it
-  react: 19.1.0
+  react: 19.2.3
   # Must be this exact version because expo requires it
-  react-dom: 19.1.0
+  react-dom: 19.2.3
   tailwind-merge: ^3.3.1
   tailwindcss: ^4.1.14
   tsx: ^4.21.0
