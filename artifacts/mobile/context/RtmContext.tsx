@@ -20,6 +20,12 @@ export interface DmMessage {
   ts: number;
 }
 
+interface PersistedDm extends DmMessage {
+  id: string;
+  recipientId: string;
+  recipientName: string;
+}
+
 export interface Conversation {
   peerId: string;
   peerName: string;
@@ -56,6 +62,8 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
   const [, setTick] = useState(0);
 
   const rtmClientRef = useRef<unknown>(null);
+  const syncedMessageIdsRef = useRef(new Set<string>());
+  const initialSyncCompleteRef = useRef(false);
 
   const uid = user?.uid;
   const uidStr = uid != null ? String(uid) : null;
@@ -86,6 +94,59 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
       ].sort((a, b) => b.lastTs - a.lastTs);
     });
   }, []);
+
+  const storePersistedMessage = useCallback((message: PersistedDm, unread: boolean) => {
+    if (!uidStr || syncedMessageIdsRef.current.has(message.id)) return;
+    syncedMessageIdsRef.current.add(message.id);
+
+    const isIncoming = message.senderId !== uidStr;
+    const peerId = isIncoming ? message.senderId : message.recipientId;
+    const peerName = isIncoming ? message.senderName : message.recipientName;
+    const stored: DmMessage = {
+      messageId: message.id,
+      senderId: message.senderId,
+      senderName: message.senderName,
+      text: message.text,
+      ts: message.ts,
+    };
+
+    if (!messageStore[peerId]) messageStore[peerId] = [];
+    messageStore[peerId]!.push(stored);
+    messageStore[peerId]!.sort((a, b) => a.ts - b.ts);
+    upsertConversation(peerId, peerName, message.text, message.ts, isIncoming && unread ? 1 : 0);
+    setTick((tick) => tick + 1);
+  }, [uidStr, upsertConversation]);
+
+  useEffect(() => {
+    syncedMessageIdsRef.current.clear();
+    initialSyncCompleteRef.current = false;
+    for (const peerId of Object.keys(messageStore)) delete messageStore[peerId];
+    setConversations([]);
+
+    if (!uidStr) return;
+    let active = true;
+
+    const syncMessages = async () => {
+      try {
+        const response = await fetch(`${BASE_URL}/api/dms/${encodeURIComponent(uidStr)}`);
+        if (!response.ok || !active) return;
+        const data = await response.json() as { messages?: PersistedDm[] };
+        for (const message of data.messages ?? []) {
+          storePersistedMessage(message, initialSyncCompleteRef.current);
+        }
+        initialSyncCompleteRef.current = true;
+      } catch (error) {
+        console.warn("[DM] sync error:", error);
+      }
+    };
+
+    void syncMessages();
+    const interval = setInterval(() => void syncMessages(), 2_500);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [uidStr, storePersistedMessage]);
 
   useEffect(() => {
     if (!uidStr) {
@@ -120,21 +181,14 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
 
         client.addEventListener("message", (event) => {
           if (!mounted) return;
-          const senderId = event.publisher ?? "unknown";
-          const text = typeof event.message === "string"
-            ? event.message
-            : String(event.message);
-          const msg: DmMessage = {
-            messageId: `${senderId}-${Date.now()}-${Math.random()}`,
-            senderId,
-            senderName: senderId,
-            text,
-            ts: Date.now(),
-          };
-          if (!messageStore[senderId]) messageStore[senderId] = [];
-          messageStore[senderId]!.push(msg);
-          upsertConversation(senderId, senderId, text, msg.ts, 1);
-          setTick((t) => t + 1);
+          try {
+            const payload = JSON.parse(String(event.message)) as PersistedDm;
+            if (payload.id && payload.senderId && payload.recipientId) {
+              storePersistedMessage(payload, true);
+            }
+          } catch {
+            // Ignore messages from older clients; persisted history is authoritative.
+          }
         });
 
         // Try login with token embedded in config (empty options)
@@ -169,7 +223,7 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
       rtmClientRef.current = null;
       setReady(false);
     };
-  }, [uidStr, upsertConversation]);
+  }, [uidStr, storePersistedMessage]);
 
   const sendDm = useCallback(async (
     peerId: string,
@@ -182,36 +236,39 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
       publish: (channelName: string, message: string, options?: { channelType?: number }) => Promise<unknown>;
     } | null;
 
-    // Optimistically add to local store so UI feels instant
-    const msg: DmMessage = {
-      messageId: `${uidStr}-${Date.now()}-${Math.random()}`,
-      senderId: uidStr,
-      senderName: user?.name ?? "Me",
-      text,
-      ts: Date.now(),
-    };
-    if (!messageStore[peerId]) messageStore[peerId] = [];
-    messageStore[peerId]!.push(msg);
-    upsertConversation(peerId, peerName, text, msg.ts, 0);
-    setTick((t) => t + 1);
-
-    if (!client) {
-      return { ok: false, error: "Messaging not available on this device." };
-    }
-
     try {
-      // channelType 3 = RtmChannelType.user (peer-to-peer DM)
-      await client.publish(peerId, text, { channelType: 3 });
+      const response = await fetch(`${BASE_URL}/api/dms`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          senderId: Number(uidStr),
+          recipientId: Number(peerId),
+          text: text.trim(),
+        }),
+      });
+      const data = await response.json() as { message?: PersistedDm; error?: string };
+      if (!response.ok || !data.message) {
+        return { ok: false, error: data.error ?? "Message could not be sent." };
+      }
+
+      storePersistedMessage(data.message, false);
+
+      // RTM is a best-effort live notification. The database is authoritative,
+      // so offline recipients still receive the message on their next sync.
+      if (client) {
+        void client
+          .publish(peerId, JSON.stringify(data.message), { channelType: 3 })
+          .catch((err: unknown) => {
+            const code = (err as { errorCode?: number })?.errorCode;
+            if (code !== -11033) console.warn("[RTM] publish error:", err);
+          });
+      }
       return { ok: true };
     } catch (err: unknown) {
-      const code = (err as { errorCode?: number })?.errorCode;
-      console.warn("[RTM] publish error:", err);
-      if (code === -10025) {
-        return { ok: false, error: "Not connected to messaging. Try again." };
-      }
-      return { ok: false, error: `Send failed (code ${code ?? "?"})` };
+      console.warn("[DM] send error:", err);
+      return { ok: false, error: "Message could not be sent. Check your connection and try again." };
     }
-  }, [uidStr, user?.name, upsertConversation]);
+  }, [uidStr, storePersistedMessage]);
 
   const getMessages = useCallback((peerId: string): DmMessage[] => {
     return messageStore[peerId] ?? [];

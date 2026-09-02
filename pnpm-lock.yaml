@@ -286,6 +286,9 @@ importers:
       '@workspace/api-client-react':
         specifier: workspace:*
         version: link:../../lib/api-client-react
+      babel-preset-expo:
+        specifier: 57.0.4
+        version: 57.0.4(@babel/core@7.29.0)(@babel/runtime@7.29.2)(expo@57.0.8)(react-refresh@0.14.2)
       babel-plugin-react-compiler:
         specifier: ^19.0.0-beta-e993439-20250117
         version: 19.0.0-beta-ebf51a3-20250411

@@ -1,1 +1,2 @@
 - [EAS pnpm 11 builds](eas-pnpm11-builds.md) — EAS SDK 57 builds require pnpm 11 allowBuilds entries; onlyBuiltDependencies alone fails dependency installation.
+- [Expo SDK 57 Metro preset](expo-sdk57-metro-preset.md) — strict pnpm needs babel-preset-expo declared directly or Metro can fail after restart.
