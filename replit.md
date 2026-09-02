@@ -10,7 +10,13 @@ A live streaming mobile app (Expo/React Native) similar to Tango, powered by Ago
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
-- EAS build: `eas build --platform android --profile development` (run from `artifacts/mobile`)
+- Android development APK workflow:
+  1. `cd artifacts/mobile`
+  2. `eas build --platform android --profile development`
+  3. Download the completed APK into the workspace, for example `downloads/pulse-development.apk`.
+  4. Connect the Android device with USB debugging enabled and confirm it appears with `adb devices`.
+  5. Install or update the development build with `adb install -r downloads/pulse-development.apk`.
+  6. Start the Expo workflow and scan the development-build QR code so the installed app loads the latest JavaScript bundle.
 
 ## Stack
 
