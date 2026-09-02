@@ -104,10 +104,24 @@ catalog:
 autoInstallPeers: false
 
 onlyBuiltDependencies:
+  - '@clerk/shared'
   - '@swc/core'
+  - browser-tabs-lock
+  - core-js
   - esbuild
   - msw
   - unrs-resolver
+
+# pnpm 11 uses allowBuilds in place of onlyBuiltDependencies. EAS Build
+# currently installs this workspace with pnpm 11.
+allowBuilds:
+  '@clerk/shared': true
+  '@swc/core': true
+  browser-tabs-lock: true
+  core-js: true
+  esbuild: true
+  msw: true
+  unrs-resolver: true
 
 overrides:
   # replit uses linux-x64 only, we can exclude all other platforms
