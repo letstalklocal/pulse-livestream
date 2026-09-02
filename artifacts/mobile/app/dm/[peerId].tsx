@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -13,10 +14,13 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useQueryClient } from "@tanstack/react-query";
+import { getGetCoinBalanceQueryKey, useGetCoinBalance, useSpendCoins } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRtm, type DmMessage } from "@/context/RtmContext";
 import { useColors } from "@/hooks/useColors";
 import { Avatar } from "@/components/Avatar";
+import { GiftPicker, type Gift } from "@/components/GiftPicker";
 
 export default function DmScreen() {
   const colors = useColors();
@@ -24,6 +28,7 @@ export default function DmScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { getMessages, sendDm, markRead } = useRtm();
+  const queryClient = useQueryClient();
 
   const { peerId, peerName } = useLocalSearchParams<{ peerId: string; peerName: string }>();
   const peerIdStr = peerId ?? "";
@@ -31,7 +36,15 @@ export default function DmScreen() {
 
   const [inputText, setInputText] = useState("");
   const [messages, setMessages] = useState<DmMessage[]>([]);
+  const [showGiftPicker, setShowGiftPicker] = useState(false);
   const listRef = useRef<FlatList>(null);
+
+  const coinBalanceQuery = useGetCoinBalance(
+    { uid: user?.uid ?? 0 },
+    { query: { enabled: !!user?.uid, refetchOnWindowFocus: false } as any },
+  );
+  const spendMutation = useSpendCoins();
+  const viewerCoins = coinBalanceQuery.data?.balance ?? 0;
 
   // Sync messages from RtmContext store
   useEffect(() => {
@@ -94,6 +107,7 @@ export default function DmScreen() {
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => {
           const isMe = item.senderId === myUidStr;
+          const isGift = item.text.startsWith("🎁");
           return (
             <View style={[styles.bubbleRow, isMe && styles.bubbleRowMe]}>
               {!isMe && (
@@ -103,11 +117,12 @@ export default function DmScreen() {
                 style={[
                   styles.bubble,
                   isMe
-                    ? [styles.bubbleMe, { backgroundColor: "#FF1966" }]
-                    : [styles.bubbleThem, { backgroundColor: colors.card }],
+                    ? [styles.bubbleMe, { backgroundColor: isGift ? "rgba(255,215,0,0.18)" : "#FF1966" }]
+                    : [styles.bubbleThem, { backgroundColor: isGift ? "rgba(255,215,0,0.12)" : colors.card }],
+                  isGift && styles.giftBubble,
                 ]}
               >
-                <Text style={[styles.bubbleText, { color: isMe ? "#FFF" : colors.foreground }]}>
+                <Text style={[styles.bubbleText, { color: isGift ? "#FFD700" : isMe ? "#FFF" : colors.foreground }]}>
                   {item.text}
                 </Text>
               </View>
@@ -146,6 +161,20 @@ export default function DmScreen() {
           multiline
         />
         <TouchableOpacity
+          style={styles.giftBtn}
+          onPress={() => {
+            setShowGiftPicker(true);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }}
+          activeOpacity={0.75}
+          testID="send-gift-button"
+          accessibilityRole="button"
+          accessibilityLabel={`Send a gift to ${name}`}
+          aria-label={`Send a gift to ${name}`}
+        >
+          <Ionicons name="gift-outline" size={22} color="#FFD700" />
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[styles.sendBtn, { backgroundColor: inputText.trim() ? "#FF1966" : "rgba(255,25,102,0.2)" }]}
           onPress={send}
           activeOpacity={0.75}
@@ -154,6 +183,55 @@ export default function DmScreen() {
           <Ionicons name="send" size={18} color={inputText.trim() ? "#FFF" : "rgba(255,255,255,0.4)"} />
         </TouchableOpacity>
       </View>
+
+      <GiftPicker
+        visible={showGiftPicker}
+        coins={viewerCoins}
+        hintText="Tap a gift to send it in chat"
+        onClose={() => setShowGiftPicker(false)}
+        onSend={(gift: Gift) => {
+          const recipientId = Number.parseInt(peerIdStr, 10);
+          if (!user?.uid || !Number.isInteger(recipientId)) {
+            Alert.alert("Unable to send gift", "This conversation is unavailable.");
+            return;
+          }
+
+          setShowGiftPicker(false);
+          setSendError(null);
+          void (async () => {
+            try {
+              const result = await spendMutation.mutateAsync({
+                data: {
+                  uid: user.uid,
+                  recipientUid: recipientId,
+                  amount: gift.coins,
+                  giftName: gift.name,
+                  senderName: user.name ?? "Viewer",
+                  description: `${gift.emoji} ${gift.name}`,
+                },
+              });
+
+              queryClient.setQueryData(
+                getGetCoinBalanceQueryKey({ uid: user.uid }),
+                { balance: result.balance },
+              );
+
+              const dmResult = await sendDm(
+                peerIdStr,
+                name,
+                `🎁 ${gift.emoji} ${gift.name} gift • ${gift.coins} coins`,
+              );
+              if (!dmResult.ok) {
+                setSendError(`Gift sent, but the chat receipt could not be delivered. ${dmResult.error ?? ""}`.trim());
+              } else {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              }
+            } catch {
+              Alert.alert("Gift couldn't be sent", "You may not have enough coins. Try a smaller gift or top up from your profile.");
+            }
+          })();
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -200,6 +278,10 @@ const styles = StyleSheet.create({
   bubbleThem: {
     borderBottomLeftRadius: 4,
   },
+  giftBubble: {
+    borderWidth: 1,
+    borderColor: "rgba(255,215,0,0.45)",
+  },
   bubbleText: {
     fontSize: 15,
     fontFamily: "Inter_400Regular",
@@ -238,6 +320,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Inter_400Regular",
     maxHeight: 100,
+  },
+  giftBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,215,0,0.1)",
   },
   errorBanner: {
     paddingHorizontal: 16,

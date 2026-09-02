@@ -31,9 +31,10 @@ interface Props {
   onClose: () => void;
   onSend: (gift: Gift) => void;
   coins: number;
+  hintText?: string;
 }
 
-export function GiftPicker({ visible, onClose, onSend, coins }: Props) {
+export function GiftPicker({ visible, onClose, onSend, coins, hintText = "Tap a gift to send it live" }: Props) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -87,11 +88,10 @@ export function GiftPicker({ visible, onClose, onSend, coins }: Props) {
           })}
         </ScrollView>
 
-        {coins === 0 ? (
+        {coins === 0 && (
           <Text style={styles.hintEmpty}>You're out of coins — top up from your profile</Text>
-        ) : (
-          <Text style={styles.hint}>Tap a gift to send it live</Text>
         )}
+        <Text style={styles.hint}>{hintText}</Text>
       </View>
     </Modal>
   );
