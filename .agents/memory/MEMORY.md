@@ -1,0 +1,1 @@
+- [EAS pnpm 11 builds](eas-pnpm11-builds.md) — EAS SDK 57 builds require pnpm 11 allowBuilds entries; onlyBuiltDependencies alone fails dependency installation.
