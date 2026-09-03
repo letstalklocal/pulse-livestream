@@ -48,5 +48,5 @@ Thumbs.db
 .cache/
 .local/
 
-# Local agent logs can contain sensitive session data.
-/codex-user/*.sqlite
+# Local agent runtime state can contain sensitive session data.
+/codex-user/
