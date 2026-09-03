@@ -1073,7 +1073,7 @@ components:
       required: [name, price, items]
     MediaPackItem:
       type: object
-      properties: { id: { type: string }, position: { type: integer }, mediaType: { type: string, enum: [image, video] }, contentType: { type: string }, width: { type: integer, nullable: true }, height: { type: integer, nullable: true }, durationMs: { type: integer, nullable: true }, mediaUrl: { type: string } }
+      properties: { id: { type: string }, position: { type: integer }, mediaType: { type: string, enum: [image, video] }, contentType: { type: string }, width: { type: integer, nullable: true }, height: { type: integer, nullable: true }, durationMs: { type: integer, nullable: true }, mediaUrl: { type: string }, previewUrl: { type: string } }
       required: [id, position, mediaType, contentType]
     MediaPack:
       type: object

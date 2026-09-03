@@ -430,7 +430,8 @@ export const GetMediaPacksResponse = zod.object({
   "width": zod.number().nullish(),
   "height": zod.number().nullish(),
   "durationMs": zod.number().nullish(),
-  "mediaUrl": zod.string().optional()
+  "mediaUrl": zod.string().optional(),
+  "previewUrl": zod.string().optional()
 }))
 }))
 })
@@ -478,7 +479,8 @@ export const GetMediaPackResponse = zod.object({
   "width": zod.number().nullish(),
   "height": zod.number().nullish(),
   "durationMs": zod.number().nullish(),
-  "mediaUrl": zod.string().optional()
+  "mediaUrl": zod.string().optional(),
+  "previewUrl": zod.string().optional()
 }))
 })
 })

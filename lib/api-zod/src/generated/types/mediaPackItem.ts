@@ -16,4 +16,5 @@ export interface MediaPackItem {
   height?: number | null;
   durationMs?: number | null;
   mediaUrl?: string;
+  previewUrl?: string;
 }

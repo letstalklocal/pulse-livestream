@@ -17,7 +17,18 @@ async function requireUser(req: any, res: any) {
 }
 const packResponse = async (pack: typeof mediaPacksTable.$inferSelect, includeUrls: boolean, unlocked: boolean, isOwner: boolean) => {
   const items = await db.select().from(mediaPackItemsTable).where(eq(mediaPackItemsTable.packId, pack.id)).orderBy(mediaPackItemsTable.position);
-  return { id: String(pack.id), name: pack.name, price: pack.coinPrice, itemCount: items.length, ownerUserId: String(pack.ownerUserId), unlocked, isOwner, items: await Promise.all(items.map(async (x) => ({ id: String(x.id), position: x.position, mediaType: x.contentType.startsWith("video/") ? "video" : "image", contentType: x.contentType, width: x.width, height: x.height, durationMs: x.durationMs, ...(includeUrls ? { mediaUrl: await createPrivateGetUrl(x.objectPath) } : {}) }))) };
+  const preview = items.find((item) => item.contentType.startsWith("image/")) ?? items[0];
+  return { id: String(pack.id), name: pack.name, price: pack.coinPrice, itemCount: items.length, ownerUserId: String(pack.ownerUserId), unlocked, isOwner, items: await Promise.all(items.map(async (x) => ({
+    id: String(x.id),
+    position: x.position,
+    mediaType: x.contentType.startsWith("video/") ? "video" : "image",
+    contentType: x.contentType,
+    width: x.width,
+    height: x.height,
+    durationMs: x.durationMs,
+    ...(includeUrls ? { mediaUrl: await createPrivateGetUrl(x.objectPath) } : {}),
+    ...(!includeUrls && preview?.id === x.id ? { previewUrl: await createPrivateGetUrl(x.objectPath) } : {}),
+  }))) };
 };
 
 router.post("/media-packs/uploads", async (req, res): Promise<any> => {
