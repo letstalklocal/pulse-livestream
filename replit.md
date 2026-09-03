@@ -75,7 +75,7 @@ A live streaming mobile app (Expo/React Native) similar to Tango, powered by Ago
 
 - Every user has a coin balance stored in `coin_balances` (PostgreSQL). Balances are created on first access with `getOrCreateBalance()`.
 - Coins are granted manually via `POST /api/coins/grant` (dev/testing) or will be sold via in-app purchase in production.
-- Spending is atomic: `POST /api/coins/spend` deducts from the sender, credits the recipient (streamer), and writes a single `coin_transactions` row capturing both sides, the channel, and the gift name.
+- Spending is atomic and idempotent: `POST /api/coins/spend` conditionally deducts from the sender, credits the recipient, and writes one `coin_transactions` row in a database transaction. Every live and DM gift supplies a unique `idempotencyKey`, so retrying the same request cannot charge twice.
 - If the sender has insufficient balance, the server returns HTTP 402 — the client shows an error and does not deduct.
 
 ### Gift flow — viewer side (`stream/[channelId].tsx`)

@@ -148,6 +148,8 @@ export interface CoinSpendRequest {
   /** Stream channel where the gift was sent */
   channelId?: string;
   description?: string;
+  /** Unique key for safely retrying the same gift request */
+  idempotencyKey: string;
 }
 
 export interface CoinGrantRequest {

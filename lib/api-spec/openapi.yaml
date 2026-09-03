@@ -859,9 +859,13 @@ components:
           description: Stream channel where the gift was sent
         description:
           type: string
+        idempotencyKey:
+          type: string
+          description: Unique key for safely retrying the same gift request
       required:
         - uid
         - amount
+        - idempotencyKey
 
     CoinGrantRequest:
       type: object

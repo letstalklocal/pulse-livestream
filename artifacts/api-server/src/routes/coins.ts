@@ -5,6 +5,8 @@ import * as wsHub from "../lib/wsHub";
 
 const router = Router();
 
+class IdempotencyConflictError extends Error {}
+
 async function getOrCreateBalance(userId: number): Promise<number> {
   await db
     .insert(coinBalancesTable)
@@ -87,7 +89,7 @@ router.get("/coins/balance", async (req, res) => {
 
 // POST /coins/spend
 router.post("/coins/spend", async (req, res) => {
-  const { uid, recipientUid, amount, giftName, senderName, channelId, description } = req.body as {
+  const { uid, recipientUid, amount, giftName, senderName, channelId, description, idempotencyKey } = req.body as {
     uid?: number;
     recipientUid?: number;
     amount?: number;
@@ -95,6 +97,7 @@ router.post("/coins/spend", async (req, res) => {
     senderName?: string;
     channelId?: string;
     description?: string;
+    idempotencyKey?: string;
   };
 
   if (!uid || typeof uid !== "number") {
@@ -105,13 +108,43 @@ router.post("/coins/spend", async (req, res) => {
     res.status(400).json({ error: "amount must be a positive number" });
     return;
   }
+  if (!idempotencyKey || typeof idempotencyKey !== "string" || idempotencyKey.length > 100) {
+    res.status(400).json({ error: "idempotencyKey is required and must be at most 100 characters" });
+    return;
+  }
 
   const effectiveRecipientUid =
     typeof recipientUid === "number" && recipientUid !== uid ? recipientUid : null;
 
-  let transfer: { balance: number } | null;
+  let transfer: { balance: number; duplicate: boolean } | null;
   try {
     transfer = await db.transaction(async (tx) => {
+      // Serialize retries for the same key, including the race where both
+      // requests arrive before either one inserts its ledger row.
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${idempotencyKey}))`);
+
+      const existing = await tx
+        .select()
+        .from(coinTransactionsTable)
+        .where(eq(coinTransactionsTable.idempotencyKey, idempotencyKey))
+        .limit(1);
+      if (existing[0]) {
+        const sameRequest =
+          existing[0].type === "gift" &&
+          existing[0].fromUserId === uid &&
+          existing[0].toUserId === effectiveRecipientUid &&
+          existing[0].amount === amount &&
+          existing[0].channelId === (channelId ?? null);
+        if (!sameRequest) throw new IdempotencyConflictError();
+
+        const currentBalance = await tx
+          .select({ balance: coinBalancesTable.balance })
+          .from(coinBalancesTable)
+          .where(eq(coinBalancesTable.userId, uid))
+          .limit(1);
+        return { balance: currentBalance[0]?.balance ?? 0, duplicate: true };
+      }
+
       // Keep the row creation inside the transaction so every balance operation
       // uses the same atomic unit of work.
       await tx
@@ -152,11 +185,16 @@ router.post("/coins/spend", async (req, res) => {
         giftName:    giftName ?? null,
         channelId:   channelId ?? null,
         description: description ?? "",
+        idempotencyKey,
       });
 
-      return { balance: updated[0].balance };
+      return { balance: updated[0].balance, duplicate: false };
     });
   } catch (error) {
+    if (error instanceof IdempotencyConflictError) {
+      res.status(409).json({ error: "This idempotency key was already used for a different gift." });
+      return;
+    }
     console.error("[coins] gift transaction failed:", error);
     res.status(500).json({ error: "Gift could not be completed. No balances were changed." });
     return;
@@ -169,7 +207,7 @@ router.post("/coins/spend", async (req, res) => {
   }
 
   // Push updated earnings total to broadcaster's WebSocket immediately
-  if (channelId) {
+  if (channelId && !transfer.duplicate) {
     try {
       const rows = await db
         .select({ total: sql<number>`coalesce(sum(${coinTransactionsTable.amount}), 0)` })

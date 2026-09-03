@@ -1,4 +1,4 @@
-import { pgTable, integer, text, timestamp, serial } from "drizzle-orm/pg-core";
+import { pgTable, integer, text, timestamp, serial, uniqueIndex } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 
 export const coinBalancesTable = pgTable("coin_balances", {
@@ -17,8 +17,11 @@ export const coinTransactionsTable = pgTable("coin_transactions", {
   giftName:    text("gift_name"),
   channelId:   text("channel_id"),
   description: text("description").notNull().default(""),
+  idempotencyKey: text("idempotency_key"),
   createdAt:   timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  uniqueIndex("coin_transactions_idempotency_key_idx").on(table.idempotencyKey),
+]);
 
 export type CoinBalance     = typeof coinBalancesTable.$inferSelect;
 export type CoinTransaction = typeof coinTransactionsTable.$inferSelect;

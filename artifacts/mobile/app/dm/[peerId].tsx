@@ -22,6 +22,9 @@ import { useColors } from "@/hooks/useColors";
 import { Avatar } from "@/components/Avatar";
 import { GiftPicker, type Gift } from "@/components/GiftPicker";
 
+const createGiftRequestKey = () =>
+  `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+
 export default function DmScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -208,6 +211,7 @@ export default function DmScreen() {
                   giftName: gift.name,
                   senderName: user.name ?? "Viewer",
                   description: `${gift.emoji} ${gift.name}`,
+                  idempotencyKey: createGiftRequestKey(),
                 },
               });
 
