@@ -408,3 +408,111 @@ export const GetUserFollowingResponse = zod.object({
 })
 
 
+export const RequestMediaPackUploadBody = zod.object({
+  "contentType": zod.string()
+})
+
+
+export const GetMediaPacksResponse = zod.object({
+  "packs": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "price": zod.number(),
+  "itemCount": zod.number(),
+  "ownerUserId": zod.string(),
+  "unlocked": zod.boolean(),
+  "isOwner": zod.boolean(),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "position": zod.number(),
+  "mediaType": zod.enum(['image', 'video']),
+  "contentType": zod.string(),
+  "width": zod.number().nullish(),
+  "height": zod.number().nullish(),
+  "durationMs": zod.number().nullish(),
+  "mediaUrl": zod.string().optional()
+}))
+}))
+})
+
+
+export const createMediaPackBodyNameMax = 80;
+
+
+export const createMediaPackBodyItemsMax = 20;
+
+
+
+export const CreateMediaPackBody = zod.object({
+  "name": zod.string().max(createMediaPackBodyNameMax),
+  "price": zod.number().min(1),
+  "items": zod.array(zod.object({
+  "objectPath": zod.string(),
+  "mediaType": zod.enum(['image', 'video']),
+  "contentType": zod.string(),
+  "width": zod.number(),
+  "height": zod.number(),
+  "durationMs": zod.number().nullish()
+})).min(1).max(createMediaPackBodyItemsMax)
+})
+
+
+export const GetMediaPackParams = zod.object({
+  "packId": zod.coerce.number()
+})
+
+export const GetMediaPackResponse = zod.object({
+  "pack": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "price": zod.number(),
+  "itemCount": zod.number(),
+  "ownerUserId": zod.string(),
+  "unlocked": zod.boolean(),
+  "isOwner": zod.boolean(),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "position": zod.number(),
+  "mediaType": zod.enum(['image', 'video']),
+  "contentType": zod.string(),
+  "width": zod.number().nullish(),
+  "height": zod.number().nullish(),
+  "durationMs": zod.number().nullish(),
+  "mediaUrl": zod.string().optional()
+}))
+})
+})
+
+
+export const DeleteMediaPackParams = zod.object({
+  "packId": zod.coerce.number()
+})
+
+export const DeleteMediaPackResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+export const SendMediaPackParams = zod.object({
+  "packId": zod.coerce.number()
+})
+
+export const SendMediaPackBody = zod.object({
+  "recipientId": zod.number(),
+  "idempotencyKey": zod.string()
+})
+
+
+export const UnlockMediaPackParams = zod.object({
+  "packId": zod.coerce.number()
+})
+
+export const UnlockMediaPackBody = zod.object({
+  "idempotencyKey": zod.string()
+})
+
+export const UnlockMediaPackResponse = zod.object({
+  "balance": zod.number()
+})
+
+

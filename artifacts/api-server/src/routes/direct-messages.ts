@@ -45,6 +45,8 @@ router.get("/dms/:uid", async (req, res) => {
       recipientId: String(message.toUserId),
       recipientName: names.get(message.toUserId) ?? String(message.toUserId),
       text: message.text,
+      kind: message.kind,
+      mediaPackId: message.mediaPackId === null ? null : String(message.mediaPackId),
       ts: message.createdAt.getTime(),
     })),
   });
@@ -96,6 +98,8 @@ router.post("/dms", async (req, res) => {
       recipientId: String(message.toUserId),
       recipientName: names.get(message.toUserId),
       text: message.text,
+      kind: message.kind,
+      mediaPackId: message.mediaPackId === null ? null : String(message.mediaPackId),
       ts: message.createdAt.getTime(),
     },
   });

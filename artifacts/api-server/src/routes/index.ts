@@ -6,6 +6,7 @@ import chatRouter from "./chat";
 import directMessagesRouter from "./direct-messages";
 import usersRouter from "./users";
 import coinsRouter from "./coins";
+import mediaPacksRouter from "./media-packs";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(chatRouter);
 router.use(directMessagesRouter);
 router.use(usersRouter);
 router.use(coinsRouter);
+router.use(mediaPacksRouter);
 
 export default router;

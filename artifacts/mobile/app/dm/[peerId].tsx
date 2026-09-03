@@ -6,6 +6,7 @@ import {
   Alert,
   FlatList,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   StyleSheet,
   Text,
@@ -15,12 +16,14 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
-import { getGetCoinBalanceQueryKey, useGetCoinBalance, useSpendCoins } from "@workspace/api-client-react";
+// @ts-ignore generated media-pack hooks
+import { getGetCoinBalanceQueryKey, useGetCoinBalance, useSpendCoins, useGetMediaPacks, useSendMediaPack } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRtm, type DmMessage } from "@/context/RtmContext";
 import { useColors } from "@/hooks/useColors";
 import { Avatar } from "@/components/Avatar";
 import { GiftPicker, type Gift } from "@/components/GiftPicker";
+import { MediaPackMessage } from "@/components/MediaPackMessage";
 
 const createGiftRequestKey = () =>
   `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
@@ -40,6 +43,7 @@ export default function DmScreen() {
   const [inputText, setInputText] = useState("");
   const [messages, setMessages] = useState<DmMessage[]>([]);
   const [showGiftPicker, setShowGiftPicker] = useState(false);
+  const [showPackPicker, setShowPackPicker] = useState(false);
   const listRef = useRef<FlatList>(null);
 
   const coinBalanceQuery = useGetCoinBalance(
@@ -47,6 +51,8 @@ export default function DmScreen() {
     { query: { enabled: !!user?.uid, refetchOnWindowFocus: false } as any },
   );
   const spendMutation = useSpendCoins();
+  const packsQuery = useGetMediaPacks({ query: { enabled: !!user?.uid, refetchOnWindowFocus: false } } as any);
+  const sendPackMutation = useSendMediaPack();
   const viewerCoins = coinBalanceQuery.data?.balance ?? 0;
 
   // Sync messages from RtmContext store
@@ -116,7 +122,9 @@ export default function DmScreen() {
               {!isMe && (
                 <Avatar uid={parseInt(item.senderId)} name={item.senderName} size={28} />
               )}
-              <View
+              {item.kind === "media_pack" && item.mediaPackId ? (
+                <MediaPackMessage packId={item.mediaPackId} mine={isMe} />
+              ) : <View
                 style={[
                   styles.bubble,
                   isMe
@@ -128,7 +136,7 @@ export default function DmScreen() {
                 <Text style={[styles.bubbleText, { color: isGift ? "#FFD700" : isMe ? "#FFF" : colors.foreground }]}>
                   {item.text}
                 </Text>
-              </View>
+              </View>}
             </View>
           );
         }}
@@ -163,6 +171,16 @@ export default function DmScreen() {
           blurOnSubmit={false}
           multiline
         />
+        <TouchableOpacity
+          style={styles.giftBtn}
+          onPress={() => setShowPackPicker(true)}
+          activeOpacity={0.75}
+          testID="send-media-pack-button"
+          accessibilityRole="button"
+          accessibilityLabel={`Send a media pack to ${name}`}
+        >
+          <Ionicons name="images-outline" size={22} color={colors.primary} />
+        </TouchableOpacity>
         <TouchableOpacity
           style={styles.giftBtn}
           onPress={() => {
@@ -236,6 +254,13 @@ export default function DmScreen() {
           })();
         }}
       />
+      <Modal visible={showPackPicker} transparent animationType="slide" onRequestClose={() => setShowPackPicker(false)}>
+        <View style={styles.pickerShade}><View style={[styles.packPicker,{backgroundColor:colors.card}]}>
+          <View style={styles.pickerHead}><Text style={[styles.pickerTitle,{color:colors.foreground}]}>Send a media pack</Text><TouchableOpacity onPress={()=>setShowPackPicker(false)}><Ionicons name="close" size={23} color={colors.foreground}/></TouchableOpacity></View>
+          {(((packsQuery.data as any)?.packs ?? packsQuery.data ?? []) as any[]).map((pack:any)=><TouchableOpacity key={pack.id} testID={`pack-send-${pack.id}`} disabled={sendPackMutation.isPending} onPress={async()=>{const recipientId=Number(peerIdStr); if(!Number.isInteger(recipientId)) return; try {await sendPackMutation.mutateAsync({packId:pack.id,data:{recipientId,idempotencyKey:createGiftRequestKey()}} as any);setShowPackPicker(false);setTimeout(()=>setMessages(getMessages(peerIdStr)),300);} catch {setSendError("Media pack couldn't be sent. Try again.");}}} style={[styles.packOption,{borderColor:colors.border}]}><Ionicons name="images" size={19} color={colors.primary}/><View style={{flex:1}}><Text style={[styles.packOptionName,{color:colors.foreground}]}>{pack.name}</Text><Text style={[styles.packOptionMeta,{color:colors.mutedForeground}]}>{pack.itemCount} items</Text></View><Text style={styles.price}>🪙 {pack.price}</Text></TouchableOpacity>)}
+          {(((packsQuery.data as any)?.packs ?? packsQuery.data ?? []) as any[]).length===0&&<Text style={[styles.packOptionMeta,{color:colors.mutedForeground}]}>Create a pack in Profile before sending one.</Text>}
+        </View></View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -333,6 +358,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(255,215,0,0.1)",
   },
+  pickerShade:{flex:1,justifyContent:"flex-end",backgroundColor:"rgba(0,0,0,0.55)"},
+  packPicker:{borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,paddingBottom:36,gap:10},
+  pickerHead:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginBottom:3},
+  pickerTitle:{fontFamily:"Inter_700Bold",fontSize:18},
+  packOption:{borderWidth:1,borderRadius:13,padding:12,flexDirection:"row",alignItems:"center",gap:10},
+  packOptionName:{fontFamily:"Inter_600SemiBold",fontSize:15},
+  packOptionMeta:{fontFamily:"Inter_400Regular",fontSize:12,marginTop:2},
+  price:{color:"#FFD700",fontFamily:"Inter_700Bold"},
   errorBanner: {
     paddingHorizontal: 16,
     paddingVertical: 6,

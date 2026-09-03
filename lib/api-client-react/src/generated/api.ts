@@ -29,6 +29,7 @@ import type {
   CoinBalanceResponse,
   CoinGrantRequest,
   CoinSpendRequest,
+  CreateMediaPackRequest,
   CreateStreamRequest,
   ErrorResponse,
   FollowRequest,
@@ -38,13 +39,20 @@ import type {
   GetFollowStatusParams,
   GetStreamChatParams,
   HealthStatus,
+  MediaPackMessageResponse,
+  MediaPackResponse,
+  MediaPackUploadRequest,
+  MediaPackUploadResponse,
+  MediaPacksResponse,
   SendChatMessageRequest,
+  SendMediaPackRequest,
   StreamEarningsResponse,
   StreamHistoryResponse,
   StreamLeaderboardResponse,
   StreamListResponse,
   StreamResponse,
   SuccessResponse,
+  UnlockMediaPackRequest,
   UpsertUserRequest,
   UserResponse,
   ViewerUpdateRequest
@@ -1803,4 +1811,472 @@ export function useGetUserFollowing<TData = Awaited<ReturnType<typeof getUserFol
 
 
 
+
+export const getRequestMediaPackUploadUrl = () => {
+
+
+
+
+  return `/api/media-packs/uploads`
+}
+
+export const requestMediaPackUpload = async (mediaPackUploadRequest: MediaPackUploadRequest, options?: RequestInit): Promise<MediaPackUploadResponse> => {
+
+  return customFetch<MediaPackUploadResponse>(getRequestMediaPackUploadUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      mediaPackUploadRequest,)
+  }
+);}
+
+
+
+
+export const getRequestMediaPackUploadMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestMediaPackUpload>>, TError,{data: BodyType<MediaPackUploadRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestMediaPackUpload>>, TError,{data: BodyType<MediaPackUploadRequest>}, TContext> => {
+
+const mutationKey = ['requestMediaPackUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestMediaPackUpload>>, {data: BodyType<MediaPackUploadRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  requestMediaPackUpload(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestMediaPackUploadMutationResult = NonNullable<Awaited<ReturnType<typeof requestMediaPackUpload>>>
+    export type RequestMediaPackUploadMutationBody = BodyType<MediaPackUploadRequest>
+    export type RequestMediaPackUploadMutationError = ErrorType<unknown>
+
+    export const useRequestMediaPackUpload = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestMediaPackUpload>>, TError,{data: BodyType<MediaPackUploadRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestMediaPackUpload>>,
+        TError,
+        {data: BodyType<MediaPackUploadRequest>},
+        TContext
+      > => {
+      return useMutation(getRequestMediaPackUploadMutationOptions(options));
+    }
+
+export const getGetMediaPacksUrl = () => {
+
+
+
+
+  return `/api/media-packs`
+}
+
+export const getMediaPacks = async ( options?: RequestInit): Promise<MediaPacksResponse> => {
+
+  return customFetch<MediaPacksResponse>(getGetMediaPacksUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMediaPacksQueryKey = () => {
+    return [
+    `/api/media-packs`
+    ] as const;
+    }
+
+
+export const getGetMediaPacksQueryOptions = <TData = Awaited<ReturnType<typeof getMediaPacks>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMediaPacks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMediaPacksQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMediaPacks>>> = ({ signal }) => getMediaPacks({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMediaPacks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMediaPacksQueryResult = NonNullable<Awaited<ReturnType<typeof getMediaPacks>>>
+export type GetMediaPacksQueryError = ErrorType<unknown>
+
+
+
+export function useGetMediaPacks<TData = Awaited<ReturnType<typeof getMediaPacks>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMediaPacks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMediaPacksQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateMediaPackUrl = () => {
+
+
+
+
+  return `/api/media-packs`
+}
+
+export const createMediaPack = async (createMediaPackRequest: CreateMediaPackRequest, options?: RequestInit): Promise<MediaPackResponse> => {
+
+  return customFetch<MediaPackResponse>(getCreateMediaPackUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createMediaPackRequest,)
+  }
+);}
+
+
+
+
+export const getCreateMediaPackMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMediaPack>>, TError,{data: BodyType<CreateMediaPackRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMediaPack>>, TError,{data: BodyType<CreateMediaPackRequest>}, TContext> => {
+
+const mutationKey = ['createMediaPack'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMediaPack>>, {data: BodyType<CreateMediaPackRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createMediaPack(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMediaPackMutationResult = NonNullable<Awaited<ReturnType<typeof createMediaPack>>>
+    export type CreateMediaPackMutationBody = BodyType<CreateMediaPackRequest>
+    export type CreateMediaPackMutationError = ErrorType<unknown>
+
+    export const useCreateMediaPack = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMediaPack>>, TError,{data: BodyType<CreateMediaPackRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createMediaPack>>,
+        TError,
+        {data: BodyType<CreateMediaPackRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateMediaPackMutationOptions(options));
+    }
+
+export const getGetMediaPackUrl = (packId: number,) => {
+
+
+
+
+  return `/api/media-packs/${packId}`
+}
+
+export const getMediaPack = async (packId: number, options?: RequestInit): Promise<MediaPackResponse> => {
+
+  return customFetch<MediaPackResponse>(getGetMediaPackUrl(packId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMediaPackQueryKey = (packId: number,) => {
+    return [
+    `/api/media-packs/${packId}`
+    ] as const;
+    }
+
+
+export const getGetMediaPackQueryOptions = <TData = Awaited<ReturnType<typeof getMediaPack>>, TError = ErrorType<unknown>>(packId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMediaPack>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMediaPackQueryKey(packId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMediaPack>>> = ({ signal }) => getMediaPack(packId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(packId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMediaPack>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMediaPackQueryResult = NonNullable<Awaited<ReturnType<typeof getMediaPack>>>
+export type GetMediaPackQueryError = ErrorType<unknown>
+
+
+
+export function useGetMediaPack<TData = Awaited<ReturnType<typeof getMediaPack>>, TError = ErrorType<unknown>>(
+ packId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMediaPack>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMediaPackQueryOptions(packId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getDeleteMediaPackUrl = (packId: number,) => {
+
+
+
+
+  return `/api/media-packs/${packId}`
+}
+
+export const deleteMediaPack = async (packId: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getDeleteMediaPackUrl(packId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteMediaPackMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMediaPack>>, TError,{packId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteMediaPack>>, TError,{packId: number}, TContext> => {
+
+const mutationKey = ['deleteMediaPack'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMediaPack>>, {packId: number}> = (props) => {
+          const {packId} = props ?? {};
+
+          return  deleteMediaPack(packId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteMediaPackMutationResult = NonNullable<Awaited<ReturnType<typeof deleteMediaPack>>>
+
+    export type DeleteMediaPackMutationError = ErrorType<unknown>
+
+    export const useDeleteMediaPack = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMediaPack>>, TError,{packId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteMediaPack>>,
+        TError,
+        {packId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteMediaPackMutationOptions(options));
+    }
+
+export const getSendMediaPackUrl = (packId: number,) => {
+
+
+
+
+  return `/api/media-packs/${packId}/send`
+}
+
+export const sendMediaPack = async (packId: number,
+    sendMediaPackRequest: SendMediaPackRequest, options?: RequestInit): Promise<MediaPackMessageResponse> => {
+
+  return customFetch<MediaPackMessageResponse>(getSendMediaPackUrl(packId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      sendMediaPackRequest,)
+  }
+);}
+
+
+
+
+export const getSendMediaPackMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendMediaPack>>, TError,{packId: number;data: BodyType<SendMediaPackRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendMediaPack>>, TError,{packId: number;data: BodyType<SendMediaPackRequest>}, TContext> => {
+
+const mutationKey = ['sendMediaPack'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendMediaPack>>, {packId: number;data: BodyType<SendMediaPackRequest>}> = (props) => {
+          const {packId,data} = props ?? {};
+
+          return  sendMediaPack(packId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendMediaPackMutationResult = NonNullable<Awaited<ReturnType<typeof sendMediaPack>>>
+    export type SendMediaPackMutationBody = BodyType<SendMediaPackRequest>
+    export type SendMediaPackMutationError = ErrorType<unknown>
+
+    export const useSendMediaPack = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendMediaPack>>, TError,{packId: number;data: BodyType<SendMediaPackRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendMediaPack>>,
+        TError,
+        {packId: number;data: BodyType<SendMediaPackRequest>},
+        TContext
+      > => {
+      return useMutation(getSendMediaPackMutationOptions(options));
+    }
+
+export const getUnlockMediaPackUrl = (packId: number,) => {
+
+
+
+
+  return `/api/media-packs/${packId}/unlock`
+}
+
+export const unlockMediaPack = async (packId: number,
+    unlockMediaPackRequest: UnlockMediaPackRequest, options?: RequestInit): Promise<CoinBalanceResponse> => {
+
+  return customFetch<CoinBalanceResponse>(getUnlockMediaPackUrl(packId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      unlockMediaPackRequest,)
+  }
+);}
+
+
+
+
+export const getUnlockMediaPackMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unlockMediaPack>>, TError,{packId: number;data: BodyType<UnlockMediaPackRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof unlockMediaPack>>, TError,{packId: number;data: BodyType<UnlockMediaPackRequest>}, TContext> => {
+
+const mutationKey = ['unlockMediaPack'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unlockMediaPack>>, {packId: number;data: BodyType<UnlockMediaPackRequest>}> = (props) => {
+          const {packId,data} = props ?? {};
+
+          return  unlockMediaPack(packId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnlockMediaPackMutationResult = NonNullable<Awaited<ReturnType<typeof unlockMediaPack>>>
+    export type UnlockMediaPackMutationBody = BodyType<UnlockMediaPackRequest>
+    export type UnlockMediaPackMutationError = ErrorType<void>
+
+    export const useUnlockMediaPack = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unlockMediaPack>>, TError,{packId: number;data: BodyType<UnlockMediaPackRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof unlockMediaPack>>,
+        TError,
+        {packId: number;data: BodyType<UnlockMediaPackRequest>},
+        TContext
+      > => {
+      return useMutation(getUnlockMediaPackMutationOptions(options));
+    }
 

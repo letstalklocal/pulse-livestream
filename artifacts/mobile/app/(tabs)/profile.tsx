@@ -266,6 +266,15 @@ export default function ProfileScreen() {
             <Ionicons name="radio" size={16} color="#FFF" />
             <Text style={styles.goLiveBtnText}>Go Live</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.packsBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
+            onPress={() => router.push("/media-packs" as any)}
+            activeOpacity={0.8}
+            testID="media-packs-entry"
+          >
+            <Ionicons name="images-outline" size={17} color={colors.primary} />
+            <Text style={[styles.packsBtnText, { color: colors.foreground }]}>Media Packs</Text>
+          </TouchableOpacity>
 
           {/* Dev: add test coins */}
           <TouchableOpacity
@@ -390,6 +399,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   goLiveBtnText: { color: "#FFF", fontSize: 15, fontWeight: "700", fontFamily: "Inter_700Bold" },
+  packsBtn: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 24, paddingHorizontal: 28, paddingVertical: 11 },
+  packsBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   devBtn: {
     borderWidth: 1,
     borderRadius: 16,

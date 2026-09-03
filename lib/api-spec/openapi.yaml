@@ -576,6 +576,48 @@ paths:
               schema:
                 $ref: "#/components/schemas/FollowingListResponse"
 
+  /media-packs/uploads:
+    post:
+      operationId: requestMediaPackUpload
+      tags: [media-packs]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/MediaPackUploadRequest" } } } }
+      responses:
+        "201": { description: Upload URL, content: { application/json: { schema: { $ref: "#/components/schemas/MediaPackUploadResponse" } } } }
+  /media-packs:
+    get:
+      operationId: getMediaPacks
+      tags: [media-packs]
+      responses: { "200": { description: Packs, content: { application/json: { schema: { $ref: "#/components/schemas/MediaPacksResponse" } } } } }
+    post:
+      operationId: createMediaPack
+      tags: [media-packs]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CreateMediaPackRequest" } } } }
+      responses: { "201": { description: Pack, content: { application/json: { schema: { $ref: "#/components/schemas/MediaPackResponse" } } } } }
+  /media-packs/{packId}:
+    parameters: [{ name: packId, in: path, required: true, schema: { type: integer } }]
+    get:
+      operationId: getMediaPack
+      tags: [media-packs]
+      responses: { "200": { description: Pack, content: { application/json: { schema: { $ref: "#/components/schemas/MediaPackResponse" } } } } }
+    delete:
+      operationId: deleteMediaPack
+      tags: [media-packs]
+      responses: { "200": { description: Deleted, content: { application/json: { schema: { $ref: "#/components/schemas/SuccessResponse" } } } } }
+  /media-packs/{packId}/send:
+    post:
+      operationId: sendMediaPack
+      tags: [media-packs]
+      parameters: [{ name: packId, in: path, required: true, schema: { type: integer } }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SendMediaPackRequest" } } } }
+      responses: { "201": { description: Sent, content: { application/json: { schema: { $ref: "#/components/schemas/MediaPackMessageResponse" } } } } }
+  /media-packs/{packId}/unlock:
+    post:
+      operationId: unlockMediaPack
+      tags: [media-packs]
+      parameters: [{ name: packId, in: path, required: true, schema: { type: integer } }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/UnlockMediaPackRequest" } } } }
+      responses: { "200": { description: Unlocked, content: { application/json: { schema: { $ref: "#/components/schemas/CoinBalanceResponse" } } } }, "402": { description: Insufficient coins } }
+
 components:
   schemas:
     HealthStatus:
@@ -1012,3 +1054,48 @@ components:
           $ref: "#/components/schemas/ChatMessage"
       required:
         - message
+
+    MediaPackUploadRequest:
+      type: object
+      properties: { contentType: { type: string } }
+      required: [contentType]
+    MediaPackUploadResponse:
+      type: object
+      properties: { uploadUrl: { type: string }, objectPath: { type: string } }
+      required: [uploadUrl, objectPath]
+    MediaPackItemInput:
+      type: object
+      properties: { objectPath: { type: string }, mediaType: { type: string, enum: [image, video] }, contentType: { type: string }, width: { type: integer }, height: { type: integer }, durationMs: { type: integer, nullable: true } }
+      required: [objectPath, mediaType, contentType, width, height]
+    CreateMediaPackRequest:
+      type: object
+      properties: { name: { type: string, maxLength: 80 }, price: { type: integer, minimum: 1 }, items: { type: array, minItems: 1, maxItems: 20, items: { $ref: "#/components/schemas/MediaPackItemInput" } } }
+      required: [name, price, items]
+    MediaPackItem:
+      type: object
+      properties: { id: { type: string }, position: { type: integer }, mediaType: { type: string, enum: [image, video] }, contentType: { type: string }, width: { type: integer, nullable: true }, height: { type: integer, nullable: true }, durationMs: { type: integer, nullable: true }, mediaUrl: { type: string } }
+      required: [id, position, mediaType, contentType]
+    MediaPack:
+      type: object
+      properties: { id: { type: string }, name: { type: string }, price: { type: integer }, itemCount: { type: integer }, ownerUserId: { type: string }, unlocked: { type: boolean }, isOwner: { type: boolean }, items: { type: array, items: { $ref: "#/components/schemas/MediaPackItem" } } }
+      required: [id, name, price, itemCount, ownerUserId, unlocked, isOwner, items]
+    MediaPackResponse:
+      type: object
+      properties: { pack: { $ref: "#/components/schemas/MediaPack" } }
+      required: [pack]
+    MediaPacksResponse:
+      type: object
+      properties: { packs: { type: array, items: { $ref: "#/components/schemas/MediaPack" } } }
+      required: [packs]
+    SendMediaPackRequest:
+      type: object
+      properties: { recipientId: { type: integer }, idempotencyKey: { type: string } }
+      required: [recipientId, idempotencyKey]
+    UnlockMediaPackRequest:
+      type: object
+      properties: { idempotencyKey: { type: string } }
+      required: [idempotencyKey]
+    MediaPackMessageResponse:
+      type: object
+      properties: { message: { type: object } }
+      required: [message]

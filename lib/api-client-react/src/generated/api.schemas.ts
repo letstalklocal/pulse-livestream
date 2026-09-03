@@ -217,6 +217,97 @@ export interface ChatMessageResponse {
   message: ChatMessage;
 }
 
+export interface MediaPackUploadRequest {
+  contentType: string;
+}
+
+export interface MediaPackUploadResponse {
+  uploadUrl: string;
+  objectPath: string;
+}
+
+export type MediaPackItemInputMediaType = typeof MediaPackItemInputMediaType[keyof typeof MediaPackItemInputMediaType];
+
+
+export const MediaPackItemInputMediaType = {
+  image: 'image',
+  video: 'video',
+} as const;
+
+export interface MediaPackItemInput {
+  objectPath: string;
+  mediaType: MediaPackItemInputMediaType;
+  contentType: string;
+  width: number;
+  height: number;
+  durationMs?: number | null;
+}
+
+export interface CreateMediaPackRequest {
+  /** @maxLength 80 */
+  name: string;
+  /** @minimum 1 */
+  price: number;
+  /**
+     * @minItems 1
+     * @maxItems 20
+     */
+  items: MediaPackItemInput[];
+}
+
+export type MediaPackItemMediaType = typeof MediaPackItemMediaType[keyof typeof MediaPackItemMediaType];
+
+
+export const MediaPackItemMediaType = {
+  image: 'image',
+  video: 'video',
+} as const;
+
+export interface MediaPackItem {
+  id: string;
+  position: number;
+  mediaType: MediaPackItemMediaType;
+  contentType: string;
+  width?: number | null;
+  height?: number | null;
+  durationMs?: number | null;
+  mediaUrl?: string;
+}
+
+export interface MediaPack {
+  id: string;
+  name: string;
+  price: number;
+  itemCount: number;
+  ownerUserId: string;
+  unlocked: boolean;
+  isOwner: boolean;
+  items: MediaPackItem[];
+}
+
+export interface MediaPackResponse {
+  pack: MediaPack;
+}
+
+export interface MediaPacksResponse {
+  packs: MediaPack[];
+}
+
+export interface SendMediaPackRequest {
+  recipientId: number;
+  idempotencyKey: string;
+}
+
+export interface UnlockMediaPackRequest {
+  idempotencyKey: string;
+}
+
+export type MediaPackMessageResponseMessage = { [key: string]: unknown };
+
+export interface MediaPackMessageResponse {
+  message: MediaPackMessageResponseMessage;
+}
+
 export type GetFollowStatusParams = {
 followerUid: number;
 };

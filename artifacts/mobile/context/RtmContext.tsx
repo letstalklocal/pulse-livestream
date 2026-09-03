@@ -18,6 +18,8 @@ export interface DmMessage {
   senderName: string;
   text: string;
   ts: number;
+  kind?: "text" | "media_pack";
+  mediaPackId?: string;
 }
 
 interface PersistedDm extends DmMessage {
@@ -108,12 +110,14 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
       senderName: message.senderName,
       text: message.text,
       ts: message.ts,
+      kind: message.kind,
+      mediaPackId: message.mediaPackId,
     };
 
     if (!messageStore[peerId]) messageStore[peerId] = [];
     messageStore[peerId]!.push(stored);
     messageStore[peerId]!.sort((a, b) => a.ts - b.ts);
-    upsertConversation(peerId, peerName, message.text, message.ts, isIncoming && unread ? 1 : 0);
+    upsertConversation(peerId, peerName, message.kind === "media_pack" ? "Media pack" : message.text, message.ts, isIncoming && unread ? 1 : 0);
     setTick((tick) => tick + 1);
   }, [uidStr, upsertConversation]);
 

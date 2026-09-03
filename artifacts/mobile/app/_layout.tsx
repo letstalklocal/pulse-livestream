@@ -5,7 +5,7 @@ import {
   Inter_700Bold,
   useFonts,
 } from "@expo-google-fonts/inter";
-import { ClerkProvider, ClerkLoaded } from "@clerk/expo";
+import { ClerkProvider, ClerkLoaded, useAuth as useClerkAuth } from "@clerk/expo";
 import { tokenCache } from "@/utils/tokenCache";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
@@ -14,7 +14,7 @@ import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { setBaseUrl } from "@workspace/api-client-react";
+import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/context/AuthContext";
 import { RtmProvider } from "@/context/RtmContext";
@@ -51,8 +51,17 @@ function RootLayoutNav() {
         options={{ headerShown: false, presentation: "fullScreenModal", animation: "none" }}
       />
       <Stack.Screen name="dm/[peerId]" options={{ headerShown: false }} />
+       <Stack.Screen name="media-packs" options={{ headerShown: false }} />
     </Stack>
   );
+}
+
+function ApiAuthBridge({ children }: { children: React.ReactNode }) {
+  const { getToken } = useClerkAuth();
+  useEffect(() => {
+    setAuthTokenGetter(() => getToken());
+  }, [getToken]);
+  return <>{children}</>;
 }
 
 export default function RootLayout() {
@@ -74,7 +83,7 @@ export default function RootLayout() {
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache} proxyUrl={proxyUrl}>
       <ClerkLoaded>
-        <SafeAreaProvider>
+        <ApiAuthBridge><SafeAreaProvider>
           <ErrorBoundary>
             <QueryClientProvider client={queryClient}>
               <GestureHandlerRootView style={{ flex: 1 }}>
@@ -88,7 +97,7 @@ export default function RootLayout() {
               </GestureHandlerRootView>
             </QueryClientProvider>
           </ErrorBoundary>
-        </SafeAreaProvider>
+        </SafeAreaProvider></ApiAuthBridge>
       </ClerkLoaded>
     </ClerkProvider>
   );
