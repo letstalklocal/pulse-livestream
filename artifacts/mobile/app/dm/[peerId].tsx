@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as Crypto from "expo-crypto";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -28,7 +29,7 @@ import { MediaChooser } from "@/components/MediaChooser";
 import { DirectMediaMessage } from "@/components/DirectMediaMessage";
 
 const createGiftRequestKey = () =>
-  `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+  Crypto.randomUUID();
 
 export default function DmScreen() {
   const colors = useColors();

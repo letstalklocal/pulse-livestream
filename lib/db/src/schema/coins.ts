@@ -18,6 +18,7 @@ export const coinTransactionsTable = pgTable("coin_transactions", {
   channelId:   text("channel_id"),
   description: text("description").notNull().default(""),
   idempotencyKey: text("idempotency_key"),
+  balanceAfter: integer("balance_after"),
   createdAt:   timestamp("created_at").defaultNow().notNull(),
 }, (table) => [
   uniqueIndex("coin_transactions_idempotency_key_idx").on(table.idempotencyKey),

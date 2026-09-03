@@ -137,12 +137,17 @@ router.post("/coins/spend", async (req, res) => {
           existing[0].channelId === (channelId ?? null);
         if (!sameRequest) throw new IdempotencyConflictError();
 
-        const currentBalance = await tx
-          .select({ balance: coinBalancesTable.balance })
-          .from(coinBalancesTable)
-          .where(eq(coinBalancesTable.userId, uid))
-          .limit(1);
-        return { balance: currentBalance[0]?.balance ?? 0, duplicate: true };
+        const currentBalance = existing[0].balanceAfter == null
+          ? await tx
+              .select({ balance: coinBalancesTable.balance })
+              .from(coinBalancesTable)
+              .where(eq(coinBalancesTable.userId, uid))
+              .limit(1)
+          : [];
+        return {
+          balance: existing[0].balanceAfter ?? currentBalance[0]?.balance ?? 0,
+          duplicate: true,
+        };
       }
 
       // Keep the row creation inside the transaction so every balance operation
@@ -186,6 +191,7 @@ router.post("/coins/spend", async (req, res) => {
         channelId:   channelId ?? null,
         description: description ?? "",
         idempotencyKey,
+        balanceAfter: updated[0].balance,
       });
 
       return { balance: updated[0].balance, duplicate: false };
@@ -195,7 +201,7 @@ router.post("/coins/spend", async (req, res) => {
       res.status(409).json({ error: "This idempotency key was already used for a different gift." });
       return;
     }
-    console.error("[coins] gift transaction failed:", error);
+    req.log.error({ err: error }, "Gift transaction failed");
     res.status(500).json({ error: "Gift could not be completed. No balances were changed." });
     return;
   }
@@ -224,7 +230,7 @@ router.post("/coins/spend", async (req, res) => {
     } catch (error) {
       // The transfer is already committed. A notification failure must not
       // cause the client to retry and charge the sender a second time.
-      console.warn("[coins] gift notification failed after commit:", error);
+      req.log.warn({ err: error }, "Gift notification failed after commit");
     }
   }
 
@@ -268,6 +274,7 @@ router.post("/coins/grant", async (req, res) => {
         giftName:    null,
         channelId:   null,
         description: note ?? "manual grant",
+        balanceAfter: updated[0]?.balance ?? amount,
       });
 
       return updated[0]?.balance ?? amount;
@@ -275,7 +282,7 @@ router.post("/coins/grant", async (req, res) => {
 
     res.json({ balance });
   } catch (error) {
-    console.error("[coins] grant transaction failed:", error);
+    req.log.error({ err: error }, "Grant transaction failed");
     res.status(500).json({ error: "Coins could not be granted. No balance was changed." });
   }
 });

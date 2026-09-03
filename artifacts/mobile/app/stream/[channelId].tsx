@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Crypto from "expo-crypto";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -52,7 +53,7 @@ import {
 const isNative = Platform.OS === "ios" || Platform.OS === "android";
 
 const createGiftRequestKey = () =>
-  `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+  Crypto.randomUUID();
 
 interface ChatMsg {
   id: string;

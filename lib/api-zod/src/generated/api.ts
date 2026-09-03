@@ -347,6 +347,10 @@ export const GetCoinBalanceResponse = zod.object({
 /**
  * @summary Spend coins on a gift
  */
+export const spendCoinsBodyIdempotencyKeyMax = 100;
+
+
+
 export const SpendCoinsBody = zod.object({
   "uid": zod.number().describe('Sender user ID'),
   "recipientUid": zod.number().optional().describe('Recipient (streamer) user ID'),
@@ -355,7 +359,7 @@ export const SpendCoinsBody = zod.object({
   "senderName": zod.string().optional().describe('Display name of the viewer sending the gift'),
   "channelId": zod.string().optional().describe('Stream channel where the gift was sent'),
   "description": zod.string().optional(),
-  "idempotencyKey": zod.string().describe('Unique key for safely retrying the same gift request')
+  "idempotencyKey": zod.string().min(1).max(spendCoinsBodyIdempotencyKeyMax).describe('Unique key for safely retrying the same gift request')
 })
 
 export const SpendCoinsResponse = zod.object({
