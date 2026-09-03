@@ -106,56 +106,91 @@ router.post("/coins/spend", async (req, res) => {
     return;
   }
 
-  const current = await getOrCreateBalance(uid);
-  if (current < amount) {
+  const effectiveRecipientUid =
+    typeof recipientUid === "number" && recipientUid !== uid ? recipientUid : null;
+
+  let transfer: { balance: number } | null;
+  try {
+    transfer = await db.transaction(async (tx) => {
+      // Keep the row creation inside the transaction so every balance operation
+      // uses the same atomic unit of work.
+      await tx
+        .insert(coinBalancesTable)
+        .values({ userId: uid, balance: 0 })
+        .onConflictDoNothing();
+
+      // The balance predicate is evaluated while PostgreSQL locks this row.
+      // Concurrent gifts therefore cannot both spend the same coins.
+      const updated = await tx
+        .update(coinBalancesTable)
+        .set({ balance: sql`${coinBalancesTable.balance} - ${amount}`, updatedAt: new Date() })
+        .where(and(
+          eq(coinBalancesTable.userId, uid),
+          sql`${coinBalancesTable.balance} >= ${amount}`,
+        ))
+        .returning();
+
+      if (!updated[0]) return null;
+
+      if (effectiveRecipientUid) {
+        await tx
+          .insert(coinBalancesTable)
+          .values({ userId: effectiveRecipientUid, balance: 0 })
+          .onConflictDoNothing();
+        await tx
+          .update(coinBalancesTable)
+          .set({ balance: sql`${coinBalancesTable.balance} + ${amount}`, updatedAt: new Date() })
+          .where(eq(coinBalancesTable.userId, effectiveRecipientUid));
+      }
+
+      // The ledger row commits or rolls back with both balance changes.
+      await tx.insert(coinTransactionsTable).values({
+        fromUserId:  uid,
+        toUserId:    effectiveRecipientUid,
+        amount,
+        type:        "gift",
+        giftName:    giftName ?? null,
+        channelId:   channelId ?? null,
+        description: description ?? "",
+      });
+
+      return { balance: updated[0].balance };
+    });
+  } catch (error) {
+    console.error("[coins] gift transaction failed:", error);
+    res.status(500).json({ error: "Gift could not be completed. No balances were changed." });
+    return;
+  }
+
+  if (!transfer) {
+    const current = await getOrCreateBalance(uid);
     res.status(402).json({ error: "Insufficient coins", balance: current });
     return;
   }
 
-  // Deduct from sender
-  const updated = await db
-    .update(coinBalancesTable)
-    .set({ balance: sql`${coinBalancesTable.balance} - ${amount}`, updatedAt: new Date() })
-    .where(eq(coinBalancesTable.userId, uid))
-    .returning();
-
-  // Credit recipient (streamer) if provided
-  if (recipientUid && typeof recipientUid === "number" && recipientUid !== uid) {
-    await getOrCreateBalance(recipientUid);
-    await db
-      .update(coinBalancesTable)
-      .set({ balance: sql`${coinBalancesTable.balance} + ${amount}`, updatedAt: new Date() })
-      .where(eq(coinBalancesTable.userId, recipientUid));
-  }
-
-  // Single unified transaction row — captures both sides, channel, and gift name
-  await db.insert(coinTransactionsTable).values({
-    fromUserId:  uid,
-    toUserId:    recipientUid ?? null,
-    amount,
-    type:        "gift",
-    giftName:    giftName ?? null,
-    channelId:   channelId ?? null,
-    description: description ?? "",
-  });
-
   // Push updated earnings total to broadcaster's WebSocket immediately
   if (channelId) {
-    const rows = await db
-      .select({ total: sql<number>`coalesce(sum(${coinTransactionsTable.amount}), 0)` })
-      .from(coinTransactionsTable)
-      .where(
-        and(
-          eq(coinTransactionsTable.channelId, channelId),
-          eq(coinTransactionsTable.type, "gift"),
-        ),
-      );
-    const total = Number(rows[0]?.total ?? 0);
-    wsHub.pushEarnings(channelId, total);
-    wsHub.pushGift(channelId, giftName ?? "", senderName ?? "Viewer", total);
+    try {
+      const rows = await db
+        .select({ total: sql<number>`coalesce(sum(${coinTransactionsTable.amount}), 0)` })
+        .from(coinTransactionsTable)
+        .where(
+          and(
+            eq(coinTransactionsTable.channelId, channelId),
+            eq(coinTransactionsTable.type, "gift"),
+          ),
+        );
+      const total = Number(rows[0]?.total ?? 0);
+      wsHub.pushEarnings(channelId, total);
+      wsHub.pushGift(channelId, giftName ?? "", senderName ?? "Viewer", total);
+    } catch (error) {
+      // The transfer is already committed. A notification failure must not
+      // cause the client to retry and charge the sender a second time.
+      console.warn("[coins] gift notification failed after commit:", error);
+    }
   }
 
-  res.json({ balance: updated[0]?.balance ?? current - amount });
+  res.json({ balance: transfer.balance });
 });
 
 // POST /coins/grant  (dev / manual testing — no payment required)
@@ -174,25 +209,37 @@ router.post("/coins/grant", async (req, res) => {
     return;
   }
 
-  await getOrCreateBalance(uid);
+  try {
+    const balance = await db.transaction(async (tx) => {
+      await tx
+        .insert(coinBalancesTable)
+        .values({ userId: uid, balance: 0 })
+        .onConflictDoNothing();
 
-  const updated = await db
-    .update(coinBalancesTable)
-    .set({ balance: sql`${coinBalancesTable.balance} + ${amount}`, updatedAt: new Date() })
-    .where(eq(coinBalancesTable.userId, uid))
-    .returning();
+      const updated = await tx
+        .update(coinBalancesTable)
+        .set({ balance: sql`${coinBalancesTable.balance} + ${amount}`, updatedAt: new Date() })
+        .where(eq(coinBalancesTable.userId, uid))
+        .returning();
 
-  await db.insert(coinTransactionsTable).values({
-    fromUserId:  null,
-    toUserId:    uid,
-    amount,
-    type:        "grant",
-    giftName:    null,
-    channelId:   null,
-    description: note ?? "manual grant",
-  });
+      await tx.insert(coinTransactionsTable).values({
+        fromUserId:  null,
+        toUserId:    uid,
+        amount,
+        type:        "grant",
+        giftName:    null,
+        channelId:   null,
+        description: note ?? "manual grant",
+      });
 
-  res.json({ balance: updated[0]?.balance ?? amount });
+      return updated[0]?.balance ?? amount;
+    });
+
+    res.json({ balance });
+  } catch (error) {
+    console.error("[coins] grant transaction failed:", error);
+    res.status(500).json({ error: "Coins could not be granted. No balance was changed." });
+  }
 });
 
 export default router;
