@@ -4,13 +4,13 @@ import { File } from "expo-file-system";
 import { fetch } from "expo/fetch";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import React, { useState, useEffect } from "react";
 import { Alert, FlatList, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 // Pack operations are generated from the API spec during the API build.
 // @ts-ignore generated media-pack hooks
-import { useCreateMediaPack, useDeleteMediaPack, useGetMediaPacks, useRequestMediaPackUpload } from "@workspace/api-client-react";
+import { useCreateMediaPack, useDeleteMediaPack, useGetMediaPacks, useRequestMediaPackUpload, useSendMediaPack } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 
 type PickedAsset = ImagePicker.ImagePickerAsset;
@@ -18,10 +18,16 @@ const nativeOnly = () => Platform.OS === "web";
 
 export default function MediaPacksScreen() {
   const colors = useColors(); const insets = useSafeAreaInsets(); const router = useRouter();
+  const { create: createParam, recipientId } = useLocalSearchParams<{ create?: string; recipientId?: string }>();
   const packsQuery = useGetMediaPacks({ query: { refetchOnWindowFocus: false } } as any);
   const create = useCreateMediaPack(); const remove = useDeleteMediaPack(); const requestUpload = useRequestMediaPackUpload();
+  const sendPack = useSendMediaPack();
   const [visible, setVisible] = useState(false); const [name, setName] = useState(""); const [price, setPrice] = useState("");
   const [assets, setAssets] = useState<PickedAsset[]>([]); const [saving, setSaving] = useState(false); const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (createParam === "1") setVisible(true);
+  }, [createParam]);
   const choose = async () => {
     if (nativeOnly()) { Alert.alert("Native app required", "Selecting and uploading media packs is available in the iOS or Android app."); return; }
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -42,8 +48,24 @@ export default function MediaPacksScreen() {
         if (!response.ok) throw new Error(`Upload ${i + 1} failed. Please try again.`);
         items.push({ mediaType: asset.type === "video" ? "video" as const : "image" as const, contentType: asset.mimeType ?? "image/jpeg", width: asset.width, height: asset.height, durationMs: asset.duration ?? undefined, objectPath: (upload as any).objectPath });
       }
-      await create.mutateAsync({ data: { name: name.trim(), price: coinPrice, items } });
-      await packsQuery.refetch(); setVisible(false); setName(""); setPrice(""); setAssets([]);
+      const createdPack = await create.mutateAsync({ data: { name: name.trim(), price: coinPrice, items } });
+      await packsQuery.refetch();
+
+      if (recipientId) {
+        const createdPackId = (createdPack as any)?.pack?.id ?? (createdPack as any)?.id;
+        await sendPack.mutateAsync({
+          packId: createdPackId,
+          data: {
+            recipientId: Number(recipientId),
+            idempotencyKey: `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`
+          } as any
+        });
+        setVisible(false);
+        router.back();
+        return;
+      }
+
+      setVisible(false); setName(""); setPrice(""); setAssets([]);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Your pack could not be created. Check your connection and try again."); }
     finally { setSaving(false); }
   };

@@ -6,6 +6,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useAuth as useClerkAuth } from "@clerk/expo";
 import { useAuth } from "@/context/AuthContext";
 
 const BASE_URL = process.env["EXPO_PUBLIC_DOMAIN"]
@@ -18,8 +19,13 @@ export interface DmMessage {
   senderName: string;
   text: string;
   ts: number;
-  kind?: "text" | "media_pack";
+  kind?: "text" | "media_pack" | "media";
   mediaPackId?: string;
+  mediaUrl?: string;
+  previewUrl?: string;
+  price?: number;
+  unlocked?: boolean;
+  mediaType?: "image" | "video";
 }
 
 interface PersistedDm extends DmMessage {
@@ -58,17 +64,23 @@ const messageStore: Record<string, DmMessage[]> = {};
 
 export function RtmProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const { getToken } = useClerkAuth();
   const [ready, setReady] = useState(false);
   const [rtmError, setRtmError] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [, setTick] = useState(0);
 
   const rtmClientRef = useRef<unknown>(null);
+  const getTokenRef = useRef(getToken);
   const syncedMessageIdsRef = useRef(new Set<string>());
   const initialSyncCompleteRef = useRef(false);
 
   const uid = user?.uid;
   const uidStr = uid != null ? String(uid) : null;
+
+  useEffect(() => {
+    getTokenRef.current = getToken;
+  }, [getToken]);
 
   const upsertConversation = useCallback((
     peerId: string,
@@ -112,12 +124,17 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
       ts: message.ts,
       kind: message.kind,
       mediaPackId: message.mediaPackId,
+      mediaUrl: message.mediaUrl,
+      previewUrl: message.previewUrl,
+      price: message.price,
+      unlocked: message.unlocked,
+      mediaType: message.mediaType,
     };
 
     if (!messageStore[peerId]) messageStore[peerId] = [];
     messageStore[peerId]!.push(stored);
     messageStore[peerId]!.sort((a, b) => a.ts - b.ts);
-    upsertConversation(peerId, peerName, message.kind === "media_pack" ? "Media pack" : message.text, message.ts, isIncoming && unread ? 1 : 0);
+    upsertConversation(peerId, peerName, message.kind === "media_pack" ? "Media pack" : message.kind === "media" ? "Media" : message.text, message.ts, isIncoming && unread ? 1 : 0);
     setTick((tick) => tick + 1);
   }, [uidStr, upsertConversation]);
 
@@ -132,7 +149,10 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
 
     const syncMessages = async () => {
       try {
-        const response = await fetch(`${BASE_URL}/api/dms/${encodeURIComponent(uidStr)}`);
+        const token = await getTokenRef.current();
+        const response = await fetch(`${BASE_URL}/api/dms/${encodeURIComponent(uidStr)}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
         if (!response.ok || !active) return;
         const data = await response.json() as { messages?: PersistedDm[] };
         for (const message of data.messages ?? []) {

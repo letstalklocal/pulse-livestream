@@ -31,6 +31,8 @@ import type {
   CoinSpendRequest,
   CreateMediaPackRequest,
   CreateStreamRequest,
+  DirectMessageResponse,
+  DirectMessagesResponse,
   ErrorResponse,
   FollowRequest,
   FollowStatusResponse,
@@ -45,6 +47,7 @@ import type {
   MediaPackUploadResponse,
   MediaPacksResponse,
   SendChatMessageRequest,
+  SendMediaDmRequest,
   SendMediaPackRequest,
   StreamEarningsResponse,
   StreamHistoryResponse,
@@ -52,6 +55,8 @@ import type {
   StreamListResponse,
   StreamResponse,
   SuccessResponse,
+  UnlockMediaDmRequest,
+  UnlockMediaDmResponse,
   UnlockMediaPackRequest,
   UpsertUserRequest,
   UserResponse,
@@ -2278,5 +2283,207 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getUnlockMediaPackMutationOptions(options));
+    }
+
+export const getGetDirectMessagesUrl = (uid: number,) => {
+
+
+
+
+  return `/api/dms/${uid}`
+}
+
+export const getDirectMessages = async (uid: number, options?: RequestInit): Promise<DirectMessagesResponse> => {
+
+  return customFetch<DirectMessagesResponse>(getGetDirectMessagesUrl(uid),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDirectMessagesQueryKey = (uid: number,) => {
+    return [
+    `/api/dms/${uid}`
+    ] as const;
+    }
+
+
+export const getGetDirectMessagesQueryOptions = <TData = Awaited<ReturnType<typeof getDirectMessages>>, TError = ErrorType<unknown>>(uid: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDirectMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDirectMessagesQueryKey(uid);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDirectMessages>>> = ({ signal }) => getDirectMessages(uid, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(uid), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDirectMessages>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDirectMessagesQueryResult = NonNullable<Awaited<ReturnType<typeof getDirectMessages>>>
+export type GetDirectMessagesQueryError = ErrorType<unknown>
+
+
+
+export function useGetDirectMessages<TData = Awaited<ReturnType<typeof getDirectMessages>>, TError = ErrorType<unknown>>(
+ uid: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDirectMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDirectMessagesQueryOptions(uid,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSendMediaDmUrl = () => {
+
+
+
+
+  return `/api/dms/media`
+}
+
+export const sendMediaDm = async (sendMediaDmRequest: SendMediaDmRequest, options?: RequestInit): Promise<DirectMessageResponse> => {
+
+  return customFetch<DirectMessageResponse>(getSendMediaDmUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      sendMediaDmRequest,)
+  }
+);}
+
+
+
+
+export const getSendMediaDmMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendMediaDm>>, TError,{data: BodyType<SendMediaDmRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendMediaDm>>, TError,{data: BodyType<SendMediaDmRequest>}, TContext> => {
+
+const mutationKey = ['sendMediaDm'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendMediaDm>>, {data: BodyType<SendMediaDmRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  sendMediaDm(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendMediaDmMutationResult = NonNullable<Awaited<ReturnType<typeof sendMediaDm>>>
+    export type SendMediaDmMutationBody = BodyType<SendMediaDmRequest>
+    export type SendMediaDmMutationError = ErrorType<void>
+
+    export const useSendMediaDm = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendMediaDm>>, TError,{data: BodyType<SendMediaDmRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendMediaDm>>,
+        TError,
+        {data: BodyType<SendMediaDmRequest>},
+        TContext
+      > => {
+      return useMutation(getSendMediaDmMutationOptions(options));
+    }
+
+export const getUnlockMediaDmUrl = (messageId: number,) => {
+
+
+
+
+  return `/api/dms/${messageId}/unlock`
+}
+
+export const unlockMediaDm = async (messageId: number,
+    unlockMediaDmRequest: UnlockMediaDmRequest, options?: RequestInit): Promise<UnlockMediaDmResponse> => {
+
+  return customFetch<UnlockMediaDmResponse>(getUnlockMediaDmUrl(messageId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      unlockMediaDmRequest,)
+  }
+);}
+
+
+
+
+export const getUnlockMediaDmMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unlockMediaDm>>, TError,{messageId: number;data: BodyType<UnlockMediaDmRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof unlockMediaDm>>, TError,{messageId: number;data: BodyType<UnlockMediaDmRequest>}, TContext> => {
+
+const mutationKey = ['unlockMediaDm'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unlockMediaDm>>, {messageId: number;data: BodyType<UnlockMediaDmRequest>}> = (props) => {
+          const {messageId,data} = props ?? {};
+
+          return  unlockMediaDm(messageId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnlockMediaDmMutationResult = NonNullable<Awaited<ReturnType<typeof unlockMediaDm>>>
+    export type UnlockMediaDmMutationBody = BodyType<UnlockMediaDmRequest>
+    export type UnlockMediaDmMutationError = ErrorType<void>
+
+    export const useUnlockMediaDm = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unlockMediaDm>>, TError,{messageId: number;data: BodyType<UnlockMediaDmRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof unlockMediaDm>>,
+        TError,
+        {messageId: number;data: BodyType<UnlockMediaDmRequest>},
+        TContext
+      > => {
+      return useMutation(getUnlockMediaDmMutationOptions(options));
     }
 

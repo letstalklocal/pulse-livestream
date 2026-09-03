@@ -24,6 +24,8 @@ import { useColors } from "@/hooks/useColors";
 import { Avatar } from "@/components/Avatar";
 import { GiftPicker, type Gift } from "@/components/GiftPicker";
 import { MediaPackMessage } from "@/components/MediaPackMessage";
+import { MediaChooser } from "@/components/MediaChooser";
+import { DirectMediaMessage } from "@/components/DirectMediaMessage";
 
 const createGiftRequestKey = () =>
   `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
@@ -44,6 +46,7 @@ export default function DmScreen() {
   const [messages, setMessages] = useState<DmMessage[]>([]);
   const [showGiftPicker, setShowGiftPicker] = useState(false);
   const [showPackPicker, setShowPackPicker] = useState(false);
+  const [showMediaChooser, setShowMediaChooser] = useState(false);
   const listRef = useRef<FlatList>(null);
 
   const coinBalanceQuery = useGetCoinBalance(
@@ -124,6 +127,8 @@ export default function DmScreen() {
               )}
               {item.kind === "media_pack" && item.mediaPackId ? (
                 <MediaPackMessage packId={item.mediaPackId} mine={isMe} />
+              ) : item.kind === "media" ? (
+                <DirectMediaMessage message={item} mine={isMe} />
               ) : <View
                 style={[
                   styles.bubble,
@@ -173,11 +178,11 @@ export default function DmScreen() {
         />
         <TouchableOpacity
           style={styles.giftBtn}
-          onPress={() => setShowPackPicker(true)}
+          onPress={() => setShowMediaChooser(true)}
           activeOpacity={0.75}
-          testID="send-media-pack-button"
+          testID="chooser"
           accessibilityRole="button"
-          accessibilityLabel={`Send a media pack to ${name}`}
+          accessibilityLabel={`Send media to ${name}`}
         >
           <Ionicons name="images-outline" size={22} color={colors.primary} />
         </TouchableOpacity>
@@ -205,6 +210,15 @@ export default function DmScreen() {
         </TouchableOpacity>
       </View>
 
+      <MediaChooser
+        visible={showMediaChooser}
+        peerId={peerIdStr}
+        onClose={() => setShowMediaChooser(false)}
+        onOpenPackPicker={() => setShowPackPicker(true)}
+        onMediaSent={() => {
+          setTimeout(() => setMessages(getMessages(peerIdStr)), 500);
+        }}
+      />
       <GiftPicker
         visible={showGiftPicker}
         coins={viewerCoins}
@@ -255,7 +269,7 @@ export default function DmScreen() {
         }}
       />
       <Modal visible={showPackPicker} transparent animationType="slide" onRequestClose={() => setShowPackPicker(false)}>
-        <View style={styles.pickerShade}><View style={[styles.packPicker,{backgroundColor:colors.card}]}>
+        <View style={[styles.pickerShade, { paddingBottom: Platform.OS === "android" ? 28 : 0 }]}><View style={[styles.packPicker,{backgroundColor:colors.card}]}>
           <View style={styles.pickerHead}><Text style={[styles.pickerTitle,{color:colors.foreground}]}>Send a media pack</Text><TouchableOpacity onPress={()=>setShowPackPicker(false)}><Ionicons name="close" size={23} color={colors.foreground}/></TouchableOpacity></View>
           {(((packsQuery.data as any)?.packs ?? packsQuery.data ?? []) as any[]).map((pack:any)=><TouchableOpacity key={pack.id} testID={`pack-send-${pack.id}`} disabled={sendPackMutation.isPending} onPress={async()=>{const recipientId=Number(peerIdStr); if(!Number.isInteger(recipientId)) return; try {await sendPackMutation.mutateAsync({packId:pack.id,data:{recipientId,idempotencyKey:createGiftRequestKey()}} as any);setShowPackPicker(false);setTimeout(()=>setMessages(getMessages(peerIdStr)),300);} catch {setSendError("Media pack couldn't be sent. Try again.");}}} style={[styles.packOption,{borderColor:colors.border}]}><Ionicons name="images" size={19} color={colors.primary}/><View style={{flex:1}}><Text style={[styles.packOptionName,{color:colors.foreground}]}>{pack.name}</Text><Text style={[styles.packOptionMeta,{color:colors.mutedForeground}]}>{pack.itemCount} items</Text></View><Text style={styles.price}>🪙 {pack.price}</Text></TouchableOpacity>)}
           {(((packsQuery.data as any)?.packs ?? packsQuery.data ?? []) as any[]).length===0&&<Text style={[styles.packOptionMeta,{color:colors.mutedForeground}]}>Create a pack in Profile before sending one.</Text>}
@@ -358,7 +372,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(255,215,0,0.1)",
   },
-  pickerShade:{flex:1,justifyContent:"flex-end",backgroundColor:"rgba(0,0,0,0.55)"},
+  pickerShade: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" },
   packPicker:{borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,paddingBottom:36,gap:10},
   pickerHead:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginBottom:3},
   pickerTitle:{fontFamily:"Inter_700Bold",fontSize:18},

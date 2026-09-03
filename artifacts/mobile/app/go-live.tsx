@@ -109,6 +109,8 @@ export default function GoLiveScreen() {
   const [chatText, setChatText] = useState("");
   const chatInputRef = useRef<TextInput>(null);
   const [isStarting, setIsStarting] = useState(false);
+  const [cameraReady, setCameraReady] = useState(!isNative);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const [duration, setDuration] = useState(0);
   const [chatMessages, setChatMessages] = useState<Array<{ id: string; senderName: string; text: string; color: string; ts: number }>>([]);
   const chatListRef = useRef<FlatList>(null);
@@ -212,15 +214,22 @@ export default function GoLiveScreen() {
       if (!mounted) return;
       if (!ok) {
         console.warn("[Agora] Permissions denied");
+        setCameraError("Camera and microphone access are required before you can go live.");
         return;
       }
       try {
         const engine = createEngine();
-        if (!engine) return;
-        engine.initialize({
-          appId: process.env["EXPO_PUBLIC_AGORA_APP_ID"] ?? "",
+        if (!engine) {
+          setCameraError("This development build does not include the Agora camera module.");
+          return;
+        }
+        const appId = process.env["EXPO_PUBLIC_AGORA_APP_ID"] ?? "";
+        if (!appId) throw new Error("Agora App ID is missing");
+        const initializeResult = engine.initialize({
+          appId,
           channelProfile: ChannelProfileType.ChannelProfileLiveBroadcasting,
         });
+        if (initializeResult < 0) throw new Error(`Agora initialization failed (${initializeResult})`);
         // Log Agora errors to help diagnose black-screen issues
         engine.registerEventHandler({
           onError: (err: number, msg: string) =>
@@ -231,14 +240,23 @@ export default function GoLiveScreen() {
             console.log("[Agora] localVideoState source:", source, "state:", state, "reason:", reason),
         });
         engine.setClientRole(ClientRoleType.ClientRoleBroadcaster);
-        engine.enableVideo();
-        engine.enableAudio();
-        // startPreview BEFORE the RtcTextureView mounts so the camera is
-        // already capturing when the view connects to it
-        engine.startPreview();
+        const videoResult = engine.enableVideo();
+        const audioResult = engine.enableAudio();
+        const previewResult = engine.startPreview();
+        if (videoResult < 0 || audioResult < 0 || previewResult < 0) {
+          throw new Error(`Agora camera setup failed (${videoResult}, ${audioResult}, ${previewResult})`);
+        }
         engineRef.current = engine;
+        if (mounted) {
+          setCameraReady(true);
+          setCameraError(null);
+        }
       } catch (e) {
         console.warn("[Agora] init error:", e);
+        if (mounted) {
+          setCameraReady(false);
+          setCameraError(e instanceof Error ? e.message : "The camera could not be started.");
+        }
       }
     })();
 
@@ -272,6 +290,10 @@ export default function GoLiveScreen() {
 
   const startLive = useCallback(async () => {
     if (!title.trim()) return;
+    if (isNative && (!cameraReady || !engineRef.current)) {
+      setCameraError("Wait for the camera preview before going live.");
+      return;
+    }
     setIsStarting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
@@ -307,7 +329,7 @@ export default function GoLiveScreen() {
     } catch (_e) {
       setIsStarting(false);
     }
-  }, [title, category, user, generateToken, createStream]);
+  }, [title, category, user, generateToken, createStream, cameraReady]);
 
   const toggleMute = useCallback(() => {
     const next = !isMuted;
@@ -584,8 +606,24 @@ export default function GoLiveScreen() {
           />
         </View>
 
-        <View style={[styles.setupIcon, { backgroundColor: catColor + "22", borderColor: catColor + "55" }]}>
-          <Ionicons name="radio" size={40} color={catColor} />
+        <View style={[styles.cameraPreview, { backgroundColor: catColor + "22", borderColor: catColor + "55" }]}>
+          {isNative && cameraReady && VideoView ? (
+            <VideoView
+              canvas={{ uid: 0, sourceType: VideoSourceType.VideoSourceCamera }}
+              style={StyleSheet.absoluteFill}
+            />
+          ) : (
+            <View style={styles.cameraPreviewStatus}>
+              {isNative && !cameraError ? (
+                <ActivityIndicator color={catColor} />
+              ) : (
+                <Ionicons name={isNative ? "videocam-off" : "radio"} size={40} color={catColor} />
+              )}
+              <Text style={[styles.cameraPreviewText, { color: colors.mutedForeground }]}>
+                {isNative ? cameraError ?? "Preparing camera…" : "Camera preview requires a native build"}
+              </Text>
+            </View>
+          )}
         </View>
 
         <Text style={[styles.setupTitle, { color: colors.foreground }]}>
@@ -627,12 +665,12 @@ export default function GoLiveScreen() {
           style={[
             styles.goLiveBtn,
             {
-              backgroundColor: title.trim() ? catColor : colors.muted,
-              opacity: isStarting ? 0.7 : 1,
+              backgroundColor: title.trim() && cameraReady ? catColor : colors.muted,
+              opacity: isStarting || (isNative && !cameraReady) ? 0.7 : 1,
             },
           ]}
           onPress={startLive}
-          disabled={!title.trim() || isStarting}
+          disabled={!title.trim() || isStarting || (isNative && !cameraReady)}
           activeOpacity={0.85}
         >
           {isStarting ? (
@@ -641,7 +679,7 @@ export default function GoLiveScreen() {
             <>
               <Ionicons name="radio" size={20} color="#FFF" />
               <Text style={styles.goLiveBtnText}>
-                {isNative ? "Go Live" : "Go Live (Demo)"}
+                {isNative && !cameraReady ? "Preparing Camera" : isNative ? "Go Live" : "Go Live (Demo)"}
               </Text>
             </>
           )}
@@ -674,14 +712,21 @@ const styles = StyleSheet.create({
   demoCameraLabel: { fontSize: 18, fontWeight: "700", fontFamily: "Inter_700Bold" },
   demoCameraNote: { color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "Inter_400Regular" },
   setupContent: { alignItems: "center", paddingHorizontal: 24, gap: 20 },
-  setupIcon: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+  cameraPreview: {
+    width: "100%",
+    aspectRatio: 3 / 4,
+    maxHeight: 340,
+    borderRadius: 20,
     borderWidth: 2,
+    overflow: "hidden",
+  },
+  cameraPreviewStatus: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    gap: 12,
   },
+  cameraPreviewText: { fontSize: 13, fontFamily: "Inter_500Medium", textAlign: "center", paddingHorizontal: 24 },
   setupTitle: { fontSize: 26, fontWeight: "700", fontFamily: "Inter_700Bold", textAlign: "center" },
   setupSubtitle: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: -8 },
   inputSection: { width: "100%", gap: 8 },

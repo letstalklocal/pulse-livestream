@@ -126,7 +126,7 @@ export default function ChatScreen() {
       {/* New DM modal — search following list */}
       <Modal visible={showNewDm} transparent animationType="slide" onRequestClose={() => setShowNewDm(false)}>
         <View style={styles.modalBackdrop}>
-          <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.card, paddingBottom: insets.bottom + (Platform.OS === "android" ? 28 : 16) }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>New Message</Text>
               <TouchableOpacity onPress={() => { setShowNewDm(false); setSearch(""); }}>

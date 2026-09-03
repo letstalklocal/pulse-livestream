@@ -309,6 +309,88 @@ export interface MediaPackMessageResponse {
   message: MediaPackMessageResponseMessage;
 }
 
+export type DirectMessageKind = typeof DirectMessageKind[keyof typeof DirectMessageKind];
+
+
+export const DirectMessageKind = {
+  text: 'text',
+  media: 'media',
+  media_pack: 'media_pack',
+} as const;
+
+export type DirectMessageMediaType = typeof DirectMessageMediaType[keyof typeof DirectMessageMediaType];
+
+
+export const DirectMessageMediaType = {
+  image: 'image',
+  video: 'video',
+} as const;
+
+export interface DirectMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  recipientId: string;
+  recipientName: string;
+  text: string;
+  kind: DirectMessageKind;
+  mediaPackId: string | null;
+  ts: number;
+  mediaType?: DirectMessageMediaType;
+  contentType?: string;
+  width?: number | null;
+  height?: number | null;
+  durationMs?: number | null;
+  /** @minimum 0 */
+  price?: number;
+  unlocked?: boolean;
+  mediaUrl?: string;
+  previewUrl?: string;
+}
+
+export interface DirectMessagesResponse {
+  messages: DirectMessage[];
+}
+
+export interface DirectMessageResponse {
+  message: DirectMessage;
+}
+
+export type SendMediaDmRequestMediaType = typeof SendMediaDmRequestMediaType[keyof typeof SendMediaDmRequestMediaType];
+
+
+export const SendMediaDmRequestMediaType = {
+  image: 'image',
+  video: 'video',
+} as const;
+
+export interface SendMediaDmRequest {
+  recipientId: number;
+  /** @pattern ^/objects/ */
+  objectPath: string;
+  mediaType: SendMediaDmRequestMediaType;
+  contentType: string;
+  /** @minimum 1 */
+  width: number;
+  /** @minimum 1 */
+  height: number;
+  /** @minimum 0 */
+  durationMs?: number;
+  /** @minimum 0 */
+  price?: number;
+  idempotencyKey: string;
+}
+
+export interface UnlockMediaDmRequest {
+  idempotencyKey: string;
+}
+
+export interface UnlockMediaDmResponse {
+  balance: number;
+  unlocked: boolean;
+  mediaUrl?: string;
+}
+
 export type GetFollowStatusParams = {
 followerUid: number;
 };

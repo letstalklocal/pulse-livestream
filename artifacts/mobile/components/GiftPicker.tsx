@@ -1,6 +1,7 @@
 import React from "react";
 import {
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -47,7 +48,7 @@ export function GiftPicker({ visible, onClose, onSend, coins, hintText = "Tap a 
     >
       <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
 
-      <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
+      <View style={[styles.sheet, { paddingBottom: insets.bottom + (Platform.OS === "android" ? 32 : 16) }]}>
         {/* Handle */}
         <View style={styles.handle} />
 

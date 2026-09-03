@@ -2,12 +2,14 @@ import React, { useEffect, useRef } from "react";
 import {
   Animated,
   Modal,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useGetStreamLeaderboard } from "@workspace/api-client-react";
 
@@ -20,6 +22,7 @@ interface Props {
 }
 
 export function GiftLeaderboard({ channelId, visible, onClose }: Props) {
+  const insets = useSafeAreaInsets();
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(30)).current;
 
@@ -45,7 +48,7 @@ export function GiftLeaderboard({ channelId, visible, onClose }: Props) {
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.backdrop}>
           <TouchableWithoutFeedback>
-            <Animated.View style={[styles.sheet, { opacity, transform: [{ translateY }] }]}>
+            <Animated.View style={[styles.sheet, { opacity, transform: [{ translateY }], paddingBottom: insets.bottom + (Platform.OS === "android" ? 32 : 40) }]}>
               <View style={styles.header}>
                 <Text style={styles.title}>🏆 Top Gifters</Text>
                 <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>

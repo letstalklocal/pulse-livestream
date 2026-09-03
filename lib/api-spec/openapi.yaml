@@ -617,6 +617,25 @@ paths:
       parameters: [{ name: packId, in: path, required: true, schema: { type: integer } }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/UnlockMediaPackRequest" } } } }
       responses: { "200": { description: Unlocked, content: { application/json: { schema: { $ref: "#/components/schemas/CoinBalanceResponse" } } } }, "402": { description: Insufficient coins } }
+  /dms/{uid}:
+    get:
+      operationId: getDirectMessages
+      tags: [dms]
+      parameters: [{ name: uid, in: path, required: true, schema: { type: integer } }]
+      responses: { "200": { description: Direct messages, content: { application/json: { schema: { $ref: "#/components/schemas/DirectMessagesResponse" } } } } }
+  /dms/media:
+    post:
+      operationId: sendMediaDm
+      tags: [dms]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SendMediaDmRequest" } } } }
+      responses: { "201": { description: Media message sent, content: { application/json: { schema: { $ref: "#/components/schemas/DirectMessageResponse" } } } }, "409": { description: Idempotency conflict } }
+  /dms/{messageId}/unlock:
+    post:
+      operationId: unlockMediaDm
+      tags: [dms]
+      parameters: [{ name: messageId, in: path, required: true, schema: { type: integer } }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/UnlockMediaDmRequest" } } } }
+      responses: { "200": { description: Unlocked, content: { application/json: { schema: { $ref: "#/components/schemas/UnlockMediaDmResponse" } } } }, "402": { description: Insufficient coins }, "409": { description: Idempotency conflict } }
 
 components:
   schemas:
@@ -1099,3 +1118,54 @@ components:
       type: object
       properties: { message: { type: object } }
       required: [message]
+    DirectMessage:
+      type: object
+      properties:
+        id: { type: string }
+        senderId: { type: string }
+        senderName: { type: string }
+        recipientId: { type: string }
+        recipientName: { type: string }
+        text: { type: string }
+        kind: { type: string, enum: [text, media, media_pack] }
+        mediaPackId: { type: string, nullable: true }
+        ts: { type: integer }
+        mediaType: { type: string, enum: [image, video] }
+        contentType: { type: string }
+        width: { type: integer, nullable: true }
+        height: { type: integer, nullable: true }
+        durationMs: { type: integer, nullable: true }
+        price: { type: integer, minimum: 0 }
+        unlocked: { type: boolean }
+        mediaUrl: { type: string }
+        previewUrl: { type: string }
+      required: [id, senderId, senderName, recipientId, recipientName, text, kind, mediaPackId, ts]
+    DirectMessagesResponse:
+      type: object
+      properties: { messages: { type: array, items: { $ref: "#/components/schemas/DirectMessage" } } }
+      required: [messages]
+    DirectMessageResponse:
+      type: object
+      properties: { message: { $ref: "#/components/schemas/DirectMessage" } }
+      required: [message]
+    SendMediaDmRequest:
+      type: object
+      properties:
+        recipientId: { type: integer }
+        objectPath: { type: string, pattern: "^/objects/" }
+        mediaType: { type: string, enum: [image, video] }
+        contentType: { type: string }
+        width: { type: integer, minimum: 1 }
+        height: { type: integer, minimum: 1 }
+        durationMs: { type: integer, minimum: 0 }
+        price: { type: integer, minimum: 0, default: 0 }
+        idempotencyKey: { type: string }
+      required: [recipientId, objectPath, mediaType, contentType, width, height, idempotencyKey]
+    UnlockMediaDmRequest:
+      type: object
+      properties: { idempotencyKey: { type: string } }
+      required: [idempotencyKey]
+    UnlockMediaDmResponse:
+      type: object
+      properties: { balance: { type: integer }, unlocked: { type: boolean }, mediaUrl: { type: string } }
+      required: [balance, unlocked]

@@ -518,3 +518,73 @@ export const UnlockMediaPackResponse = zod.object({
 })
 
 
+export const GetDirectMessagesParams = zod.object({
+  "uid": zod.coerce.number()
+})
+
+export const getDirectMessagesResponseMessagesItemPriceMin = 0;
+
+
+
+export const GetDirectMessagesResponse = zod.object({
+  "messages": zod.array(zod.object({
+  "id": zod.string(),
+  "senderId": zod.string(),
+  "senderName": zod.string(),
+  "recipientId": zod.string(),
+  "recipientName": zod.string(),
+  "text": zod.string(),
+  "kind": zod.enum(['text', 'media', 'media_pack']),
+  "mediaPackId": zod.string().nullable(),
+  "ts": zod.number(),
+  "mediaType": zod.enum(['image', 'video']).optional(),
+  "contentType": zod.string().optional(),
+  "width": zod.number().nullish(),
+  "height": zod.number().nullish(),
+  "durationMs": zod.number().nullish(),
+  "price": zod.number().min(getDirectMessagesResponseMessagesItemPriceMin).optional(),
+  "unlocked": zod.boolean().optional(),
+  "mediaUrl": zod.string().optional(),
+  "previewUrl": zod.string().optional()
+}))
+})
+
+
+export const sendMediaDmBodyObjectPathRegExp = new RegExp('^\/objects');
+
+
+export const sendMediaDmBodyDurationMsMin = 0;
+
+export const sendMediaDmBodyPriceDefault = 0;
+export const sendMediaDmBodyPriceMin = 0;
+
+
+
+export const SendMediaDmBody = zod.object({
+  "recipientId": zod.number(),
+  "objectPath": zod.string().regex(sendMediaDmBodyObjectPathRegExp),
+  "mediaType": zod.enum(['image', 'video']),
+  "contentType": zod.string(),
+  "width": zod.number().min(1),
+  "height": zod.number().min(1),
+  "durationMs": zod.number().min(sendMediaDmBodyDurationMsMin).optional(),
+  "price": zod.number().min(sendMediaDmBodyPriceMin).default(sendMediaDmBodyPriceDefault),
+  "idempotencyKey": zod.string()
+})
+
+
+export const UnlockMediaDmParams = zod.object({
+  "messageId": zod.coerce.number()
+})
+
+export const UnlockMediaDmBody = zod.object({
+  "idempotencyKey": zod.string()
+})
+
+export const UnlockMediaDmResponse = zod.object({
+  "balance": zod.number(),
+  "unlocked": zod.boolean(),
+  "mediaUrl": zod.string().optional()
+})
+
+
