@@ -1,3 +1,4 @@
 - [EAS pnpm 11 builds](eas-pnpm11-builds.md) — EAS SDK 57 builds require pnpm 11 allowBuilds entries; onlyBuiltDependencies alone fails dependency installation.
 - [Expo SDK 57 Metro preset](expo-sdk57-metro-preset.md) — strict pnpm needs babel-preset-expo declared directly or Metro can fail after restart.
 - [Drizzle post-merge prompts](drizzle-post-merge-prompts.md) — unique-constraint advisories ignore --force and require a PTY; always choose the non-truncating option.
+- [Agora host startup](agora-host-startup.md) — gate broadcasting on engine and camera readiness; this resolved the Android host’s black camera screen on a real device.
