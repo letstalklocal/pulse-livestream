@@ -14,6 +14,7 @@
       "backgroundColor": "#08080F"
     },
     "ios": {
+      "bundleIdentifier": "com.chimba.livestream",
       "supportsTablet": false,
       "infoPlist": {
         "NSCameraUsageDescription": "Pulse needs camera access to broadcast live streams.",
