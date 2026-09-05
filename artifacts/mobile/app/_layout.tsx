@@ -14,10 +14,12 @@ import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { StyleSheet, Text, View } from "react-native";
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/context/AuthContext";
 import { RtmProvider } from "@/context/RtmContext";
+import colors from "@/constants/colors";
 
 const domain = process.env["EXPO_PUBLIC_DOMAIN"];
 if (domain) setBaseUrl(`https://${domain}`);
@@ -35,6 +37,17 @@ const queryClient = new QueryClient({
 
 const publishableKey = process.env["EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY"] ?? "";
 const proxyUrl = process.env["EXPO_PUBLIC_CLERK_PROXY_URL"] || undefined;
+
+function BuildConfigurationError() {
+  return (
+    <View style={styles.configurationError}>
+      <Text style={styles.configurationErrorTitle}>Pulse could not start</Text>
+      <Text style={styles.configurationErrorMessage}>
+        This build is missing its authentication configuration. Please install a newer build.
+      </Text>
+    </View>
+  );
+}
 
 function RootLayoutNav() {
   return (
@@ -79,6 +92,7 @@ export default function RootLayout() {
   }, [fontsLoaded, fontError]);
 
   if (!fontsLoaded && !fontError) return null;
+  if (!publishableKey) return <BuildConfigurationError />;
 
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache} proxyUrl={proxyUrl}>
@@ -102,3 +116,27 @@ export default function RootLayout() {
     </ClerkProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  configurationError: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    paddingHorizontal: 32,
+    backgroundColor: colors.light.background,
+  },
+  configurationErrorTitle: {
+    color: colors.light.text,
+    fontFamily: "Inter_700Bold",
+    fontSize: 22,
+    textAlign: "center",
+  },
+  configurationErrorMessage: {
+    color: colors.light.mutedForeground,
+    fontFamily: "Inter_400Regular",
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: "center",
+  },
+});

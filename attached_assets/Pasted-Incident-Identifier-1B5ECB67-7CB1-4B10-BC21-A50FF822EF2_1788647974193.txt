@@ -1,0 +1,252 @@
+Incident Identifier: 1B5ECB67-7CB1-4B10-BC21-A50FF822EF28
+Distributor ID:      com.apple.TestFlight
+Hardware Model:      iPhone12,1
+Process:             Pulse [4604]
+Path:                /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Pulse
+Identifier:          com.chimba.livestream
+Version:             1.0.2 (2)
+AppStoreTools:       17F106
+AppVariant:          1:iPhone12,1:26
+Beta:                YES
+Code Type:           ARM-64 (Native)
+Role:                Foreground
+Parent Process:      launchd [1]
+Coalition:           com.chimba.livestream [2134]
+
+Date/Time:           2026-09-05 18:38:17.7131 -0400
+Launch Time:         2026-09-05 18:38:17.3346 -0400
+OS Version:          iPhone OS 26.6 (23G71)
+Release Type:        User
+Baseband Version:    7.02.01
+Report Version:      104
+
+Exception Type:  EXC_CRASH (SIGABRT)
+Exception Codes: 0x0000000000000000, 0x0000000000000000
+Termination Reason: SIGNAL 6 Abort trap: 6
+Terminating Process: Pulse [4604]
+
+Triggered by Thread:  7
+
+Last Exception Backtrace:
+0   CoreFoundation                	0x192970244 __exceptionPreprocess + 164 (:-1)
+1   libobjc.A.dylib               	0x18f43d224 objc_exception_throw + 88 (objc-exception.mm:356)
+2   React                         	0x10659e1c4 RCTFatal + 568 (:-1)
+3   React                         	0x10681f184 -[RCTExceptionsManager reportFatal:stack:exceptionId:extraDataAsJSON:] + 512 (:-1)
+4   React                         	0x10681fbc0 -[RCTExceptionsManager reportException:] + 2292 (:-1)
+5   CoreFoundation                	0x1928be8f4 __invoking___ + 148 (:-1)
+6   CoreFoundation                	0x1928be778 -[NSInvocation invoke] + 424 (:-1)
+7   CoreFoundation                	0x1928d4430 -[NSInvocation invokeWithTarget:] + 64 (:-1)
+8   React                         	0x106834370 invocation function for block in facebook::react::ObjCTurboModule::performVoidMethodInvocation(facebook::jsi::Runtime&, char const*, NSInvocation*, NSMutableArray*) + 68 (:-1)
+9   React                         	0x106839810 std::__1::__function::__func<facebook::react::ObjCTurboModule::performVoidMethodInvocation(facebook::jsi::Runtime&, char const*, NSInvocation*, NSMutableArray*)::$_0, std::__1::allocator<facebook::... + 104 (:-1)
+10  libdispatch.dylib             	0x1cd3999a8 _dispatch_call_block_and_release + 32 (:-1)
+11  libdispatch.dylib             	0x1cd3b31e4 _dispatch_client_callout + 16 (:-1)
+12  libdispatch.dylib             	0x1cd3a1fb0 _dispatch_continuation_invoke_inline + 136 (:-1)
+13  libdispatch.dylib             	0x1cd3a1fb0 _dispatch_continuation_pop_inline + 136 (:-1)
+14  libdispatch.dylib             	0x1cd3a1fb0 _dispatch_lane_drain + 700 (:-1)
+15  libdispatch.dylib             	0x1cd3a1fb0 _dispatch_lane_serial_drain + 740 (:-1)
+16  libdispatch.dylib             	0x1cd3a2aac _dispatch_lane_invoke2 + 56 (:-1)
+17  libdispatch.dylib             	0x1cd3a2aac _dispatch_queue_class_invoke + 344 (:-1)
+18  libdispatch.dylib             	0x1cd3a2aac _dispatch_lane_invoke + 392 (:-1)
+19  libdispatch.dylib             	0x1cd3acdac _dispatch_root_queue_drain_deferred_wlh + 284 (:-1)
+20  libdispatch.dylib             	0x1cd3ac6ac _dispatch_wlh_worker_thread + 520 (:-1)
+21  libdispatch.dylib             	0x1cd3ac6ac _dispatch_workloop_worker_thread + 720 (:-1)
+22  libsystem_pthread.dylib       	0x1f221b3b0 _pthread_wqthread + 292 (:-1)
+23  libsystem_pthread.dylib       	0x1f221a8c0 start_wqthread + 8 (:-1)
+
+Thread 0 name:
+Thread 0:
+0   libsystem_kernel.dylib        	0x0000000241ec0cd4 mach_msg2_trap + 8 (:-1)
+1   libsystem_kernel.dylib        	0x0000000241ec430c mach_msg2_internal + 76 (:-1)
+2   libsystem_kernel.dylib        	0x0000000241ec422c mach_msg2 + 4 (:-1)
+3   libsystem_kernel.dylib        	0x0000000241ec422c mach_msg_overwrite + 424 (:-1)
+4   libsystem_kernel.dylib        	0x0000000241ec4078 mach_msg + 24 (:-1)
+5   CoreFoundation                	0x00000001928c0344 __CFRunLoopServiceMachPort + 160 (:-1)
+6   CoreFoundation                	0x000000019288a310 __CFRunLoopRun + 1188 (:-1)
+7   CoreFoundation                	0x000000019288954c _CFRunLoopRunSpecificWithOptions + 532 (:-1)
+8   GraphicsServices              	0x0000000238851498 GSEventRunModal + 120 (:-1)
+9   UIKitCore                     	0x00000001985bd670 -[UIApplication _run] + 796 (:-1)
+10  UIKitCore                     	0x0000000198528158 UIApplicationMain + 332 (:-1)
+11  UIKitCore                     	0x0000000198734aa4 UIApplicationMain(_:_:_:_:) + 104 (:-1)
+12  Pulse                         	0x00000001009514b4 specialized static UIApplicationDelegate.main() + 28 (/<compiler-generated>:5)
+13  Pulse                         	0x00000001009514b4 static AppDelegate.$main() + 28 (AppDelegate.swift:0)
+14  Pulse                         	0x00000001009514b4 main + 116
+15  dyld                          	0x000000018f495c1c start + 6928 (:-1)
+
+Thread 1:
+0   libsystem_kernel.dylib        	0x0000000241ec65e8 __psynch_cvwait + 8 (:-1)
+1   libsystem_pthread.dylib       	0x00000001f221cb48 _pthread_psynch_cond_wait + 92 (:-1)
+2   libsystem_pthread.dylib       	0x00000001f221cb48 _pthread_cond_wait + 980 (:-1)
+3   libc++.1.dylib                	0x00000001a1fda3dc std::__1::__libcpp_condvar_timedwait[abi:nqe210106](_opaque_pthread_cond_t*, _opaque_pthread_mutex_t*, timespec*) + 8 (:-1)
+4   libc++.1.dylib                	0x00000001a1fda3dc std::__1::condition_variable::__do_timed_wait(std::__1::unique_lock<std::__1::mutex>&, std::__1::chrono::time_point<std::__1::chrono::system_clock, std::__1::chrono::duration<long long, std::__1::r... + 104 (:-1)
+5   AgoraRtcWrapper               	0x0000000104c67a88 enableUseJsonArray + 6404 (:-1)
+6   libsystem_pthread.dylib       	0x00000001f221e438 _pthread_start + 136 (:-1)
+7   libsystem_pthread.dylib       	0x00000001f221a8cc thread_start + 8 (:-1)
+
+Thread 2:
+
+Thread 3:
+
+Thread 4:
+
+Thread 5:
+
+Thread 6:
+
+Thread 7 name:
+Thread 7 Crashed:
+0   libsystem_kernel.dylib        	0x0000000241ecb1d0 __pthread_kill + 8 (:-1)
+1   libsystem_pthread.dylib       	0x00000001f22217dc pthread_kill + 268 (:-1)
+2   libsystem_c.dylib             	0x000000019e44efcc abort + 148 (:-1)
+3   libc++abi.dylib               	0x000000018f53efd4 __abort_message + 132 (:-1)
+4   libc++abi.dylib               	0x000000018f540b90 demangling_terminate_handler() + 296 (:-1)
+5   libobjc.A.dylib               	0x000000018f43f868 _objc_terminate() + 156 (objc-exception.mm:496)
+6   libc++abi.dylib               	0x000000018f54b1f8 std::__terminate(void (*)()) + 16 (:-1)
+7   libc++abi.dylib               	0x000000018f53edcc __cxa_rethrow + 188 (:-1)
+8   libobjc.A.dylib               	0x000000018f44bb58 objc_exception_rethrow + 44 (objc-exception.mm:399)
+9   React                         	0x00000001068343ac invocation function for block in facebook::react::ObjCTurboModule::performVoidMethodInvocation(facebook::jsi::Runtime&, char const*, NSInvocation*, NSMutableArray*) + 128 (:-1)
+10  React                         	0x0000000106839810 std::__1::__function::__func<facebook::react::ObjCTurboModule::performVoidMethodInvocation(facebook::jsi::Runtime&, char const*, NSInvocation*, NSMutableArray*)::$_0, std::__1::allocator<facebook::... + 104 (:-1)
+11  libdispatch.dylib             	0x00000001cd3999a8 _dispatch_call_block_and_release + 32 (:-1)
+12  libdispatch.dylib             	0x00000001cd3b31e4 _dispatch_client_callout + 16 (:-1)
+13  libdispatch.dylib             	0x00000001cd3a1fb0 _dispatch_continuation_invoke_inline + 136 (:-1)
+14  libdispatch.dylib             	0x00000001cd3a1fb0 _dispatch_continuation_pop_inline + 136 (:-1)
+15  libdispatch.dylib             	0x00000001cd3a1fb0 _dispatch_lane_drain + 700 (:-1)
+16  libdispatch.dylib             	0x00000001cd3a1fb0 _dispatch_lane_serial_drain + 740 (:-1)
+17  libdispatch.dylib             	0x00000001cd3a2aac _dispatch_lane_invoke2 + 56 (:-1)
+18  libdispatch.dylib             	0x00000001cd3a2aac _dispatch_queue_class_invoke + 344 (:-1)
+19  libdispatch.dylib             	0x00000001cd3a2aac _dispatch_lane_invoke + 392 (:-1)
+20  libdispatch.dylib             	0x00000001cd3acdac _dispatch_root_queue_drain_deferred_wlh + 284 (:-1)
+21  libdispatch.dylib             	0x00000001cd3ac6ac _dispatch_wlh_worker_thread + 520 (:-1)
+22  libdispatch.dylib             	0x00000001cd3ac6ac _dispatch_workloop_worker_thread + 720 (:-1)
+23  libsystem_pthread.dylib       	0x00000001f221b3b0 _pthread_wqthread + 292 (:-1)
+24  libsystem_pthread.dylib       	0x00000001f221a8c0 start_wqthread + 8 (:-1)
+
+Thread 8 name:
+Thread 8:
+0   libsystem_kernel.dylib        	0x0000000241ec0cd4 mach_msg2_trap + 8 (:-1)
+1   libsystem_kernel.dylib        	0x0000000241ec430c mach_msg2_internal + 76 (:-1)
+2   libsystem_kernel.dylib        	0x0000000241ec422c mach_msg2 + 4 (:-1)
+3   libsystem_kernel.dylib        	0x0000000241ec422c mach_msg_overwrite + 424 (:-1)
+4   libsystem_kernel.dylib        	0x0000000241ec4078 mach_msg + 24 (:-1)
+5   CoreFoundation                	0x00000001928c0344 __CFRunLoopServiceMachPort + 160 (:-1)
+6   CoreFoundation                	0x000000019288a310 __CFRunLoopRun + 1188 (:-1)
+7   CoreFoundation                	0x000000019288954c _CFRunLoopRunSpecificWithOptions + 532 (:-1)
+8   Foundation                    	0x000000018faf6cf0 -[NSRunLoop(NSRunLoop) runMode:beforeDate:] + 212 (:-1)
+9   Foundation                    	0x000000018faf6bd8 -[NSRunLoop(NSRunLoop) runUntilDate:] + 64 (:-1)
+10  UIKitCore                     	0x0000000198582eac -[UIEventFetcher threadMain] + 420 (:-1)
+11  Foundation                    	0x000000018fb7a904 __NSThread__start__ + 732 (:-1)
+12  libsystem_pthread.dylib       	0x00000001f221e438 _pthread_start + 136 (:-1)
+13  libsystem_pthread.dylib       	0x00000001f221a8cc thread_start + 8 (:-1)
+
+Thread 9:
+
+Thread 10:
+
+Thread 11 name:
+Thread 11:
+0   libsystem_kernel.dylib        	0x0000000241ec0cd4 mach_msg2_trap + 8 (:-1)
+1   libsystem_kernel.dylib        	0x0000000241ec430c mach_msg2_internal + 76 (:-1)
+2   libsystem_kernel.dylib        	0x0000000241ec422c mach_msg2 + 4 (:-1)
+3   libsystem_kernel.dylib        	0x0000000241ec422c mach_msg_overwrite + 424 (:-1)
+4   libsystem_kernel.dylib        	0x0000000241ec4078 mach_msg + 24 (:-1)
+5   CoreFoundation                	0x00000001928c0344 __CFRunLoopServiceMachPort + 160 (:-1)
+6   CoreFoundation                	0x000000019288a310 __CFRunLoopRun + 1188 (:-1)
+7   CoreFoundation                	0x000000019288954c _CFRunLoopRunSpecificWithOptions + 532 (:-1)
+8   React                         	0x00000001067df80c +[RCTJSThreadManager runRunLoop] + 252 (:-1)
+9   Foundation                    	0x000000018fb7a904 __NSThread__start__ + 732 (:-1)
+10  libsystem_pthread.dylib       	0x00000001f221e438 _pthread_start + 136 (:-1)
+11  libsystem_pthread.dylib       	0x00000001f221a8cc thread_start + 8 (:-1)
+
+Thread 12 name:
+Thread 12:
+0   libsystem_kernel.dylib        	0x0000000241ec65e8 __psynch_cvwait + 8 (:-1)
+1   libsystem_pthread.dylib       	0x00000001f221cb48 _pthread_psynch_cond_wait + 92 (:-1)
+2   libsystem_pthread.dylib       	0x00000001f221cb48 _pthread_cond_wait + 980 (:-1)
+3   libc++.1.dylib                	0x00000001a1fd5bcc std::__1::__libcpp_condvar_wait[abi:nqe210106](_opaque_pthread_cond_t*, _opaque_pthread_mutex_t*) + 4 (:-1)
+4   libc++.1.dylib                	0x00000001a1fd5bcc std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 32 (:-1)
+5   hermesvm                      	0x00000001075d1e04 hermes::vm::HadesGC::Executor::worker() + 104 (:-1)
+6   hermesvm                      	0x00000001075d1d78 void* std::__1::__thread_proxy[abi:nn190102]<std::__1::tuple<std::__1::unique_ptr<std::__1::__thread_struct, std::__1::default_delete<std::__1::__thread_struct>>, hermes::vm::HadesGC::Executor::Exe... + 44 (:-1)
+7   libsystem_pthread.dylib       	0x00000001f221e438 _pthread_start + 136 (:-1)
+8   libsystem_pthread.dylib       	0x00000001f221a8cc thread_start + 8 (:-1)
+
+Thread 13 name:
+Thread 13:
+0   libsystem_kernel.dylib        	0x0000000241ec65e8 __psynch_cvwait + 8 (:-1)
+1   libsystem_pthread.dylib       	0x00000001f221cb48 _pthread_psynch_cond_wait + 92 (:-1)
+2   libsystem_pthread.dylib       	0x00000001f221cb48 _pthread_cond_wait + 980 (:-1)
+3   libc++.1.dylib                	0x00000001a1fd5bcc std::__1::__libcpp_condvar_wait[abi:nqe210106](_opaque_pthread_cond_t*, _opaque_pthread_mutex_t*) + 4 (:-1)
+4   libc++.1.dylib                	0x00000001a1fd5bcc std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 32 (:-1)
+5   hermesvm                      	0x00000001075d1e04 hermes::vm::HadesGC::Executor::worker() + 104 (:-1)
+6   hermesvm                      	0x00000001075d1d78 void* std::__1::__thread_proxy[abi:nn190102]<std::__1::tuple<std::__1::unique_ptr<std::__1::__thread_struct, std::__1::default_delete<std::__1::__thread_struct>>, hermes::vm::HadesGC::Executor::Exe... + 44 (:-1)
+7   libsystem_pthread.dylib       	0x00000001f221e438 _pthread_start + 136 (:-1)
+8   libsystem_pthread.dylib       	0x00000001f221a8cc thread_start + 8 (:-1)
+
+
+Thread 7 crashed with ARM Thread State (64-bit):
+    x0: 0x0000000000000000   x1: 0x0000000000000000   x2: 0x0000000000000000   x3: 0x0000000000000000
+    x4: 0x000000018f54dcd3   x5: 0x000000016f882790   x6: 0x000000000000006e   x7: 0xfffff0003ffff800
+    x8: 0xd3be5b36b90ebe3d   x9: 0xd3be5b37d6868e3d  x10: 0x0000000000000002  x11: 0x00000000fffffffd
+   x12: 0x0000000000000000  x13: 0x0000000000000000  x14: 0x0000000000000000  x15: 0x0000000000000000
+   x16: 0x0000000000000148  x17: 0x000000016f883000  x18: 0x0000000000000000  x19: 0x0000000000000006
+   x20: 0x0000000000002a03  x21: 0x000000016f8830e0  x22: 0x434c4e47432b2b00  x23: 0x000000016f8830e0
+   x24: 0x0000000000000000  x25: 0x0000000112685ec0  x26: 0x0000000000000000  x27: 0x0000000000000000
+   x28: 0x0000000000000114   fp: 0x000000016f882700   lr: 0x00000001f22217dc
+    sp: 0x000000016f8826e0   pc: 0x0000000241ecb1d0 cpsr: 0x40000000
+   esr: 0x56000080 (Syscall)
+
+
+Binary Images:
+        0x10094c000 -         0x100f6ffff Pulse arm64  <61931d5d69c6360c9130c282405735a9> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Pulse
+        0x101294000 -         0x10142bfff AgoraAiEchoCancellationLLExtension arm64  <7d93da9ec8cd36448058e4e00ee96dba> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/AgoraAiEchoCancellationLLExtension.framework/AgoraAiEchoCancellationLLExtension
+        0x101448000 -         0x10144ffff AgoraSoundTouch arm64  <c01e83e1b13c3fffa78578cb235d6718> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/AgoraSoundTouch.framework/AgoraSoundTouch
+        0x10145c000 -         0x10146bfff AgoraVideoEncoderExtension arm64  <9591d634352c36f49338c795cec5eb15> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/AgoraVideoEncoderExtension.framework/AgoraVideoEncoderExtension
+        0x10152c000 -         0x10153bfff ExpoFont arm64  <154a708d4c973216ad939830609dbc29> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/ExpoFont.framework/ExpoFont
+        0x1015cc000 -         0x1017fbfff AgoraAiEchoCancellationExtension arm64  <920d5b8bf8b0352c8782930278f12b45> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/AgoraAiEchoCancellationExtension.framework/AgoraAiEchoCancellationExtension
+        0x101820000 -         0x101adbfff AgoraAiNoiseSuppressionExtension arm64  <094de3e6a9643689901a9e7880ec4224> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/AgoraAiNoiseSuppressionExtension.framework/AgoraAiNoiseSuppressionExtension
+        0x101af8000 -         0x101dabfff AgoraAiNoiseSuppressionLLExtension arm64  <e9c4a87bce113460b799c8d71c7236cb> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/AgoraAiNoiseSuppressionLLExtension.framework/AgoraAiNoiseSuppressionLLExtension
+        0x101dc8000 -         0x101e13fff AgoraAudioBeautyExtension arm64  <ce7ceff8f4b0339f80d78739a78aa5a2> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/AgoraAudioBeautyExtension.framework/AgoraAudioBeautyExtension
+        0x101f34000 -         0x1021fffff AgoraClearVisionExtension arm64  <944e78fdf418332b97e8acd4d9438429> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/AgoraClearVisionExtension.framework/AgoraClearVisionExtension
+        0x10281c000 -         0x102883fff AgoraContentInspectExtension arm64  <bcd4e2b630bf3f6dbafc35da11c8e8d2> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/AgoraContentInspectExtension.framework/AgoraContentInspectExtension
+        0x102970000 -         0x102abffff AgoraFaceCaptureExtension arm64  <57a37f11aaac3474bc8a84291c9f2a0e> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/AgoraFaceCaptureExtension.framework/AgoraFaceCaptureExtension
+        0x102b7c000 -         0x102c07fff AgoraFaceDetectionExtension arm64  <7bde163158643bcbbb936fad31e4488b> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/AgoraFaceDetectionExtension.framework/AgoraFaceDetectionExtension
+        0x102c34000 -         0x102cbffff AgoraLipSyncExtension arm64  <116aa4a5110038989a4221c6e4f2cbe1> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/AgoraLipSyncExtension.framework/AgoraLipSyncExtension
+        0x10328c000 -         0x1032b3fff AgoraReplayKitExtension arm64  <e0892d43ab753d0db2b44e45390eac27> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/AgoraReplayKitExtension.framework/AgoraReplayKitExtension
+        0x1037f4000 -         0x104943fff AgoraRtcKit arm64  <19dcfd3ec4723bd580b8221b8348456c> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/AgoraRtcKit.framework/AgoraRtcKit
+        0x104c44000 -         0x104cebfff AgoraRtcWrapper arm64  <235dbf65bd2e3ed99ff5eb751bb2dd5c> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/AgoraRtcWrapper.framework/AgoraRtcWrapper
+        0x104d0c000 -         0x1050dffff AgoraSpatialAudioExtension arm64  <2b84bf3e74e532ef865ba65e25902bfa> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/AgoraSpatialAudioExtension.framework/AgoraSpatialAudioExtension
+        0x105204000 -         0x1052e7fff AgoraVideoAv1EncoderExtension arm64  <cb3df1c885ad3f668b84672c817923cb> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/AgoraVideoAv1EncoderExtension.framework/AgoraVideoAv1EncoderExtension
+        0x1052fc000 -         0x105363fff AgoraVideoQualityAnalyzerExtension arm64  <7a6109d3c2f835148f175ec7f3d70bfc> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/AgoraVideoQualityAnalyzerExtension.framework/AgoraVideoQualityAnalyzerExtension
+        0x105444000 -         0x10556ffff AgoraVideoSegmentationExtension arm64  <74173df14aa7346c8da58c4cc4bbb15c> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/AgoraVideoSegmentationExtension.framework/AgoraVideoSegmentationExtension
+        0x105664000 -         0x1056cbfff Agorafdkaac arm64  <e2ae8b88fab7315383e4ca9baeb8e4fa> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/Agorafdkaac.framework/Agorafdkaac
+        0x1056d8000 -         0x105a8ffff Agoraffmpeg arm64  <36dfebe81b6536beb4a9167363770b59> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/Agoraffmpeg.framework/Agoraffmpeg
+        0x105d6c000 -         0x105dc7fff ExpoFileSystem arm64  <e02cae69f92d3f269f61acb26795887f> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/ExpoFileSystem.framework/ExpoFileSystem
+        0x105e90000 -         0x105ecffff ExpoImage arm64  <3de281da39bb3e6e98ff22098273f043> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/ExpoImage.framework/ExpoImage
+        0x105f48000 -         0x105f6bfff ExpoLocation arm64  <978dc2e97ca531ef92381e8a19dfc939> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/ExpoLocation.framework/ExpoLocation
+        0x105fc0000 -         0x1060fbfff ExpoModulesCore arm64  <737ddee5f272362089b0c51ed474f894> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/ExpoModulesCore.framework/ExpoModulesCore
+        0x106378000 -         0x1063dbfff ExpoModulesJSI arm64  <7ea37df0a9a83642870bab793c0cdb6f> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/ExpoModulesJSI.framework/ExpoModulesJSI
+        0x1064f4000 -         0x1064fffff ExpoModulesWorklets arm64  <ea3af2699dc73041bff90bd60d1da3b2> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/ExpoModulesWorklets.framework/ExpoModulesWorklets
+        0x106524000 -         0x10697bfff React arm64  <b84240b61b7b37cfa6e4bd19f2d6cbd8> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/React.framework/React
+        0x1070f0000 -         0x107173fff ReactNativeDependencies arm64  <db4e121670c636f08a46fdd48fcae1f2> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies
+        0x107244000 -         0x107297fff SDWebImage arm64  <37ea7633e47b3f98bd856c33fbe3d881> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/SDWebImage.framework/SDWebImage
+        0x107320000 -         0x10732bfff SDWebImageAVIFCoder arm64  <e336c17ceef73764a583a66debc78683> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/SDWebImageAVIFCoder.framework/SDWebImageAVIFCoder
+        0x10733c000 -         0x107343fff SDWebImageSVGCoder arm64  <38517298ad2d3fcc8241b248ff5d2be8> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/SDWebImageSVGCoder.framework/SDWebImageSVGCoder
+        0x107354000 -         0x10739ffff SDWebImageWebPCoder arm64  <82b67c863fb7323099be2b33d307f8a6> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/SDWebImageWebPCoder.framework/SDWebImageWebPCoder
+        0x1073d8000 -         0x107417fff aosl arm64  <a1d663bc69b5353aaa7203b891847818> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/aosl.framework/aosl
+        0x107450000 -         0x107667fff hermesvm arm64  <5a86b6fbce4e331e96e2ca2281ad05ed> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/hermesvm.framework/hermesvm
+        0x10794c000 -         0x107bc3fff libavif arm64  <d792a9bccfa83d259312c1ba62a97f07> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/libavif.framework/libavif
+        0x107dc0000 -         0x107ec7fff video_dec arm64  <5f1a66554ef63086b7c1851eac3d92c4> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/video_dec.framework/video_dec
+        0x107ef0000 -         0x108023fff video_enc arm64  <e9b75b66b8913865a8ef6244811aa698> /private/var/containers/Bundle/Application/8E5035D9-3C06-4064-8670-6A7AF5341152/Pulse.app/Frameworks/video_enc.framework/video_enc
+        0x108960000 -         0x10896bfff libobjc-trampolines.dylib arm64e  <6893bf2adb4b33d9875deea7cb8f8060> /private/preboot/Cryptexes/OS/usr/lib/libobjc-trampolines.dylib
+        0x18f40c000 -         0x18f45d47f libobjc.A.dylib arm64e  <a4d0da7a2f8f3d269953218851547bfc> /usr/lib/libobjc.A.dylib
+        0x18f491000 -         0x18f53647f dyld arm64e  <0ba28ce287183cb3bef46dd44464ebe2> /usr/lib/dyld
+        0x18f537000 -         0x18f55159f libc++abi.dylib arm64e  <10fb000e5edb3a04996bbe734107cf07> /usr/lib/libc++abi.dylib
+        0x18faec000 -         0x190975c1f Foundation arm64e  <1689fea517803efe8f31933d4db24ec4> /System/Library/Frameworks/Foundation.framework/Foundation
+        0x19285b000 -         0x192df79bf CoreFoundation arm64e  <5565cad9494132ac8b107d3233c74151> /System/Library/Frameworks/CoreFoundation.framework/CoreFoundation
+        0x19849c000 -         0x19a9df63f UIKitCore arm64e  <26334227f5583da7985d326a0c894dd4> /System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore
+        0x19e3d8000 -         0x19e4575ff libsystem_c.dylib arm64e  <ca7f1aef8c1f33a2b1cc52d9ab644bea> /usr/lib/system/libsystem_c.dylib
+        0x1a1fc9000 -         0x1a2059a7b libc++.1.dylib arm64e  <ecfa0beb66b236f28fc09ffe326d2d1a> /usr/lib/libc++.1.dylib
+        0x1cd398000 -         0x1cd3de5ff libdispatch.dylib arm64e  <955b1789d5423497b46dbd6be85f91a2> /usr/lib/system/libdispatch.dylib
+        0x1f221a000 -         0x1f22264ef libsystem_pthread.dylib arm64e  <46b95807f7523dc2a1ba6290e8d7fe38> /usr/lib/system/libsystem_pthread.dylib
+        0x238850000 -         0x2388587bf GraphicsServices arm64e  <7915658c77283149a5242164c163f3d2> /System/Library/PrivateFrameworks/GraphicsServices.framework/GraphicsServices
+        0x241ec0000 -         0x241efbb1f libsystem_kernel.dylib arm64e  <a11bf43317ab3f0188bc54c467ce6287> /usr/lib/system/libsystem_kernel.dylib
+
+EOF
