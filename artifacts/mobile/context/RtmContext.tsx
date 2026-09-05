@@ -7,7 +7,6 @@ import React, {
   useState,
 } from "react";
 import { useAuth as useClerkAuth } from "@clerk/expo";
-import { Platform } from "react-native";
 import { useAuth } from "@/context/AuthContext";
 
 const BASE_URL = process.env["EXPO_PUBLIC_DOMAIN"]
@@ -71,7 +70,6 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [, setTick] = useState(0);
 
-  const rtmClientRef = useRef<unknown>(null);
   const getTokenRef = useRef(getToken);
   const syncedMessageIdsRef = useRef(new Set<string>());
   const initialSyncCompleteRef = useRef(false);
@@ -173,100 +171,12 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
     };
   }, [uidStr, storePersistedMessage]);
 
-  useEffect(() => {
-    if (Platform.OS !== "ios") {
-      setReady(false);
-      setRtmError(null);
-      rtmClientRef.current = null;
-      return;
-    }
-
-    if (!uidStr) {
-      setReady(false);
-      setRtmError(null);
-      return;
-    }
-
-    let mounted = true;
-
-    const init = async () => {
-      try {
-        const rtmSdk = await import("agora-react-native-rtm");
-        const { createAgoraRtmClient, RtmConfig } = rtmSdk;
-
-        const resp = await fetch(`${BASE_URL}/api/agora/rtm-token`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ uid: uidStr }),
-        });
-        if (!resp.ok || !mounted) return;
-        const tokenData = await resp.json() as { token: string; appId: string };
-
-        const config = new RtmConfig();
-        config.appId = tokenData.appId;
-        config.userId = uidStr;
-        // Embed token in config — RTM v2 prefers this over passing in login()
-        (config as any).token = tokenData.token;
-
-        const client = createAgoraRtmClient(config);
-        rtmClientRef.current = client;
-
-        client.addEventListener("message", (event) => {
-          if (!mounted) return;
-          try {
-            const payload = JSON.parse(String(event.message)) as PersistedDm;
-            if (payload.id && payload.senderId && payload.recipientId) {
-              storePersistedMessage(payload, true);
-            }
-          } catch {
-            // Ignore messages from older clients; persisted history is authoritative.
-          }
-        });
-
-        // Try login with token embedded in config (empty options)
-        try {
-          await client.login({ token: tokenData.token });
-          if (mounted) {
-            setReady(true);
-            setRtmError(null);
-          }
-        } catch (loginErr: unknown) {
-          const code = (loginErr as { errorCode?: number })?.errorCode;
-          // -10015 = token/app issue; -10007 = not initialized
-          const msg = code
-            ? `RTM login failed (code ${code}). Check Agora console RTM service.`
-            : "RTM login failed.";
-          if (mounted) setRtmError(msg);
-          console.warn("[RTM] login error:", loginErr);
-        }
-      } catch {
-        // RTM native module not linked (web/simulator) — silent degrade
-      }
-    };
-
-    void init();
-
-    return () => {
-      mounted = false;
-      const client = rtmClientRef.current as { logout?: () => Promise<void> } | null;
-      if (client?.logout) {
-        void client.logout().catch(() => {});
-      }
-      rtmClientRef.current = null;
-      setReady(false);
-    };
-  }, [uidStr, storePersistedMessage]);
-
   const sendDm = useCallback(async (
     peerId: string,
     peerName: string,
     text: string,
   ): Promise<{ ok: boolean; error?: string }> => {
     if (!uidStr || !text.trim()) return { ok: false, error: "Nothing to send" };
-
-    const client = rtmClientRef.current as {
-      publish: (channelName: string, message: string, options?: { channelType?: number }) => Promise<unknown>;
-    } | null;
 
     try {
       const response = await fetch(`${BASE_URL}/api/dms`, {
@@ -284,17 +194,6 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
       }
 
       storePersistedMessage(data.message, false);
-
-      // RTM is a best-effort live notification. The database is authoritative,
-      // so offline recipients still receive the message on their next sync.
-      if (client) {
-        void client
-          .publish(peerId, JSON.stringify(data.message), { channelType: 3 })
-          .catch((err: unknown) => {
-            const code = (err as { errorCode?: number })?.errorCode;
-            if (code !== -11033) console.warn("[RTM] publish error:", err);
-          });
-      }
       return { ok: true };
     } catch (err: unknown) {
       console.warn("[DM] send error:", err);
