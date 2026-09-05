@@ -1,12 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import * as Haptics from "expo-haptics";
-import { useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Animated,
+  BackHandler,
   FlatList,
   KeyboardAvoidingView,
   Linking,
@@ -114,6 +115,7 @@ export default function GoLiveScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const navigation = useNavigation();
   const { user, isSignedIn } = useAuth();
 
   const [title, setTitle] = useState("Join My Live");
@@ -141,6 +143,7 @@ export default function GoLiveScreen() {
 
   const channelIdRef = useRef("");
   const isLiveRef = useRef(false);
+  const isStoppingRef = useRef(false);
   const engineRef = useRef<any>(null);
   const durationRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Holds token+channelId until the live RtcSurfaceView is mounted
@@ -450,10 +453,13 @@ export default function GoLiveScreen() {
   }, [isMuted]);
 
   const stopLive = useCallback(async () => {
+    if (isStoppingRef.current) return;
+    isStoppingRef.current = true;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     if (durationRef.current) clearInterval(durationRef.current);
     // Mark not-live before async ops so the unmount cleanup doesn't double-delete
     isLiveRef.current = false;
+    setIsLive(false);
     setActiveChannelId("");
     setIsBroadcasting(false);
     try {
@@ -466,6 +472,34 @@ export default function GoLiveScreen() {
     }
     router.back();
   }, [endStream, queryClient, router]);
+
+  const confirmStopLive = useCallback(() => {
+    Alert.alert(
+      "End live stream?",
+      "Your viewers will be disconnected and this live stream will end.",
+      [
+        { text: "Keep Streaming", style: "cancel" },
+        { text: "End Live", style: "destructive", onPress: () => void stopLive() },
+      ],
+    );
+  }, [stopLive]);
+
+  useEffect(() => {
+    if (!isLive) return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      confirmStopLive();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [isLive, confirmStopLive]);
+
+  useEffect(() => {
+    return navigation.addListener("beforeRemove", (event) => {
+      if (!isLiveRef.current || isStoppingRef.current) return;
+      event.preventDefault();
+      confirmStopLive();
+    });
+  }, [navigation, confirmStopLive]);
 
   // Safety net: if the screen unmounts while live (e.g. Android back gesture),
   // delete the stream so it doesn't linger on the Discover page.
@@ -655,7 +689,7 @@ export default function GoLiveScreen() {
                 <Ionicons name="chatbubble-ellipses" size={26} color="#FFF" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.endLiveIconBtn} onPress={stopLive} activeOpacity={0.85}>
+              <TouchableOpacity style={styles.endLiveIconBtn} onPress={confirmStopLive} activeOpacity={0.85}>
                 <Ionicons name="stop-circle" size={32} color="#FFF" />
               </TouchableOpacity>
 
