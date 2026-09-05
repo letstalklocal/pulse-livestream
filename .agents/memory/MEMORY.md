@@ -6,3 +6,4 @@
 - [Agora RTC/RTM Android collision](agora-rtc-rtm-android-collision.md) — RTC 4.5.x and RTM 2.2.6 ship incompatible AOSL libraries; do not link both into one Android APK.
 - [Livestream chat retention](livestream-chat-retention.md) — keep live chat temporary in a capped memory buffer; do not persist ordinary stream messages in PostgreSQL.
 - [Streamer overlay anchoring](streamer-overlay-anchoring.md) — anchor persistent live controls to safe areas; chat must grow upward without participating in control positioning.
+- [Clerk iOS CocoaPods](clerk-ios-cocoapods.md) — SDK 57 EAS builds need iOS 17 and modular Podfile headers for Clerk App Check dependencies.
