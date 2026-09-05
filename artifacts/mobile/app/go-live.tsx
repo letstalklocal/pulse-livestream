@@ -608,7 +608,7 @@ export default function GoLiveScreen() {
           style={styles.liveOverlay}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <View style={{ paddingTop: topPad + 12, paddingHorizontal: 16 }}>
+          <View style={[styles.liveTopDock, { top: topPad + 12 }]}>
             <View style={styles.liveTopBar}>
               <View style={styles.liveBadgeRow}>
                 <View style={styles.liveBadge}>
@@ -638,21 +638,20 @@ export default function GoLiveScreen() {
             </View>
           </View>
 
-          <View style={styles.liveSpacer} pointerEvents="none" />
-
-          {/* Chat messages overlay */}
-          <View style={styles.liveChatArea} pointerEvents="box-none">
-            <View style={styles.liveChatList}>
-              {chatMessages.slice(-6).map((item) => (
-                <View key={item.id} style={styles.liveChatBubble}>
-                  <Text style={[styles.liveChatSender, { color: item.color }]}>{item.senderName}: </Text>
-                  <Text style={styles.liveChatText}>{item.text}</Text>
-                </View>
-              ))}
+          <View style={[styles.liveBottomDock, { bottom: bottomPad + 12 }]}>
+            {/* Chat messages grow upward above the fixed action bar. */}
+            <View style={styles.liveChatArea} pointerEvents="box-none">
+              <View style={styles.liveChatList}>
+                {chatMessages.slice(-6).map((item) => (
+                  <View key={item.id} style={styles.liveChatBubble}>
+                    <Text style={[styles.liveChatSender, { color: item.color }]}>{item.senderName}: </Text>
+                    <Text style={styles.liveChatText}>{item.text}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
-          </View>
 
-          <View style={[styles.liveBottom, { paddingBottom: bottomPad + 12, paddingHorizontal: 16 }]}>
+          <View style={[styles.liveBottom, { paddingHorizontal: 16 }]}>
             {showChat && (
               <View style={styles.chatInputRow}>
                 <TextInput
@@ -709,6 +708,7 @@ export default function GoLiveScreen() {
                 <Ionicons name={isMuted ? "mic-off" : "mic"} size={26} color={isMuted ? "#FF4444" : "#FFF"} />
               </TouchableOpacity>
             </View>
+          </View>
           </View>
         </KeyboardAvoidingView>
 
@@ -1034,8 +1034,16 @@ const styles = StyleSheet.create({
   },
   goLiveBtnText: { color: "#FFF", fontSize: 18, fontWeight: "700", fontFamily: "Inter_700Bold" },
   liveOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    flexDirection: "column",
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  liveTopDock: {
+    position: "absolute",
+    left: 16,
+    right: 16,
   },
   liveErrorBanner: {
     position: "absolute",
@@ -1057,15 +1065,15 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "Inter_600SemiBold",
   },
-  liveSpacer: {
-    flex: 1,
+  liveBottomDock: {
+    position: "absolute",
+    left: 0,
+    right: 0,
   },
   liveChatArea: {
-    height: 180,
     justifyContent: "flex-end",
     paddingHorizontal: 16,
     paddingBottom: 8,
-    overflow: "hidden",
   },
   liveChatList: {
     gap: 5,
