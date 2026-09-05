@@ -628,6 +628,8 @@ export default function GoLiveScreen() {
             </View>
           </View>
 
+          <View style={styles.liveSpacer} pointerEvents="none" />
+
           {/* Chat messages overlay */}
           <View style={styles.liveChatArea} pointerEvents="box-none">
             <View style={styles.liveChatList}>
@@ -1045,8 +1047,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "Inter_600SemiBold",
   },
-  liveChatArea: {
+  liveSpacer: {
     flex: 1,
+  },
+  liveChatArea: {
     justifyContent: "flex-end",
     paddingHorizontal: 16,
     paddingBottom: 8,
