@@ -4,3 +4,4 @@
 - [Agora host startup](agora-host-startup.md) — gate broadcasting on engine and camera readiness; this resolved the Android host’s black camera screen on a real device.
 - [Android dev-client bundle verification](android-dev-client-bundle-verification.md) — opening an exp+ link does not prove Metro loaded; require Android bundle logs or a visible marker.
 - [Agora RTC/RTM Android collision](agora-rtc-rtm-android-collision.md) — RTC 4.5.x and RTM 2.2.6 ship incompatible AOSL libraries; do not link both into one Android APK.
+- [Livestream chat retention](livestream-chat-retention.md) — keep live chat temporary in a capped memory buffer; do not persist ordinary stream messages in PostgreSQL.
