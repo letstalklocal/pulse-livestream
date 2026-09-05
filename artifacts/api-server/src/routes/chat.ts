@@ -19,10 +19,13 @@ export function clearChat(channelId: string) {
 }
 
 router.get("/streams/:channelId/chat", (req, res) => {
+  delete req.headers["if-none-match"];
+  delete req.headers["if-modified-since"];
   const channelId = req.params["channelId"] ?? "";
   const since = parseInt(req.query["since"] as string ?? "0", 10) || 0;
   const all = chatStore.get(channelId) ?? [];
   const messages = since > 0 ? all.filter((m) => m.ts > since) : all;
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate");
   res.json({ messages });
 });
 
