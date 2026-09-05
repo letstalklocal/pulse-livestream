@@ -37,6 +37,19 @@ export function pushGift(channelId: string, giftName: string, senderName: string
   broadcast(channelId, { type: "gift", channelId, giftName, senderName, coins });
 }
 
+export function pushChat(
+  channelId: string,
+  message: {
+    id: string;
+    senderName: string;
+    text: string;
+    color: string;
+    ts: number;
+  },
+): void {
+  broadcast(channelId, { type: "chat", channelId, message });
+}
+
 export function pushStreamEnded(channelId: string): void {
   broadcast(channelId, { type: "stream_ended", channelId });
 }

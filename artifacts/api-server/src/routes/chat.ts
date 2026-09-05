@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { pushChat } from "../lib/wsHub";
 
 const router = Router();
 
@@ -49,6 +50,7 @@ router.post("/streams/:channelId/chat", (req, res) => {
   const existing = chatStore.get(channelId) ?? [];
   const updated = [...existing, message].slice(-MAX_MESSAGES);
   chatStore.set(channelId, updated);
+  pushChat(channelId, message);
 
   res.json({ message });
 });

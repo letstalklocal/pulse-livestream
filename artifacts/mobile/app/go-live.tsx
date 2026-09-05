@@ -187,9 +187,22 @@ export default function GoLiveScreen() {
           coins?: number;
           giftName?: string;
           senderName?: string;
+          message?: {
+            id: string;
+            senderName: string;
+            text: string;
+            color: string;
+            ts: number;
+          };
         };
         if (msg.type === "earnings" && typeof msg.coins === "number") {
           setStreamCoins(msg.coins);
+        }
+        if (msg.type === "chat" && msg.message) {
+          setChatMessages((prev) => {
+            if (prev.some((message) => message.id === msg.message!.id)) return prev;
+            return [...prev, msg.message!].slice(-100);
+          });
         }
         if (msg.type === "gift" && msg.giftName) {
           const gift = GIFTS.find((g) => g.name === msg.giftName) ?? GIFTS[0]!;

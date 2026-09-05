@@ -331,11 +331,30 @@ export default function StreamScreen() {
           coins?: number;
           giftName?: string;
           senderName?: string;
+          message?: {
+            id: string;
+            senderName: string;
+            text: string;
+            color: string;
+          };
         };
         if (msg.type === "stream_ended") {
           setStreamEnded(true);
         } else if (msg.type === "earnings" && typeof msg.coins === "number") {
           setRealtimeCoins(msg.coins);
+        } else if (msg.type === "chat" && msg.message) {
+          setMessages((prev) => {
+            if (prev.some((message) => message.id === msg.message!.id)) return prev;
+            return [
+              ...prev,
+              {
+                id: msg.message!.id,
+                sender: msg.message!.senderName,
+                text: msg.message!.text,
+                color: msg.message!.color,
+              },
+            ].slice(-100);
+          });
         } else if (msg.type === "gift" && msg.giftName) {
           if (typeof msg.coins === "number") setRealtimeCoins(msg.coins);
           const gift = GIFTS.find((g) => g.name === msg.giftName);
