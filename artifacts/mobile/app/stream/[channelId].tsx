@@ -173,7 +173,7 @@ export default function StreamScreen() {
 
   // Poll real chat for non-demo streams
   const { data: chatPollData } = useGetStreamChat(channelId ?? "", undefined, {
-    query: { enabled: !!channelId && !isDemo, refetchInterval: 3000 } as any,
+    query: { enabled: !!channelId && !isDemo, refetchInterval: 1000 } as any,
   });
 
   useEffect(() => {
@@ -331,30 +331,11 @@ export default function StreamScreen() {
           coins?: number;
           giftName?: string;
           senderName?: string;
-          message?: {
-            id: string;
-            senderName: string;
-            text: string;
-            color: string;
-          };
         };
         if (msg.type === "stream_ended") {
           setStreamEnded(true);
         } else if (msg.type === "earnings" && typeof msg.coins === "number") {
           setRealtimeCoins(msg.coins);
-        } else if (msg.type === "chat" && msg.message) {
-          setMessages((prev) => {
-            if (prev.some((message) => message.id === msg.message!.id)) return prev;
-            return [
-              ...prev,
-              {
-                id: msg.message!.id,
-                sender: msg.message!.senderName,
-                text: msg.message!.text,
-                color: msg.message!.color,
-              },
-            ].slice(-100);
-          });
         } else if (msg.type === "gift" && msg.giftName) {
           if (typeof msg.coins === "number") setRealtimeCoins(msg.coins);
           const gift = GIFTS.find((g) => g.name === msg.giftName);
@@ -607,9 +588,23 @@ export default function StreamScreen() {
       sendChatMutation.mutateAsync({
         channelId,
         data: { senderName, text, color: "#FF1966" },
-      }).then(() => {
+      }).then((data) => {
+        setMessages((prev) => {
+          if (prev.some((message) => message.id === data.message.id)) return prev;
+          return [
+            ...prev,
+            {
+              id: data.message.id,
+              sender: data.message.senderName,
+              text: data.message.text,
+              color: data.message.color,
+            },
+          ].slice(-100);
+        });
         void queryClient.invalidateQueries({ queryKey: getGetStreamChatQueryKey(channelId) });
-      }).catch(() => {});
+      }).catch(() => {
+        Alert.alert("Message not sent", "Check your connection and try again.");
+      });
     }
   };
 

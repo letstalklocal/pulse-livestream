@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   FlatList,
   KeyboardAvoidingView,
@@ -188,22 +189,9 @@ export default function GoLiveScreen() {
           coins?: number;
           giftName?: string;
           senderName?: string;
-          message?: {
-            id: string;
-            senderName: string;
-            text: string;
-            color: string;
-            ts: number;
-          };
         };
         if (msg.type === "earnings" && typeof msg.coins === "number") {
           setStreamCoins(msg.coins);
-        }
-        if (msg.type === "chat" && msg.message) {
-          setChatMessages((prev) => {
-            if (prev.some((message) => message.id === msg.message!.id)) return prev;
-            return [...prev, msg.message!].slice(-100);
-          });
         }
         if (msg.type === "gift" && msg.giftName) {
           const gift = GIFTS.find((g) => g.name === msg.giftName) ?? GIFTS[0]!;
@@ -226,7 +214,7 @@ export default function GoLiveScreen() {
 
   // Poll chat messages while live (broadcaster sees viewer messages too)
   const { data: chatPollData } = useGetStreamChat(activeChannelId, undefined, {
-    query: { enabled: isLive && !!activeChannelId, refetchInterval: 3000 } as any,
+    query: { enabled: isLive && !!activeChannelId, refetchInterval: 1000 } as any,
   });
 
   useEffect(() => {
@@ -646,11 +634,17 @@ export default function GoLiveScreen() {
                       sendChatMutation.mutateAsync({
                         channelId: channelIdRef.current,
                         data: { senderName: user!.name, text, color: "#FF1966" },
-                      }).then(() => {
+                      }).then((data) => {
+                        setChatMessages((prev) => {
+                          if (prev.some((message) => message.id === data.message.id)) return prev;
+                          return [...prev, data.message].slice(-100);
+                        });
                         void queryClient.invalidateQueries({
                           queryKey: getGetStreamChatQueryKey(channelIdRef.current),
                         });
-                      }).catch(() => {});
+                      }).catch(() => {
+                        Alert.alert("Message not sent", "Check your connection and try again.");
+                      });
                     }
                   }}
                   onBlur={() => setShowChat(false)}
