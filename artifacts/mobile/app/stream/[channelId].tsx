@@ -4,6 +4,7 @@ import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   Dimensions,
@@ -45,7 +46,7 @@ import { GiftLeaderboard } from "@/components/GiftLeaderboard";
 import {
   ChannelProfileType,
   ClientRoleType,
-  RtcTextureViewComponent,
+  RtcSurfaceViewComponent,
   VideoSourceType,
   createEngine,
 } from "@/utils/agora";
@@ -129,6 +130,8 @@ export default function StreamScreen() {
   const { user } = useAuth();
 
   const [remoteUid, setRemoteUid] = useState<number | null>(null);
+  const [remoteVideoReady, setRemoteVideoReady] = useState(false);
+  const [agoraError, setAgoraError] = useState<string | null>(null);
   const isDemo = (channelId ?? "").endsWith("-demo");
   const [messages, setMessages] = useState<ChatMsg[]>(isDemo ? SEED_CHAT : []);
   const [inputText, setInputText] = useState("");
@@ -358,29 +361,107 @@ export default function StreamScreen() {
 
     const setup = async () => {
       try {
+        setJoined(false);
+        setRemoteUid(null);
+        setRemoteVideoReady(false);
+        setAgoraError(null);
         const engine = createEngine();
-        if (!engine) return;
-        engine.initialize({
-          appId: process.env["EXPO_PUBLIC_AGORA_APP_ID"] ?? "",
+        if (!engine) throw new Error("This development build does not include the Agora video module.");
+        const appId = process.env["EXPO_PUBLIC_AGORA_APP_ID"] ?? "";
+        if (!appId) throw new Error("Agora App ID is missing.");
+        const initializeResult = engine.initialize({
+          appId,
           channelProfile: ChannelProfileType.ChannelProfileLiveBroadcasting,
         });
-        engine.enableVideo();
-        engine.enableAudio();
+        if (initializeResult < 0) throw new Error(`Agora initialization failed (${initializeResult}).`);
+        const videoResult = engine.enableVideo();
+        const audioResult = engine.enableAudio();
+        if (videoResult < 0 || audioResult < 0) {
+          throw new Error(`Agora media setup failed (${videoResult}, ${audioResult}).`);
+        }
         engine.registerEventHandler({
-          onError: (err: number, msg: string) =>
-            console.warn("[Agora viewer] onError:", err, msg),
-          onJoinChannelSuccess: (connection: any, elapsed: number) =>
-            console.log("[Agora viewer] joined:", connection?.channelId, elapsed),
-          onUserPublished: (_conn: any, uid: number, mediaType: number) => {
-            console.log("[Agora viewer] onUserPublished uid:", uid, "mediaType:", mediaType);
-            // mediaType: 0 = audio only, 1 = video, 2 = audio+video
-            if (!didUnmount && mediaType !== 0) {
+          onError: (err: number, msg: string) => {
+            console.warn("[Agora viewer] onError:", err, msg);
+            if (!didUnmount) setAgoraError(`Live video error ${err}: ${msg || "Unknown Agora error"}`);
+          },
+          onJoinChannelSuccess: (connection: any, elapsed: number) => {
+            console.log("[Agora viewer] joined:", connection?.channelId, elapsed);
+            if (!didUnmount) {
+              setJoined(true);
+              setAgoraError(null);
+            }
+          },
+          onConnectionStateChanged: (connection: any, state: number, reason: number) => {
+            console.log(
+              "[Agora viewer] connectionState channel:",
+              connection?.channelId,
+              "state:",
+              state,
+              "reason:",
+              reason,
+            );
+            if (!didUnmount && state === 5) {
+              setAgoraError(`Could not connect to the live stream (reason ${reason}).`);
+            }
+          },
+          onUserJoined: (_connection: any, uid: number, elapsed: number) => {
+            console.log("[Agora viewer] onUserJoined uid:", uid, "elapsed:", elapsed);
+            if (!didUnmount) setRemoteUid(uid);
+          },
+          onRemoteVideoStateChanged: (
+            _connection: any,
+            uid: number,
+            state: number,
+            reason: number,
+            elapsed: number,
+          ) => {
+            console.log(
+              "[Agora viewer] remoteVideoState uid:",
+              uid,
+              "state:",
+              state,
+              "reason:",
+              reason,
+              "elapsed:",
+              elapsed,
+            );
+            if (didUnmount) return;
+            setRemoteUid(uid);
+            if (state === 2) {
+              setRemoteVideoReady(true);
+              setAgoraError(null);
+            } else if (state === 4) {
+              setRemoteVideoReady(false);
+              setAgoraError(`The host video could not be decoded (reason ${reason}).`);
+            }
+          },
+          onFirstRemoteVideoFrame: (
+            _connection: any,
+            uid: number,
+            width: number,
+            height: number,
+            elapsed: number,
+          ) => {
+            console.log(
+              "[Agora viewer] firstRemoteVideoFrame uid:",
+              uid,
+              "size:",
+              `${width}x${height}`,
+              "elapsed:",
+              elapsed,
+            );
+            if (!didUnmount) {
               setRemoteUid(uid);
+              setRemoteVideoReady(true);
+              setAgoraError(null);
             }
           },
           onUserOffline: (_conn: any, uid: number, reason: number) => {
             console.log("[Agora viewer] onUserOffline uid:", uid, "reason:", reason);
-            if (!didUnmount) setRemoteUid(null);
+            if (!didUnmount) {
+              setRemoteUid(null);
+              setRemoteVideoReady(false);
+            }
           },
         });
         engineRef.current = engine;
@@ -388,19 +469,29 @@ export default function StreamScreen() {
         const tokenData = await generateToken.mutateAsync({
           data: { channelName: channelId, uid: user?.uid ?? 0, role: "audience" },
         });
-        await engine.joinChannel(tokenData.token, channelId, user?.uid ?? 0, {
+        const joinResult = engine.joinChannel(tokenData.token, channelId, user?.uid ?? 0, {
           clientRoleType: ClientRoleType.ClientRoleAudience,
           autoSubscribeAudio: true,
           autoSubscribeVideo: true,
         });
+        console.log("[Agora viewer] joinChannel result:", joinResult, "channel:", channelId);
+        if (joinResult < 0) throw new Error(`Could not join the live stream (${joinResult}).`);
         // Explicitly unmute remote streams — Agora v4 can default to muted
-        engine.muteAllRemoteVideoStreams(false);
-        engine.muteAllRemoteAudioStreams(false);
+        const videoUnmuteResult = engine.muteAllRemoteVideoStreams(false);
+        const audioUnmuteResult = engine.muteAllRemoteAudioStreams(false);
+        console.log(
+          "[Agora viewer] remote unmute results video:",
+          videoUnmuteResult,
+          "audio:",
+          audioUnmuteResult,
+        );
         console.log("[Agora viewer] joined and unmuted remote streams");
-        if (!didUnmount) setJoined(true);
         updateViewers.mutate({ channelId, data: { action: "join" } });
       } catch (e) {
         console.warn("[Agora viewer] setup error:", e);
+        if (!didUnmount) {
+          setAgoraError(e instanceof Error ? e.message : "Could not start live video.");
+        }
       }
     };
 
@@ -506,7 +597,7 @@ export default function StreamScreen() {
   const topPad    = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
-  const VideoView = RtcTextureViewComponent;
+  const VideoView = RtcSurfaceViewComponent;
   const showNativeVideo = isNative && joined && remoteUid !== null && VideoView;
 
   return (
@@ -525,10 +616,29 @@ export default function StreamScreen() {
         style={StyleSheet.absoluteFill}
       >
         {showNativeVideo && VideoView ? (
-          <VideoView
-            canvas={{ uid: remoteUid!, sourceType: VideoSourceType.VideoSourceRemote }}
-            style={StyleSheet.absoluteFill}
-          />
+          <>
+            <VideoView
+              canvas={{ uid: remoteUid!, sourceType: VideoSourceType.VideoSourceRemote }}
+              style={StyleSheet.absoluteFill}
+            />
+            {!remoteVideoReady ? (
+              <View style={styles.nativeVideoStatus}>
+                <ActivityIndicator color="#FFF" />
+                <Text style={styles.nativeVideoStatusText}>Waiting for host video…</Text>
+              </View>
+            ) : null}
+          </>
+        ) : isNative ? (
+          <View style={styles.nativeVideoStatus}>
+            {agoraError ? (
+              <Ionicons name="warning-outline" size={36} color="#FF6B6B" />
+            ) : (
+              <ActivityIndicator color="#FFF" />
+            )}
+            <Text style={styles.nativeVideoStatusText}>
+              {agoraError ?? (joined ? "Waiting for host video…" : "Connecting to live video…")}
+            </Text>
+          </View>
         ) : (
           <DemoVideo category={stream?.category} />
         )}
@@ -797,6 +907,25 @@ const styles = StyleSheet.create({
   videoOverlay: {
     backgroundColor: "transparent",
     opacity: 0.4,
+  },
+  nativeVideoStatus: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    backgroundColor: "#000",
+    paddingHorizontal: 32,
+  },
+  nativeVideoStatusText: {
+    color: "#FFF",
+    fontSize: 15,
+    fontWeight: "600",
+    lineHeight: 21,
+    textAlign: "center",
   },
   videoCenter: {
     flex: 1,

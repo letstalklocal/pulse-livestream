@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -7,6 +8,7 @@ import {
   Animated,
   FlatList,
   KeyboardAvoidingView,
+  Linking,
   PermissionsAndroid,
   Platform,
   ScrollView,
@@ -35,7 +37,7 @@ import {
   ChannelProfileType,
   ClientRoleType,
   RenderModeType,
-  RtcTextureViewComponent,
+  RtcSurfaceViewComponent,
   VideoSourceType,
   createEngine,
 } from "@/utils/agora";
@@ -45,6 +47,7 @@ import { GIFTS } from "@/components/GiftPicker";
 import { GiftLeaderboard } from "@/components/GiftLeaderboard";
 
 const isNative = Platform.OS === "ios" || Platform.OS === "android";
+const CAMERA_DIAGNOSTIC_REVISION = "CAM57-R3";
 
 const CATEGORIES = ["Gaming", "Music", "Talk", "Art", "Dance", "Other"];
 const CATEGORY_COLORS: Record<string, string> = {
@@ -79,19 +82,30 @@ function DemoCamera({ color }: { color: string }) {
   );
 }
 
-async function requestPermissions(): Promise<boolean> {
-  if (Platform.OS !== "android") return true;
+type MediaPermissionResult = {
+  granted: boolean;
+  canAskAgain: boolean;
+};
+
+async function requestPermissions(): Promise<MediaPermissionResult> {
+  if (Platform.OS !== "android") return { granted: true, canAskAgain: true };
   try {
     const granted = await PermissionsAndroid.requestMultiple([
       PermissionsAndroid.PERMISSIONS.CAMERA,
       PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
     ]);
-    return (
-      granted[PermissionsAndroid.PERMISSIONS.CAMERA] === "granted" &&
-      granted[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] === "granted"
-    );
+    const cameraStatus = granted[PermissionsAndroid.PERMISSIONS.CAMERA];
+    const microphoneStatus = granted[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO];
+    return {
+      granted:
+        cameraStatus === PermissionsAndroid.RESULTS.GRANTED &&
+        microphoneStatus === PermissionsAndroid.RESULTS.GRANTED,
+      canAskAgain:
+        cameraStatus !== PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN &&
+        microphoneStatus !== PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN,
+    };
   } catch {
-    return false;
+    return { granted: false, canAskAgain: true };
   }
 }
 
@@ -102,6 +116,9 @@ export default function GoLiveScreen() {
   const { user, isSignedIn } = useAuth();
 
   const [title, setTitle] = useState("");
+  const nativeBuildNumber =
+    Platform.OS === "android" ? Constants.platform?.android?.versionCode : null;
+  const visibleBuildId = `${Constants.expoConfig?.version ?? "unknown"} (${nativeBuildNumber ?? "dev"}) · ${CAMERA_DIAGNOSTIC_REVISION}`;
   const [category, setCategory] = useState("Gaming");
   const [isLive, setIsLive] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -110,7 +127,13 @@ export default function GoLiveScreen() {
   const chatInputRef = useRef<TextInput>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [cameraReady, setCameraReady] = useState(!isNative);
+  const [cameraViewReady, setCameraViewReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameraDiagnostic, setCameraDiagnostic] = useState(
+    isNative ? "Waiting for camera setup" : "Web demo mode",
+  );
+  const [permissionCanAskAgain, setPermissionCanAskAgain] = useState(true);
+  const [permissionRetryCount, setPermissionRetryCount] = useState(0);
   const [duration, setDuration] = useState(0);
   const [chatMessages, setChatMessages] = useState<Array<{ id: string; senderName: string; text: string; color: string; ts: number }>>([]);
   const chatListRef = useRef<FlatList>(null);
@@ -208,16 +231,30 @@ export default function GoLiveScreen() {
   useEffect(() => {
     if (!isNative) return;
     let mounted = true;
+    let cameraTimeout: ReturnType<typeof setTimeout> | null = null;
 
     (async () => {
-      const ok = await requestPermissions();
+      setCameraReady(false);
+      setCameraViewReady(false);
+      setCameraError(null);
+      setCameraDiagnostic("Requesting camera and microphone permissions");
+      const permission = await requestPermissions();
       if (!mounted) return;
-      if (!ok) {
+      setPermissionCanAskAgain(permission.canAskAgain);
+      if (!permission.granted) {
         console.warn("[Agora] Permissions denied");
-        setCameraError("Camera and microphone access are required before you can go live.");
+        setCameraDiagnostic(
+          permission.canAskAgain ? "Permissions denied" : "Permissions blocked in Android settings",
+        );
+        setCameraError(
+          permission.canAskAgain
+            ? "Camera and microphone access are required before you can go live."
+            : "Camera and microphone access are blocked. Open Android settings to allow them.",
+        );
         return;
       }
       try {
+        setCameraDiagnostic("Initializing Agora camera");
         const engine = createEngine();
         if (!engine) {
           setCameraError("This development build does not include the Agora camera module.");
@@ -229,32 +266,98 @@ export default function GoLiveScreen() {
           appId,
           channelProfile: ChannelProfileType.ChannelProfileLiveBroadcasting,
         });
+        console.log("[Agora] initialize result:", initializeResult);
         if (initializeResult < 0) throw new Error(`Agora initialization failed (${initializeResult})`);
-        // Log Agora errors to help diagnose black-screen issues
+        engineRef.current = engine;
         engine.registerEventHandler({
-          onError: (err: number, msg: string) =>
-            console.warn("[Agora] onError:", err, msg),
-          onJoinChannelSuccess: (connection: any, elapsed: number) =>
-            console.log("[Agora] joined channel:", connection?.channelId, "elapsed:", elapsed),
-          onLocalVideoStateChanged: (source: any, state: number, reason: number) =>
-            console.log("[Agora] localVideoState source:", source, "state:", state, "reason:", reason),
+          onError: (err: number, msg: string) => {
+            console.warn("[Agora] onError:", err, msg);
+            mounted && setCameraReady(false);
+            mounted && setCameraViewReady(false);
+            mounted && setCameraDiagnostic(`Agora error ${err}: ${msg || "unknown"}`);
+            mounted && setCameraError(`Live video error ${err}: ${msg || "Unknown Agora error"}`);
+          },
+          onJoinChannelSuccess: (connection: any, elapsed: number) => {
+            console.log("[Agora] joined channel:", connection?.channelId, "elapsed:", elapsed);
+            mounted && setCameraDiagnostic(`Live channel joined in ${elapsed} ms`);
+            mounted && setCameraError(null);
+          },
+          onConnectionStateChanged: (connection: any, state: number, reason: number) => {
+            console.log(
+              "[Agora] connectionState channel:",
+              connection?.channelId,
+              "state:",
+              state,
+              "reason:",
+              reason,
+            );
+            if (mounted && state === 5) {
+              setCameraDiagnostic(`Connection failed: state ${state}, reason ${reason}`);
+              setCameraError(`Could not connect the live stream (reason ${reason}).`);
+            }
+          },
+          onPermissionError: (permissionType: number) => {
+            console.warn("[Agora] permission error:", permissionType);
+            if (mounted) {
+              setCameraReady(false);
+              setCameraViewReady(false);
+              setCameraDiagnostic(`Permission error type ${permissionType}`);
+              setCameraError(
+                permissionType === 1
+                  ? "Camera access is required before you can go live."
+                  : "Microphone access is required before you can go live.",
+              );
+            }
+          },
+          onLocalVideoStateChanged: (source: any, state: number, reason: number) => {
+            console.log("[Agora] localVideoState source:", source, "state:", state, "reason:", reason);
+            if (!mounted || source !== VideoSourceType.VideoSourceCamera) return;
+            setCameraDiagnostic(`Camera state ${state}, reason ${reason}`);
+            if (state === 1 || state === 2) {
+              if (cameraTimeout) clearTimeout(cameraTimeout);
+              setCameraReady(true);
+              setCameraDiagnostic(state === 2 ? "Camera frames are encoding" : "Camera is capturing");
+              setCameraError(null);
+            } else if (state === 3) {
+              if (cameraTimeout) clearTimeout(cameraTimeout);
+              setCameraReady(false);
+              setCameraViewReady(false);
+              setCameraError(`The camera could not start (reason ${reason}).`);
+            }
+          },
         });
+        cameraTimeout = setTimeout(() => {
+          if (!mounted) return;
+          console.warn("[Agora] camera preview timed out");
+          setCameraReady(false);
+          setCameraDiagnostic("No camera detected after 10 seconds");
+          setCameraError("The camera did not start. Check permissions and try again.");
+        }, 10000);
         engine.setClientRole(ClientRoleType.ClientRoleBroadcaster);
+        const previewResult = engine.startPreview();
         const videoResult = engine.enableVideo();
         const audioResult = engine.enableAudio();
-        const previewResult = engine.startPreview();
+        console.log(
+          "[Agora] setup results preview:",
+          previewResult,
+          "video:",
+          videoResult,
+          "audio:",
+          audioResult,
+        );
+        setCameraDiagnostic(
+          `Setup accepted: preview ${previewResult}, video ${videoResult}, audio ${audioResult}`,
+        );
         if (videoResult < 0 || audioResult < 0 || previewResult < 0) {
           throw new Error(`Agora camera setup failed (${videoResult}, ${audioResult}, ${previewResult})`);
         }
-        engineRef.current = engine;
-        if (mounted) {
-          setCameraReady(true);
-          setCameraError(null);
-        }
+        if (mounted) setCameraViewReady(true);
       } catch (e) {
         console.warn("[Agora] init error:", e);
         if (mounted) {
           setCameraReady(false);
+          setCameraViewReady(false);
+          setCameraDiagnostic(e instanceof Error ? e.message : "Camera initialization failed");
           setCameraError(e instanceof Error ? e.message : "The camera could not be started.");
         }
       }
@@ -262,9 +365,10 @@ export default function GoLiveScreen() {
 
     return () => {
       mounted = false;
+      if (cameraTimeout) clearTimeout(cameraTimeout);
       engineRef.current?.stopPreview?.();
     };
-  }, []);
+  }, [permissionRetryCount]);
 
   // After the live screen mounts its RtcTextureView, join the channel
   useEffect(() => {
@@ -275,13 +379,18 @@ export default function GoLiveScreen() {
     // Give the texture view one frame to attach before joining
     const t = setTimeout(() => {
       try {
-        engineRef.current.joinChannel(token, channelId, user!.uid, {
+        const joinResult = engineRef.current.joinChannel(token, channelId, user!.uid, {
           clientRoleType: ClientRoleType.ClientRoleBroadcaster,
           publishMicrophoneTrack: true,
           publishCameraTrack: true,
         });
+        console.log("[Agora] joinChannel result:", joinResult, "channel:", channelId);
+        if (joinResult < 0) {
+          setCameraError(`Could not start the live stream (${joinResult}).`);
+        }
       } catch (e) {
         console.warn("[Agora] joinChannel error:", e);
+        setCameraError(e instanceof Error ? e.message : "Could not start the live stream.");
       }
     }, 300);
 
@@ -326,7 +435,9 @@ export default function GoLiveScreen() {
       setIsStarting(false);
       durationRef.current = setInterval(() => setDuration((d) => d + 1), 1000);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (_e) {
+    } catch (e) {
+      console.warn("[Agora] start live error:", e);
+      setCameraError(e instanceof Error ? e.message : "Could not start the live stream.");
       setIsStarting(false);
     }
   }, [title, category, user, generateToken, createStream, cameraReady]);
@@ -426,8 +537,7 @@ export default function GoLiveScreen() {
     );
   }
 
-  // RtcTextureView is more reliable than RtcSurfaceView for local camera on Android
-  const VideoView = RtcTextureViewComponent;
+  const VideoView = RtcSurfaceViewComponent;
   const showNativeVideo = isNative && VideoView;
 
   // ── LIVE screen ──────────────────────────────────────────────────────────
@@ -442,6 +552,12 @@ export default function GoLiveScreen() {
         ) : (
           <DemoCamera color={catColor} />
         )}
+        {cameraError ? (
+          <View style={[styles.liveErrorBanner, { top: topPad + 66 }]}>
+            <Ionicons name="warning" size={16} color="#FFF" />
+            <Text style={styles.liveErrorText}>{cameraError}</Text>
+          </View>
+        ) : null}
 
         <KeyboardAvoidingView
           style={styles.liveOverlay}
@@ -585,6 +701,11 @@ export default function GoLiveScreen() {
         ]}
         keyboardShouldPersistTaps="handled"
       >
+        <View style={styles.buildIdentifier}>
+          <Text style={styles.buildIdentifierLabel}>BUILD ID</Text>
+          <Text style={styles.buildIdentifierValue}>{visibleBuildId}</Text>
+        </View>
+
         <View style={styles.inputSection}>
           <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Stream title</Text>
           <TextInput
@@ -607,24 +728,69 @@ export default function GoLiveScreen() {
         </View>
 
         <View style={[styles.cameraPreview, { backgroundColor: catColor + "22", borderColor: catColor + "55" }]}>
-          {isNative && cameraReady && VideoView ? (
+          {isNative && cameraViewReady && VideoView ? (
             <VideoView
               canvas={{ uid: 0, sourceType: VideoSourceType.VideoSourceCamera }}
               style={StyleSheet.absoluteFill}
             />
-          ) : (
+          ) : null}
+          {isNative && !cameraReady ? (
             <View style={styles.cameraPreviewStatus}>
-              {isNative && !cameraError ? (
+              {!cameraError ? (
                 <ActivityIndicator color={catColor} />
               ) : (
-                <Ionicons name={isNative ? "videocam-off" : "radio"} size={40} color={catColor} />
+                <Ionicons name="videocam-off" size={40} color={catColor} />
               )}
               <Text style={[styles.cameraPreviewText, { color: colors.mutedForeground }]}>
-                {isNative ? cameraError ?? "Preparing camera…" : "Camera preview requires a native build"}
+                {cameraError ?? "Preparing camera…"}
+              </Text>
+              {cameraError ? (
+                <TouchableOpacity
+                  style={[styles.cameraRetryBtn, { backgroundColor: catColor }]}
+                  onPress={() => {
+                    if (!permissionCanAskAgain) {
+                      void Linking.openSettings().catch(() => {
+                        setCameraError("Open Android settings and allow camera and microphone access.");
+                      });
+                      return;
+                    }
+                    setPermissionRetryCount((count) => count + 1);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.cameraRetryText}>
+                    {permissionCanAskAgain ? "Try Again" : "Open Settings"}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          ) : !isNative ? (
+            <View style={styles.cameraPreviewStatus}>
+              <Ionicons name="radio" size={40} color={catColor} />
+              <Text style={[styles.cameraPreviewText, { color: colors.mutedForeground }]}>
+                Camera preview requires a native build
               </Text>
             </View>
-          )}
+          ) : null}
         </View>
+        {isNative ? (
+          <View
+            style={[
+              styles.cameraDiagnosticPanel,
+              cameraError ? styles.cameraDiagnosticPanelError : null,
+            ]}
+          >
+            <Ionicons
+              name={cameraError ? "warning-outline" : cameraReady ? "checkmark-circle-outline" : "time-outline"}
+              size={18}
+              color={cameraError ? "#FF6B6B" : cameraReady ? "#00C896" : "#FFD166"}
+            />
+            <Text style={styles.cameraDiagnosticText}>
+              <Text style={styles.cameraDiagnosticLabel}>Message: </Text>
+              {cameraError ?? cameraDiagnostic}
+            </Text>
+          </View>
+        ) : null}
 
         <Text style={[styles.setupTitle, { color: colors.foreground }]}>
           Start your stream
@@ -712,6 +878,30 @@ const styles = StyleSheet.create({
   demoCameraLabel: { fontSize: 18, fontWeight: "700", fontFamily: "Inter_700Bold" },
   demoCameraNote: { color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "Inter_400Regular" },
   setupContent: { alignItems: "center", paddingHorizontal: 24, gap: 20 },
+  buildIdentifier: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderRadius: 8,
+    backgroundColor: "rgba(255,25,102,0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255,25,102,0.45)",
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  buildIdentifierLabel: {
+    color: "#FF75A3",
+    fontSize: 11,
+    fontFamily: "Inter_700Bold",
+    fontWeight: "700",
+    letterSpacing: 0.8,
+  },
+  buildIdentifierValue: {
+    color: "#FFF",
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+  },
   cameraPreview: {
     width: "100%",
     aspectRatio: 3 / 4,
@@ -721,12 +911,56 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   cameraPreviewStatus: {
-    flex: 1,
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     alignItems: "center",
     justifyContent: "center",
     gap: 12,
+    backgroundColor: "rgba(8,8,15,0.82)",
   },
   cameraPreviewText: { fontSize: 13, fontFamily: "Inter_500Medium", textAlign: "center", paddingHorizontal: 24 },
+  cameraRetryBtn: {
+    marginTop: 4,
+    borderRadius: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+  },
+  cameraRetryText: {
+    color: "#FFF",
+    fontSize: 13,
+    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
+  },
+  cameraDiagnosticPanel: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 8,
+    backgroundColor: "rgba(0,200,150,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(0,200,150,0.32)",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  cameraDiagnosticPanelError: {
+    backgroundColor: "rgba(255,107,107,0.12)",
+    borderColor: "rgba(255,107,107,0.36)",
+  },
+  cameraDiagnosticText: {
+    flex: 1,
+    color: "#FFF",
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    lineHeight: 17,
+  },
+  cameraDiagnosticLabel: {
+    fontFamily: "Inter_700Bold",
+    fontWeight: "700",
+  },
   setupTitle: { fontSize: 26, fontWeight: "700", fontFamily: "Inter_700Bold", textAlign: "center" },
   setupSubtitle: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: -8 },
   inputSection: { width: "100%", gap: 8 },
@@ -755,6 +989,26 @@ const styles = StyleSheet.create({
   liveOverlay: {
     ...StyleSheet.absoluteFillObject,
     flexDirection: "column",
+  },
+  liveErrorBanner: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    zIndex: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 12,
+    backgroundColor: "rgba(180,24,24,0.92)",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  liveErrorText: {
+    flex: 1,
+    color: "#FFF",
+    fontSize: 13,
+    fontWeight: "600",
+    fontFamily: "Inter_600SemiBold",
   },
   liveChatArea: {
     flex: 1,

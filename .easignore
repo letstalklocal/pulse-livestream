@@ -1,0 +1,21 @@
+# Workspace-only files that are not needed by the Expo Android build.
+.git/
+.agents/
+.cache/
+attached_assets/
+codex-user/
+downloads/
+screenshots/
+
+# Dependencies and generated output are restored or produced by the build.
+node_modules/
+**/node_modules/
+artifacts/mobile/.expo/
+artifacts/mobile/static-build/
+**/dist/
+**/build/
+
+# Local-only files and logs. Keep the mobile public Agora app ID available to Expo.
+*.log
+*.apk
+*.aab

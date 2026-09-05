@@ -31,3 +31,17 @@ mtime_ms = 1788313459348
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:254cd483-13a8-46a7-aec3-b50e106f5db3/c51d1d4f-0603-4afb-becd-5e99221d90ba/cd9f3815-3bb7-46f0-9e1f-e389098b7e1c"
 storage_version_token = "1788444828278010"
 content_type = "image/png"
+
+[[outputs]]
+id = "Dxxoor4slxfXFKf2RpvT8"
+uri = "file://downloads/pulse-android-metro-qr.png"
+type = "image"
+title = "Pulse Android Metro QR"
+description = "Scan this QR with the Android device that has Pulse 1.0.1 installed. Keep the Replit mobile workflow running while connecting."
+logical_id = "d8b3efe9-f7c5-4c63-88ed-488e62a9cef9"
+content_hash = "sha256:7d84e5415391d0329e64bf0fac89305563bd89e0f17e48e54a0048888f7add4b"
+size = 1443
+mtime_ms = 1788494723705
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:254cd483-13a8-46a7-aec3-b50e106f5db3/d8b3efe9-f7c5-4c63-88ed-488e62a9cef9/fa252910-8d0c-4db0-8077-7be05e3fef54"
+storage_version_token = "1788494727163716"
+content_type = "image/png"
