@@ -770,7 +770,6 @@ export default function GoLiveScreen() {
             placeholderTextColor={colors.mutedForeground}
             maxLength={80}
             returnKeyType="done"
-            autoFocus
           />
         </View>
 
