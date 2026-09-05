@@ -121,6 +121,7 @@ export default function GoLiveScreen() {
   const visibleBuildId = `${Constants.expoConfig?.version ?? "unknown"} (${nativeBuildNumber ?? "dev"}) · ${CAMERA_DIAGNOSTIC_REVISION}`;
   const [category, setCategory] = useState("Gaming");
   const [isLive, setIsLive] = useState(false);
+  const [activeChannelId, setActiveChannelId] = useState("");
   const [isMuted, setIsMuted] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [chatText, setChatText] = useState("");
@@ -154,8 +155,8 @@ export default function GoLiveScreen() {
 
   // If not signed in, show gate screen — hooks must be called unconditionally so this goes after them
   // Poll viewer count while live
-  const { data: liveStreamData } = useGetStream(channelIdRef.current, {
-    query: { enabled: isLive && !!channelIdRef.current, refetchInterval: 5000 } as any,
+  const { data: liveStreamData } = useGetStream(activeChannelId, {
+    query: { enabled: isLive && !!activeChannelId, refetchInterval: 5000 } as any,
   });
   const viewerCount = liveStreamData?.stream?.viewerCount ?? 0;
 
@@ -167,7 +168,7 @@ export default function GoLiveScreen() {
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    const channelId = channelIdRef.current;
+    const channelId = activeChannelId;
     if (!isLive || !channelId) return;
 
     const domain = process.env["EXPO_PUBLIC_DOMAIN"];
@@ -221,11 +222,11 @@ export default function GoLiveScreen() {
       ws.close();
       wsRef.current = null;
     };
-  }, [isLive]);
+  }, [isLive, activeChannelId]);
 
   // Poll chat messages while live (broadcaster sees viewer messages too)
-  const { data: chatPollData } = useGetStreamChat(channelIdRef.current, undefined, {
-    query: { enabled: isLive && !!channelIdRef.current, refetchInterval: 3000 } as any,
+  const { data: chatPollData } = useGetStreamChat(activeChannelId, undefined, {
+    query: { enabled: isLive && !!activeChannelId, refetchInterval: 3000 } as any,
   });
 
   useEffect(() => {
@@ -443,6 +444,7 @@ export default function GoLiveScreen() {
       }
 
       isLiveRef.current = true;
+      setActiveChannelId(channelId);
       setIsBroadcasting(true);
       setIsLive(true);
       setIsStarting(false);
@@ -467,6 +469,7 @@ export default function GoLiveScreen() {
     if (durationRef.current) clearInterval(durationRef.current);
     // Mark not-live before async ops so the unmount cleanup doesn't double-delete
     isLiveRef.current = false;
+    setActiveChannelId("");
     setIsBroadcasting(false);
     try {
       engineRef.current?.leaveChannel?.();
