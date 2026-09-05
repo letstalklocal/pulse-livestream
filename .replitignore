@@ -3,3 +3,6 @@
 
 # No need to store the pnpm store twice.
 .local
+
+# Local downloadable builds are not needed in production deployments.
+downloads/
