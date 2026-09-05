@@ -7,6 +7,7 @@ import React, {
   useState,
 } from "react";
 import { useAuth as useClerkAuth } from "@clerk/expo";
+import { Platform } from "react-native";
 import { useAuth } from "@/context/AuthContext";
 
 const BASE_URL = process.env["EXPO_PUBLIC_DOMAIN"]
@@ -173,6 +174,13 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
   }, [uidStr, storePersistedMessage]);
 
   useEffect(() => {
+    if (Platform.OS !== "ios") {
+      setReady(false);
+      setRtmError(null);
+      rtmClientRef.current = null;
+      return;
+    }
+
     if (!uidStr) {
       setReady(false);
       setRtmError(null);
