@@ -116,7 +116,7 @@ export default function GoLiveScreen() {
   const router = useRouter();
   const { user, isSignedIn } = useAuth();
 
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState("Join My Live");
   const nativeBuildNumber =
     Platform.OS === "android" ? Constants.platform?.android?.versionCode : null;
   const visibleBuildId = `${Constants.expoConfig?.version ?? "unknown"} (${nativeBuildNumber ?? "dev"}) · ${CAMERA_DIAGNOSTIC_REVISION}`;
