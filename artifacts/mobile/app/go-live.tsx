@@ -138,7 +138,6 @@ export default function GoLiveScreen() {
   const [permissionRetryCount, setPermissionRetryCount] = useState(0);
   const [duration, setDuration] = useState(0);
   const [chatMessages, setChatMessages] = useState<Array<{ id: string; senderName: string; text: string; color: string; ts: number }>>([]);
-  const chatListRef = useRef<FlatList>(null);
 
   const channelIdRef = useRef("");
   const isLiveRef = useRef(false);
@@ -223,9 +222,7 @@ export default function GoLiveScreen() {
       const existingIds = new Set(prev.map((m) => m.id));
       const next = chatPollData.messages.filter((m) => !existingIds.has(m.id));
       if (next.length === 0) return prev;
-      const updated = [...prev, ...next].slice(-100);
-      setTimeout(() => chatListRef.current?.scrollToEnd({ animated: true }), 60);
-      return updated;
+      return [...prev, ...next].slice(-100);
     });
   }, [chatPollData]);
 
@@ -599,20 +596,14 @@ export default function GoLiveScreen() {
 
           {/* Chat messages overlay */}
           <View style={styles.liveChatArea} pointerEvents="box-none">
-            <FlatList
-              ref={chatListRef}
-              data={chatMessages}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <View style={styles.liveChatBubble}>
+            <View style={styles.liveChatList}>
+              {chatMessages.slice(-6).map((item) => (
+                <View key={item.id} style={styles.liveChatBubble}>
                   <Text style={[styles.liveChatSender, { color: item.color }]}>{item.senderName}: </Text>
                   <Text style={styles.liveChatText}>{item.text}</Text>
                 </View>
-              )}
-              contentContainerStyle={styles.liveChatList}
-              style={styles.liveChatScroll}
-              showsVerticalScrollIndicator={false}
-            />
+              ))}
+            </View>
           </View>
 
           <View style={[styles.liveBottom, { paddingBottom: bottomPad + 12, paddingHorizontal: 16 }]}>
@@ -1026,7 +1017,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 8,
   },
-  liveChatScroll: { maxHeight: 240 },
   liveChatList: { gap: 5, paddingBottom: 4 },
   liveChatBubble: {
     flexDirection: "row",
