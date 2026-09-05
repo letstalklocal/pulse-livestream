@@ -629,10 +629,7 @@ export default function GoLiveScreen() {
           </View>
 
           {/* Chat messages overlay */}
-          <View
-            style={[styles.liveChatArea, { bottom: bottomPad + 88 }]}
-            pointerEvents="box-none"
-          >
+          <View style={styles.liveChatArea} pointerEvents="box-none">
             <View style={styles.liveChatList}>
               {chatMessages.slice(-6).map((item) => (
                 <View key={item.id} style={styles.liveChatBubble}>
@@ -1049,12 +1046,10 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
   },
   liveChatArea: {
-    position: "absolute",
-    left: 16,
-    right: 16,
+    flex: 1,
     justifyContent: "flex-end",
-    maxHeight: 240,
-    overflow: "hidden",
+    paddingHorizontal: 16,
+    paddingBottom: 8,
   },
   liveChatList: { gap: 5, paddingBottom: 4 },
   liveChatBubble: {
@@ -1113,10 +1108,6 @@ const styles = StyleSheet.create({
   },
   demoBadgeText: { color: "rgba(255,255,255,0.7)", fontSize: 10, fontWeight: "700", fontFamily: "Inter_700Bold", letterSpacing: 1 },
   liveBottom: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
     gap: 10,
   },
   liveBottomBar: {
