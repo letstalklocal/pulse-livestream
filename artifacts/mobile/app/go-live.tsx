@@ -1061,11 +1061,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   liveChatArea: {
+    height: 180,
     justifyContent: "flex-end",
     paddingHorizontal: 16,
     paddingBottom: 8,
+    overflow: "hidden",
   },
-  liveChatList: { gap: 5, paddingBottom: 4 },
+  liveChatList: {
+    gap: 5,
+    paddingBottom: 4,
+    justifyContent: "flex-end",
+  },
   liveChatBubble: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1122,6 +1128,7 @@ const styles = StyleSheet.create({
   },
   demoBadgeText: { color: "rgba(255,255,255,0.7)", fontSize: 10, fontWeight: "700", fontFamily: "Inter_700Bold", letterSpacing: 1 },
   liveBottom: {
+    flexShrink: 0,
     gap: 10,
   },
   liveBottomBar: {
