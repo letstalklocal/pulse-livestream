@@ -18,7 +18,8 @@
       "supportsTablet": false,
       "infoPlist": {
         "NSCameraUsageDescription": "Pulse needs camera access to broadcast live streams.",
-        "NSMicrophoneUsageDescription": "Pulse needs microphone access for live streaming audio."
+        "NSMicrophoneUsageDescription": "Pulse needs microphone access for live streaming audio.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
