@@ -61,6 +61,12 @@ const CATEGORY_COLORS: Record<string, string> = {
   Other: "#4FC3F7",
 };
 
+function releaseAgoraEngine(engine: any) {
+  try { engine?.leaveChannel?.(); } catch (error) { console.warn("[Agora] leave cleanup error:", error); }
+  try { engine?.stopPreview?.(); } catch (error) { console.warn("[Agora] preview cleanup error:", error); }
+  try { engine?.release?.(); } catch (error) { console.warn("[Agora] release cleanup error:", error); }
+}
+
 function DemoCamera({ color }: { color: string }) {
   const pulse = useRef(new Animated.Value(0.7)).current;
   useEffect(() => {
@@ -368,7 +374,9 @@ export default function GoLiveScreen() {
     return () => {
       mounted = false;
       if (cameraTimeout) clearTimeout(cameraTimeout);
-      engineRef.current?.stopPreview?.();
+      const engine = engineRef.current;
+      engineRef.current = null;
+      releaseAgoraEngine(engine);
     };
   }, [permissionRetryCount]);
 
@@ -462,8 +470,10 @@ export default function GoLiveScreen() {
     setIsLive(false);
     setActiveChannelId("");
     setIsBroadcasting(false);
+    const engine = engineRef.current;
+    engineRef.current = null;
+    releaseAgoraEngine(engine);
     try {
-      engineRef.current?.leaveChannel?.();
       await endStream.mutateAsync({ channelId: channelIdRef.current });
       await queryClient.invalidateQueries({ queryKey: getListStreamsQueryKey() });
     } catch (_e) {

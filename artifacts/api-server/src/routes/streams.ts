@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, streamHistoryTable } from "@workspace/db";
 import { CreateStreamBody, UpdateViewerCountBody } from "@workspace/api-zod";
 import * as wsHub from "../lib/wsHub";
+import { clearChat } from "./chat";
 
 const router = Router();
 
@@ -82,6 +83,7 @@ setInterval(async () => {
   for (const [id, stream] of streams) {
     if (stream.lastHeartbeat !== Infinity && now - stream.lastHeartbeat > HEARTBEAT_TTL_MS) {
       streams.delete(id);
+      clearChat(id);
       await saveStreamHistory(stream, new Date());
     }
   }
@@ -114,7 +116,7 @@ router.get("/streams", (_req, res) => {
   res.json({ streams: list });
 });
 
-router.post("/streams", (req, res) => {
+router.post("/streams", async (req, res) => {
   const parsed = CreateStreamBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request body" });
@@ -126,6 +128,15 @@ router.post("/streams", (req, res) => {
   if (streams.has(channelId)) {
     res.status(400).json({ error: "Stream already exists" });
     return;
+  }
+
+  for (const [existingChannelId, existingStream] of streams) {
+    if (existingStream.lastHeartbeat !== Infinity && existingStream.hostUid === hostUid) {
+      streams.delete(existingChannelId);
+      clearChat(existingChannelId);
+      wsHub.pushStreamEnded(existingChannelId);
+      await saveStreamHistory(existingStream, new Date());
+    }
   }
 
   const stream: StreamRecord = {
@@ -162,6 +173,7 @@ router.delete("/streams/:channelId", async (req, res) => {
     return;
   }
   streams.delete(channelId);
+  clearChat(channelId);
   // Notify all viewers watching this channel that the stream has ended
   wsHub.pushStreamEnded(channelId);
   // Persist to history (non-blocking)

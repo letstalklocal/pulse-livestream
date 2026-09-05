@@ -348,6 +348,21 @@ export default function StreamScreen() {
 
   // Countdown + auto-navigate when stream ends
   useEffect(() => {
+    if (!streamEnded || isDemo) return;
+    const engine = engineRef.current;
+    engineRef.current = null;
+    try { engine?.leaveChannel?.(); } catch (error) {
+      console.warn("[Agora viewer] leave-on-end error:", error);
+    }
+    try { engine?.release?.(); } catch (error) {
+      console.warn("[Agora viewer] release-on-end error:", error);
+    }
+    setJoined(false);
+    setRemoteUid(null);
+    setRemoteVideoReady(false);
+  }, [streamEnded, isDemo]);
+
+  useEffect(() => {
     if (!streamEnded) return;
     if (countdown <= 0) { router.back(); return; }
     const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
@@ -629,7 +644,9 @@ export default function StreamScreen() {
       <View
         style={StyleSheet.absoluteFill}
       >
-        {showNativeVideo && VideoView ? (
+        {streamEnded ? (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: "#000" }]} />
+        ) : showNativeVideo && VideoView ? (
           <>
             <VideoView
               canvas={{ uid: remoteUid!, sourceType: VideoSourceType.VideoSourceRemote }}
