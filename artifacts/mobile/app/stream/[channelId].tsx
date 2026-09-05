@@ -629,6 +629,18 @@ export default function StreamScreen() {
   const VideoView = RtcSurfaceViewComponent;
   const showNativeVideo = isNative && joined && remoteUid !== null && VideoView;
 
+  if (streamEnded) {
+    return (
+      <View style={styles.endedScreen}>
+        <View style={styles.endedCard}>
+          <Text style={styles.endedTitle}>Stream has ended</Text>
+          <Text style={styles.endedCountdown}>{countdown}</Text>
+          <Text style={styles.endedSub}>Returning to streams…</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
     <Animated.View
@@ -919,16 +931,6 @@ export default function StreamScreen() {
       onClose={() => setShowLeaderboard(false)}
     />
 
-    {/* Stream ended overlay */}
-    {streamEnded && (
-      <View style={styles.endedOverlay} pointerEvents="none">
-        <View style={styles.endedCard}>
-          <Text style={styles.endedTitle}>Stream has ended</Text>
-          <Text style={styles.endedCountdown}>{countdown}</Text>
-          <Text style={styles.endedSub}>Returning to streams…</Text>
-        </View>
-      </View>
-    )}
     </View>
   );
 }
@@ -1168,12 +1170,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.08)",
     marginHorizontal: 20,
   },
-  endedOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.82)",
+  endedScreen: {
+    flex: 1,
+    backgroundColor: "#000",
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 99,
   },
   endedCard: {
     alignItems: "center",
