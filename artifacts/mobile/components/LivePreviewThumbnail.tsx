@@ -10,6 +10,12 @@ import {
 } from "@/utils/agora";
 import { isBroadcasting } from "@/utils/agoraState";
 
+const activePreviewCleanups = new Set<() => void>();
+
+export function stopAllLivePreviews() {
+  for (const cleanup of [...activePreviewCleanups]) cleanup();
+}
+
 interface Props {
   channelId: string;
   hostUid: number;
@@ -35,6 +41,27 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
     }
 
     let didUnmount = false;
+    let cleanedUp = false;
+
+    const cleanupPreview = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      didUnmount = true;
+      activePreviewCleanups.delete(cleanupPreview);
+
+      const engine = engineRef.current;
+      const handler = eventHandlerRef.current;
+      if (engine && handler) engine.unregisterEventHandler(handler);
+      eventHandlerRef.current = null;
+      engine?.leaveChannel?.();
+      engine?.release?.();
+      engineRef.current = null;
+      setJoined(false);
+      setVideoReady(false);
+      setRemoteUid(null);
+    };
+
+    activePreviewCleanups.add(cleanupPreview);
 
     const setup = async () => {
       try {
@@ -142,19 +169,7 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
 
     setup();
 
-    return () => {
-      didUnmount = true;
-      const engine = engineRef.current;
-      const handler = eventHandlerRef.current;
-      if (engine && handler) engine.unregisterEventHandler(handler);
-      eventHandlerRef.current = null;
-      engine?.leaveChannel?.();
-      engine?.release?.();
-      engineRef.current = null;
-      setJoined(false);
-      setVideoReady(false);
-      setRemoteUid(null);
-    };
+    return cleanupPreview;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId, isVisible]);
 

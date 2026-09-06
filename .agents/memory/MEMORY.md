@@ -9,3 +9,4 @@
 - [Clerk iOS CocoaPods](clerk-ios-cocoapods.md) — SDK 57 EAS builds need iOS 17 and modular Podfile headers for Clerk App Check dependencies.
 - [TestFlight development environment](testflight-development-environment.md) — TestFlight builds intentionally use development Clerk, API, database, and Agora configuration.
 - [Agora iOS preview surface](agora-ios-preview-surface.md) — use RtcSurfaceView for iOS stream previews; RtcTextureView is Android-only in Agora 4.5.x.
+- [Agora preview handoff](agora-preview-handoff.md) — stop and release every home-card audience preview before opening the full viewer, or its first join returns -17.

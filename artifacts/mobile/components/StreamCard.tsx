@@ -10,7 +10,10 @@ import {
   View,
 } from "react-native";
 import { Avatar } from "@/components/Avatar";
-import { LivePreviewThumbnail } from "@/components/LivePreviewThumbnail";
+import {
+  LivePreviewThumbnail,
+  stopAllLivePreviews,
+} from "@/components/LivePreviewThumbnail";
 import { useColors } from "@/hooks/useColors";
 
 interface Stream {
@@ -55,10 +58,15 @@ export function StreamCard({ stream, isVisible = false }: Props) {
     );
   };
 
+  const openStream = () => {
+    stopAllLivePreviews();
+    router.push(`/stream/${stream.channelId}` as any);
+  };
+
   return (
     <TouchableOpacity
       style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
-      onPress={() => router.push(`/stream/${stream.channelId}` as any)}
+      onPress={openStream}
       activeOpacity={0.85}
     >
       <View style={[styles.thumbnail, { backgroundColor: bg2 }]}>
