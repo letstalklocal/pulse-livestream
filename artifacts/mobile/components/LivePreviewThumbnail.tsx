@@ -4,6 +4,7 @@ import { useGenerateAgoraToken } from "@workspace/api-client-react";
 import {
   createEngine,
   RtcSurfaceViewComponent,
+  RtcTextureViewComponent,
   ClientRoleType,
   ChannelProfileType,
   VideoSourceType,
@@ -29,7 +30,10 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
   const engineRef = useRef<any>(null);
   const eventHandlerRef = useRef<any>(null);
   const generateToken = useGenerateAgoraToken();
-  const VideoView = RtcSurfaceViewComponent;
+  const VideoView =
+    Platform.OS === "android"
+      ? RtcTextureViewComponent
+      : RtcSurfaceViewComponent;
   const isNative = Platform.OS !== "web";
 
   useEffect(() => {
@@ -72,7 +76,11 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
       setVideoReady(true);
       if (previewStarted) return;
       previewStarted = true;
-      previewTimer = setTimeout(cleanupPreview, 5_000);
+      previewTimer = setTimeout(() => {
+        if (didUnmount) return;
+        setVideoReady(false);
+        previewTimer = setTimeout(cleanupPreview, 100);
+      }, 5_000);
     };
 
     const setup = async () => {
