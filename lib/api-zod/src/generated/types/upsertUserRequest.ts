@@ -9,4 +9,5 @@
 export interface UpsertUserRequest {
   name: string;
   bio?: string;
+  streamBackgroundImagePath?: string | null;
 }

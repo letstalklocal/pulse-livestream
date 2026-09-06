@@ -1,8 +1,18 @@
 import { Router } from "express";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { db, usersTable, streamHistoryTable, followsTable } from "@workspace/db";
+import { createPrivateGetUrl, createPrivateUploadUrl } from "../lib/objectStorage";
 
 const router = Router();
+
+async function withStreamBackgroundUrl(user: typeof usersTable.$inferSelect) {
+  return {
+    ...user,
+    streamBackgroundImageUrl: user.streamBackgroundImagePath
+      ? await createPrivateGetUrl(user.streamBackgroundImagePath)
+      : null,
+  };
+}
 
 router.get("/users/:uid", async (req, res) => {
   const uid = parseInt(req.params["uid"] ?? "", 10);
@@ -15,7 +25,7 @@ router.get("/users/:uid", async (req, res) => {
     res.status(404).json({ error: "User not found" });
     return;
   }
-  res.json({ user: rows[0] });
+  res.json({ user: await withStreamBackgroundUrl(rows[0]) });
 });
 
 router.put("/users/:uid", async (req, res) => {
@@ -24,7 +34,11 @@ router.put("/users/:uid", async (req, res) => {
     res.status(400).json({ error: "Invalid uid" });
     return;
   }
-  const { name, bio } = req.body as { name?: string; bio?: string };
+  const { name, bio, streamBackgroundImagePath } = req.body as {
+    name?: string;
+    bio?: string;
+    streamBackgroundImagePath?: string | null;
+  };
   if (!name || typeof name !== "string") {
     res.status(400).json({ error: "name is required" });
     return;
@@ -32,14 +46,41 @@ router.put("/users/:uid", async (req, res) => {
 
   const rows = await db
     .insert(usersTable)
-    .values({ uid, name: name.trim(), bio: (bio ?? "").trim() })
+    .values({
+      uid,
+      name: name.trim(),
+      bio: (bio ?? "").trim(),
+      streamBackgroundImagePath: streamBackgroundImagePath ?? null,
+    })
     .onConflictDoUpdate({
       target: usersTable.uid,
-      set: { name: name.trim(), bio: (bio ?? "").trim(), updatedAt: new Date() },
+      set: {
+        name: name.trim(),
+        bio: (bio ?? "").trim(),
+        ...(streamBackgroundImagePath !== undefined
+          ? { streamBackgroundImagePath }
+          : {}),
+        updatedAt: new Date(),
+      },
     })
     .returning();
 
-  res.json({ user: rows[0] });
+  res.json({ user: await withStreamBackgroundUrl(rows[0]!) });
+});
+
+router.post("/users/:uid/stream-background/upload", async (req, res) => {
+  const uid = parseInt(req.params["uid"] ?? "", 10);
+  if (isNaN(uid)) {
+    res.status(400).json({ error: "Invalid uid" });
+    return;
+  }
+  try {
+    res.status(201).json(await createPrivateUploadUrl());
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Upload URL could not be created",
+    });
+  }
 });
 
 // Find-or-create a user by Clerk ID (called on every sign-in)
@@ -63,7 +104,7 @@ router.post("/users/clerk-sync", async (req, res) => {
       .set({ name: name.trim(), updatedAt: new Date() })
       .where(eq(usersTable.clerkId, clerkId))
       .returning();
-    res.json({ user: updated[0] });
+    res.json({ user: await withStreamBackgroundUrl(updated[0]!) });
     return;
   }
 
@@ -82,7 +123,7 @@ router.post("/users/clerk-sync", async (req, res) => {
     .values({ uid, clerkId, name: name.trim(), bio: "" })
     .returning();
 
-  res.json({ user: rows[0] });
+  res.json({ user: await withStreamBackgroundUrl(rows[0]!) });
 });
 
 router.post("/users/:uid/follow", async (req, res) => {

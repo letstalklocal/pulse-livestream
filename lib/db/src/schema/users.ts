@@ -7,6 +7,7 @@ export const usersTable = pgTable("users", {
   clerkId: text("clerk_id").unique(),
   name: text("name").notNull(),
   bio: text("bio").notNull().default(""),
+  streamBackgroundImagePath: text("stream_background_image_path"),
   followersCount: integer("followers_count").notNull().default(0),
   followingCount: integer("following_count").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),

@@ -11,6 +11,7 @@ export interface Stream {
   hostUid: number;
   hostName: string;
   hostAvatarUrl?: string | null;
+  hostBackgroundImageUrl?: string | null;
   title: string;
   viewerCount: number;
   startedAt: Date;

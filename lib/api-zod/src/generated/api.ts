@@ -46,6 +46,7 @@ export const ListStreamsResponse = zod.object({
   "hostUid": zod.number(),
   "hostName": zod.string(),
   "hostAvatarUrl": zod.string().nullish(),
+  "hostBackgroundImageUrl": zod.string().nullish(),
   "title": zod.string(),
   "viewerCount": zod.number(),
   "startedAt": zod.coerce.date(),
@@ -82,6 +83,7 @@ export const GetStreamResponse = zod.object({
   "hostUid": zod.number(),
   "hostName": zod.string(),
   "hostAvatarUrl": zod.string().nullish(),
+  "hostBackgroundImageUrl": zod.string().nullish(),
   "title": zod.string(),
   "viewerCount": zod.number(),
   "startedAt": zod.coerce.date(),
@@ -115,6 +117,8 @@ export const GetUserResponse = zod.object({
   "uid": zod.number(),
   "name": zod.string(),
   "bio": zod.string(),
+  "streamBackgroundImagePath": zod.string().nullish(),
+  "streamBackgroundImageUrl": zod.string().nullish(),
   "followersCount": zod.number(),
   "followingCount": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -132,7 +136,8 @@ export const UpsertUserParams = zod.object({
 
 export const UpsertUserBody = zod.object({
   "name": zod.string(),
-  "bio": zod.string().optional()
+  "bio": zod.string().optional(),
+  "streamBackgroundImagePath": zod.string().nullish()
 })
 
 export const UpsertUserResponse = zod.object({
@@ -140,11 +145,21 @@ export const UpsertUserResponse = zod.object({
   "uid": zod.number(),
   "name": zod.string(),
   "bio": zod.string(),
+  "streamBackgroundImagePath": zod.string().nullish(),
+  "streamBackgroundImageUrl": zod.string().nullish(),
   "followersCount": zod.number(),
   "followingCount": zod.number(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
+})
+
+
+/**
+ * @summary Request an upload URL for a stream background image
+ */
+export const RequestStreamBackgroundUploadParams = zod.object({
+  "uid": zod.coerce.number()
 })
 
 
@@ -249,6 +264,7 @@ export const UpdateViewerCountResponse = zod.object({
   "hostUid": zod.number(),
   "hostName": zod.string(),
   "hostAvatarUrl": zod.string().nullish(),
+  "hostBackgroundImageUrl": zod.string().nullish(),
   "title": zod.string(),
   "viewerCount": zod.number(),
   "startedAt": zod.coerce.date(),

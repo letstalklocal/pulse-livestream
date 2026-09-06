@@ -42,12 +42,15 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
 
     let didUnmount = false;
     let cleanedUp = false;
+    let previewStarted = false;
+    let previewTimer: ReturnType<typeof setTimeout> | null = null;
 
     const cleanupPreview = () => {
       if (cleanedUp) return;
       cleanedUp = true;
       didUnmount = true;
       activePreviewCleanups.delete(cleanupPreview);
+      if (previewTimer) clearTimeout(previewTimer);
 
       const engine = engineRef.current;
       const handler = eventHandlerRef.current;
@@ -62,6 +65,15 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
     };
 
     activePreviewCleanups.add(cleanupPreview);
+
+    const markVideoReady = (uid: number) => {
+      if (didUnmount) return;
+      setRemoteUid(uid);
+      setVideoReady(true);
+      if (previewStarted) return;
+      previewStarted = true;
+      previewTimer = setTimeout(cleanupPreview, 5_000);
+    };
 
     const setup = async () => {
       try {
@@ -111,7 +123,7 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
             if (didUnmount) return;
             setRemoteUid(uid);
             if (state === 2) {
-              setVideoReady(true);
+              markVideoReady(uid);
             } else if (state === 4) {
               setVideoReady(false);
               console.warn(
@@ -123,9 +135,7 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
             }
           },
           onFirstRemoteVideoFrame: (_connection: unknown, uid: number) => {
-            if (didUnmount) return;
-            setRemoteUid(uid);
-            setVideoReady(true);
+            markVideoReady(uid);
           },
           onUserOffline: () => {
             if (didUnmount) return;

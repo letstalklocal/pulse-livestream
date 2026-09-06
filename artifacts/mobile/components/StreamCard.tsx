@@ -21,6 +21,7 @@ interface Stream {
   hostUid: number;
   hostName: string;
   hostAvatarUrl?: string | null;
+  hostBackgroundImageUrl?: string | null;
   title: string;
   viewerCount: number;
   startedAt: string;
@@ -72,16 +73,16 @@ export function StreamCard({ stream, isVisible = false }: Props) {
       <View style={[styles.thumbnail, { backgroundColor: bg2 }]}>
         <View style={[styles.innerGlow, { backgroundColor: bg1 + "44" }]} />
 
-        {/* Profile photo — shown when no live preview is active */}
-        {stream.hostAvatarUrl ? (
+        {/* Saved stream background — shown before and after the live preview */}
+        {stream.hostBackgroundImageUrl ? (
           <Image
-            source={{ uri: stream.hostAvatarUrl }}
+            source={{ uri: stream.hostBackgroundImageUrl }}
             style={styles.profileImage}
             resizeMode="cover"
           />
         ) : null}
 
-        {/* Live video preview — 3s delay then 5s live, then back to background */}
+        {/* Live video preview — 5s each time the card enters the viewport */}
         <LivePreviewThumbnail channelId={stream.channelId} hostUid={stream.hostUid} isVisible={isVisible} />
 
         {/* Top-left: category */}
@@ -98,7 +99,7 @@ export function StreamCard({ stream, isVisible = false }: Props) {
         {/* Bottom: avatar + name */}
         <View style={styles.bottomOverlay}>
           <TouchableOpacity onPress={goToProfile} activeOpacity={0.8}>
-            <Avatar uid={stream.hostUid} name={stream.hostName} size={26} borderWidth={1} />
+            <Avatar uid={stream.hostUid} name={stream.hostName} avatarUri={stream.hostAvatarUrl ?? undefined} size={26} borderWidth={1} />
           </TouchableOpacity>
           <TouchableOpacity onPress={goToProfile} activeOpacity={0.8} style={styles.nameWrap}>
             <Text style={styles.hostName} numberOfLines={1}>{stream.hostName}</Text>

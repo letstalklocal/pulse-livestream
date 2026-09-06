@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import Constants from "expo-constants";
+import * as ImagePicker from "expo-image-picker";
+import { fetch as expoFetch } from "expo/fetch";
 import * as Haptics from "expo-haptics";
 import { useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -9,6 +10,7 @@ import {
   Animated,
   BackHandler,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Linking,
   PermissionsAndroid,
@@ -30,7 +32,9 @@ import {
   useGetStream,
   useGetStreamChat,
   useHeartbeatStream,
+  useRequestStreamBackgroundUpload,
   useSendChatMessage,
+  useUpsertUser,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
@@ -49,8 +53,6 @@ import { GIFTS } from "@/components/GiftPicker";
 import { GiftLeaderboard } from "@/components/GiftLeaderboard";
 
 const isNative = Platform.OS === "ios" || Platform.OS === "android";
-const CAMERA_DIAGNOSTIC_REVISION = "CAM57-R3";
-
 const CATEGORIES = ["Gaming", "Music", "Talk", "Art", "Dance", "Other"];
 const CATEGORY_COLORS: Record<string, string> = {
   Gaming: "#7B4FFF",
@@ -122,12 +124,9 @@ export default function GoLiveScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const navigation = useNavigation();
-  const { user, isSignedIn } = useAuth();
+  const { user, isSignedIn, updateUser } = useAuth();
 
   const [title, setTitle] = useState("Join My Live");
-  const nativeBuildNumber =
-    Platform.OS === "android" ? Constants.platform?.android?.versionCode : null;
-  const visibleBuildId = `${Constants.expoConfig?.version ?? "unknown"} (${nativeBuildNumber ?? "dev"}) · ${CAMERA_DIAGNOSTIC_REVISION}`;
   const [category, setCategory] = useState("Gaming");
   const [isLive, setIsLive] = useState(false);
   const [activeChannelId, setActiveChannelId] = useState("");
@@ -136,6 +135,7 @@ export default function GoLiveScreen() {
   const [chatText, setChatText] = useState("");
   const chatInputRef = useRef<TextInput>(null);
   const [isStarting, setIsStarting] = useState(false);
+  const [isUploadingBackground, setIsUploadingBackground] = useState(false);
   const [cameraReady, setCameraReady] = useState(!isNative);
   const [cameraViewReady, setCameraViewReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -161,6 +161,8 @@ export default function GoLiveScreen() {
   const endStream = useEndStream();
   const heartbeat = useHeartbeatStream();
   const sendChatMutation = useSendChatMessage();
+  const requestBackgroundUpload = useRequestStreamBackgroundUpload();
+  const upsertUser = useUpsertUser();
 
   // If not signed in, show gate screen — hooks must be called unconditionally so this goes after them
   // Poll viewer count while live
@@ -409,6 +411,13 @@ export default function GoLiveScreen() {
 
   const startLive = useCallback(async () => {
     if (!title.trim()) return;
+    if (!user?.streamBackgroundImagePath) {
+      Alert.alert(
+        "Background image required",
+        "Add a stream background image before going live.",
+      );
+      return;
+    }
     if (isNative && (!cameraReady || !engineRef.current)) {
       setCameraError("Wait for the camera preview before going live.");
       return;
@@ -452,6 +461,71 @@ export default function GoLiveScreen() {
       setIsStarting(false);
     }
   }, [title, category, user, generateToken, createStream, cameraReady]);
+
+  const chooseStreamBackground = useCallback(async () => {
+    if (!user || isUploadingBackground) return;
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        "Photo access required",
+        "Allow photo access to choose your stream background image.",
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [9, 16],
+      quality: 0.85,
+    });
+    if (result.canceled || !result.assets[0]) return;
+
+    setIsUploadingBackground(true);
+    try {
+      const asset = result.assets[0];
+      const upload = await requestBackgroundUpload.mutateAsync({ uid: user.uid });
+      const sourceResponse = await expoFetch(asset.uri);
+      const imageBlob = await sourceResponse.blob();
+      const uploadResponse = await expoFetch(upload.uploadUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": asset.mimeType ?? "image/jpeg",
+        },
+        body: imageBlob,
+      });
+      if (!uploadResponse.ok) {
+        throw new Error(`Image upload failed (${uploadResponse.status}).`);
+      }
+
+      const updated = await upsertUser.mutateAsync({
+        uid: user.uid,
+        data: {
+          name: user.name,
+          bio: user.bio,
+          streamBackgroundImagePath: upload.objectPath,
+        },
+      });
+      updateUser({
+        streamBackgroundImagePath: updated.user.streamBackgroundImagePath,
+        streamBackgroundImageUrl: updated.user.streamBackgroundImageUrl,
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      Alert.alert(
+        "Background not saved",
+        error instanceof Error ? error.message : "Choose another image and try again.",
+      );
+    } finally {
+      setIsUploadingBackground(false);
+    }
+  }, [
+    isUploadingBackground,
+    requestBackgroundUpload,
+    updateUser,
+    upsertUser,
+    user,
+  ]);
 
   const toggleMute = useCallback(() => {
     const next = !isMuted;
@@ -748,11 +822,6 @@ export default function GoLiveScreen() {
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.buildIdentifier}>
-          <Text style={styles.buildIdentifierLabel}>BUILD ID</Text>
-          <Text style={styles.buildIdentifierValue}>{visibleBuildId}</Text>
-        </View>
-
         <View style={styles.inputSection}>
           <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Stream title</Text>
           <TextInput
@@ -771,6 +840,57 @@ export default function GoLiveScreen() {
             maxLength={80}
             returnKeyType="done"
           />
+        </View>
+
+        <View style={styles.inputSection}>
+          <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>
+            Stream background
+          </Text>
+          <TouchableOpacity
+            style={[
+              styles.backgroundPicker,
+              { borderColor: user.streamBackgroundImagePath ? catColor : colors.border },
+            ]}
+            onPress={() => void chooseStreamBackground()}
+            disabled={isUploadingBackground}
+            activeOpacity={0.85}
+          >
+            {user.streamBackgroundImageUrl ? (
+              <Image
+                source={{ uri: user.streamBackgroundImageUrl }}
+                style={StyleSheet.absoluteFill}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={[styles.backgroundPickerEmpty, { backgroundColor: colors.card }]}>
+                <Ionicons name="image-outline" size={34} color={colors.mutedForeground} />
+                <Text style={[styles.backgroundPickerEmptyText, { color: colors.mutedForeground }]}>
+                  Add the image shown behind your live preview
+                </Text>
+              </View>
+            )}
+            <View style={styles.backgroundPickerAction}>
+              {isUploadingBackground ? (
+                <ActivityIndicator color="#FFF" size="small" />
+              ) : (
+                <>
+                  <Ionicons
+                    name={user.streamBackgroundImagePath ? "camera-outline" : "add"}
+                    size={17}
+                    color="#FFF"
+                  />
+                  <Text style={styles.backgroundPickerActionText}>
+                    {user.streamBackgroundImagePath ? "Change image" : "Choose image"}
+                  </Text>
+                </>
+              )}
+            </View>
+          </TouchableOpacity>
+          {!user.streamBackgroundImagePath ? (
+            <Text style={[styles.backgroundRequired, { color: colors.mutedForeground }]}>
+              Required before you can go live
+            </Text>
+          ) : null}
         </View>
 
         <View style={[styles.cameraPreview, { backgroundColor: catColor + "22", borderColor: catColor + "55" }]}>
@@ -877,12 +997,24 @@ export default function GoLiveScreen() {
           style={[
             styles.goLiveBtn,
             {
-              backgroundColor: title.trim() && cameraReady ? catColor : colors.muted,
-              opacity: isStarting || (isNative && !cameraReady) ? 0.7 : 1,
+              backgroundColor:
+                title.trim() && cameraReady && user.streamBackgroundImagePath
+                  ? catColor
+                  : colors.muted,
+              opacity:
+                isStarting || isUploadingBackground || (isNative && !cameraReady)
+                  ? 0.7
+                  : 1,
             },
           ]}
           onPress={startLive}
-          disabled={!title.trim() || isStarting || (isNative && !cameraReady)}
+          disabled={
+            !title.trim() ||
+            !user.streamBackgroundImagePath ||
+            isStarting ||
+            isUploadingBackground ||
+            (isNative && !cameraReady)
+          }
           activeOpacity={0.85}
         >
           {isStarting ? (
@@ -891,7 +1023,13 @@ export default function GoLiveScreen() {
             <>
               <Ionicons name="radio" size={20} color="#FFF" />
               <Text style={styles.goLiveBtnText}>
-                {isNative && !cameraReady ? "Preparing Camera" : isNative ? "Go Live" : "Go Live (Demo)"}
+                {!user.streamBackgroundImagePath
+                  ? "Add Background Image"
+                  : isNative && !cameraReady
+                    ? "Preparing Camera"
+                    : isNative
+                      ? "Go Live"
+                      : "Go Live (Demo)"}
               </Text>
             </>
           )}
@@ -924,29 +1062,47 @@ const styles = StyleSheet.create({
   demoCameraLabel: { fontSize: 18, fontWeight: "700", fontFamily: "Inter_700Bold" },
   demoCameraNote: { color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "Inter_400Regular" },
   setupContent: { alignItems: "center", paddingHorizontal: 24, gap: 20 },
-  buildIdentifier: {
+  backgroundPicker: {
     width: "100%",
+    height: 190,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    overflow: "hidden",
+    justifyContent: "flex-end",
+  },
+  backgroundPickerEmpty: {
+    ...StyleSheet.absoluteFill,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingHorizontal: 28,
+  },
+  backgroundPickerEmptyText: {
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+    textAlign: "center",
+    lineHeight: 18,
+  },
+  backgroundPickerAction: {
+    alignSelf: "center",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    borderRadius: 8,
-    backgroundColor: "rgba(255,25,102,0.15)",
-    borderWidth: 1,
-    borderColor: "rgba(255,25,102,0.45)",
-    paddingHorizontal: 12,
+    gap: 7,
+    marginBottom: 12,
+    paddingHorizontal: 14,
     paddingVertical: 9,
+    borderRadius: 20,
+    backgroundColor: "rgba(0,0,0,0.68)",
   },
-  buildIdentifierLabel: {
-    color: "#FF75A3",
-    fontSize: 11,
-    fontFamily: "Inter_700Bold",
-    fontWeight: "700",
-    letterSpacing: 0.8,
-  },
-  buildIdentifierValue: {
+  backgroundPickerActionText: {
     color: "#FFF",
+    fontSize: 13,
+    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
+  },
+  backgroundRequired: {
     fontSize: 12,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Inter_500Medium",
   },
   cameraPreview: {
     width: "100%",

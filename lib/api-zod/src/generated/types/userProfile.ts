@@ -10,6 +10,8 @@ export interface UserProfile {
   uid: number;
   name: string;
   bio: string;
+  streamBackgroundImagePath?: string | null;
+  streamBackgroundImageUrl?: string | null;
   followersCount: number;
   followingCount: number;
   createdAt: Date;

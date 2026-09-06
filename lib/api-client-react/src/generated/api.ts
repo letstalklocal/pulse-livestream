@@ -673,6 +673,76 @@ export const useUpsertUser = <TError = ErrorType<unknown>,
       return useMutation(getUpsertUserMutationOptions(options));
     }
 
+export const getRequestStreamBackgroundUploadUrl = (uid: number,) => {
+
+
+
+
+  return `/api/users/${uid}/stream-background/upload`
+}
+
+/**
+ * @summary Request an upload URL for a stream background image
+ */
+export const requestStreamBackgroundUpload = async (uid: number, options?: RequestInit): Promise<MediaPackUploadResponse> => {
+
+  return customFetch<MediaPackUploadResponse>(getRequestStreamBackgroundUploadUrl(uid),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRequestStreamBackgroundUploadMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestStreamBackgroundUpload>>, TError,{uid: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestStreamBackgroundUpload>>, TError,{uid: number}, TContext> => {
+
+const mutationKey = ['requestStreamBackgroundUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestStreamBackgroundUpload>>, {uid: number}> = (props) => {
+          const {uid} = props ?? {};
+
+          return  requestStreamBackgroundUpload(uid,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestStreamBackgroundUploadMutationResult = NonNullable<Awaited<ReturnType<typeof requestStreamBackgroundUpload>>>
+
+    export type RequestStreamBackgroundUploadMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Request an upload URL for a stream background image
+ */
+export const useRequestStreamBackgroundUpload = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestStreamBackgroundUpload>>, TError,{uid: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestStreamBackgroundUpload>>,
+        TError,
+        {uid: number},
+        TContext
+      > => {
+      return useMutation(getRequestStreamBackgroundUploadMutationOptions(options));
+    }
+
 export const getFollowUserUrl = (uid: number,) => {
 
 

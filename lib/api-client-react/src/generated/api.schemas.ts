@@ -45,6 +45,7 @@ export interface Stream {
   hostUid: number;
   hostName: string;
   hostAvatarUrl?: string | null;
+  hostBackgroundImageUrl?: string | null;
   title: string;
   viewerCount: number;
   startedAt: string;
@@ -92,6 +93,8 @@ export interface UserProfile {
   uid: number;
   name: string;
   bio: string;
+  streamBackgroundImagePath?: string | null;
+  streamBackgroundImageUrl?: string | null;
   followersCount: number;
   followingCount: number;
   createdAt: string;
@@ -105,6 +108,7 @@ export interface UserResponse {
 export interface UpsertUserRequest {
   name: string;
   bio?: string;
+  streamBackgroundImagePath?: string | null;
 }
 
 export interface StreamHistoryItem {

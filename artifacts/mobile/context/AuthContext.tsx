@@ -14,6 +14,8 @@ export interface User {
   name: string;
   bio: string;
   avatarUri?: string;
+  streamBackgroundImagePath?: string | null;
+  streamBackgroundImageUrl?: string | null;
   followersCount: number;
   followingCount: number;
 }
@@ -51,14 +53,25 @@ async function clerkSync(clerkId: string, name: string): Promise<User | null> {
   }
 }
 
-async function syncBio(uid: number, name: string, bio: string) {
+async function syncProfile(
+  uid: number,
+  name: string,
+  bio: string,
+  streamBackgroundImagePath?: string | null,
+) {
   try {
     const domain = process.env["EXPO_PUBLIC_DOMAIN"];
     const base = domain ? `https://${domain}` : "";
     await fetch(`${base}/api/users/${uid}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, bio }),
+      body: JSON.stringify({
+        name,
+        bio,
+        ...(streamBackgroundImagePath !== undefined
+          ? { streamBackgroundImagePath }
+          : {}),
+      }),
     });
   } catch {
     // best effort
@@ -125,8 +138,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const storageKey = `${STORAGE_KEY}:${prev.clerkId ?? prev.uid}`;
         AsyncStorage.setItem(storageKey, JSON.stringify(updated));
         // Sync name/bio to server
-        if (fields.name !== undefined || fields.bio !== undefined) {
-          void syncBio(prev.uid, updated.name, updated.bio);
+        if (
+          fields.name !== undefined ||
+          fields.bio !== undefined ||
+          fields.streamBackgroundImagePath !== undefined
+        ) {
+          void syncProfile(
+            prev.uid,
+            updated.name,
+            updated.bio,
+            fields.streamBackgroundImagePath,
+          );
         }
         return updated;
       });

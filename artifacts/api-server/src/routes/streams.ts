@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
-import { db, streamHistoryTable } from "@workspace/db";
+import { db, streamHistoryTable, usersTable } from "@workspace/db";
 import { CreateStreamBody, UpdateViewerCountBody } from "@workspace/api-zod";
 import * as wsHub from "../lib/wsHub";
 import { clearChat } from "./chat";
+import { createPrivateGetUrl } from "../lib/objectStorage";
 
 const router = Router();
 
@@ -12,6 +13,7 @@ interface StreamRecord {
   hostUid: number;
   hostName: string;
   hostAvatarUrl?: string | null;
+  hostBackgroundImagePath?: string | null;
   title: string;
   viewerCount: number;
   startedAt: string;
@@ -21,6 +23,16 @@ interface StreamRecord {
 }
 
 const streams = new Map<string, StreamRecord>();
+
+async function toStreamResponse(stream: StreamRecord) {
+  const { hostBackgroundImagePath, ...response } = stream;
+  return {
+    ...response,
+    hostBackgroundImageUrl: hostBackgroundImagePath
+      ? await createPrivateGetUrl(hostBackgroundImagePath)
+      : null,
+  };
+}
 
 // How long without a heartbeat before a real stream is considered dead (60 s)
 const HEARTBEAT_TTL_MS = 60_000;
@@ -109,11 +121,11 @@ async function saveStreamHistory(stream: StreamRecord, endedAt: Date) {
   }
 }
 
-router.get("/streams", (_req, res) => {
+router.get("/streams", async (_req, res) => {
   const list = Array.from(streams.values()).sort(
     (a, b) => b.viewerCount - a.viewerCount,
   );
-  res.json({ streams: list });
+  res.json({ streams: await Promise.all(list.map(toStreamResponse)) });
 });
 
 router.post("/streams", async (req, res) => {
@@ -124,6 +136,16 @@ router.post("/streams", async (req, res) => {
   }
 
   const { channelId, hostUid, hostName, hostAvatarUrl, title, category } = parsed.data;
+
+  const [host] = await db
+    .select({ streamBackgroundImagePath: usersTable.streamBackgroundImagePath })
+    .from(usersTable)
+    .where(eq(usersTable.uid, hostUid))
+    .limit(1);
+  if (!host?.streamBackgroundImagePath) {
+    res.status(400).json({ error: "A stream background image is required before going live" });
+    return;
+  }
 
   if (streams.has(channelId)) {
     res.status(400).json({ error: "Stream already exists" });
@@ -144,6 +166,7 @@ router.post("/streams", async (req, res) => {
     hostUid,
     hostName,
     hostAvatarUrl: hostAvatarUrl ?? null,
+    hostBackgroundImagePath: host.streamBackgroundImagePath,
     title,
     viewerCount: 0,
     startedAt: new Date().toISOString(),
@@ -153,16 +176,16 @@ router.post("/streams", async (req, res) => {
   };
 
   streams.set(channelId, stream);
-  res.status(201).json({ stream });
+  res.status(201).json({ stream: await toStreamResponse(stream) });
 });
 
-router.get("/streams/:channelId", (req, res) => {
+router.get("/streams/:channelId", async (req, res) => {
   const stream = streams.get(req.params["channelId"] ?? "");
   if (!stream) {
     res.status(404).json({ error: "Stream not found" });
     return;
   }
-  res.json({ stream });
+  res.json({ stream: await toStreamResponse(stream) });
 });
 
 router.delete("/streams/:channelId", async (req, res) => {
