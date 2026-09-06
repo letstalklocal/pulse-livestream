@@ -118,10 +118,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   innerGlow: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   profileImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   categoryBadge: {
     position: "absolute",

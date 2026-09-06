@@ -915,11 +915,11 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   demoCamera: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: "center",
     justifyContent: "center",
   },
-  demoCameraInner: { ...StyleSheet.absoluteFillObject },
+  demoCameraInner: { ...StyleSheet.absoluteFill },
   demoCameraIcon: { alignItems: "center", gap: 10 },
   demoCameraLabel: { fontSize: 18, fontWeight: "700", fontFamily: "Inter_700Bold" },
   demoCameraNote: { color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "Inter_400Regular" },
