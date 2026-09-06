@@ -8,3 +8,4 @@
 - [Streamer overlay anchoring](streamer-overlay-anchoring.md) — anchor persistent live controls to safe areas; chat must grow upward without participating in control positioning.
 - [Clerk iOS CocoaPods](clerk-ios-cocoapods.md) — SDK 57 EAS builds need iOS 17 and modular Podfile headers for Clerk App Check dependencies.
 - [TestFlight development environment](testflight-development-environment.md) — TestFlight builds intentionally use development Clerk, API, database, and Agora configuration.
+- [Agora iOS preview surface](agora-ios-preview-surface.md) — use RtcSurfaceView for iOS stream previews; RtcTextureView is Android-only in Agora 4.5.x.
