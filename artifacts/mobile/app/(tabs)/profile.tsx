@@ -209,7 +209,12 @@ export default function ProfileScreen() {
 
         {/* Header */}
         <View style={[styles.header, { paddingTop: topInset + 12 }]}>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>Profile</Text>
+          <View style={styles.headerCoinBalance}>
+            <Text style={styles.coinEmoji}>🪙</Text>
+            <Text style={[styles.headerCoinAmount, { color: colors.foreground }]}>
+              {coinBalance.toLocaleString()}
+            </Text>
+          </View>
           {editing ? (
             <View style={styles.headerBtns}>
               <TouchableOpacity
@@ -317,13 +322,6 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* Coin balance */}
-          <View style={[styles.coinRow, { backgroundColor: "rgba(255,215,0,0.1)", borderColor: "rgba(255,215,0,0.2)" }]}>
-            <Text style={styles.coinEmoji}>🪙</Text>
-            <Text style={[styles.coinAmount, { color: "#FFD700" }]}>{coinBalance.toLocaleString()}</Text>
-            <Text style={[styles.coinLabel, { color: colors.mutedForeground }]}>coins</Text>
-          </View>
-
           <TouchableOpacity
             style={[styles.packsBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
             onPress={() => router.push("/media-packs" as any)}
@@ -399,6 +397,15 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 28, fontWeight: "700", fontFamily: "Inter_700Bold" },
   headerBtns: { flexDirection: "row", gap: 8 },
+  headerCoinBalance: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  headerCoinAmount: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+  },
   headerGoLiveBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -467,18 +474,7 @@ const styles = StyleSheet.create({
   statDivider: { width: 1, height: 30, marginHorizontal: 12 },
   statValue: { fontSize: 18, fontWeight: "700", fontFamily: "Inter_700Bold" },
   statLabel: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  coinRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
   coinEmoji: { fontSize: 16 },
-  coinAmount: { fontSize: 16, fontWeight: "700", fontFamily: "Inter_700Bold" },
-  coinLabel: { fontSize: 13, fontFamily: "Inter_400Regular" },
   goLiveBtn: {
     flexDirection: "row",
     alignItems: "center",
