@@ -446,6 +446,40 @@ export const RequestMediaPackUploadBody = zod.object({
 })
 
 
+export const createPostBodyCaptionMax = 2200;
+
+
+
+export const CreatePostBody = zod.object({
+  "imageObjectPath": zod.string(),
+  "caption": zod.string().max(createPostBodyCaptionMax)
+})
+
+
+export const DeletePostParams = zod.object({
+  "postId": zod.coerce.number()
+})
+
+export const DeletePostResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+export const GetUserPostsParams = zod.object({
+  "uid": zod.coerce.number()
+})
+
+export const GetUserPostsResponse = zod.object({
+  "posts": zod.array(zod.object({
+  "id": zod.number(),
+  "ownerUserId": zod.number(),
+  "imageUrl": zod.string(),
+  "caption": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
 export const GetMediaPacksResponse = zod.object({
   "packs": zod.array(zod.object({
   "id": zod.string(),

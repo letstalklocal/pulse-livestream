@@ -7,6 +7,7 @@ import directMessagesRouter from "./direct-messages";
 import usersRouter from "./users";
 import coinsRouter from "./coins";
 import mediaPacksRouter from "./media-packs";
+import postsRouter from "./posts";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(directMessagesRouter);
 router.use(usersRouter);
 router.use(coinsRouter);
 router.use(mediaPacksRouter);
+router.use(postsRouter);
 
 export default router;

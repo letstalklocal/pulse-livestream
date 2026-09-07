@@ -38,3 +38,8 @@ export async function createPrivateUploadUrl() {
 export async function createPrivateGetUrl(path: string) {
   return signed(objectName(path), "GET");
 }
+
+export async function deletePrivateObject(path: string) {
+  const { bucketName, objectName: storedObjectName } = split(objectName(path));
+  await objectStorageClient.bucket(bucketName).file(storedObjectName).delete({ ignoreNotFound: true });
+}

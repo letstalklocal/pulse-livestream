@@ -638,6 +638,33 @@ paths:
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/MediaPackUploadRequest" } } } }
       responses:
         "201": { description: Upload URL, content: { application/json: { schema: { $ref: "#/components/schemas/MediaPackUploadResponse" } } } }
+  /posts/uploads:
+    post:
+      operationId: requestPostUpload
+      tags: [posts]
+      responses:
+        "201": { description: Upload URL, content: { application/json: { schema: { $ref: "#/components/schemas/MediaPackUploadResponse" } } } }
+  /posts:
+    post:
+      operationId: createPost
+      tags: [posts]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CreatePostRequest" } } } }
+      responses:
+        "201": { description: Created post, content: { application/json: { schema: { $ref: "#/components/schemas/PostResponse" } } } }
+  /posts/{postId}:
+    delete:
+      operationId: deletePost
+      tags: [posts]
+      parameters: [{ name: postId, in: path, required: true, schema: { type: integer } }]
+      responses:
+        "200": { description: Deleted, content: { application/json: { schema: { $ref: "#/components/schemas/SuccessResponse" } } } }
+  /users/{uid}/posts:
+    get:
+      operationId: getUserPosts
+      tags: [posts]
+      parameters: [{ name: uid, in: path, required: true, schema: { type: integer } }]
+      responses:
+        "200": { description: User posts, content: { application/json: { schema: { $ref: "#/components/schemas/PostListResponse" } } } }
   /media-packs:
     get:
       operationId: getMediaPacks
@@ -694,6 +721,33 @@ paths:
 
 components:
   schemas:
+    Post:
+      type: object
+      required: [id, ownerUserId, imageUrl, caption, createdAt]
+      properties:
+        id: { type: integer }
+        ownerUserId: { type: integer }
+        imageUrl: { type: string }
+        caption: { type: string }
+        createdAt: { type: string, format: date-time }
+    PostResponse:
+      type: object
+      required: [post]
+      properties:
+        post: { $ref: "#/components/schemas/Post" }
+    PostListResponse:
+      type: object
+      required: [posts]
+      properties:
+        posts:
+          type: array
+          items: { $ref: "#/components/schemas/Post" }
+    CreatePostRequest:
+      type: object
+      required: [imageObjectPath, caption]
+      properties:
+        imageObjectPath: { type: string }
+        caption: { type: string, maxLength: 2200 }
     HealthStatus:
       type: object
       properties:

@@ -30,6 +30,7 @@ import type {
   CoinGrantRequest,
   CoinSpendRequest,
   CreateMediaPackRequest,
+  CreatePostRequest,
   CreateStreamRequest,
   DirectMessageResponse,
   DirectMessagesResponse,
@@ -46,6 +47,8 @@ import type {
   MediaPackUploadRequest,
   MediaPackUploadResponse,
   MediaPacksResponse,
+  PostListResponse,
+  PostResponse,
   SendChatMessageRequest,
   SendMediaDmRequest,
   SendMediaPackRequest,
@@ -2021,6 +2024,270 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getRequestMediaPackUploadMutationOptions(options));
     }
+
+export const getRequestPostUploadUrl = () => {
+
+
+
+
+  return `/api/posts/uploads`
+}
+
+export const requestPostUpload = async ( options?: RequestInit): Promise<MediaPackUploadResponse> => {
+
+  return customFetch<MediaPackUploadResponse>(getRequestPostUploadUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRequestPostUploadMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestPostUpload>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestPostUpload>>, TError,void, TContext> => {
+
+const mutationKey = ['requestPostUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestPostUpload>>, void> = () => {
+
+
+          return  requestPostUpload(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestPostUploadMutationResult = NonNullable<Awaited<ReturnType<typeof requestPostUpload>>>
+
+    export type RequestPostUploadMutationError = ErrorType<unknown>
+
+    export const useRequestPostUpload = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestPostUpload>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestPostUpload>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRequestPostUploadMutationOptions(options));
+    }
+
+export const getCreatePostUrl = () => {
+
+
+
+
+  return `/api/posts`
+}
+
+export const createPost = async (createPostRequest: CreatePostRequest, options?: RequestInit): Promise<PostResponse> => {
+
+  return customFetch<PostResponse>(getCreatePostUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createPostRequest,)
+  }
+);}
+
+
+
+
+export const getCreatePostMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPost>>, TError,{data: BodyType<CreatePostRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPost>>, TError,{data: BodyType<CreatePostRequest>}, TContext> => {
+
+const mutationKey = ['createPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPost>>, {data: BodyType<CreatePostRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPost(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePostMutationResult = NonNullable<Awaited<ReturnType<typeof createPost>>>
+    export type CreatePostMutationBody = BodyType<CreatePostRequest>
+    export type CreatePostMutationError = ErrorType<unknown>
+
+    export const useCreatePost = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPost>>, TError,{data: BodyType<CreatePostRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPost>>,
+        TError,
+        {data: BodyType<CreatePostRequest>},
+        TContext
+      > => {
+      return useMutation(getCreatePostMutationOptions(options));
+    }
+
+export const getDeletePostUrl = (postId: number,) => {
+
+
+
+
+  return `/api/posts/${postId}`
+}
+
+export const deletePost = async (postId: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getDeletePostUrl(postId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeletePostMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePost>>, TError,{postId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deletePost>>, TError,{postId: number}, TContext> => {
+
+const mutationKey = ['deletePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deletePost>>, {postId: number}> = (props) => {
+          const {postId} = props ?? {};
+
+          return  deletePost(postId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeletePostMutationResult = NonNullable<Awaited<ReturnType<typeof deletePost>>>
+
+    export type DeletePostMutationError = ErrorType<unknown>
+
+    export const useDeletePost = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePost>>, TError,{postId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deletePost>>,
+        TError,
+        {postId: number},
+        TContext
+      > => {
+      return useMutation(getDeletePostMutationOptions(options));
+    }
+
+export const getGetUserPostsUrl = (uid: number,) => {
+
+
+
+
+  return `/api/users/${uid}/posts`
+}
+
+export const getUserPosts = async (uid: number, options?: RequestInit): Promise<PostListResponse> => {
+
+  return customFetch<PostListResponse>(getGetUserPostsUrl(uid),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetUserPostsQueryKey = (uid: number,) => {
+    return [
+    `/api/users/${uid}/posts`
+    ] as const;
+    }
+
+
+export const getGetUserPostsQueryOptions = <TData = Awaited<ReturnType<typeof getUserPosts>>, TError = ErrorType<unknown>>(uid: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUserPosts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetUserPostsQueryKey(uid);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getUserPosts>>> = ({ signal }) => getUserPosts(uid, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(uid), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getUserPosts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetUserPostsQueryResult = NonNullable<Awaited<ReturnType<typeof getUserPosts>>>
+export type GetUserPostsQueryError = ErrorType<unknown>
+
+
+
+export function useGetUserPosts<TData = Awaited<ReturnType<typeof getUserPosts>>, TError = ErrorType<unknown>>(
+ uid: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUserPosts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetUserPostsQueryOptions(uid,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getGetMediaPacksUrl = () => {
 

@@ -8,6 +8,7 @@ import {
   Alert,
   Dimensions,
   Image,
+  Modal,
   Platform,
   ScrollView,
   StatusBar,
@@ -20,10 +21,15 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   getGetCoinBalanceQueryKey,
+  getGetUserPostsQueryKey,
+  useCreatePost,
+  useDeletePost,
   useGetCoinBalance,
+  useGetUserPosts,
   useGetUserStreams,
   useGrantCoins,
   useRequestAvatarUpload,
+  useRequestPostUpload,
   useUpsertUser,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -63,6 +69,9 @@ export default function ProfileScreen() {
   const [editName, setEditName] = useState(user?.name ?? "");
   const [editBio, setEditBio] = useState(user?.bio ?? "");
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [postImage, setPostImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [postCaption, setPostCaption] = useState("");
+  const [isPublishingPost, setIsPublishingPost] = useState(false);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
@@ -72,6 +81,10 @@ export default function ProfileScreen() {
     query: { refetchOnWindowFocus: false } as any,
   });
   const streamHistory = historyData?.streams ?? [];
+  const { data: postsData } = useGetUserPosts(user?.uid ?? 0, {
+    query: { enabled: !!user?.uid, refetchOnWindowFocus: false } as any,
+  });
+  const posts = postsData?.posts ?? [];
 
   const { data: coinData, refetch: refetchCoins } = useGetCoinBalance(
     { uid: user?.uid ?? 0 },
@@ -81,7 +94,81 @@ export default function ProfileScreen() {
 
   const grantMutation = useGrantCoins();
   const requestAvatarUpload = useRequestAvatarUpload();
+  const requestPostUpload = useRequestPostUpload();
+  const createPost = useCreatePost();
+  const deletePost = useDeletePost();
   const upsertUser = useUpsertUser();
+
+  const choosePostImage = async () => {
+    if (!user || isPublishingPost) return;
+    if (Platform.OS === "web") {
+      Alert.alert("Not available", "Creating posts requires the native app.");
+      return;
+    }
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permission needed", "Allow photo access to create a post.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.9,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setPostImage(result.assets[0]);
+      setPostCaption("");
+    }
+  };
+
+  const publishPost = async () => {
+    if (!user || !postImage || isPublishingPost) return;
+    setIsPublishingPost(true);
+    try {
+      const upload = await requestPostUpload.mutateAsync();
+      const sourceResponse = await expoFetch(postImage.uri);
+      const imageBlob = await sourceResponse.blob();
+      const uploadResponse = await expoFetch(upload.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": postImage.mimeType ?? "image/jpeg" },
+        body: imageBlob,
+      });
+      if (!uploadResponse.ok) throw new Error(`Photo upload failed (${uploadResponse.status}).`);
+      await createPost.mutateAsync({
+        data: { imageObjectPath: upload.objectPath, caption: postCaption.trim() },
+      });
+      await queryClient.invalidateQueries({ queryKey: getGetUserPostsQueryKey(user.uid) });
+      setPostImage(null);
+      setPostCaption("");
+      setHistoryView("feed");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      Alert.alert("Post not shared", error instanceof Error ? error.message : "Try again.");
+    } finally {
+      setIsPublishingPost(false);
+    }
+  };
+
+  const confirmDeletePost = (postId: number) => {
+    if (!user) return;
+    Alert.alert("Delete post?", "This post will be permanently removed.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deletePost.mutateAsync({ postId });
+            await queryClient.invalidateQueries({ queryKey: getGetUserPostsQueryKey(user.uid) });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } catch (error) {
+            Alert.alert("Post not deleted", error instanceof Error ? error.message : "Try again.");
+          }
+        },
+      },
+    ]);
+  };
 
   const addTestCoins = () => {
     if (!user?.uid) return;
@@ -302,6 +389,14 @@ export default function ProfileScreen() {
                 >
                   <Ionicons name="settings-outline" size={18} color={colors.foreground} />
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.settingsBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                  onPress={choosePostImage}
+                  activeOpacity={0.75}
+                  accessibilityLabel="Create a new post"
+                >
+                  <Ionicons name="add" size={22} color="#FFF" />
+                </TouchableOpacity>
               </View>
             </>
           )}
@@ -382,40 +477,34 @@ export default function ProfileScreen() {
         </View>
 
         {/* Past streams grid */}
-        {streamHistory.length === 0 ? (
+        {posts.length === 0 ? (
           <View style={styles.emptyGrid}>
-            <Ionicons name="radio-outline" size={36} color={colors.mutedForeground} />
+            <Ionicons name="images-outline" size={36} color={colors.mutedForeground} />
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-              No past streams yet
+              No posts yet
             </Text>
             <Text style={[styles.emptySubText, { color: colors.mutedForeground }]}>
-              Go live to start building your history
+              Tap + to share your first photo
             </Text>
           </View>
         ) : historyView === "grid" ? (
           <View style={styles.grid}>
-            {streamHistory.map((item) => {
-              const [c1, c2] = catColors(item.category);
-              return (
-                <View key={item.id} style={[styles.gridCell, { backgroundColor: c2 }]}>
-                  <View style={[StyleSheet.absoluteFill, { backgroundColor: c1, opacity: 0.5 }]} />
-                  <Text style={styles.gridCellLabel}>{item.category.slice(0, 2).toUpperCase()}</Text>
-                  <Text style={styles.gridCellDate}>{formatDate(item.startedAt)}</Text>
-                  <View style={styles.gridCellViewers}>
-                    <Ionicons name="eye-outline" size={10} color="rgba(255,255,255,0.7)" />
-                    <Text style={styles.gridCellViewersText}>{item.peakViewers}</Text>
-                  </View>
-                </View>
-              );
-            })}
+            {posts.map((post) => (
+              <TouchableOpacity
+                key={post.id}
+                style={styles.gridCell}
+                onLongPress={() => confirmDeletePost(post.id)}
+                activeOpacity={0.85}
+              >
+                <Image source={{ uri: post.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+              </TouchableOpacity>
+            ))}
           </View>
         ) : (
           <View style={styles.feed}>
-            {streamHistory.map((item) => {
-              const [c1, c2] = catColors(item.category);
-              return (
+            {posts.map((post) => (
                 <View
-                  key={item.id}
+                  key={post.id}
                   style={[styles.feedCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                 >
                   <View style={styles.feedPostHeader}>
@@ -430,26 +519,19 @@ export default function ProfileScreen() {
                       <Text style={[styles.feedUserName, { color: colors.foreground }]}>
                         {user.name}
                       </Text>
-                      <Text style={[styles.feedDate, { color: colors.mutedForeground }]}>
-                        {formatDate(item.startedAt)}
-                      </Text>
+                      <Text style={[styles.feedDate, { color: colors.mutedForeground }]}>{formatDate(post.createdAt)}</Text>
                     </View>
-                    <Ionicons name="ellipsis-horizontal" size={20} color={colors.mutedForeground} />
+                    <TouchableOpacity
+                      onPress={() => confirmDeletePost(post.id)}
+                      hitSlop={10}
+                      accessibilityLabel="Post options"
+                    >
+                      <Ionicons name="ellipsis-horizontal" size={20} color={colors.mutedForeground} />
+                    </TouchableOpacity>
                   </View>
 
-                  <View style={[styles.feedMedia, { backgroundColor: c2 }]}>
-                    {user.streamBackgroundImageUrl ? (
-                      <Image
-                        source={{ uri: user.streamBackgroundImageUrl }}
-                        style={StyleSheet.absoluteFill}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <>
-                        <View style={[StyleSheet.absoluteFill, { backgroundColor: c1, opacity: 0.45 }]} />
-                        <Ionicons name="radio-outline" size={52} color="rgba(255,255,255,0.75)" />
-                      </>
-                    )}
+                  <View style={styles.feedMedia}>
+                    <Image source={{ uri: post.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
                   </View>
 
                   <View style={styles.feedActions}>
@@ -462,22 +544,52 @@ export default function ProfileScreen() {
                   </View>
 
                   <View style={styles.feedCaption}>
-                    <Text style={[styles.feedViewerText, { color: colors.foreground }]}>
-                      {item.peakViewers} peak viewers
-                    </Text>
-                    <Text style={[styles.feedCategory, { color: colors.foreground }]}>
-                      <Text style={styles.feedCaptionName}>{user.name} </Text>
-                      Streamed in {item.category}
-                    </Text>
+                    {post.caption ? (
+                      <Text style={[styles.feedCategory, { color: colors.foreground }]}>
+                        <Text style={styles.feedCaptionName}>{user.name} </Text>
+                        {post.caption}
+                      </Text>
+                    ) : null}
                   </View>
                 </View>
-              );
-            })}
+            ))}
           </View>
         )}
 
         <View style={{ height: insets.bottom + (Platform.OS === "web" ? 34 : 0) + 80 }} />
       </ScrollView>
+
+      <Modal visible={!!postImage} transparent animationType="slide" onRequestClose={() => setPostImage(null)}>
+        <View style={styles.postModalBackdrop}>
+          <View style={[styles.postModal, { backgroundColor: colors.card, paddingBottom: Math.max(insets.bottom, 16) }]}>
+            <View style={[styles.postModalHeader, { borderBottomColor: colors.border }]}>
+              <TouchableOpacity onPress={() => setPostImage(null)} disabled={isPublishingPost}>
+                <Text style={[styles.postModalAction, { color: colors.mutedForeground }]}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={[styles.postModalTitle, { color: colors.foreground }]}>New Post</Text>
+              <TouchableOpacity onPress={publishPost} disabled={isPublishingPost}>
+                <Text style={[styles.postModalAction, { color: colors.primary }]}>
+                  {isPublishingPost ? "Sharing…" : "Share"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {postImage ? <Image source={{ uri: postImage.uri }} style={styles.postPreview} resizeMode="cover" /> : null}
+            <TextInput
+              value={postCaption}
+              onChangeText={setPostCaption}
+              placeholder="Write a caption…"
+              placeholderTextColor={colors.mutedForeground}
+              maxLength={2200}
+              multiline
+              style={[styles.postCaptionInput, { color: colors.foreground, borderColor: colors.border }]}
+              editable={!isPublishingPost}
+            />
+            <Text style={[styles.postCaptionCount, { color: colors.mutedForeground }]}>
+              {postCaption.length}/2200
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -716,5 +828,55 @@ const styles = StyleSheet.create({
   },
   feedCaptionName: {
     fontFamily: "Inter_700Bold",
+  },
+  postModalBackdrop: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.65)",
+  },
+  postModal: {
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    overflow: "hidden",
+  },
+  postModalHeader: {
+    height: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 18,
+    borderBottomWidth: 1,
+  },
+  postModalTitle: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+  },
+  postModalAction: {
+    minWidth: 58,
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+  },
+  postPreview: {
+    width: "100%",
+    aspectRatio: 1,
+  },
+  postCaptionInput: {
+    minHeight: 92,
+    marginHorizontal: 16,
+    marginTop: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderRadius: 12,
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: "Inter_400Regular",
+    textAlignVertical: "top",
+  },
+  postCaptionCount: {
+    alignSelf: "flex-end",
+    marginTop: 6,
+    marginRight: 18,
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
   },
 });

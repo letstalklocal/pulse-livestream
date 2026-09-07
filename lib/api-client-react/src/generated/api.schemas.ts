@@ -5,6 +5,28 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface Post {
+  id: number;
+  ownerUserId: number;
+  imageUrl: string;
+  caption: string;
+  createdAt: string;
+}
+
+export interface PostResponse {
+  post: Post;
+}
+
+export interface PostListResponse {
+  posts: Post[];
+}
+
+export interface CreatePostRequest {
+  imageObjectPath: string;
+  /** @maxLength 2200 */
+  caption: string;
+}
+
 export interface HealthStatus {
   status: string;
 }
