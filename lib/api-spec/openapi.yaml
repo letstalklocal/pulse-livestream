@@ -149,6 +149,67 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /streams/{channelId}/admission:
+    post:
+      operationId: admitToStream
+      tags: [streams]
+      summary: Purchase admission to a Premium live stream
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StreamAdmissionRequest"
+      responses:
+        "200":
+          description: Admission status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StreamAdmissionResponse"
+        "400":
+          description: Invalid request or stream is not Premium
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "402":
+          description: Insufficient coins
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Host cannot purchase their own admission
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Stream not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Idempotency key conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /users/{uid}:
     get:
       operationId: getUser
@@ -864,6 +925,14 @@ components:
           format: date-time
         category:
           type: string
+        requiredGift:
+          type: ["object", "null"]
+          properties:
+            id: { type: string }
+            name: { type: string }
+            emoji: { type: string }
+            coinCost: { type: integer }
+          required: [id, name, emoji, coinCost]
       required:
         - channelId
         - hostUid
@@ -872,6 +941,7 @@ components:
         - viewerCount
         - startedAt
         - category
+        - requiredGift
 
     StreamListResponse:
       type: object
@@ -907,12 +977,33 @@ components:
           type: string
         category:
           type: string
+        requiredGiftId:
+          type: ["string", "null"]
+          enum: [rose, heart, party, diamond, rocket, crown, null]
       required:
         - channelId
         - hostUid
         - hostName
         - title
         - category
+
+    StreamAdmissionRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        idempotencyKey:
+          type: string
+          minLength: 1
+          maxLength: 100
+      required: [idempotencyKey]
+
+    StreamAdmissionResponse:
+      type: object
+      properties:
+        admitted: { type: boolean }
+        charged: { type: boolean }
+        balance: { type: integer }
+      required: [admitted, charged, balance]
 
     ViewerUpdateRequest:
       type: object

@@ -54,6 +54,8 @@ import type {
   SendChatMessageRequest,
   SendMediaDmRequest,
   SendMediaPackRequest,
+  StreamAdmissionRequest,
+  StreamAdmissionResponse,
   StreamEarningsResponse,
   StreamHistoryResponse,
   StreamLeaderboardResponse,
@@ -527,6 +529,78 @@ export const useEndStream = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getEndStreamMutationOptions(options));
+    }
+
+export const getAdmitToStreamUrl = (channelId: string,) => {
+
+
+
+
+  return `/api/streams/${channelId}/admission`
+}
+
+/**
+ * @summary Purchase admission to a Premium live stream
+ */
+export const admitToStream = async (channelId: string,
+    streamAdmissionRequest: StreamAdmissionRequest, options?: RequestInit): Promise<StreamAdmissionResponse> => {
+
+  return customFetch<StreamAdmissionResponse>(getAdmitToStreamUrl(channelId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      streamAdmissionRequest,)
+  }
+);}
+
+
+
+
+export const getAdmitToStreamMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof admitToStream>>, TError,{channelId: string;data: BodyType<StreamAdmissionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof admitToStream>>, TError,{channelId: string;data: BodyType<StreamAdmissionRequest>}, TContext> => {
+
+const mutationKey = ['admitToStream'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof admitToStream>>, {channelId: string;data: BodyType<StreamAdmissionRequest>}> = (props) => {
+          const {channelId,data} = props ?? {};
+
+          return  admitToStream(channelId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdmitToStreamMutationResult = NonNullable<Awaited<ReturnType<typeof admitToStream>>>
+    export type AdmitToStreamMutationBody = BodyType<StreamAdmissionRequest>
+    export type AdmitToStreamMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Purchase admission to a Premium live stream
+ */
+export const useAdmitToStream = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof admitToStream>>, TError,{channelId: string;data: BodyType<StreamAdmissionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof admitToStream>>,
+        TError,
+        {channelId: string;data: BodyType<StreamAdmissionRequest>},
+        TContext
+      > => {
+      return useMutation(getAdmitToStreamMutationOptions(options));
     }
 
 export const getGetUserUrl = (uid: number,) => {

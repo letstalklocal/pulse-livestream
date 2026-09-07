@@ -25,6 +25,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
+  type CreateStreamRequestRequiredGiftId,
   getListStreamsQueryKey,
   getGetStreamChatQueryKey,
   useCreateStream,
@@ -134,6 +135,8 @@ export default function GoLiveScreen() {
 
   const [title, setTitle] = useState("Join My Live");
   const [category, setCategory] = useState("Gaming");
+  const [isPremium, setIsPremium] = useState(false);
+  const [requiredGiftId, setRequiredGiftId] = useState<CreateStreamRequestRequiredGiftId>(null);
   const [isLive, setIsLive] = useState(false);
   const [activeChannelId, setActiveChannelId] = useState("");
   const [isMuted, setIsMuted] = useState(false);
@@ -447,6 +450,7 @@ export default function GoLiveScreen() {
     channelIdRef.current = channelId;
 
     let activatedPrivate = false;
+    let createdStream = false;
     try {
       // The server validates that this Clerk user owns an accepted invitation
       // before it makes the channel active and allows a broadcaster token.
@@ -454,10 +458,6 @@ export default function GoLiveScreen() {
         await invitationAction.mutateAsync({ id: privateInvitationId, action: "start" });
         activatedPrivate = true;
       }
-      const tokenData = await generateToken.mutateAsync({
-        data: { channelName: channelId, uid: user!.uid, role: "broadcaster" },
-      });
-
       await createStream.mutateAsync({
         data: {
           channelId,
@@ -466,7 +466,15 @@ export default function GoLiveScreen() {
           hostAvatarUrl: user!.avatarUri ?? null,
           title: title.trim(),
           category,
+          requiredGiftId: isPrivateInvite ? null : requiredGiftId,
         },
+      });
+      createdStream = true;
+
+      // The durable live session must exist before Agora can authorize any
+      // token for this channel, including the broadcaster's first token.
+      const tokenData = await generateToken.mutateAsync({
+        data: { channelName: channelId, uid: user!.uid, role: "broadcaster" },
       });
 
       if (isNative && engineRef.current) {
@@ -481,6 +489,13 @@ export default function GoLiveScreen() {
       durationRef.current = setInterval(() => setDuration((d) => d + 1), 1000);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e) {
+      if (createdStream) {
+        try {
+          await endStream.mutateAsync({ channelId });
+        } catch {
+          // Heartbeat expiry remains the final recovery path if cleanup cannot reach the server.
+        }
+      }
       if (activatedPrivate) {
         try {
           await invitationAction.mutateAsync({ id: privateInvitationId, action: "end" });
@@ -492,7 +507,7 @@ export default function GoLiveScreen() {
       setCameraError(e instanceof Error ? e.message : "Could not start the live stream.");
       setIsStarting(false);
     }
-  }, [title, category, user, generateToken, createStream, cameraReady, invitationAction, isPrivateInvite, invitationChannelId, privateInvitationId]);
+  }, [title, category, user, generateToken, createStream, cameraReady, invitationAction, isPrivateInvite, invitationChannelId, privateInvitationId, requiredGiftId]);
 
   const chooseStreamBackground = useCallback(async () => {
     if (!user || isUploadingBackground) return;
@@ -1082,12 +1097,58 @@ export default function GoLiveScreen() {
           </View>
         </View>
 
+        {!isPrivateInvite ? (
+          <View style={styles.inputSection}>
+            <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Entry</Text>
+            <View style={styles.entryOptions}>
+              <TouchableOpacity
+                testID="stream-entry-free"
+                style={[styles.entryOption, { backgroundColor: !isPremium ? catColor + "26" : colors.card, borderColor: !isPremium ? catColor : colors.border }]}
+                onPress={() => { setIsPremium(false); setRequiredGiftId(null); Haptics.selectionAsync(); }}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.entryOptionTitle, { color: !isPremium ? catColor : colors.foreground }]}>Free</Text>
+                <Text style={[styles.entryOptionSub, { color: colors.mutedForeground }]}>Anyone can watch</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                testID="stream-entry-premium"
+                style={[styles.entryOption, { backgroundColor: isPremium ? "#FFD70022" : colors.card, borderColor: isPremium ? "#FFD700" : colors.border }]}
+                onPress={() => { setIsPremium(true); Haptics.selectionAsync(); }}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.entryOptionTitle, { color: isPremium ? "#FFD700" : colors.foreground }]}>Premium</Text>
+                <Text style={[styles.entryOptionSub, { color: colors.mutedForeground }]}>Gift required to enter</Text>
+              </TouchableOpacity>
+            </View>
+            {isPremium ? (
+              <View style={styles.requiredGiftGrid}>
+                {GIFTS.map((gift) => {
+                  const selected = requiredGiftId === gift.id;
+                  return (
+                    <TouchableOpacity
+                      key={gift.id}
+                      testID={`stream-required-gift-${gift.id}`}
+                      style={[styles.requiredGiftOption, { backgroundColor: selected ? "#FFD70020" : colors.card, borderColor: selected ? "#FFD700" : colors.border }]}
+                      onPress={() => { setRequiredGiftId(gift.id as CreateStreamRequestRequiredGiftId); Haptics.selectionAsync(); }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.requiredGiftEmoji}>{gift.emoji}</Text>
+                      <Text style={[styles.requiredGiftText, { color: colors.foreground }]}>{gift.name} · 🪙{gift.coins}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
         <TouchableOpacity
+          testID="go-live-submit"
           style={[
             styles.goLiveBtn,
             {
               backgroundColor:
-                title.trim() && cameraReady && user.streamBackgroundImagePath
+                title.trim() && cameraReady && user.streamBackgroundImagePath && (!isPremium || !!requiredGiftId)
                   ? catColor
                   : colors.muted,
               opacity:
@@ -1102,7 +1163,8 @@ export default function GoLiveScreen() {
             !user.streamBackgroundImagePath ||
             isStarting ||
             isUploadingBackground ||
-            (isNative && !cameraReady)
+            (isNative && !cameraReady) ||
+            (isPremium && !requiredGiftId)
           }
           activeOpacity={0.85}
         >
@@ -1266,6 +1328,14 @@ const styles = StyleSheet.create({
   categoryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   categoryChip: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 20, borderWidth: 1.5 },
   categoryChipText: { fontSize: 13, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
+  entryOptions: { flexDirection: "row", gap: 8 },
+  entryOption: { flex: 1, borderRadius: 12, borderWidth: 1.5, padding: 12 },
+  entryOptionTitle: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  entryOptionSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 3 },
+  requiredGiftGrid: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginTop: 8 },
+  requiredGiftOption: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderRadius: 14, paddingHorizontal: 9, paddingVertical: 6 },
+  requiredGiftEmoji: { fontSize: 15 },
+  requiredGiftText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   goLiveBtn: {
     flexDirection: "row",
     alignItems: "center",

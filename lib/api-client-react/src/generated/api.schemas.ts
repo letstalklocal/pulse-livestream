@@ -98,6 +98,16 @@ export interface AgoraTokenResponse {
   expiresAt: number;
 }
 
+/**
+ * @nullable
+ */
+export type StreamRequiredGift = {
+  id: string;
+  name: string;
+  emoji: string;
+  coinCost: number;
+} | null;
+
 export interface Stream {
   channelId: string;
   hostUid: number;
@@ -108,6 +118,8 @@ export interface Stream {
   viewerCount: number;
   startedAt: string;
   category: string;
+  /** @nullable */
+  requiredGift: StreamRequiredGift;
 }
 
 export interface StreamListResponse {
@@ -118,6 +130,21 @@ export interface StreamResponse {
   stream: Stream;
 }
 
+/**
+ * @nullable
+ */
+export type CreateStreamRequestRequiredGiftId = typeof CreateStreamRequestRequiredGiftId[keyof typeof CreateStreamRequestRequiredGiftId] | null;
+
+
+export const CreateStreamRequestRequiredGiftId = {
+  rose: 'rose',
+  heart: 'heart',
+  party: 'party',
+  diamond: 'diamond',
+  rocket: 'rocket',
+  crown: 'crown',
+} as const;
+
 export interface CreateStreamRequest {
   channelId: string;
   hostUid: number;
@@ -125,6 +152,22 @@ export interface CreateStreamRequest {
   hostAvatarUrl?: string | null;
   title: string;
   category: string;
+  /** @nullable */
+  requiredGiftId?: CreateStreamRequestRequiredGiftId;
+}
+
+export interface StreamAdmissionRequest {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  idempotencyKey: string;
+}
+
+export interface StreamAdmissionResponse {
+  admitted: boolean;
+  charged: boolean;
+  balance: number;
 }
 
 export type ViewerUpdateRequestAction = typeof ViewerUpdateRequestAction[keyof typeof ViewerUpdateRequestAction];

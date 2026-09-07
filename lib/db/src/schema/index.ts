@@ -2,6 +2,8 @@ export * from "./users";
 export * from "./stream-history";
 export * from "./follows";
 export * from "./coins";
+export * from "./live-stream-sessions";
+export * from "./premium-stream-admissions";
 export * from "./direct-messages";
 export * from "./private-stream-invitations";
 export * from "./media-packs";

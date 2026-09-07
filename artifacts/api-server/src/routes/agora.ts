@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { RtcTokenBuilder, RtcRole } from "agora-token";
 import { GenerateAgoraTokenBody } from "@workspace/api-zod";
-import { eq } from "drizzle-orm";
-import { db, usersTable } from "@workspace/db";
+import { and, eq, isNull } from "drizzle-orm";
+import { db, liveStreamSessionsTable, premiumStreamAdmissionsTable, usersTable } from "@workspace/db";
 import { privateInvitationForChannel } from "./private-stream-invitations";
 
 const router = Router();
@@ -31,6 +31,53 @@ router.post("/agora/token", async (req: any, res): Promise<any> => {
     if (invitation.status !== "active") return res.status(409).json({ error: "Private stream is not active" });
     if ((user.uid === invitation.streamerUserId && role !== "broadcaster") || (user.uid === invitation.invitedUserId && role !== "audience")) {
       return res.status(403).json({ error: "Private stream role denied" });
+    }
+    tokenUid = user.uid;
+  }
+
+  if (!invitation) {
+    // Public Agora tokens are only minted for a currently active durable live
+    // session. This prevents a historical channel name from being reused.
+    const session = (await db.select().from(liveStreamSessionsTable).where(and(
+      eq(liveStreamSessionsTable.channelId, channelName),
+      isNull(liveStreamSessionsTable.endedAt),
+    )).limit(1))[0];
+    if (!session || session.isPrivate) {
+      res.status(404).json({ error: "Active stream not found" });
+      return;
+    }
+    if (session.lastHeartbeatAt.getTime() <= Date.now() - 60_000) {
+      await db.update(liveStreamSessionsTable)
+        .set({ endedAt: new Date() })
+        .where(and(eq(liveStreamSessionsTable.id, session.id), isNull(liveStreamSessionsTable.endedAt)));
+      res.status(404).json({ error: "Active stream not found" });
+      return;
+    }
+    const clerkId = req.auth?.()?.userId;
+    const user = clerkId
+      ? (await db.select().from(usersTable).where(eq(usersTable.clerkId, clerkId)).limit(1))[0]
+      : null;
+    if (!user) {
+      res.status(401).json({ error: "Authentication is required for live streams" });
+      return;
+    }
+    if (role === "broadcaster") {
+      if (user.uid !== session.hostUserId) {
+        res.status(403).json({ error: "Only the host may broadcast this stream" });
+        return;
+      }
+    } else if (session.requiredGiftId) {
+      const admission = (await db.select({ id: premiumStreamAdmissionsTable.id })
+        .from(premiumStreamAdmissionsTable)
+        .where(and(
+          eq(premiumStreamAdmissionsTable.sessionId, session.id),
+          eq(premiumStreamAdmissionsTable.viewerUserId, user.uid),
+        ))
+        .limit(1))[0];
+      if (!admission) {
+        res.status(403).json({ error: "Premium stream admission is required" });
+        return;
+      }
     }
     tokenUid = user.uid;
   }

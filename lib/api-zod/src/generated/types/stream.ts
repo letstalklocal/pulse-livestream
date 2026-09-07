@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { StreamRequiredGift } from './streamRequiredGift';
 
 export interface Stream {
   channelId: string;
@@ -16,4 +17,6 @@ export interface Stream {
   viewerCount: number;
   startedAt: Date;
   category: string;
+  /** @nullable */
+  requiredGift: StreamRequiredGift;
 }

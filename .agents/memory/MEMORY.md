@@ -10,3 +10,4 @@
 - [TestFlight development environment](testflight-development-environment.md) — TestFlight builds intentionally use development Clerk, API, database, and Agora configuration.
 - [Agora iOS preview surface](agora-ios-preview-surface.md) — use RtcSurfaceView for iOS stream previews; RtcTextureView is Android-only in Agora 4.5.x.
 - [Agora preview handoff](agora-preview-handoff.md) — stop and release every home-card audience preview before opening the full viewer, or its first join returns -17.
+- [Paid live session identity](paid-live-session-identity.md) — bind paid admission to an immutable durable live session created before any Agora token is issued.

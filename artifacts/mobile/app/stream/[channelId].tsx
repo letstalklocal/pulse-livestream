@@ -40,6 +40,7 @@ import {
   useUnfollowUser,
   useGetFollowStatus,
   useGetPrivateStreamInvitation,
+  useAdmitToStream,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { GiftPicker, GIFTS, type Gift } from "@/components/GiftPicker";
@@ -152,6 +153,8 @@ export default function StreamScreen() {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [streamEnded, setStreamEnded] = useState(false);
   const [countdown, setCountdown] = useState(10);
+  const [admitted, setAdmitted] = useState(false);
+  const [admissionError, setAdmissionError] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
   // Viewer's own spendable balance (for the gift picker)
@@ -161,8 +164,10 @@ export default function StreamScreen() {
   );
   const viewerCoins = coinBalanceQuery.data?.balance ?? 0;
   const spendMutation = useSpendCoins();
+  const admitToStream = useAdmitToStream();
   const sendChatMutation = useSendChatMessage();
   const engineRef = useRef<any>(null);
+  const admissionKeyRef = useRef(Crypto.randomUUID());
   const streamEndedRef = useRef(false);
   const listRef = useRef<FlatList>(null);
 
@@ -180,6 +185,11 @@ export default function StreamScreen() {
     query: { enabled: !!channelId, refetchInterval: 5000 } as any,
   });
   const stream = streamData?.stream;
+  const requiresAdmission = !!stream?.requiredGift;
+  // Demo streams have no persisted stream record. Every live channel waits for
+  // its server details so a Premium requirement cannot be bypassed.
+  const streamDetailsLoaded = isDemo || !!stream;
+  const canEnterStream = streamDetailsLoaded && (!requiresAdmission || admitted);
   const { data: privateInvitationData } = useGetPrivateStreamInvitation(
     privateInvitationIdNumber,
     {
@@ -194,6 +204,9 @@ export default function StreamScreen() {
     streamEndedRef.current = false;
     setStreamEnded(false);
     setCountdown(10);
+    setAdmitted(false);
+    setAdmissionError(null);
+    admissionKeyRef.current = Crypto.randomUUID();
   }, [channelId]);
 
   useEffect(() => {
@@ -292,6 +305,34 @@ export default function StreamScreen() {
 
   const generateToken = useGenerateAgoraToken();
   const updateViewers = useUpdateViewerCount();
+
+  const confirmAdmission = async () => {
+    if (!channelId || admitted) return;
+    setAdmissionError(null);
+    try {
+      const result = await admitToStream.mutateAsync({
+        channelId,
+        data: { idempotencyKey: admissionKeyRef.current },
+      });
+      if (!result.admitted) {
+        setAdmissionError("Admission could not be confirmed. Please try again.");
+        return;
+      }
+      if (user?.uid) {
+        queryClient.setQueryData(
+          getGetCoinBalanceQueryKey({ uid: user.uid }),
+          { balance: result.balance },
+        );
+      }
+      setAdmitted(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      setAdmissionError(
+        message || "You need more coins for this entry gift. Top up and try again.",
+      );
+    }
+  };
 
   // Show swipe-up hint briefly when a next stream is available
   useEffect(() => {
@@ -414,7 +455,7 @@ export default function StreamScreen() {
 
   // Join Agora channel on native
   useEffect(() => {
-    if (!channelId || !isNative) return;
+    if (!channelId || !isNative || !canEnterStream) return;
     let didUnmount = false;
     const setup = async () => {
       let engine: any = null;
@@ -582,7 +623,7 @@ export default function StreamScreen() {
       try { updateViewers.mutate({ channelId, data: { action: "leave" } }); } catch (_e) {}
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channelId]);
+  }, [channelId, canEnterStream]);
 
   // Once joined, pre-set the remote uid from the known host uid so the
   // RtcTextureView mounts immediately — don't wait for onUserPublished
@@ -722,7 +763,12 @@ export default function StreamScreen() {
       <View
         style={StyleSheet.absoluteFill}
       >
-        {streamEnded ? (
+        {!canEnterStream ? (
+          <View style={styles.admissionBlocked}>
+            <ActivityIndicator color="#FFF" />
+            <Text style={styles.nativeVideoStatusText}>Loading stream details…</Text>
+          </View>
+        ) : streamEnded ? (
           <View style={[StyleSheet.absoluteFill, { backgroundColor: "#000" }]} />
         ) : showNativeVideo && VideoView ? (
           <>
@@ -924,6 +970,53 @@ export default function StreamScreen() {
       }}
     />
 
+    {/* Keep both native Agora and the web demo hidden until a Premium admission
+        has been explicitly confirmed. */}
+    <Modal
+      transparent
+      visible={requiresAdmission && !admitted}
+      animationType="fade"
+      onRequestClose={() => router.back()}
+      statusBarTranslucent
+    >
+      <View style={styles.admissionBackdrop}>
+        <View style={styles.admissionCard}>
+          <View style={styles.admissionIcon}>
+            <Ionicons name="lock-closed" size={20} color="#FFD700" />
+          </View>
+          <Text style={styles.admissionTitle}>Premium live</Text>
+          <Text style={styles.admissionHost}>{stream?.hostName ?? "Host"} · {stream?.title ?? "Live stream"}</Text>
+          <View style={styles.admissionGift}>
+            <Text style={styles.admissionGiftEmoji}>{stream?.requiredGift?.emoji}</Text>
+            <View>
+              <Text style={styles.admissionGiftName}>{stream?.requiredGift?.name}</Text>
+              <Text style={styles.admissionGiftCost}>Entry gift · 🪙 {stream?.requiredGift?.coinCost}</Text>
+            </View>
+          </View>
+          <Text style={styles.admissionBalance}>Your balance: 🪙 {viewerCoins.toLocaleString()}</Text>
+          {admissionError ? <Text style={styles.admissionError}>{admissionError}</Text> : null}
+          <TouchableOpacity
+            testID="premium-admission-confirm"
+            style={[styles.admissionConfirm, admitToStream.isPending && styles.admissionConfirmDisabled]}
+            onPress={() => void confirmAdmission()}
+            disabled={admitToStream.isPending}
+            activeOpacity={0.85}
+          >
+            {admitToStream.isPending ? <ActivityIndicator color="#111118" /> : <Text style={styles.admissionConfirmText}>Send gift & enter</Text>}
+          </TouchableOpacity>
+          <TouchableOpacity
+            testID="premium-admission-cancel"
+            style={styles.admissionCancel}
+            onPress={() => router.back()}
+            disabled={admitToStream.isPending}
+            activeOpacity={0.75}
+          >
+            <Text style={styles.admissionCancelText}>Not now</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+
     {/* Incoming stream overlay — slides in simultaneously with current screen sliding out */}
     {isTransitioning && (
       <Animated.View
@@ -1003,6 +1096,44 @@ export default function StreamScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  admissionBlocked: {
+    ...StyleSheet.absoluteFill,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    backgroundColor: "#000",
+  },
+  admissionBackdrop: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+    backgroundColor: "rgba(0,0,0,0.78)",
+  },
+  admissionCard: {
+    width: "100%",
+    maxWidth: 360,
+    borderRadius: 22,
+    padding: 22,
+    alignItems: "center",
+    backgroundColor: "#111118",
+    borderWidth: 1,
+    borderColor: "rgba(255,215,0,0.38)",
+  },
+  admissionIcon: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,215,0,0.14)", marginBottom: 10 },
+  admissionTitle: { color: "#FFF", fontSize: 21, fontFamily: "Inter_700Bold" },
+  admissionHost: { color: "rgba(255,255,255,0.62)", fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: 6 },
+  admissionGift: { width: "100%", flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.06)", padding: 12, marginTop: 18 },
+  admissionGiftEmoji: { fontSize: 30 },
+  admissionGiftName: { color: "#FFF", fontSize: 15, fontFamily: "Inter_700Bold" },
+  admissionGiftCost: { color: "#FFD700", fontSize: 12, fontFamily: "Inter_600SemiBold", marginTop: 2 },
+  admissionBalance: { color: "rgba(255,255,255,0.7)", fontSize: 13, fontFamily: "Inter_500Medium", marginTop: 15 },
+  admissionError: { color: "#FF6B6B", fontSize: 12, fontFamily: "Inter_500Medium", textAlign: "center", lineHeight: 17, marginTop: 10 },
+  admissionConfirm: { width: "100%", alignItems: "center", borderRadius: 14, paddingVertical: 13, backgroundColor: "#FFD700", marginTop: 18 },
+  admissionConfirmDisabled: { opacity: 0.65 },
+  admissionConfirmText: { color: "#111118", fontSize: 14, fontFamily: "Inter_700Bold" },
+  admissionCancel: { paddingVertical: 12, paddingHorizontal: 20, marginTop: 3 },
+  admissionCancelText: { color: "rgba(255,255,255,0.62)", fontSize: 13, fontFamily: "Inter_600SemiBold" },
   videoOverlay: {
     backgroundColor: "transparent",
     opacity: 0.4,

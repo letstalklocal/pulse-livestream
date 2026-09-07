@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CreateStreamRequestRequiredGiftId } from './createStreamRequestRequiredGiftId';
 
 export interface CreateStreamRequest {
   channelId: string;
@@ -13,4 +14,6 @@ export interface CreateStreamRequest {
   hostAvatarUrl?: string | null;
   title: string;
   category: string;
+  /** @nullable */
+  requiredGiftId?: CreateStreamRequestRequiredGiftId;
 }

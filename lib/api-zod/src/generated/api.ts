@@ -50,7 +50,13 @@ export const ListStreamsResponse = zod.object({
   "title": zod.string(),
   "viewerCount": zod.number(),
   "startedAt": zod.coerce.date(),
-  "category": zod.string()
+  "category": zod.string(),
+  "requiredGift": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "emoji": zod.string(),
+  "coinCost": zod.number()
+}).nullable()
 }))
 })
 
@@ -65,7 +71,8 @@ export const CreateStreamBody = zod.object({
   "hostName": zod.string(),
   "hostAvatarUrl": zod.string().nullish(),
   "title": zod.string(),
-  "category": zod.string()
+  "category": zod.string(),
+  "requiredGiftId": zod.union([zod.literal('rose'),zod.literal('heart'),zod.literal('party'),zod.literal('diamond'),zod.literal('rocket'),zod.literal('crown'),zod.literal(null)]).nullish()
 })
 
 
@@ -87,7 +94,13 @@ export const GetStreamResponse = zod.object({
   "title": zod.string(),
   "viewerCount": zod.number(),
   "startedAt": zod.coerce.date(),
-  "category": zod.string()
+  "category": zod.string(),
+  "requiredGift": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "emoji": zod.string(),
+  "coinCost": zod.number()
+}).nullable()
 })
 })
 
@@ -102,6 +115,28 @@ export const EndStreamParams = zod.object({
 
 export const EndStreamResponse = zod.object({
   "success": zod.boolean()
+})
+
+
+/**
+ * @summary Purchase admission to a Premium live stream
+ */
+export const AdmitToStreamParams = zod.object({
+  "channelId": zod.coerce.string()
+})
+
+export const admitToStreamBodyIdempotencyKeyMax = 100;
+
+
+
+export const AdmitToStreamBody = zod.object({
+  "idempotencyKey": zod.string().min(1).max(admitToStreamBodyIdempotencyKeyMax)
+})
+
+export const AdmitToStreamResponse = zod.object({
+  "admitted": zod.boolean(),
+  "charged": zod.boolean(),
+  "balance": zod.number()
 })
 
 
@@ -281,7 +316,13 @@ export const UpdateViewerCountResponse = zod.object({
   "title": zod.string(),
   "viewerCount": zod.number(),
   "startedAt": zod.coerce.date(),
-  "category": zod.string()
+  "category": zod.string(),
+  "requiredGift": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "emoji": zod.string(),
+  "coinCost": zod.number()
+}).nullable()
 })
 })
 
