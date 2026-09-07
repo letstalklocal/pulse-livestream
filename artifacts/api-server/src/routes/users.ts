@@ -144,7 +144,7 @@ router.post("/users/clerk-sync", async (req, res) => {
     .values({ uid, clerkId, name: name.trim(), bio: "" })
     .returning();
 
-  res.json({ user: await withStreamBackgroundUrl(rows[0]!) });
+  res.json({ user: await withUserImageUrls(rows[0]!) });
 });
 
 router.post("/users/:uid/follow", async (req, res) => {

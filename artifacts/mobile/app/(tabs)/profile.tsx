@@ -58,6 +58,7 @@ export default function ProfileScreen() {
   const { user, updateUser } = useAuth();
 
   const [editing, setEditing] = useState(false);
+  const [historyView, setHistoryView] = useState<"grid" | "feed">("grid");
   const [editName, setEditName] = useState(user?.name ?? "");
   const [editBio, setEditBio] = useState(user?.bio ?? "");
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -347,7 +348,36 @@ export default function ProfileScreen() {
 
         {/* Grid divider */}
         <View style={[styles.gridHeader, { borderColor: colors.border }]}>
-          <Ionicons name="grid-outline" size={20} color={colors.primary} />
+          <TouchableOpacity
+            style={[
+              styles.viewOption,
+              historyView === "grid" && { borderBottomColor: colors.primary },
+            ]}
+            onPress={() => setHistoryView("grid")}
+            activeOpacity={0.7}
+            accessibilityLabel="Grid view"
+          >
+            <Ionicons
+              name={historyView === "grid" ? "grid" : "grid-outline"}
+              size={20}
+              color={historyView === "grid" ? colors.primary : colors.mutedForeground}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.viewOption,
+              historyView === "feed" && { borderBottomColor: colors.primary },
+            ]}
+            onPress={() => setHistoryView("feed")}
+            activeOpacity={0.7}
+            accessibilityLabel="Feed view"
+          >
+            <Ionicons
+              name={historyView === "feed" ? "list" : "list-outline"}
+              size={22}
+              color={historyView === "feed" ? colors.primary : colors.mutedForeground}
+            />
+          </TouchableOpacity>
         </View>
 
         {/* Past streams grid */}
@@ -361,7 +391,7 @@ export default function ProfileScreen() {
               Go live to start building your history
             </Text>
           </View>
-        ) : (
+        ) : historyView === "grid" ? (
           <View style={styles.grid}>
             {streamHistory.map((item) => {
               const [c1, c2] = catColors(item.category);
@@ -373,6 +403,37 @@ export default function ProfileScreen() {
                   <View style={styles.gridCellViewers}>
                     <Ionicons name="eye-outline" size={10} color="rgba(255,255,255,0.7)" />
                     <Text style={styles.gridCellViewersText}>{item.peakViewers}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        ) : (
+          <View style={styles.feed}>
+            {streamHistory.map((item) => {
+              const [c1, c2] = catColors(item.category);
+              return (
+                <View
+                  key={item.id}
+                  style={[styles.feedCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                >
+                  <View style={[styles.feedThumbnail, { backgroundColor: c2 }]}>
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: c1, opacity: 0.45 }]} />
+                    <Ionicons name="radio-outline" size={34} color="rgba(255,255,255,0.75)" />
+                  </View>
+                  <View style={styles.feedInfo}>
+                    <Text style={[styles.feedCategory, { color: colors.foreground }]}>
+                      {item.category}
+                    </Text>
+                    <Text style={[styles.feedDate, { color: colors.mutedForeground }]}>
+                      {formatDate(item.startedAt)}
+                    </Text>
+                    <View style={styles.feedViewers}>
+                      <Ionicons name="eye-outline" size={14} color={colors.mutedForeground} />
+                      <Text style={[styles.feedViewerText, { color: colors.mutedForeground }]}>
+                        {item.peakViewers} peak viewers
+                      </Text>
+                    </View>
                   </View>
                 </View>
               );
@@ -502,10 +563,18 @@ const styles = StyleSheet.create({
   gridHeader: {
     flexDirection: "row",
     justifyContent: "center",
-    paddingVertical: 12,
+    gap: 32,
     marginTop: 12,
     borderTopWidth: 1,
     borderBottomWidth: 1,
+  },
+  viewOption: {
+    width: 52,
+    height: 46,
+    alignItems: "center",
+    justifyContent: "center",
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
   },
   emptyGrid: {
     alignItems: "center",
@@ -548,5 +617,46 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: "rgba(255,255,255,0.7)",
     fontFamily: "Inter_400Regular",
+  },
+  feed: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    gap: 12,
+  },
+  feedCard: {
+    minHeight: 112,
+    flexDirection: "row",
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  feedThumbnail: {
+    width: 94,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  feedInfo: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    gap: 5,
+  },
+  feedCategory: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+  },
+  feedDate: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+  },
+  feedViewers: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 3,
+  },
+  feedViewerText: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
   },
 });
