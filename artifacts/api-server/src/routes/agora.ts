@@ -10,7 +10,7 @@ const router = Router();
 const APP_ID = process.env["AGORA_APP_ID"] ?? "";
 const APP_CERTIFICATE = process.env["AGORA_APP_CERTIFICATE"] ?? "";
 
-router.post("/agora/token", async (req, res) => {
+router.post("/agora/token", async (req: any, res): Promise<any> => {
   const parsed = GenerateAgoraTokenBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request body" });

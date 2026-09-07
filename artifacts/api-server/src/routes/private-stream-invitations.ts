@@ -2,6 +2,7 @@ import { Router } from "express";
 import { and, eq, inArray, or, sql } from "drizzle-orm";
 import { db, directMessagesTable, privateStreamInvitationsTable, usersTable } from "@workspace/db";
 import { createPrivateGetUrl } from "../lib/objectStorage";
+import { endRuntimeStream } from "./streams";
 
 const router = Router();
 const INVITE_TTL_MS = 10 * 60 * 1000;
@@ -40,6 +41,7 @@ async function expireIfNeeded(invitation: typeof privateStreamInvitationsTable.$
       .set({ status: "ended", endedAt: now, updatedAt: now })
       .where(and(eq(privateStreamInvitationsTable.id, invitation.id), eq(privateStreamInvitationsTable.status, "active")))
       .returning();
+    if (ended) await endRuntimeStream(ended.channelId);
     return ended ?? invitation;
   }
   return invitation;
@@ -121,6 +123,7 @@ router.post("/private-stream-invitations/:id/:action", async (req, res): Promise
   const values: any = { status: transition.to, updatedAt: now }; if (transition.field) values[transition.field] = now;
   const [updated] = await db.update(privateStreamInvitationsTable).set(values).where(and(eq(privateStreamInvitationsTable.id, id), eq(privateStreamInvitationsTable.status, invitation.status))).returning();
   if (!updated) return res.status(409).json({ error: "Invitation changed, please retry" });
+  if (updated.status === "ended") await endRuntimeStream(updated.channelId);
   res.json({ invitation: await response(updated) });
 });
 

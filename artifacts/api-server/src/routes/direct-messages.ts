@@ -2,6 +2,7 @@ import { Router } from "express";
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { coinBalancesTable, coinTransactionsTable, db, directMediaPurchasesTable, directMessagesTable, privateStreamInvitationsTable, usersTable } from "@workspace/db";
 import { createPrivateGetUrl } from "../lib/objectStorage";
+import { endRuntimeStream } from "./streams";
 
 const router = Router();
 const MAX_MESSAGE_LENGTH = 2_000;
@@ -100,6 +101,7 @@ router.get("/dms/:uid", async (req, res): Promise<any> => {
       if (staleActiveInvitationIds.includes(invitation.id)) {
         invitation.status = "ended";
         invitation.endedAt = now;
+        await endRuntimeStream(invitation.channelId);
       }
     }
   }

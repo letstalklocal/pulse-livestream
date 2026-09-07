@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { requireChannelAccess } from "../lib/privateChannelAccess";
 
 const router = Router();
 
@@ -17,10 +18,11 @@ export function clearChat(channelId: string) {
   chatStore.delete(channelId);
 }
 
-router.get("/streams/:channelId/chat", (req, res) => {
+router.get("/streams/:channelId/chat", async (req, res) => {
   delete req.headers["if-none-match"];
   delete req.headers["if-modified-since"];
   const channelId = req.params["channelId"] ?? "";
+  if (!await requireChannelAccess(req, res, channelId)) return;
   const since = parseInt(req.query["since"] as string ?? "0", 10) || 0;
   const all = chatStore.get(channelId) ?? [];
   const messages = since > 0 ? all.filter((m) => m.ts > since) : all;
@@ -28,8 +30,9 @@ router.get("/streams/:channelId/chat", (req, res) => {
   res.json({ messages });
 });
 
-router.post("/streams/:channelId/chat", (req, res) => {
+router.post("/streams/:channelId/chat", async (req, res) => {
   const channelId = req.params["channelId"] ?? "";
+  if (!await requireChannelAccess(req, res, channelId)) return;
   const { senderName, text, color } = req.body as {
     senderName?: string;
     text?: string;

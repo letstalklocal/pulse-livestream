@@ -7,4 +7,4 @@ Do not treat an Android app opening from an `exp+` link as proof that it loaded 
 
 **Why:** An installed APK can handle the development URL and open its normal app screen while continuing to run an older embedded bundle. Native debugging then produces misleading camera results and no current Agora events.
 
-**How to apply:** Before diagnosing native camera or Agora rendering, add or identify a visible current-build marker and confirm Metro reports an Android bundle request. If neither appears, stop changing camera code and require a fresh development build/client connection.
+**How to apply:** Before diagnosing native camera or Agora rendering, add or identify a visible current-build marker and confirm Metro reports an Android bundle request. If neither appears, clear Android app storage/data (cache alone and install-over can preserve the stale bundle), reconnect to Metro, and verify the marker before requiring a fresh development build.

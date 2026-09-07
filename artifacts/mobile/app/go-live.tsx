@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useAuth as useClerkAuth } from "@clerk/expo";
 import * as ImagePicker from "expo-image-picker";
 import { fetch as expoFetch } from "expo/fetch";
 import * as Haptics from "expo-haptics";
@@ -126,6 +127,7 @@ export default function GoLiveScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { user, isSignedIn, updateUser } = useAuth();
+  const { getToken } = useClerkAuth();
   const { invitationId, channelId: invitationChannelId } = useLocalSearchParams<{ invitationId?: string; channelId?: string }>();
   const privateInvitationId = Number(invitationId);
   const isPrivateInvite = Number.isInteger(privateInvitationId) && !!invitationChannelId;
@@ -182,6 +184,7 @@ export default function GoLiveScreen() {
   const [streamCoins, setStreamCoins] = useState(0);
   const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
+  const serverEndedShutdownRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     const channelId = activeChannelId;
@@ -190,42 +193,52 @@ export default function GoLiveScreen() {
     const domain = process.env["EXPO_PUBLIC_DOMAIN"];
     if (!domain) return;
 
-    const ws = new WebSocket(`wss://${domain}/api/ws`);
-    wsRef.current = ws;
+    let disposed = false;
+    let ws: WebSocket | null = null;
+    void (async () => {
+      const token = await getToken().catch(() => null);
+      if (disposed) return;
+      ws = new WebSocket(`wss://${domain}/api/ws`);
+      wsRef.current = ws;
 
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ type: "subscribe", channelId }));
-    };
+      ws.onopen = () => {
+        ws?.send(JSON.stringify({ type: "subscribe", channelId, token }));
+      };
 
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(String(event.data)) as {
-          type?: string;
-          coins?: number;
-          giftName?: string;
-          senderName?: string;
-        };
-        if (msg.type === "earnings" && typeof msg.coins === "number") {
-          setStreamCoins(msg.coins);
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(String(event.data)) as {
+            type?: string;
+            coins?: number;
+            giftName?: string;
+            senderName?: string;
+          };
+          if (msg.type === "earnings" && typeof msg.coins === "number") {
+            setStreamCoins(msg.coins);
+          }
+          if (msg.type === "gift" && msg.giftName) {
+            const gift = GIFTS.find((g) => g.name === msg.giftName) ?? GIFTS[0]!;
+            const x = 60 + Math.random() * 200;
+            setFloatingGifts((prev) => [
+              ...prev,
+              { id: `${Date.now()}-${Math.random()}`, emoji: gift.emoji, name: gift.name, senderName: msg.senderName ?? "Viewer", x, size: gift.size },
+            ]);
+          }
+          if (msg.type === "stream_ended") {
+            serverEndedShutdownRef.current();
+          }
+        } catch {
+          // ignore
         }
-        if (msg.type === "gift" && msg.giftName) {
-          const gift = GIFTS.find((g) => g.name === msg.giftName) ?? GIFTS[0]!;
-          const x = 60 + Math.random() * 200;
-          setFloatingGifts((prev) => [
-            ...prev,
-            { id: `${Date.now()}-${Math.random()}`, emoji: gift.emoji, name: gift.name, senderName: msg.senderName ?? "Viewer", x, size: gift.size },
-          ]);
-        }
-      } catch {
-        // ignore
-      }
-    };
+      };
+    })();
 
     return () => {
-      ws.close();
+      disposed = true;
+      ws?.close();
       wsRef.current = null;
     };
-  }, [isLive, activeChannelId]);
+  }, [isLive, activeChannelId, getToken]);
 
   // Poll chat messages while live (broadcaster sees viewer messages too)
   const { data: chatPollData } = useGetStreamChat(activeChannelId, undefined, {
@@ -445,18 +458,16 @@ export default function GoLiveScreen() {
         data: { channelName: channelId, uid: user!.uid, role: "broadcaster" },
       });
 
-      if (!isPrivateInvite) {
-        await createStream.mutateAsync({
-          data: {
-            channelId,
-            hostUid: user!.uid,
-            hostName: user!.name,
-            hostAvatarUrl: user!.avatarUri ?? null,
-            title: title.trim(),
-            category,
-          },
-        });
-      }
+      await createStream.mutateAsync({
+        data: {
+          channelId,
+          hostUid: user!.uid,
+          hostName: user!.name,
+          hostAvatarUrl: user!.avatarUri ?? null,
+          title: title.trim(),
+          category,
+        },
+      });
 
       if (isNative && engineRef.current) {
         pendingJoinRef.current = { token: tokenData.token, channelId };
@@ -569,8 +580,14 @@ export default function GoLiveScreen() {
     engineRef.current = null;
     releaseAgoraEngine(engine);
     try {
-      if (isPrivateInvite) await invitationAction.mutateAsync({ id: privateInvitationId, action: "end" });
-      else await endStream.mutateAsync({ channelId: channelIdRef.current });
+      if (isPrivateInvite) {
+        await Promise.allSettled([
+          endStream.mutateAsync({ channelId: channelIdRef.current }),
+          invitationAction.mutateAsync({ id: privateInvitationId, action: "end" }),
+        ]);
+      } else {
+        await endStream.mutateAsync({ channelId: channelIdRef.current });
+      }
       await queryClient.invalidateQueries({ queryKey: getListStreamsQueryKey() });
     } catch (_e) {
       // best effort — still invalidate so stale data is cleared
@@ -578,6 +595,25 @@ export default function GoLiveScreen() {
     }
     router.back();
   }, [endStream, queryClient, router, invitationAction, isPrivateInvite, privateInvitationId]);
+
+  const stopLiveFromServer = useCallback(() => {
+    if (isStoppingRef.current) return;
+    isStoppingRef.current = true;
+    if (durationRef.current) clearInterval(durationRef.current);
+    isLiveRef.current = false;
+    setIsLive(false);
+    setActiveChannelId("");
+    setIsBroadcasting(false);
+    const engine = engineRef.current;
+    engineRef.current = null;
+    releaseAgoraEngine(engine);
+    void queryClient.invalidateQueries({ queryKey: getListStreamsQueryKey() });
+    router.back();
+  }, [queryClient, router]);
+
+  useEffect(() => {
+    serverEndedShutdownRef.current = stopLiveFromServer;
+  }, [stopLiveFromServer]);
 
   const confirmStopLive = useCallback(() => {
     Alert.alert(
@@ -629,6 +665,7 @@ export default function GoLiveScreen() {
   useEffect(() => { heartbeatMutateRef.current = heartbeat.mutate; });
   const privateHeartbeatRef = useRef(invitationAction.mutate);
   useEffect(() => { privateHeartbeatRef.current = invitationAction.mutate; });
+  const privateHeartbeatFailuresRef = useRef(0);
 
   // Send a heartbeat every 20 s while live (TTL is 60 s, so 3 chances before expiry).
   // Depends only on isLive — not on the mutation object — so the interval is stable.
@@ -636,17 +673,35 @@ export default function GoLiveScreen() {
     if (!isLive || !channelIdRef.current) return;
     const sendHeartbeat = () => {
       if (isPrivateInvite) {
-        privateHeartbeatRef.current({ id: privateInvitationId, action: "heartbeat" });
-      } else {
-        heartbeatMutateRef.current({ channelId: channelIdRef.current });
+        privateHeartbeatRef.current(
+          { id: privateInvitationId, action: "heartbeat" },
+          {
+            onSuccess: () => {
+              privateHeartbeatFailuresRef.current = 0;
+              heartbeatMutateRef.current({ channelId: channelIdRef.current });
+            },
+            onError: (error) => {
+              const status = typeof error === "object" && error !== null && "status" in error
+                ? (error as { status?: unknown }).status
+                : undefined;
+              const invitationIsTerminal = status === 404 || status === 409;
+              privateHeartbeatFailuresRef.current += 1;
+              if (invitationIsTerminal || privateHeartbeatFailuresRef.current >= 3) {
+                void stopLive();
+              }
+            },
+          },
+        );
+        return;
       }
+      heartbeatMutateRef.current({ channelId: channelIdRef.current });
     };
     sendHeartbeat();
     const id = setInterval(() => {
       sendHeartbeat();
     }, 20_000);
     return () => clearInterval(id);
-  }, [isLive, isPrivateInvite, privateInvitationId]);
+  }, [isLive, isPrivateInvite, privateInvitationId, stopLive]);
 
   const formatDuration = (secs: number) => {
     const h = Math.floor(secs / 3600);

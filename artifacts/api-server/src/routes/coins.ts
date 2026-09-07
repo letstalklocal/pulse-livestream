@@ -2,6 +2,7 @@ import { Router } from "express";
 import { eq, sql, and, inArray } from "drizzle-orm";
 import { db, coinBalancesTable, coinTransactionsTable } from "@workspace/db";
 import * as wsHub from "../lib/wsHub";
+import { requireChannelAccess } from "../lib/privateChannelAccess";
 
 const router = Router();
 
@@ -25,6 +26,7 @@ async function getOrCreateBalance(userId: number): Promise<number> {
 // GET /streams/:channelId/leaderboard — top gifters for a stream
 router.get("/streams/:channelId/leaderboard", async (req, res) => {
   const channelId = req.params["channelId"] ?? "";
+  if (!await requireChannelAccess(req, res, channelId)) return;
   const rows = await db
     .select({
       uid: coinTransactionsTable.fromUserId,
@@ -64,6 +66,7 @@ router.get("/streams/:channelId/leaderboard", async (req, res) => {
 // GET /streams/:channelId/earnings — total coins gifted during a specific stream
 router.get("/streams/:channelId/earnings", async (req, res) => {
   const channelId = req.params["channelId"] ?? "";
+  if (!await requireChannelAccess(req, res, channelId)) return;
   const rows = await db
     .select({ total: sql<number>`coalesce(sum(${coinTransactionsTable.amount}), 0)` })
     .from(coinTransactionsTable)
@@ -112,6 +115,7 @@ router.post("/coins/spend", async (req, res) => {
     res.status(400).json({ error: "idempotencyKey is required and must be at most 100 characters" });
     return;
   }
+  if (channelId && !await requireChannelAccess(req, res, channelId)) return;
 
   const effectiveRecipientUid =
     typeof recipientUid === "number" && recipientUid !== uid ? recipientUid : null;

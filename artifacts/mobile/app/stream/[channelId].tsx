@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useAuth as useClerkAuth } from "@clerk/expo";
 import * as Crypto from "expo-crypto";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -38,6 +39,7 @@ import {
   useFollowUser,
   useUnfollowUser,
   useGetFollowStatus,
+  useGetPrivateStreamInvitation,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { GiftPicker, GIFTS, type Gift } from "@/components/GiftPicker";
@@ -124,10 +126,17 @@ function DemoVideo({ category }: { category?: string }) {
 export default function StreamScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { channelId } = useLocalSearchParams<{ channelId: string }>();
+  const { channelId, privateInvitationId } = useLocalSearchParams<{
+    channelId: string;
+    privateInvitationId?: string;
+  }>();
+  const privateInvitationIdNumber = Number(privateInvitationId);
+  const isPrivateStream =
+    Number.isInteger(privateInvitationIdNumber) || (channelId ?? "").startsWith("private-");
   const SCREEN_H = Dimensions.get("window").height;
   const SCREEN_W = Dimensions.get("window").width;
   const { user } = useAuth();
+  const { getToken } = useClerkAuth();
 
   const [remoteUid, setRemoteUid] = useState<number | null>(null);
   const [remoteVideoReady, setRemoteVideoReady] = useState(false);
@@ -154,6 +163,7 @@ export default function StreamScreen() {
   const spendMutation = useSpendCoins();
   const sendChatMutation = useSendChatMessage();
   const engineRef = useRef<any>(null);
+  const streamEndedRef = useRef(false);
   const listRef = useRef<FlatList>(null);
 
   // Slide animation for swipe transitions
@@ -170,6 +180,29 @@ export default function StreamScreen() {
     query: { enabled: !!channelId, refetchInterval: 5000 } as any,
   });
   const stream = streamData?.stream;
+  const { data: privateInvitationData } = useGetPrivateStreamInvitation(
+    privateInvitationIdNumber,
+    {
+      query: {
+        enabled: isPrivateStream,
+        refetchInterval: 1000,
+      } as any,
+    },
+  );
+
+  useEffect(() => {
+    streamEndedRef.current = false;
+    setStreamEnded(false);
+    setCountdown(10);
+  }, [channelId]);
+
+  useEffect(() => {
+    if (!isPrivateStream || !privateInvitationData?.invitation) return;
+    if (privateInvitationData.invitation.status !== "active") {
+      streamEndedRef.current = true;
+      setStreamEnded(true);
+    }
+  }, [isPrivateStream, privateInvitationData]);
 
   // Poll real chat for non-demo streams
   const { data: chatPollData } = useGetStreamChat(channelId ?? "", undefined, {
@@ -322,29 +355,39 @@ export default function StreamScreen() {
     const domain = process.env["EXPO_PUBLIC_DOMAIN"];
     if (!domain) return;
 
-    const ws = new WebSocket(`wss://${domain}/api/ws`);
-    ws.onopen = () => ws.send(JSON.stringify({ type: "subscribe", channelId }));
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(String(event.data)) as {
-          type?: string;
-          coins?: number;
-          giftName?: string;
-          senderName?: string;
-        };
-        if (msg.type === "stream_ended") {
-          setStreamEnded(true);
-        } else if (msg.type === "earnings" && typeof msg.coins === "number") {
-          setRealtimeCoins(msg.coins);
-        } else if (msg.type === "gift" && msg.giftName) {
-          if (typeof msg.coins === "number") setRealtimeCoins(msg.coins);
-          const gift = GIFTS.find((g) => g.name === msg.giftName);
-          if (gift) spawnGift(gift, msg.senderName ?? "Viewer");
-        }
-      } catch { /* ignore */ }
+    let disposed = false;
+    let ws: WebSocket | null = null;
+    void (async () => {
+      const token = await getToken().catch(() => null);
+      if (disposed) return;
+      ws = new WebSocket(`wss://${domain}/api/ws`);
+      ws.onopen = () => ws?.send(JSON.stringify({ type: "subscribe", channelId, token }));
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(String(event.data)) as {
+            type?: string;
+            coins?: number;
+            giftName?: string;
+            senderName?: string;
+          };
+          if (msg.type === "stream_ended") {
+            streamEndedRef.current = true;
+            setStreamEnded(true);
+          } else if (msg.type === "earnings" && typeof msg.coins === "number") {
+            setRealtimeCoins(msg.coins);
+          } else if (msg.type === "gift" && msg.giftName) {
+            if (typeof msg.coins === "number") setRealtimeCoins(msg.coins);
+            const gift = GIFTS.find((g) => g.name === msg.giftName);
+            if (gift) spawnGift(gift, msg.senderName ?? "Viewer");
+          }
+        } catch { /* ignore */ }
+      };
+    })();
+    return () => {
+      disposed = true;
+      ws?.close();
     };
-    return () => ws.close();
-  }, [channelId, isDemo]);
+  }, [channelId, isDemo, getToken]);
 
   // Countdown + auto-navigate when stream ends
   useEffect(() => {
@@ -373,15 +416,29 @@ export default function StreamScreen() {
   useEffect(() => {
     if (!channelId || !isNative) return;
     let didUnmount = false;
-
     const setup = async () => {
+      let engine: any = null;
+      const setupIsCancelled = () => didUnmount || streamEndedRef.current;
+      const releaseSetupEngine = () => {
+        if (!engine) return;
+        if (engineRef.current !== engine) {
+          engine = null;
+          return;
+        }
+        engineRef.current = null;
+        try { engine.leaveChannel?.(); } catch (_error) {}
+        try { engine.release?.(); } catch (_error) {}
+        engine = null;
+      };
       try {
+        if (setupIsCancelled()) return;
         setJoined(false);
         setRemoteUid(null);
         setRemoteVideoReady(false);
         setAgoraError(null);
-        const engine = createEngine();
+        engine = createEngine();
         if (!engine) throw new Error("This development build does not include the Agora video module.");
+        engineRef.current = engine;
         const appId = process.env["EXPO_PUBLIC_AGORA_APP_ID"] ?? "";
         if (!appId) throw new Error("Agora App ID is missing.");
         const initializeResult = engine.initialize({
@@ -445,9 +502,11 @@ export default function StreamScreen() {
             if (state === 2) {
               setRemoteVideoReady(true);
               setAgoraError(null);
-            } else if (state === 4) {
+            } else if (state === 0 || state === 4) {
               setRemoteVideoReady(false);
-              setAgoraError(`The host video could not be decoded (reason ${reason}).`);
+              if (state === 4) {
+                setAgoraError(`The host video could not be decoded (reason ${reason}).`);
+              }
             }
           },
           onFirstRemoteVideoFrame: (
@@ -479,11 +538,13 @@ export default function StreamScreen() {
             }
           },
         });
-        engineRef.current = engine;
-
         const tokenData = await generateToken.mutateAsync({
           data: { channelName: channelId, uid: user?.uid ?? 0, role: "audience" },
         });
+        if (setupIsCancelled() || engineRef.current !== engine) {
+          releaseSetupEngine();
+          return;
+        }
         const joinResult = engine.joinChannel(tokenData.token, channelId, user?.uid ?? 0, {
           clientRoleType: ClientRoleType.ClientRoleAudience,
           autoSubscribeAudio: true,
@@ -504,7 +565,8 @@ export default function StreamScreen() {
         updateViewers.mutate({ channelId, data: { action: "join" } });
       } catch (e) {
         console.warn("[Agora viewer] setup error:", e);
-        if (!didUnmount) {
+        releaseSetupEngine();
+        if (!setupIsCancelled()) {
           setAgoraError(e instanceof Error ? e.message : "Could not start live video.");
         }
       }
@@ -513,8 +575,10 @@ export default function StreamScreen() {
     setup();
     return () => {
       didUnmount = true;
-      engineRef.current?.leaveChannel?.();
+      const engine = engineRef.current;
       engineRef.current = null;
+      try { engine?.leaveChannel?.(); } catch (_error) {}
+      try { engine?.release?.(); } catch (_error) {}
       try { updateViewers.mutate({ channelId, data: { action: "leave" } }); } catch (_e) {}
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -635,7 +699,9 @@ export default function StreamScreen() {
         <View style={styles.endedCard}>
           <Text style={styles.endedTitle}>Stream has ended</Text>
           <Text style={styles.endedCountdown}>{countdown}</Text>
-          <Text style={styles.endedSub}>Returning to streams…</Text>
+          <Text style={styles.endedSub}>
+            {isPrivateStream ? "Returning to chat…" : "Returning to streams…"}
+          </Text>
         </View>
       </View>
     );

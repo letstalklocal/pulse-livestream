@@ -155,7 +155,9 @@ export default function DmScreen() {
                   </View> : null}
                   {item.invitation.status === "pending" && isMe ? <TouchableOpacity disabled={invitationAction.isPending} onPress={() => invitationAction.mutate({ id: Number(item.invitation!.id), action: "cancel" })}><Text style={[styles.inviteSecondary, { color: colors.mutedForeground }]}>Cancel invitation</Text></TouchableOpacity> : null}
                   {item.invitation.status === "accepted" && isMe ? <TouchableOpacity disabled={invitationAction.isPending} onPress={() => router.push({ pathname: "/go-live", params: { invitationId: item.invitation!.id, channelId: item.invitation!.channelId } } as any)} style={styles.invitePrimary}><Text style={styles.invitePrimaryText}>Start private live</Text></TouchableOpacity> : null}
-                  {item.invitation.status === "active" && !isMe ? <TouchableOpacity onPress={() => router.push({ pathname: `/stream/${item.invitation!.channelId}`, params: { privateInvitationId: item.invitation!.id } } as any)} style={styles.invitePrimary}><Text style={styles.invitePrimaryText}>Join live</Text></TouchableOpacity> : null}
+                  {item.invitation.status === "active" && !isMe ? <TouchableOpacity onPress={() => {
+                    router.push({ pathname: "/stream/[channelId]", params: { channelId: item.invitation!.channelId, privateInvitationId: item.invitation!.id } } as any);
+                  }} style={styles.invitePrimary}><Text style={styles.invitePrimaryText}>Join live</Text></TouchableOpacity> : null}
                 </View>
               ) : item.kind === "media_pack" && item.mediaPackId ? (
                 <MediaPackMessage packId={item.mediaPackId} mine={isMe} />
@@ -194,7 +196,6 @@ export default function DmScreen() {
           <Text style={styles.errorText}>{sendError}</Text>
         </View>
       )}
-
       {/* Input bar */}
       <View style={[styles.inputBar, { borderTopColor: colors.border, paddingBottom: insets.bottom + 8 }]}>
         <TextInput

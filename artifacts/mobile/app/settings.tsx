@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth as useClerkAuth } from "@clerk/expo";
+import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -14,6 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
+import { BUNDLE_VERSION } from "@/constants/version";
 
 type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -120,6 +122,22 @@ export default function SettingsScreen() {
         <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>CREATOR</Text>
         {renderSection(VAULT_ITEMS)}
 
+        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>ABOUT</Text>
+        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.versionRow, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.rowLabel, { color: colors.foreground }]}>App version</Text>
+            <Text style={[styles.versionValue, { color: colors.mutedForeground }]}>
+              {Constants.expoConfig?.version ?? "Unknown"}
+            </Text>
+          </View>
+          <View style={styles.versionRow}>
+            <Text style={[styles.rowLabel, { color: colors.foreground }]}>Bundle version</Text>
+            <Text style={[styles.versionValue, { color: colors.mutedForeground }]}>
+              {BUNDLE_VERSION}
+            </Text>
+          </View>
+        </View>
+
         <TouchableOpacity
           style={[styles.logoutBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
           onPress={handleSignOut}
@@ -185,6 +203,18 @@ const styles = StyleSheet.create({
   rowLabel: {
     flex: 1,
     fontSize: 15,
+    fontFamily: "Inter_500Medium",
+  },
+  versionRow: {
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    gap: 12,
+  },
+  versionValue: {
+    fontSize: 13,
     fontFamily: "Inter_500Medium",
   },
   logoutBtn: {

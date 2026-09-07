@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { eq } from "drizzle-orm";
-import { db, streamHistoryTable, usersTable } from "@workspace/db";
+import { and, eq } from "drizzle-orm";
+import { db, privateStreamInvitationsTable, streamHistoryTable, usersTable } from "@workspace/db";
 import { CreateStreamBody, UpdateViewerCountBody } from "@workspace/api-zod";
 import * as wsHub from "../lib/wsHub";
 import { clearChat } from "./chat";
 import { createPrivateGetUrl } from "../lib/objectStorage";
+import { PRIVATE_HEARTBEAT_TTL_MS } from "../lib/privateChannelAccess";
 
 const router = Router();
 
@@ -20,12 +21,13 @@ interface StreamRecord {
   category: string;
   lastHeartbeat: number;
   peakViewers: number;
+  isPrivate?: boolean;
 }
 
 const streams = new Map<string, StreamRecord>();
 
 async function toStreamResponse(stream: StreamRecord) {
-  const { hostBackgroundImagePath, ...response } = stream;
+  const { hostBackgroundImagePath, isPrivate: _isPrivate, ...response } = stream;
   return {
     ...response,
     hostBackgroundImageUrl: hostBackgroundImagePath
@@ -36,6 +38,53 @@ async function toStreamResponse(stream: StreamRecord) {
 
 // How long without a heartbeat before a real stream is considered dead (60 s)
 const HEARTBEAT_TTL_MS = 60_000;
+
+async function currentUser(req: any) {
+  const clerkId = req.auth?.()?.userId;
+  if (!clerkId) return null;
+  return (await db.select().from(usersTable).where(eq(usersTable.clerkId, clerkId)).limit(1))[0] ?? null;
+}
+
+async function authorizePrivateStream(req: any, res: any, stream: StreamRecord, hostOnly = false) {
+  if (!stream.isPrivate) return true;
+  const invitation = (await db.select().from(privateStreamInvitationsTable)
+    .where(eq(privateStreamInvitationsTable.channelId, stream.channelId)).limit(1))[0] ?? null;
+  const user = await currentUser(req);
+  const invitationIsActive = invitation?.status === "active"
+    && invitation.updatedAt.getTime() > Date.now() - PRIVATE_HEARTBEAT_TTL_MS;
+  const allowed = invitationIsActive && user && invitation && (
+    user.uid === invitation.streamerUserId ||
+    (!hostOnly && user.uid === invitation.invitedUserId)
+  );
+  if (!allowed) {
+    if (!invitationIsActive) {
+      if (invitation?.status === "active") {
+        const now = new Date();
+        await db.update(privateStreamInvitationsTable)
+          .set({ status: "ended", endedAt: now, updatedAt: now })
+          .where(and(
+            eq(privateStreamInvitationsTable.id, invitation.id),
+            eq(privateStreamInvitationsTable.status, "active"),
+          ));
+      }
+      await endRuntimeStream(stream.channelId);
+    }
+    res.status(404).json({ error: "Stream not found" });
+    return false;
+  }
+  return true;
+}
+
+export async function endRuntimeStream(channelId: string) {
+  const stream = streams.get(channelId);
+  if (stream) {
+    streams.delete(channelId);
+    clearChat(channelId);
+    if (!stream.isPrivate) await saveStreamHistory(stream, new Date());
+  }
+  wsHub.pushStreamEnded(channelId);
+  return !!stream;
+}
 
 // Seed data — Infinity heartbeat so they never expire
 const seedStreams: StreamRecord[] = [
@@ -94,9 +143,7 @@ setInterval(async () => {
   const now = Date.now();
   for (const [id, stream] of streams) {
     if (stream.lastHeartbeat !== Infinity && now - stream.lastHeartbeat > HEARTBEAT_TTL_MS) {
-      streams.delete(id);
-      clearChat(id);
-      await saveStreamHistory(stream, new Date());
+      await endRuntimeStream(id);
     }
   }
 }, 5_000);
@@ -122,7 +169,7 @@ async function saveStreamHistory(stream: StreamRecord, endedAt: Date) {
 }
 
 router.get("/streams", async (_req, res) => {
-  const list = Array.from(streams.values()).sort(
+  const list = Array.from(streams.values()).filter((stream) => !stream.isPrivate).sort(
     (a, b) => b.viewerCount - a.viewerCount,
   );
   res.json({ streams: await Promise.all(list.map(toStreamResponse)) });
@@ -136,6 +183,22 @@ router.post("/streams", async (req, res) => {
   }
 
   const { channelId, hostUid, hostName, hostAvatarUrl, title, category } = parsed.data;
+  const privateInvitation = channelId.startsWith("private-")
+    ? (await db.select().from(privateStreamInvitationsTable)
+      .where(eq(privateStreamInvitationsTable.channelId, channelId)).limit(1))[0] ?? null
+    : null;
+  const requester = privateInvitation ? await currentUser(req) : null;
+  const privateInvitationIsFresh = privateInvitation?.status === "active"
+    && privateInvitation.updatedAt.getTime() > Date.now() - PRIVATE_HEARTBEAT_TTL_MS;
+  if (channelId.startsWith("private-") && (
+    !privateInvitation ||
+    !privateInvitationIsFresh ||
+    privateInvitation.streamerUserId !== hostUid ||
+    requester?.uid !== hostUid
+  )) {
+    res.status(403).json({ error: "Private stream access denied" });
+    return;
+  }
 
   const [host] = await db
     .select({ streamBackgroundImagePath: usersTable.streamBackgroundImagePath })
@@ -154,10 +217,7 @@ router.post("/streams", async (req, res) => {
 
   for (const [existingChannelId, existingStream] of streams) {
     if (existingStream.lastHeartbeat !== Infinity && existingStream.hostUid === hostUid) {
-      streams.delete(existingChannelId);
-      clearChat(existingChannelId);
-      wsHub.pushStreamEnded(existingChannelId);
-      await saveStreamHistory(existingStream, new Date());
+      await endRuntimeStream(existingChannelId);
     }
   }
 
@@ -173,6 +233,7 @@ router.post("/streams", async (req, res) => {
     category,
     lastHeartbeat: Date.now(),
     peakViewers: 0,
+    isPrivate: !!privateInvitation,
   };
 
   streams.set(channelId, stream);
@@ -185,6 +246,7 @@ router.get("/streams/:channelId", async (req, res) => {
     res.status(404).json({ error: "Stream not found" });
     return;
   }
+  if (!await authorizePrivateStream(req, res, stream)) return;
   res.json({ stream: await toStreamResponse(stream) });
 });
 
@@ -195,34 +257,32 @@ router.delete("/streams/:channelId", async (req, res) => {
     res.status(404).json({ error: "Stream not found" });
     return;
   }
-  streams.delete(channelId);
-  clearChat(channelId);
-  // Notify all viewers watching this channel that the stream has ended
-  wsHub.pushStreamEnded(channelId);
-  // Persist to history (non-blocking)
-  void saveStreamHistory(stream, new Date());
+  if (!await authorizePrivateStream(req, res, stream, true)) return;
+  await endRuntimeStream(channelId);
   res.json({ success: true });
 });
 
 // Heartbeat — broadcaster pings every ~30 s to prove they're still live
-router.post("/streams/:channelId/heartbeat", (req, res) => {
+router.post("/streams/:channelId/heartbeat", async (req, res) => {
   const channelId = req.params["channelId"] ?? "";
   const stream = streams.get(channelId);
   if (!stream) {
     res.status(404).json({ error: "Stream not found" });
     return;
   }
+  if (!await authorizePrivateStream(req, res, stream, true)) return;
   stream.lastHeartbeat = Date.now();
   res.json({ success: true });
 });
 
-router.post("/streams/:channelId/viewers", (req, res) => {
+router.post("/streams/:channelId/viewers", async (req, res) => {
   const channelId = req.params["channelId"] ?? "";
   const stream = streams.get(channelId);
   if (!stream) {
     res.status(404).json({ error: "Stream not found" });
     return;
   }
+  if (!await authorizePrivateStream(req, res, stream)) return;
 
   const parsed = UpdateViewerCountBody.safeParse(req.body);
   if (!parsed.success) {

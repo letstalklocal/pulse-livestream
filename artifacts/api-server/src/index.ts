@@ -1,8 +1,10 @@
 import http from "http";
 import { WebSocketServer } from "ws";
+import { verifyToken } from "@clerk/express";
 import app from "./app";
 import { logger } from "./lib/logger";
 import * as wsHub from "./lib/wsHub";
+import { canAccessChannel } from "./lib/privateChannelAccess";
 
 const rawPort = process.env["PORT"];
 
@@ -25,10 +27,21 @@ const wss = new WebSocketServer({ server, path: "/api/ws" });
 wss.on("connection", (ws) => {
   let subscribedChannel: string | null = null;
 
-  ws.on("message", (data) => {
+  ws.on("message", async (data) => {
     try {
-      const msg = JSON.parse(String(data)) as { type?: string; channelId?: string };
+      const msg = JSON.parse(String(data)) as { type?: string; channelId?: string; token?: string | null };
       if (msg.type === "subscribe" && typeof msg.channelId === "string") {
+        let clerkId: string | null = null;
+        if (msg.channelId.startsWith("private-") && msg.token) {
+          const payload = await verifyToken(msg.token, {
+            secretKey: process.env["CLERK_SECRET_KEY"],
+          });
+          clerkId = payload.sub;
+        }
+        if (!await canAccessChannel(msg.channelId, clerkId)) {
+          ws.send(JSON.stringify({ type: "subscription_denied" }));
+          return;
+        }
         if (subscribedChannel) wsHub.unsubscribe(subscribedChannel, ws);
         subscribedChannel = msg.channelId;
         wsHub.subscribe(subscribedChannel, ws);
