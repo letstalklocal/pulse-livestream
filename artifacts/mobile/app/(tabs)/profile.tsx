@@ -389,14 +389,6 @@ export default function ProfileScreen() {
                 >
                   <Ionicons name="settings-outline" size={18} color={colors.foreground} />
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.settingsBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                  onPress={choosePostImage}
-                  activeOpacity={0.75}
-                  accessibilityLabel="Create a new post"
-                >
-                  <Ionicons name="add" size={22} color="#FFF" />
-                </TouchableOpacity>
               </View>
             </>
           )}
@@ -559,6 +551,22 @@ export default function ProfileScreen() {
         <View style={{ height: insets.bottom + (Platform.OS === "web" ? 34 : 0) + 80 }} />
       </ScrollView>
 
+      <TouchableOpacity
+        style={[
+          styles.newPostFab,
+          {
+            backgroundColor: colors.primary,
+            bottom: insets.bottom + (Platform.OS === "web" ? 82 : 72),
+          },
+        ]}
+        onPress={choosePostImage}
+        activeOpacity={0.82}
+        accessibilityRole="button"
+        accessibilityLabel="Create a new post"
+      >
+        <Ionicons name="add" size={30} color="#FFF" />
+      </TouchableOpacity>
+
       <Modal visible={!!postImage} transparent animationType="slide" onRequestClose={() => setPostImage(null)}>
         <View style={styles.postModalBackdrop}>
           <View style={[styles.postModal, { backgroundColor: colors.card, paddingBottom: Math.max(insets.bottom, 16) }]}>
@@ -669,6 +677,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+  newPostFab: {
+    position: "absolute",
+    right: 20,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 20,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.28,
+    shadowRadius: 7,
   },
   editFields: { width: "100%", gap: 10 },
   nameInput: { borderWidth: 1, borderRadius: 10, padding: 12, fontSize: 16, fontFamily: "Inter_500Medium" },
