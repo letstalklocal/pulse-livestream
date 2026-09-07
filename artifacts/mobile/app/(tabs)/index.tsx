@@ -16,8 +16,14 @@ import {
   type ViewToken,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useListStreams } from "@workspace/api-client-react";
+import {
+  useGetCoinBalance,
+  useGetUserFollowing,
+  useListStreams,
+} from "@workspace/api-client-react";
+import { Avatar } from "@/components/Avatar";
 import { StreamCard } from "@/components/StreamCard";
+import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
 const CATEGORIES = ["All", "Gaming", "Music", "Talk", "Art"];
@@ -26,6 +32,8 @@ export default function DiscoveryScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { user } = useAuth();
+  const [selectedFeed, setSelectedFeed] = useState<"discover" | "following">("discover");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [manualRefreshing, setManualRefreshing] = React.useState(false);
   const [visibleChannelIds, setVisibleChannelIds] = useState<Set<string>>(new Set());
@@ -52,6 +60,13 @@ export default function DiscoveryScreen() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     query: { refetchInterval: 8000 } as any,
   });
+  const { data: followingData } = useGetUserFollowing(user?.uid ?? 0, {
+    query: { enabled: !!user?.uid, staleTime: 30_000 } as any,
+  });
+  const { data: coinData } = useGetCoinBalance(
+    { uid: user?.uid ?? 0 },
+    { query: { enabled: !!user?.uid, refetchInterval: 8_000 } as any },
+  );
 
   const handleManualRefresh = React.useCallback(async () => {
     setManualRefreshing(true);
@@ -60,10 +75,15 @@ export default function DiscoveryScreen() {
   }, [refetch]);
 
   const streams = data?.streams ?? [];
+  const followedUids = new Set((followingData?.users ?? []).map((followedUser) => followedUser.uid));
+  const feedStreams =
+    selectedFeed === "following"
+      ? streams.filter((stream) => followedUids.has(stream.hostUid))
+      : streams;
   const filtered =
     selectedCategory === "All"
-      ? streams
-      : streams.filter((s) => s.category === selectedCategory);
+      ? feedStreams
+      : feedStreams.filter((s) => s.category === selectedCategory);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
@@ -73,12 +93,32 @@ export default function DiscoveryScreen() {
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: topInset + 12 }]}>
-        <View>
-          <Text style={[styles.appName, { color: colors.primary }]}>PULSE</Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            Live streams
-          </Text>
-        </View>
+        <TouchableOpacity
+          style={styles.accountSummary}
+          onPress={() => router.push("/(tabs)/profile" as any)}
+          activeOpacity={0.75}
+          accessibilityLabel="Open profile"
+        >
+          {user ? (
+            <Avatar
+              uid={user.uid}
+              name={user.name}
+              avatarUri={user.avatarUri}
+              size={38}
+              borderWidth={2}
+            />
+          ) : (
+            <View style={[styles.guestAvatar, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Ionicons name="person-outline" size={20} color={colors.mutedForeground} />
+            </View>
+          )}
+          <View style={styles.coinBalance}>
+            <Text style={styles.coinIcon}>🪙</Text>
+            <Text style={[styles.coinText, { color: colors.foreground }]}>
+              {(coinData?.balance ?? 0).toLocaleString()}
+            </Text>
+          </View>
+        </TouchableOpacity>
         <TouchableOpacity
           style={[styles.goLiveBtn, { backgroundColor: colors.primary }]}
           onPress={() => router.push("/go-live" as any)}
@@ -86,6 +126,54 @@ export default function DiscoveryScreen() {
         >
           <Ionicons name="radio" size={14} color="#FFF" />
           <Text style={styles.goLiveBtnText}>Go Live</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Feed filter */}
+      <View style={[styles.feedTabs, { borderBottomColor: colors.border }]}>
+        <TouchableOpacity
+          style={[
+            styles.feedTab,
+            selectedFeed === "discover" && { borderBottomColor: colors.primary },
+          ]}
+          onPress={() => setSelectedFeed("discover")}
+          activeOpacity={0.75}
+        >
+          <Ionicons
+            name="compass-outline"
+            size={18}
+            color={selectedFeed === "discover" ? colors.foreground : colors.mutedForeground}
+          />
+          <Text
+            style={[
+              styles.feedTabText,
+              { color: selectedFeed === "discover" ? colors.foreground : colors.mutedForeground },
+            ]}
+          >
+            Discover
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.feedTab,
+            selectedFeed === "following" && { borderBottomColor: colors.primary },
+          ]}
+          onPress={() => setSelectedFeed("following")}
+          activeOpacity={0.75}
+        >
+          <Ionicons
+            name="people-outline"
+            size={19}
+            color={selectedFeed === "following" ? colors.foreground : colors.mutedForeground}
+          />
+          <Text
+            style={[
+              styles.feedTabText,
+              { color: selectedFeed === "following" ? colors.foreground : colors.mutedForeground },
+            ]}
+          >
+            Following
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -160,20 +248,24 @@ export default function DiscoveryScreen() {
                 color={colors.mutedForeground}
               />
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                No live streams
+                {selectedFeed === "following" ? "No followed creators are live" : "No live streams"}
               </Text>
               <Text
                 style={[styles.emptyText, { color: colors.mutedForeground }]}
               >
-                Be the first to go live
+                {selectedFeed === "following"
+                  ? "Live streams from people you follow will appear here"
+                  : "Be the first to go live"}
               </Text>
-              <TouchableOpacity
-                style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
-                onPress={() => router.push("/go-live" as any)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.emptyBtnText}>Go Live Now</Text>
-              </TouchableOpacity>
+              {selectedFeed === "discover" ? (
+                <TouchableOpacity
+                  style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
+                  onPress={() => router.push("/go-live" as any)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.emptyBtnText}>Go Live Now</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           }
           onViewableItemsChanged={stableOnViewableItemsChanged}
@@ -201,16 +293,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 14,
   },
-  appName: {
-    fontSize: 24,
-    fontWeight: "800",
-    fontFamily: "Inter_700Bold",
-    letterSpacing: 3,
+  accountSummary: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
   },
-  subtitle: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    marginTop: 1,
+  guestAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  coinBalance: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  coinIcon: { fontSize: 16 },
+  coinText: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
   },
   goLiveBtn: {
     flexDirection: "row",
@@ -225,6 +329,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     fontFamily: "Inter_700Bold",
+  },
+  feedTabs: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+  },
+  feedTab: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+  },
+  feedTabText: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
   },
   /* Pill row — tight vertical wrap, no layout shifts when a chip is selected */
   categoryRow: {
