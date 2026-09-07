@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 import React, { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -32,8 +32,9 @@ export default function DiscoveryScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const pathname = usePathname();
   const { user } = useAuth();
-  const [selectedFeed, setSelectedFeed] = useState<"discover" | "following">("discover");
+  const selectedFeed = pathname.endsWith("/following") ? "following" : "discover";
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [manualRefreshing, setManualRefreshing] = React.useState(false);
   const [visibleChannelIds, setVisibleChannelIds] = useState<Set<string>>(new Set());
@@ -126,54 +127,6 @@ export default function DiscoveryScreen() {
         >
           <Ionicons name="radio" size={14} color="#FFF" />
           <Text style={styles.goLiveBtnText}>Go Live</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Feed filter */}
-      <View style={[styles.feedTabs, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity
-          style={[
-            styles.feedTab,
-            selectedFeed === "discover" && { borderBottomColor: colors.primary },
-          ]}
-          onPress={() => setSelectedFeed("discover")}
-          activeOpacity={0.75}
-        >
-          <Ionicons
-            name="compass-outline"
-            size={18}
-            color={selectedFeed === "discover" ? colors.foreground : colors.mutedForeground}
-          />
-          <Text
-            style={[
-              styles.feedTabText,
-              { color: selectedFeed === "discover" ? colors.foreground : colors.mutedForeground },
-            ]}
-          >
-            Discover
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.feedTab,
-            selectedFeed === "following" && { borderBottomColor: colors.primary },
-          ]}
-          onPress={() => setSelectedFeed("following")}
-          activeOpacity={0.75}
-        >
-          <Ionicons
-            name="people-outline"
-            size={19}
-            color={selectedFeed === "following" ? colors.foreground : colors.mutedForeground}
-          />
-          <Text
-            style={[
-              styles.feedTabText,
-              { color: selectedFeed === "following" ? colors.foreground : colors.mutedForeground },
-            ]}
-          >
-            Following
-          </Text>
         </TouchableOpacity>
       </View>
 
@@ -329,25 +282,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     fontFamily: "Inter_700Bold",
-  },
-  feedTabs: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-  },
-  feedTab: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
-  },
-  feedTabText: {
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
   },
   /* Pill row — tight vertical wrap, no layout shifts when a chip is selected */
   categoryRow: {

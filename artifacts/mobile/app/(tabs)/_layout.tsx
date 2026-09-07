@@ -15,6 +15,10 @@ function NativeTabLayout() {
         <NativeTabs.Trigger.Icon sf={{ default: "play.circle", selected: "play.circle.fill" }} />
         <NativeTabs.Trigger.Label>Discover</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="following">
+        <NativeTabs.Trigger.Icon sf={{ default: "person.2", selected: "person.2.fill" }} />
+        <NativeTabs.Trigger.Label>Following</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="chat">
         <NativeTabs.Trigger.Icon sf={{ default: "message", selected: "message.fill" }} />
         <NativeTabs.Trigger.Label>Messages</NativeTabs.Trigger.Label>
@@ -74,6 +78,26 @@ function ClassicTabLayout() {
             ) : (
               <Ionicons
                 name={focused ? "play-circle" : "play-circle-outline"}
+                size={24}
+                color={color}
+              />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="following"
+        options={{
+          title: "Following",
+          tabBarIcon: ({ color, focused }) =>
+            isIOS ? (
+              <SymbolView
+                name={focused ? "person.2.fill" : "person.2"}
+                tintColor={color}
+                size={24}
+              />
+            ) : (
+              <Ionicons
+                name={focused ? "people" : "people-outline"}
                 size={24}
                 color={color}
               />
