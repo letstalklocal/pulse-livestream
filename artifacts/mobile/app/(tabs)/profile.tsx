@@ -7,6 +7,7 @@ import React, { useState } from "react";
 import {
   Alert,
   Dimensions,
+  Image,
   Platform,
   ScrollView,
   StatusBar,
@@ -417,23 +418,57 @@ export default function ProfileScreen() {
                   key={item.id}
                   style={[styles.feedCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                 >
-                  <View style={[styles.feedThumbnail, { backgroundColor: c2 }]}>
-                    <View style={[StyleSheet.absoluteFill, { backgroundColor: c1, opacity: 0.45 }]} />
-                    <Ionicons name="radio-outline" size={34} color="rgba(255,255,255,0.75)" />
-                  </View>
-                  <View style={styles.feedInfo}>
-                    <Text style={[styles.feedCategory, { color: colors.foreground }]}>
-                      {item.category}
-                    </Text>
-                    <Text style={[styles.feedDate, { color: colors.mutedForeground }]}>
-                      {formatDate(item.startedAt)}
-                    </Text>
-                    <View style={styles.feedViewers}>
-                      <Ionicons name="eye-outline" size={14} color={colors.mutedForeground} />
-                      <Text style={[styles.feedViewerText, { color: colors.mutedForeground }]}>
-                        {item.peakViewers} peak viewers
+                  <View style={styles.feedPostHeader}>
+                    <Avatar
+                      uid={user.uid}
+                      name={user.name}
+                      avatarUri={user.avatarUri}
+                      size={34}
+                      borderWidth={1}
+                    />
+                    <View style={styles.feedPostIdentity}>
+                      <Text style={[styles.feedUserName, { color: colors.foreground }]}>
+                        {user.name}
+                      </Text>
+                      <Text style={[styles.feedDate, { color: colors.mutedForeground }]}>
+                        {formatDate(item.startedAt)}
                       </Text>
                     </View>
+                    <Ionicons name="ellipsis-horizontal" size={20} color={colors.mutedForeground} />
+                  </View>
+
+                  <View style={[styles.feedMedia, { backgroundColor: c2 }]}>
+                    {user.streamBackgroundImageUrl ? (
+                      <Image
+                        source={{ uri: user.streamBackgroundImageUrl }}
+                        style={StyleSheet.absoluteFill}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <>
+                        <View style={[StyleSheet.absoluteFill, { backgroundColor: c1, opacity: 0.45 }]} />
+                        <Ionicons name="radio-outline" size={52} color="rgba(255,255,255,0.75)" />
+                      </>
+                    )}
+                  </View>
+
+                  <View style={styles.feedActions}>
+                    <View style={styles.feedPrimaryActions}>
+                      <Ionicons name="heart-outline" size={25} color={colors.foreground} />
+                      <Ionicons name="chatbubble-outline" size={23} color={colors.foreground} />
+                      <Ionicons name="paper-plane-outline" size={24} color={colors.foreground} />
+                    </View>
+                    <Ionicons name="bookmark-outline" size={25} color={colors.foreground} />
+                  </View>
+
+                  <View style={styles.feedCaption}>
+                    <Text style={[styles.feedViewerText, { color: colors.foreground }]}>
+                      {item.peakViewers} peak viewers
+                    </Text>
+                    <Text style={[styles.feedCategory, { color: colors.foreground }]}>
+                      <Text style={styles.feedCaptionName}>{user.name} </Text>
+                      Streamed in {item.category}
+                    </Text>
                   </View>
                 </View>
               );
@@ -619,44 +654,67 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
   },
   feed: {
-    paddingHorizontal: 16,
     paddingTop: 14,
-    gap: 12,
+    gap: 18,
   },
   feedCard: {
-    minHeight: 112,
-    flexDirection: "row",
-    borderRadius: 14,
+    width: "100%",
     borderWidth: 1,
-    overflow: "hidden",
   },
-  feedThumbnail: {
-    width: 94,
+  feedPostHeader: {
+    height: 56,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    paddingHorizontal: 12,
+    gap: 10,
   },
-  feedInfo: {
+  feedPostIdentity: {
     flex: 1,
-    justifyContent: "center",
-    paddingHorizontal: 16,
-    gap: 5,
+    gap: 2,
   },
-  feedCategory: {
-    fontSize: 16,
+  feedUserName: {
+    fontSize: 13,
     fontFamily: "Inter_700Bold",
   },
   feedDate: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: "Inter_400Regular",
   },
-  feedViewers: {
+  feedMedia: {
+    width: "100%",
+    aspectRatio: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  feedActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    marginTop: 3,
+    justifyContent: "space-between",
+    paddingHorizontal: 13,
+    paddingTop: 12,
+    paddingBottom: 9,
+  },
+  feedPrimaryActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 17,
+  },
+  feedCaption: {
+    paddingHorizontal: 13,
+    paddingBottom: 14,
+    gap: 6,
   },
   feedViewerText: {
-    fontSize: 12,
-    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+    fontFamily: "Inter_700Bold",
+  },
+  feedCategory: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: "Inter_400Regular",
+  },
+  feedCaptionName: {
+    fontFamily: "Inter_700Bold",
   },
 });
