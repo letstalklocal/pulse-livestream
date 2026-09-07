@@ -222,6 +222,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /users/{uid}/avatar/upload:
+    post:
+      operationId: requestAvatarUpload
+      tags: [users]
+      summary: Request an upload URL for a profile avatar
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "201":
+          description: Upload URL created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaPackUploadResponse"
+        "400":
+          description: Invalid user ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /users/{uid}/follow:
     post:
       operationId: followUser
@@ -826,6 +851,12 @@ components:
           type: string
         bio:
           type: string
+        avatarImagePath:
+          type: string
+          nullable: true
+        avatarImageUrl:
+          type: string
+          nullable: true
         streamBackgroundImagePath:
           type: string
           nullable: true
@@ -866,6 +897,9 @@ components:
           type: string
         bio:
           type: string
+        avatarImagePath:
+          type: string
+          nullable: true
         streamBackgroundImagePath:
           type: string
           nullable: true

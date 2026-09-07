@@ -743,6 +743,76 @@ export const useRequestStreamBackgroundUpload = <TError = ErrorType<ErrorRespons
       return useMutation(getRequestStreamBackgroundUploadMutationOptions(options));
     }
 
+export const getRequestAvatarUploadUrl = (uid: number,) => {
+
+
+
+
+  return `/api/users/${uid}/avatar/upload`
+}
+
+/**
+ * @summary Request an upload URL for a profile avatar
+ */
+export const requestAvatarUpload = async (uid: number, options?: RequestInit): Promise<MediaPackUploadResponse> => {
+
+  return customFetch<MediaPackUploadResponse>(getRequestAvatarUploadUrl(uid),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRequestAvatarUploadMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestAvatarUpload>>, TError,{uid: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestAvatarUpload>>, TError,{uid: number}, TContext> => {
+
+const mutationKey = ['requestAvatarUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestAvatarUpload>>, {uid: number}> = (props) => {
+          const {uid} = props ?? {};
+
+          return  requestAvatarUpload(uid,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestAvatarUploadMutationResult = NonNullable<Awaited<ReturnType<typeof requestAvatarUpload>>>
+
+    export type RequestAvatarUploadMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Request an upload URL for a profile avatar
+ */
+export const useRequestAvatarUpload = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestAvatarUpload>>, TError,{uid: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestAvatarUpload>>,
+        TError,
+        {uid: number},
+        TContext
+      > => {
+      return useMutation(getRequestAvatarUploadMutationOptions(options));
+    }
+
 export const getFollowUserUrl = (uid: number,) => {
 
 

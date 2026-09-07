@@ -14,6 +14,8 @@ export interface User {
   name: string;
   bio: string;
   avatarUri?: string;
+  avatarImagePath?: string | null;
+  avatarImageUrl?: string | null;
   streamBackgroundImagePath?: string | null;
   streamBackgroundImageUrl?: string | null;
   followersCount: number;
@@ -57,6 +59,7 @@ async function syncProfile(
   uid: number,
   name: string,
   bio: string,
+  avatarImagePath?: string | null,
   streamBackgroundImagePath?: string | null,
 ) {
   try {
@@ -68,6 +71,7 @@ async function syncProfile(
       body: JSON.stringify({
         name,
         bio,
+        ...(avatarImagePath !== undefined ? { avatarImagePath } : {}),
         ...(streamBackgroundImagePath !== undefined
           ? { streamBackgroundImagePath }
           : {}),
@@ -119,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const merged: User = {
           ...(raw ? (JSON.parse(raw) as User) : {}),
           ...synced,
-          avatarUri: clerkUser.imageUrl ?? undefined,
+          avatarUri: synced.avatarImageUrl ?? clerkUser.imageUrl ?? undefined,
         };
         setUser(merged);
         setLocalLoaded(true);
@@ -141,12 +145,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (
           fields.name !== undefined ||
           fields.bio !== undefined ||
+          fields.avatarImagePath !== undefined ||
           fields.streamBackgroundImagePath !== undefined
         ) {
           void syncProfile(
             prev.uid,
             updated.name,
             updated.bio,
+            fields.avatarImagePath,
             fields.streamBackgroundImagePath,
           );
         }

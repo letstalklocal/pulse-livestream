@@ -93,6 +93,8 @@ export interface UserProfile {
   uid: number;
   name: string;
   bio: string;
+  avatarImagePath?: string | null;
+  avatarImageUrl?: string | null;
   streamBackgroundImagePath?: string | null;
   streamBackgroundImageUrl?: string | null;
   followersCount: number;
@@ -108,6 +110,7 @@ export interface UserResponse {
 export interface UpsertUserRequest {
   name: string;
   bio?: string;
+  avatarImagePath?: string | null;
   streamBackgroundImagePath?: string | null;
 }
 

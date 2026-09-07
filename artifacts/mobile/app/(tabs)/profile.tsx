@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
+import { fetch as expoFetch } from "expo/fetch";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -16,8 +17,14 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useGetCoinBalance, useGrantCoins, getGetCoinBalanceQueryKey } from "@workspace/api-client-react";
-import { useGetUserStreams } from "@workspace/api-client-react";
+import {
+  getGetCoinBalanceQueryKey,
+  useGetCoinBalance,
+  useGetUserStreams,
+  useGrantCoins,
+  useRequestAvatarUpload,
+  useUpsertUser,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar } from "@/components/Avatar";
 import { useAuth } from "@/context/AuthContext";
@@ -53,6 +60,7 @@ export default function ProfileScreen() {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(user?.name ?? "");
   const [editBio, setEditBio] = useState(user?.bio ?? "");
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
@@ -70,6 +78,8 @@ export default function ProfileScreen() {
   const coinBalance = coinData?.balance ?? 0;
 
   const grantMutation = useGrantCoins();
+  const requestAvatarUpload = useRequestAvatarUpload();
+  const upsertUser = useUpsertUser();
 
   const addTestCoins = () => {
     if (!user?.uid) return;
@@ -90,6 +100,7 @@ export default function ProfileScreen() {
   };
 
   const pickAvatar = async () => {
+    if (!user || isUploadingAvatar) return;
     if (Platform.OS === "web") {
       Alert.alert("Not available", "Avatar upload requires the native app.");
       return;
@@ -100,14 +111,51 @@ export default function ProfileScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      updateUser({ avatarUri: result.assets[0].uri });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setIsUploadingAvatar(true);
+      try {
+        const asset = result.assets[0];
+        const upload = await requestAvatarUpload.mutateAsync({ uid: user.uid });
+        const sourceResponse = await expoFetch(asset.uri);
+        const imageBlob = await sourceResponse.blob();
+        const uploadResponse = await expoFetch(upload.uploadUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": asset.mimeType ?? "image/jpeg",
+          },
+          body: imageBlob,
+        });
+        if (!uploadResponse.ok) {
+          throw new Error(`Avatar upload failed (${uploadResponse.status}).`);
+        }
+
+        const updated = await upsertUser.mutateAsync({
+          uid: user.uid,
+          data: {
+            name: user.name,
+            bio: user.bio,
+            avatarImagePath: upload.objectPath,
+          },
+        });
+        updateUser({
+          avatarImagePath: updated.user.avatarImagePath,
+          avatarImageUrl: updated.user.avatarImageUrl,
+          avatarUri: updated.user.avatarImageUrl ?? undefined,
+        });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch (error) {
+        Alert.alert(
+          "Avatar not saved",
+          error instanceof Error ? error.message : "Choose another image and try again.",
+        );
+      } finally {
+        setIsUploadingAvatar(false);
+      }
     }
   };
 

@@ -5,9 +5,12 @@ import { createPrivateGetUrl, createPrivateUploadUrl } from "../lib/objectStorag
 
 const router = Router();
 
-async function withStreamBackgroundUrl(user: typeof usersTable.$inferSelect) {
+async function withUserImageUrls(user: typeof usersTable.$inferSelect) {
   return {
     ...user,
+    avatarImageUrl: user.avatarImagePath
+      ? await createPrivateGetUrl(user.avatarImagePath)
+      : null,
     streamBackgroundImageUrl: user.streamBackgroundImagePath
       ? await createPrivateGetUrl(user.streamBackgroundImagePath)
       : null,
@@ -25,7 +28,7 @@ router.get("/users/:uid", async (req, res) => {
     res.status(404).json({ error: "User not found" });
     return;
   }
-  res.json({ user: await withStreamBackgroundUrl(rows[0]) });
+  res.json({ user: await withUserImageUrls(rows[0]) });
 });
 
 router.put("/users/:uid", async (req, res) => {
@@ -34,9 +37,10 @@ router.put("/users/:uid", async (req, res) => {
     res.status(400).json({ error: "Invalid uid" });
     return;
   }
-  const { name, bio, streamBackgroundImagePath } = req.body as {
+  const { name, bio, avatarImagePath, streamBackgroundImagePath } = req.body as {
     name?: string;
     bio?: string;
+    avatarImagePath?: string | null;
     streamBackgroundImagePath?: string | null;
   };
   if (!name || typeof name !== "string") {
@@ -50,6 +54,7 @@ router.put("/users/:uid", async (req, res) => {
       uid,
       name: name.trim(),
       bio: (bio ?? "").trim(),
+      avatarImagePath: avatarImagePath ?? null,
       streamBackgroundImagePath: streamBackgroundImagePath ?? null,
     })
     .onConflictDoUpdate({
@@ -57,6 +62,7 @@ router.put("/users/:uid", async (req, res) => {
       set: {
         name: name.trim(),
         bio: (bio ?? "").trim(),
+        ...(avatarImagePath !== undefined ? { avatarImagePath } : {}),
         ...(streamBackgroundImagePath !== undefined
           ? { streamBackgroundImagePath }
           : {}),
@@ -65,7 +71,22 @@ router.put("/users/:uid", async (req, res) => {
     })
     .returning();
 
-  res.json({ user: await withStreamBackgroundUrl(rows[0]!) });
+  res.json({ user: await withUserImageUrls(rows[0]!) });
+});
+
+router.post("/users/:uid/avatar/upload", async (req, res) => {
+  const uid = parseInt(req.params["uid"] ?? "", 10);
+  if (isNaN(uid)) {
+    res.status(400).json({ error: "Invalid uid" });
+    return;
+  }
+  try {
+    res.status(201).json(await createPrivateUploadUrl());
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Upload URL could not be created",
+    });
+  }
 });
 
 router.post("/users/:uid/stream-background/upload", async (req, res) => {
@@ -104,7 +125,7 @@ router.post("/users/clerk-sync", async (req, res) => {
       .set({ name: name.trim(), updatedAt: new Date() })
       .where(eq(usersTable.clerkId, clerkId))
       .returning();
-    res.json({ user: await withStreamBackgroundUrl(updated[0]!) });
+    res.json({ user: await withUserImageUrls(updated[0]!) });
     return;
   }
 
