@@ -141,7 +141,6 @@ export default function ProfileScreen() {
       await queryClient.invalidateQueries({ queryKey: getGetUserPostsQueryKey(user.uid) });
       setPostImage(null);
       setPostCaption("");
-      setHistoryView("feed");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       Alert.alert("Post not shared", error instanceof Error ? error.message : "Try again.");
