@@ -8,6 +8,7 @@ import usersRouter from "./users";
 import coinsRouter from "./coins";
 import mediaPacksRouter from "./media-packs";
 import postsRouter from "./posts";
+import privateStreamInvitationsRouter from "./private-stream-invitations";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(usersRouter);
 router.use(coinsRouter);
 router.use(mediaPacksRouter);
 router.use(postsRouter);
+router.use(privateStreamInvitationsRouter);
 
 export default router;

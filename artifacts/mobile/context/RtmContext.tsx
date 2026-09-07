@@ -19,13 +19,18 @@ export interface DmMessage {
   senderName: string;
   text: string;
   ts: number;
-  kind?: "text" | "media_pack" | "media";
+  kind?: "text" | "media_pack" | "media" | "private_stream_invitation";
   mediaPackId?: string;
   mediaUrl?: string;
   previewUrl?: string;
   price?: number;
   unlocked?: boolean;
   mediaType?: "image" | "video";
+  invitation?: {
+    id: string; streamerUserId: string; invitedUserId: string; channelId: string;
+    title: string; status: "pending" | "accepted" | "declined" | "cancelled" | "expired" | "active" | "ended";
+    expiresAt: number; startedAt: number | null; endedAt: number | null; backgroundImageUrl: string;
+  };
 }
 
 interface PersistedDm extends DmMessage {
@@ -109,7 +114,10 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const storePersistedMessage = useCallback((message: PersistedDm, unread: boolean) => {
-    if (!uidStr || syncedMessageIdsRef.current.has(message.id)) return;
+    if (!uidStr) return;
+    // Invitation rows are deliberately refreshed by the DM poll so both
+    // parties see accept/start/end transitions without reopening the thread.
+    if (syncedMessageIdsRef.current.has(message.id) && message.kind !== "private_stream_invitation") return;
     syncedMessageIdsRef.current.add(message.id);
 
     const isIncoming = message.senderId !== uidStr;
@@ -128,12 +136,15 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
       price: message.price,
       unlocked: message.unlocked,
       mediaType: message.mediaType,
+      invitation: message.invitation,
     };
 
     if (!messageStore[peerId]) messageStore[peerId] = [];
-    messageStore[peerId]!.push(stored);
+    const priorIndex = messageStore[peerId]!.findIndex((item) => item.messageId === stored.messageId);
+    if (priorIndex >= 0) messageStore[peerId]![priorIndex] = stored;
+    else messageStore[peerId]!.push(stored);
     messageStore[peerId]!.sort((a, b) => a.ts - b.ts);
-    upsertConversation(peerId, peerName, message.kind === "media_pack" ? "Media pack" : message.kind === "media" ? "Media" : message.text, message.ts, isIncoming && unread ? 1 : 0);
+    upsertConversation(peerId, peerName, message.kind === "private_stream_invitation" ? "Private live invitation" : message.kind === "media_pack" ? "Media pack" : message.kind === "media" ? "Media" : message.text, message.ts, isIncoming && unread ? 1 : 0);
     setTick((tick) => tick + 1);
   }, [uidStr, upsertConversation]);
 

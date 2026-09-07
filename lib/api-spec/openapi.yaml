@@ -718,9 +718,52 @@ paths:
       parameters: [{ name: messageId, in: path, required: true, schema: { type: integer } }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/UnlockMediaDmRequest" } } } }
       responses: { "200": { description: Unlocked, content: { application/json: { schema: { $ref: "#/components/schemas/UnlockMediaDmResponse" } } } }, "402": { description: Insufficient coins }, "409": { description: Idempotency conflict } }
+  /private-stream-invitations:
+    post:
+      operationId: createPrivateStreamInvitation
+      tags: [streams]
+      summary: Create a private one-to-one stream invitation
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CreatePrivateStreamInvitationRequest" } } } }
+      responses: { "201": { description: Invitation created, content: { application/json: { schema: { $ref: "#/components/schemas/PrivateStreamInvitationResponse" } } } } }
+  /private-stream-invitations/{id}:
+    get:
+      operationId: getPrivateStreamInvitation
+      tags: [streams]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses: { "200": { description: Invitation, content: { application/json: { schema: { $ref: "#/components/schemas/PrivateStreamInvitationResponse" } } } } }
+  /private-stream-invitations/{id}/{action}:
+    post:
+      operationId: actOnPrivateStreamInvitation
+      tags: [streams]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+        - { name: action, in: path, required: true, schema: { type: string, enum: [accept, decline, cancel, start, heartbeat, end] } }
+      responses: { "200": { description: Invitation updated, content: { application/json: { schema: { $ref: "#/components/schemas/PrivateStreamInvitationResponse" } } } } }
 
 components:
   schemas:
+    CreatePrivateStreamInvitationRequest:
+      type: object
+      properties: { invitedUserId: { type: integer }, title: { type: string, maxLength: 120 } }
+      required: [invitedUserId]
+    PrivateStreamInvitation:
+      type: object
+      required: [id, streamerUserId, invitedUserId, channelId, title, status, expiresAt, backgroundImageUrl]
+      properties:
+        id: { type: string }
+        streamerUserId: { type: string }
+        invitedUserId: { type: string }
+        channelId: { type: string }
+        title: { type: string }
+        status: { type: string, enum: [pending, accepted, declined, cancelled, expired, active, ended] }
+        expiresAt: { type: integer }
+        startedAt: { type: integer, nullable: true }
+        endedAt: { type: integer, nullable: true }
+        backgroundImageUrl: { type: string }
+    PrivateStreamInvitationResponse:
+      type: object
+      required: [invitation]
+      properties: { invitation: { $ref: "#/components/schemas/PrivateStreamInvitation" } }
     Post:
       type: object
       required: [id, ownerUserId, imageUrl, caption, createdAt]
@@ -1259,7 +1302,7 @@ components:
         recipientId: { type: string }
         recipientName: { type: string }
         text: { type: string }
-        kind: { type: string, enum: [text, media, media_pack] }
+        kind: { type: string, enum: [text, media, media_pack, private_stream_invitation] }
         mediaPackId: { type: string, nullable: true }
         ts: { type: integer }
         mediaType: { type: string, enum: [image, video] }
@@ -1271,6 +1314,7 @@ components:
         unlocked: { type: boolean }
         mediaUrl: { type: string }
         previewUrl: { type: string }
+        invitation: { $ref: "#/components/schemas/PrivateStreamInvitation" }
       required: [id, senderId, senderName, recipientId, recipientName, text, kind, mediaPackId, ts]
     DirectMessagesResponse:
       type: object

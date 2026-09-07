@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
+import { privateStreamInvitationsTable } from "./private-stream-invitations";
 
 export const directMessagesTable = pgTable(
   "direct_messages",
@@ -21,6 +22,10 @@ export const directMessagesTable = pgTable(
     mediaHeight: integer("media_height"),
     mediaDurationMs: integer("media_duration_ms"),
     mediaPrice: integer("media_price"),
+    privateStreamInvitationId: integer("private_stream_invitation_id").references(
+      () => privateStreamInvitationsTable.id,
+      { onDelete: "cascade" },
+    ),
     idempotencyKey: text("idempotency_key"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     readAt: timestamp("read_at"),
@@ -29,6 +34,7 @@ export const directMessagesTable = pgTable(
     index("direct_messages_sender_idx").on(table.fromUserId, table.createdAt),
     index("direct_messages_recipient_idx").on(table.toUserId, table.createdAt),
     uniqueIndex("direct_messages_idempotency_key_idx").on(table.idempotencyKey),
+    uniqueIndex("direct_messages_private_stream_invitation_idx").on(table.privateStreamInvitationId),
     check("direct_messages_media_price_nonnegative", sql`${table.mediaPrice} is null or ${table.mediaPrice} >= 0`),
   ],
 );

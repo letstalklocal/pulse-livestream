@@ -31,6 +31,7 @@ import type {
   CoinSpendRequest,
   CreateMediaPackRequest,
   CreatePostRequest,
+  CreatePrivateStreamInvitationRequest,
   CreateStreamRequest,
   DirectMessageResponse,
   DirectMessagesResponse,
@@ -49,6 +50,7 @@ import type {
   MediaPacksResponse,
   PostListResponse,
   PostResponse,
+  PrivateStreamInvitationResponse,
   SendChatMessageRequest,
   SendMediaDmRequest,
   SendMediaPackRequest,
@@ -2892,5 +2894,213 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getUnlockMediaDmMutationOptions(options));
+    }
+
+export const getCreatePrivateStreamInvitationUrl = () => {
+
+
+
+
+  return `/api/private-stream-invitations`
+}
+
+/**
+ * @summary Create a private one-to-one stream invitation
+ */
+export const createPrivateStreamInvitation = async (createPrivateStreamInvitationRequest: CreatePrivateStreamInvitationRequest, options?: RequestInit): Promise<PrivateStreamInvitationResponse> => {
+
+  return customFetch<PrivateStreamInvitationResponse>(getCreatePrivateStreamInvitationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createPrivateStreamInvitationRequest,)
+  }
+);}
+
+
+
+
+export const getCreatePrivateStreamInvitationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPrivateStreamInvitation>>, TError,{data: BodyType<CreatePrivateStreamInvitationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPrivateStreamInvitation>>, TError,{data: BodyType<CreatePrivateStreamInvitationRequest>}, TContext> => {
+
+const mutationKey = ['createPrivateStreamInvitation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPrivateStreamInvitation>>, {data: BodyType<CreatePrivateStreamInvitationRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPrivateStreamInvitation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePrivateStreamInvitationMutationResult = NonNullable<Awaited<ReturnType<typeof createPrivateStreamInvitation>>>
+    export type CreatePrivateStreamInvitationMutationBody = BodyType<CreatePrivateStreamInvitationRequest>
+    export type CreatePrivateStreamInvitationMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a private one-to-one stream invitation
+ */
+export const useCreatePrivateStreamInvitation = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPrivateStreamInvitation>>, TError,{data: BodyType<CreatePrivateStreamInvitationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPrivateStreamInvitation>>,
+        TError,
+        {data: BodyType<CreatePrivateStreamInvitationRequest>},
+        TContext
+      > => {
+      return useMutation(getCreatePrivateStreamInvitationMutationOptions(options));
+    }
+
+export const getGetPrivateStreamInvitationUrl = (id: number,) => {
+
+
+
+
+  return `/api/private-stream-invitations/${id}`
+}
+
+export const getPrivateStreamInvitation = async (id: number, options?: RequestInit): Promise<PrivateStreamInvitationResponse> => {
+
+  return customFetch<PrivateStreamInvitationResponse>(getGetPrivateStreamInvitationUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPrivateStreamInvitationQueryKey = (id: number,) => {
+    return [
+    `/api/private-stream-invitations/${id}`
+    ] as const;
+    }
+
+
+export const getGetPrivateStreamInvitationQueryOptions = <TData = Awaited<ReturnType<typeof getPrivateStreamInvitation>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPrivateStreamInvitation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPrivateStreamInvitationQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPrivateStreamInvitation>>> = ({ signal }) => getPrivateStreamInvitation(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPrivateStreamInvitation>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPrivateStreamInvitationQueryResult = NonNullable<Awaited<ReturnType<typeof getPrivateStreamInvitation>>>
+export type GetPrivateStreamInvitationQueryError = ErrorType<unknown>
+
+
+
+export function useGetPrivateStreamInvitation<TData = Awaited<ReturnType<typeof getPrivateStreamInvitation>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPrivateStreamInvitation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPrivateStreamInvitationQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getActOnPrivateStreamInvitationUrl = (id: number,
+    action: 'accept' | 'decline' | 'cancel' | 'start' | 'heartbeat' | 'end',) => {
+
+
+
+
+  return `/api/private-stream-invitations/${id}/${action}`
+}
+
+export const actOnPrivateStreamInvitation = async (id: number,
+    action: 'accept' | 'decline' | 'cancel' | 'start' | 'heartbeat' | 'end', options?: RequestInit): Promise<PrivateStreamInvitationResponse> => {
+
+  return customFetch<PrivateStreamInvitationResponse>(getActOnPrivateStreamInvitationUrl(id,action),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getActOnPrivateStreamInvitationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof actOnPrivateStreamInvitation>>, TError,{id: number;action: 'accept' | 'decline' | 'cancel' | 'start' | 'heartbeat' | 'end'}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof actOnPrivateStreamInvitation>>, TError,{id: number;action: 'accept' | 'decline' | 'cancel' | 'start' | 'heartbeat' | 'end'}, TContext> => {
+
+const mutationKey = ['actOnPrivateStreamInvitation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof actOnPrivateStreamInvitation>>, {id: number;action: 'accept' | 'decline' | 'cancel' | 'start' | 'heartbeat' | 'end'}> = (props) => {
+          const {id,action} = props ?? {};
+
+          return  actOnPrivateStreamInvitation(id,action,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ActOnPrivateStreamInvitationMutationResult = NonNullable<Awaited<ReturnType<typeof actOnPrivateStreamInvitation>>>
+
+    export type ActOnPrivateStreamInvitationMutationError = ErrorType<unknown>
+
+    export const useActOnPrivateStreamInvitation = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof actOnPrivateStreamInvitation>>, TError,{id: number;action: 'accept' | 'decline' | 'cancel' | 'start' | 'heartbeat' | 'end'}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof actOnPrivateStreamInvitation>>,
+        TError,
+        {id: number;action: 'accept' | 'decline' | 'cancel' | 'start' | 'heartbeat' | 'end'},
+        TContext
+      > => {
+      return useMutation(getActOnPrivateStreamInvitationMutationOptions(options));
     }
 

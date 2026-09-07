@@ -13,4 +13,5 @@ export const DirectMessageKind = {
   text: 'text',
   media: 'media',
   media_pack: 'media_pack',
+  private_stream_invitation: 'private_stream_invitation',
 } as const;

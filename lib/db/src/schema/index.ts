@@ -3,5 +3,6 @@ export * from "./stream-history";
 export * from "./follows";
 export * from "./coins";
 export * from "./direct-messages";
+export * from "./private-stream-invitations";
 export * from "./media-packs";
 export * from "./posts";

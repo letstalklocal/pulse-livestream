@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { fetch as expoFetch } from "expo/fetch";
 import * as Haptics from "expo-haptics";
-import { useNavigation, useRouter } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -27,6 +27,7 @@ import {
   getListStreamsQueryKey,
   getGetStreamChatQueryKey,
   useCreateStream,
+  useActOnPrivateStreamInvitation,
   useEndStream,
   useGenerateAgoraToken,
   useGetStream,
@@ -125,6 +126,9 @@ export default function GoLiveScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { user, isSignedIn, updateUser } = useAuth();
+  const { invitationId, channelId: invitationChannelId } = useLocalSearchParams<{ invitationId?: string; channelId?: string }>();
+  const privateInvitationId = Number(invitationId);
+  const isPrivateInvite = Number.isInteger(privateInvitationId) && !!invitationChannelId;
 
   const [title, setTitle] = useState("Join My Live");
   const [category, setCategory] = useState("Gaming");
@@ -158,6 +162,7 @@ export default function GoLiveScreen() {
   const queryClient = useQueryClient();
   const generateToken = useGenerateAgoraToken();
   const createStream = useCreateStream();
+  const invitationAction = useActOnPrivateStreamInvitation();
   const endStream = useEndStream();
   const heartbeat = useHeartbeatStream();
   const sendChatMutation = useSendChatMessage();
@@ -425,24 +430,33 @@ export default function GoLiveScreen() {
     setIsStarting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
-    const channelId = `pulse-${user!.uid}-${Date.now()}`;
+    const channelId = isPrivateInvite ? invitationChannelId! : `pulse-${user!.uid}-${Date.now()}`;
     channelIdRef.current = channelId;
 
+    let activatedPrivate = false;
     try {
+      // The server validates that this Clerk user owns an accepted invitation
+      // before it makes the channel active and allows a broadcaster token.
+      if (isPrivateInvite) {
+        await invitationAction.mutateAsync({ id: privateInvitationId, action: "start" });
+        activatedPrivate = true;
+      }
       const tokenData = await generateToken.mutateAsync({
         data: { channelName: channelId, uid: user!.uid, role: "broadcaster" },
       });
 
-      await createStream.mutateAsync({
-        data: {
-          channelId,
-          hostUid: user!.uid,
-          hostName: user!.name,
-          hostAvatarUrl: user!.avatarUri ?? null,
-          title: title.trim(),
-          category,
-        },
-      });
+      if (!isPrivateInvite) {
+        await createStream.mutateAsync({
+          data: {
+            channelId,
+            hostUid: user!.uid,
+            hostName: user!.name,
+            hostAvatarUrl: user!.avatarUri ?? null,
+            title: title.trim(),
+            category,
+          },
+        });
+      }
 
       if (isNative && engineRef.current) {
         pendingJoinRef.current = { token: tokenData.token, channelId };
@@ -456,11 +470,18 @@ export default function GoLiveScreen() {
       durationRef.current = setInterval(() => setDuration((d) => d + 1), 1000);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e) {
+      if (activatedPrivate) {
+        try {
+          await invitationAction.mutateAsync({ id: privateInvitationId, action: "end" });
+        } catch {
+          // Heartbeat expiry remains the final recovery path if cleanup cannot reach the server.
+        }
+      }
       console.warn("[Agora] start live error:", e);
       setCameraError(e instanceof Error ? e.message : "Could not start the live stream.");
       setIsStarting(false);
     }
-  }, [title, category, user, generateToken, createStream, cameraReady]);
+  }, [title, category, user, generateToken, createStream, cameraReady, invitationAction, isPrivateInvite, invitationChannelId, privateInvitationId]);
 
   const chooseStreamBackground = useCallback(async () => {
     if (!user || isUploadingBackground) return;
@@ -548,14 +569,15 @@ export default function GoLiveScreen() {
     engineRef.current = null;
     releaseAgoraEngine(engine);
     try {
-      await endStream.mutateAsync({ channelId: channelIdRef.current });
+      if (isPrivateInvite) await invitationAction.mutateAsync({ id: privateInvitationId, action: "end" });
+      else await endStream.mutateAsync({ channelId: channelIdRef.current });
       await queryClient.invalidateQueries({ queryKey: getListStreamsQueryKey() });
     } catch (_e) {
       // best effort — still invalidate so stale data is cleared
       void queryClient.invalidateQueries({ queryKey: getListStreamsQueryKey() });
     }
     router.back();
-  }, [endStream, queryClient, router]);
+  }, [endStream, queryClient, router, invitationAction, isPrivateInvite, privateInvitationId]);
 
   const confirmStopLive = useCallback(() => {
     Alert.alert(
@@ -590,7 +612,10 @@ export default function GoLiveScreen() {
   useEffect(() => {
     return () => {
       if (isLiveRef.current && channelIdRef.current) {
-        void endStream.mutateAsync({ channelId: channelIdRef.current }).finally(() => {
+        const close = isPrivateInvite
+          ? invitationAction.mutateAsync({ id: privateInvitationId, action: "end" })
+          : endStream.mutateAsync({ channelId: channelIdRef.current });
+        void close.finally(() => {
           void queryClient.invalidateQueries({ queryKey: getListStreamsQueryKey() });
         });
       }
@@ -602,17 +627,26 @@ export default function GoLiveScreen() {
   // reset when the mutation object gets a new reference after each settled call.
   const heartbeatMutateRef = useRef(heartbeat.mutate);
   useEffect(() => { heartbeatMutateRef.current = heartbeat.mutate; });
+  const privateHeartbeatRef = useRef(invitationAction.mutate);
+  useEffect(() => { privateHeartbeatRef.current = invitationAction.mutate; });
 
   // Send a heartbeat every 20 s while live (TTL is 60 s, so 3 chances before expiry).
   // Depends only on isLive — not on the mutation object — so the interval is stable.
   useEffect(() => {
     if (!isLive || !channelIdRef.current) return;
-    heartbeatMutateRef.current({ channelId: channelIdRef.current });
+    const sendHeartbeat = () => {
+      if (isPrivateInvite) {
+        privateHeartbeatRef.current({ id: privateInvitationId, action: "heartbeat" });
+      } else {
+        heartbeatMutateRef.current({ channelId: channelIdRef.current });
+      }
+    };
+    sendHeartbeat();
     const id = setInterval(() => {
-      heartbeatMutateRef.current({ channelId: channelIdRef.current });
+      sendHeartbeat();
     }, 20_000);
     return () => clearInterval(id);
-  }, [isLive]);
+  }, [isLive, isPrivateInvite, privateInvitationId]);
 
   const formatDuration = (secs: number) => {
     const h = Math.floor(secs / 3600);

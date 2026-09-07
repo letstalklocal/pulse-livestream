@@ -5,7 +5,9 @@ import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
+  ActivityIndicator,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -18,7 +20,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 // @ts-ignore generated media-pack hooks
-import { getGetCoinBalanceQueryKey, useGetCoinBalance, useSpendCoins, useGetMediaPacks, useSendMediaPack } from "@workspace/api-client-react";
+import { getGetCoinBalanceQueryKey, useActOnPrivateStreamInvitation, useCreatePrivateStreamInvitation, useGetCoinBalance, useSpendCoins, useGetMediaPacks, useSendMediaPack } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRtm, type DmMessage } from "@/context/RtmContext";
 import { useColors } from "@/hooks/useColors";
@@ -57,6 +59,8 @@ export default function DmScreen() {
   const spendMutation = useSpendCoins();
   const packsQuery = useGetMediaPacks({ query: { enabled: !!user?.uid, refetchOnWindowFocus: false } } as any);
   const sendPackMutation = useSendMediaPack();
+  const createInviteMutation = useCreatePrivateStreamInvitation();
+  const invitationAction = useActOnPrivateStreamInvitation();
   const viewerCoins = coinBalanceQuery.data?.balance ?? 0;
 
   // Sync messages from RtmContext store
@@ -93,6 +97,16 @@ export default function DmScreen() {
   };
 
   const myUidStr = user?.uid != null ? String(user.uid) : null;
+  const invitePeer = async () => {
+    const recipientId = Number(peerIdStr);
+    if (!Number.isInteger(recipientId)) return;
+    try {
+      await createInviteMutation.mutateAsync({ data: { invitedUserId: recipientId, title: `Private live with ${name}` } });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      setSendError(error instanceof Error ? error.message : "Invitation couldn't be sent.");
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -109,6 +123,9 @@ export default function DmScreen() {
         <Text style={[styles.headerName, { color: colors.foreground }]} numberOfLines={1}>
           {name}
         </Text>
+        <TouchableOpacity onPress={() => void invitePeer()} disabled={createInviteMutation.isPending} accessibilityLabel={`Invite ${name} to a private live stream`}>
+          {createInviteMutation.isPending ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="videocam-outline" size={23} color={colors.primary} />}
+        </TouchableOpacity>
       </View>
 
       {/* Messages */}
@@ -126,7 +143,21 @@ export default function DmScreen() {
               {!isMe && (
                 <Avatar uid={parseInt(item.senderId)} name={item.senderName} size={28} />
               )}
-              {item.kind === "media_pack" && item.mediaPackId ? (
+              {item.kind === "private_stream_invitation" && item.invitation ? (
+                <View style={[styles.inviteCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <Image source={{ uri: item.invitation.backgroundImageUrl }} style={styles.inviteImage} />
+                  <Ionicons name="lock-closed" size={16} color={colors.primary} />
+                  <Text style={[styles.inviteTitle, { color: colors.foreground }]}>{item.invitation.title}</Text>
+                  <Text style={[styles.inviteStatus, { color: colors.mutedForeground }]}>Private 1:1 live · {item.invitation.status}</Text>
+                  {item.invitation.status === "pending" && !isMe ? <View style={styles.inviteActions}>
+                    <TouchableOpacity disabled={invitationAction.isPending} onPress={() => invitationAction.mutate({ id: Number(item.invitation!.id), action: "decline" })}><Text style={[styles.inviteSecondary, { color: colors.mutedForeground }]}>Decline</Text></TouchableOpacity>
+                    <TouchableOpacity disabled={invitationAction.isPending} onPress={() => invitationAction.mutate({ id: Number(item.invitation!.id), action: "accept" })} style={styles.invitePrimary}><Text style={styles.invitePrimaryText}>Accept</Text></TouchableOpacity>
+                  </View> : null}
+                  {item.invitation.status === "pending" && isMe ? <TouchableOpacity disabled={invitationAction.isPending} onPress={() => invitationAction.mutate({ id: Number(item.invitation!.id), action: "cancel" })}><Text style={[styles.inviteSecondary, { color: colors.mutedForeground }]}>Cancel invitation</Text></TouchableOpacity> : null}
+                  {item.invitation.status === "accepted" && isMe ? <TouchableOpacity disabled={invitationAction.isPending} onPress={() => router.push({ pathname: "/go-live", params: { invitationId: item.invitation!.id, channelId: item.invitation!.channelId } } as any)} style={styles.invitePrimary}><Text style={styles.invitePrimaryText}>Start private live</Text></TouchableOpacity> : null}
+                  {item.invitation.status === "active" && !isMe ? <TouchableOpacity onPress={() => router.push({ pathname: `/stream/${item.invitation!.channelId}`, params: { privateInvitationId: item.invitation!.id } } as any)} style={styles.invitePrimary}><Text style={styles.invitePrimaryText}>Join live</Text></TouchableOpacity> : null}
+                </View>
+              ) : item.kind === "media_pack" && item.mediaPackId ? (
                 <MediaPackMessage packId={item.mediaPackId} mine={isMe} />
               ) : item.kind === "media" ? (
                 <DirectMediaMessage message={item} mine={isMe} />
@@ -331,6 +362,14 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     lineHeight: 20,
   },
+  inviteCard: { maxWidth: "78%", borderWidth: 1, borderRadius: 16, padding: 13, gap: 7 },
+  inviteImage: { width: "100%", height: 120, borderRadius: 10, backgroundColor: "#171717" },
+  inviteTitle: { fontFamily: "Inter_700Bold", fontSize: 15 },
+  inviteStatus: { fontFamily: "Inter_400Regular", fontSize: 12, textTransform: "capitalize" },
+  inviteActions: { flexDirection: "row", alignItems: "center", gap: 14, marginTop: 3 },
+  invitePrimary: { backgroundColor: "#FF1966", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, alignSelf: "flex-start" },
+  invitePrimaryText: { color: "#FFF", fontFamily: "Inter_700Bold", fontSize: 13 },
+  inviteSecondary: { fontFamily: "Inter_600SemiBold", fontSize: 13 },
   emptyWrap: {
     flex: 1,
     alignItems: "center",

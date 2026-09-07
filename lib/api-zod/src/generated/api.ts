@@ -601,7 +601,7 @@ export const GetDirectMessagesResponse = zod.object({
   "recipientId": zod.string(),
   "recipientName": zod.string(),
   "text": zod.string(),
-  "kind": zod.enum(['text', 'media', 'media_pack']),
+  "kind": zod.enum(['text', 'media', 'media_pack', 'private_stream_invitation']),
   "mediaPackId": zod.string().nullable(),
   "ts": zod.number(),
   "mediaType": zod.enum(['image', 'video']).optional(),
@@ -612,7 +612,19 @@ export const GetDirectMessagesResponse = zod.object({
   "price": zod.number().min(getDirectMessagesResponseMessagesItemPriceMin).optional(),
   "unlocked": zod.boolean().optional(),
   "mediaUrl": zod.string().optional(),
-  "previewUrl": zod.string().optional()
+  "previewUrl": zod.string().optional(),
+  "invitation": zod.object({
+  "id": zod.string(),
+  "streamerUserId": zod.string(),
+  "invitedUserId": zod.string(),
+  "channelId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['pending', 'accepted', 'declined', 'cancelled', 'expired', 'active', 'ended']),
+  "expiresAt": zod.number(),
+  "startedAt": zod.number().nullish(),
+  "endedAt": zod.number().nullish(),
+  "backgroundImageUrl": zod.string()
+}).optional()
 }))
 })
 
@@ -652,6 +664,60 @@ export const UnlockMediaDmResponse = zod.object({
   "balance": zod.number(),
   "unlocked": zod.boolean(),
   "mediaUrl": zod.string().optional()
+})
+
+
+/**
+ * @summary Create a private one-to-one stream invitation
+ */
+export const createPrivateStreamInvitationBodyTitleMax = 120;
+
+
+
+export const CreatePrivateStreamInvitationBody = zod.object({
+  "invitedUserId": zod.number(),
+  "title": zod.string().max(createPrivateStreamInvitationBodyTitleMax).optional()
+})
+
+
+export const GetPrivateStreamInvitationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetPrivateStreamInvitationResponse = zod.object({
+  "invitation": zod.object({
+  "id": zod.string(),
+  "streamerUserId": zod.string(),
+  "invitedUserId": zod.string(),
+  "channelId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['pending', 'accepted', 'declined', 'cancelled', 'expired', 'active', 'ended']),
+  "expiresAt": zod.number(),
+  "startedAt": zod.number().nullish(),
+  "endedAt": zod.number().nullish(),
+  "backgroundImageUrl": zod.string()
+})
+})
+
+
+export const ActOnPrivateStreamInvitationParams = zod.object({
+  "id": zod.coerce.number(),
+  "action": zod.enum(['accept', 'decline', 'cancel', 'start', 'heartbeat', 'end'])
+})
+
+export const ActOnPrivateStreamInvitationResponse = zod.object({
+  "invitation": zod.object({
+  "id": zod.string(),
+  "streamerUserId": zod.string(),
+  "invitedUserId": zod.string(),
+  "channelId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['pending', 'accepted', 'declined', 'cancelled', 'expired', 'active', 'ended']),
+  "expiresAt": zod.number(),
+  "startedAt": zod.number().nullish(),
+  "endedAt": zod.number().nullish(),
+  "backgroundImageUrl": zod.string()
+})
 })
 
 

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
-import { coinBalancesTable, coinTransactionsTable, db, directMediaPurchasesTable, directMessagesTable, usersTable } from "@workspace/db";
+import { coinBalancesTable, coinTransactionsTable, db, directMediaPurchasesTable, directMessagesTable, privateStreamInvitationsTable, usersTable } from "@workspace/db";
 import { createPrivateGetUrl } from "../lib/objectStorage";
 
 const router = Router();
@@ -19,7 +19,7 @@ async function requireUser(req: any, res: any) {
   return user;
 }
 
-async function messageResponse(message: typeof directMessagesTable.$inferSelect, names: Map<number, string>, viewerId: number, purchased: Set<number>) {
+async function messageResponse(message: typeof directMessagesTable.$inferSelect, names: Map<number, string>, viewerId: number, purchased: Set<number>, invitations = new Map<number, typeof privateStreamInvitationsTable.$inferSelect>()) {
   const isMedia = message.kind === "media";
   const price = message.mediaPrice ?? 0;
   const unlocked = !isMedia || message.fromUserId === viewerId || price === 0 || purchased.has(message.id);
@@ -47,6 +47,19 @@ async function messageResponse(message: typeof directMessagesTable.$inferSelect,
       else response.previewUrl = await createPrivateGetUrl(message.mediaObjectPath);
     }
   }
+  if (message.kind === "private_stream_invitation" && message.privateStreamInvitationId) {
+    const invitation = invitations.get(message.privateStreamInvitationId);
+    if (invitation) {
+      const status = invitation.status === "pending" && invitation.expiresAt <= new Date() ? "expired" : invitation.status;
+      response.invitation = {
+        id: String(invitation.id), streamerUserId: String(invitation.streamerUserId),
+        invitedUserId: String(invitation.invitedUserId), channelId: invitation.channelId, title: invitation.title,
+        status, expiresAt: invitation.expiresAt.getTime(), startedAt: invitation.startedAt?.getTime() ?? null,
+        endedAt: invitation.endedAt?.getTime() ?? null,
+        backgroundImageUrl: await createPrivateGetUrl(invitation.backgroundObjectPath),
+      };
+    }
+  }
   return response;
 }
 
@@ -56,13 +69,42 @@ router.get("/dms/:uid", async (req, res): Promise<any> => {
   if (!Number.isInteger(uid) || uid !== viewer.uid) return res.status(403).json({ error: "DM access denied" });
   const rows = await db.select().from(directMessagesTable).where(or(eq(directMessagesTable.fromUserId, uid), eq(directMessagesTable.toUserId, uid))).orderBy(desc(directMessagesTable.createdAt), desc(directMessagesTable.id)).limit(HISTORY_LIMIT);
   const userIds = [...new Set(rows.flatMap((message) => [message.fromUserId, message.toUserId]))];
-  const [users, purchases] = await Promise.all([
+  const invitationIds = rows.flatMap((message) => message.privateStreamInvitationId ? [message.privateStreamInvitationId] : []);
+  const [users, purchases, invitations] = await Promise.all([
     userIds.length ? db.select({ uid: usersTable.uid, name: usersTable.name }).from(usersTable).where(inArray(usersTable.uid, userIds)) : [],
     rows.length ? db.select({ messageId: directMediaPurchasesTable.messageId }).from(directMediaPurchasesTable).where(and(eq(directMediaPurchasesTable.buyerUserId, viewer.uid), inArray(directMediaPurchasesTable.messageId, rows.map((x) => x.id)))) : [],
+    invitationIds.length ? db.select().from(privateStreamInvitationsTable).where(inArray(privateStreamInvitationsTable.id, invitationIds)) : [],
   ]);
   const names = new Map(users.map((user) => [user.uid, user.name]));
   const purchased = new Set(purchases.map((purchase) => purchase.messageId));
-  res.json({ messages: await Promise.all(rows.reverse().map((message) => messageResponse(message, names, viewer.uid, purchased))) });
+  const expiredInvitationIds = invitations
+    .filter((invitation) => invitation.status === "pending" && invitation.expiresAt <= new Date())
+    .map((invitation) => invitation.id);
+  const staleActiveInvitationIds = invitations
+    .filter((invitation) => invitation.status === "active" && invitation.updatedAt.getTime() <= Date.now() - 75_000)
+    .map((invitation) => invitation.id);
+  if (expiredInvitationIds.length) {
+    await db.update(privateStreamInvitationsTable)
+      .set({ status: "expired", updatedAt: new Date() })
+      .where(inArray(privateStreamInvitationsTable.id, expiredInvitationIds));
+    for (const invitation of invitations) {
+      if (expiredInvitationIds.includes(invitation.id)) invitation.status = "expired";
+    }
+  }
+  if (staleActiveInvitationIds.length) {
+    const now = new Date();
+    await db.update(privateStreamInvitationsTable)
+      .set({ status: "ended", endedAt: now, updatedAt: now })
+      .where(inArray(privateStreamInvitationsTable.id, staleActiveInvitationIds));
+    for (const invitation of invitations) {
+      if (staleActiveInvitationIds.includes(invitation.id)) {
+        invitation.status = "ended";
+        invitation.endedAt = now;
+      }
+    }
+  }
+  const invitationMap = new Map(invitations.map((invitation) => [invitation.id, invitation]));
+  res.json({ messages: await Promise.all(rows.reverse().map((message) => messageResponse(message, names, viewer.uid, purchased, invitationMap))) });
 });
 
 router.post("/dms/media", async (req, res): Promise<any> => {

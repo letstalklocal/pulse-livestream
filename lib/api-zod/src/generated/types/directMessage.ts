@@ -7,6 +7,7 @@
  */
 import type { DirectMessageKind } from './directMessageKind';
 import type { DirectMessageMediaType } from './directMessageMediaType';
+import type { PrivateStreamInvitation } from './privateStreamInvitation';
 
 export interface DirectMessage {
   id: string;
@@ -28,4 +29,5 @@ export interface DirectMessage {
   unlocked?: boolean;
   mediaUrl?: string;
   previewUrl?: string;
+  invitation?: PrivateStreamInvitation;
 }

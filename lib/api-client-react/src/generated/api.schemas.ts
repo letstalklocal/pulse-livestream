@@ -5,6 +5,42 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface CreatePrivateStreamInvitationRequest {
+  invitedUserId: number;
+  /** @maxLength 120 */
+  title?: string;
+}
+
+export type PrivateStreamInvitationStatus = typeof PrivateStreamInvitationStatus[keyof typeof PrivateStreamInvitationStatus];
+
+
+export const PrivateStreamInvitationStatus = {
+  pending: 'pending',
+  accepted: 'accepted',
+  declined: 'declined',
+  cancelled: 'cancelled',
+  expired: 'expired',
+  active: 'active',
+  ended: 'ended',
+} as const;
+
+export interface PrivateStreamInvitation {
+  id: string;
+  streamerUserId: string;
+  invitedUserId: string;
+  channelId: string;
+  title: string;
+  status: PrivateStreamInvitationStatus;
+  expiresAt: number;
+  startedAt?: number | null;
+  endedAt?: number | null;
+  backgroundImageUrl: string;
+}
+
+export interface PrivateStreamInvitationResponse {
+  invitation: PrivateStreamInvitation;
+}
+
 export interface Post {
   id: number;
   ownerUserId: number;
@@ -349,6 +385,7 @@ export const DirectMessageKind = {
   text: 'text',
   media: 'media',
   media_pack: 'media_pack',
+  private_stream_invitation: 'private_stream_invitation',
 } as const;
 
 export type DirectMessageMediaType = typeof DirectMessageMediaType[keyof typeof DirectMessageMediaType];
@@ -379,6 +416,7 @@ export interface DirectMessage {
   unlocked?: boolean;
   mediaUrl?: string;
   previewUrl?: string;
+  invitation?: PrivateStreamInvitation;
 }
 
 export interface DirectMessagesResponse {
