@@ -64,7 +64,8 @@ function RootLayoutNav() {
         options={{ headerShown: false, presentation: "fullScreenModal", animation: "none" }}
       />
       <Stack.Screen name="dm/[peerId]" options={{ headerShown: false }} />
-       <Stack.Screen name="media-packs" options={{ headerShown: false }} />
+      <Stack.Screen name="media-packs" options={{ headerShown: false }} />
+      <Stack.Screen name="settings" options={{ headerShown: false }} />
     </Stack>
   );
 }

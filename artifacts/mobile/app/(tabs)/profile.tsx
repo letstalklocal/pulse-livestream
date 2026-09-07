@@ -180,17 +180,7 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
           ) : (
-            <TouchableOpacity
-              style={[styles.iconBtn, { borderColor: colors.border }]}
-              onPress={() => {
-                setEditName(user.name ?? "");
-                setEditBio(user.bio ?? "");
-                setEditing(true);
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="pencil" size={16} color={colors.mutedForeground} />
-            </TouchableOpacity>
+            <View style={styles.headerSpacer} />
           )}
         </View>
 
@@ -229,6 +219,28 @@ export default function ProfileScreen() {
               {user.bio ? (
                 <Text style={[styles.bio, { color: colors.mutedForeground }]}>{user.bio}</Text>
               ) : null}
+              <View style={styles.profileActions}>
+                <TouchableOpacity
+                  style={[styles.editProfileBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  onPress={() => {
+                    setEditName(user.name ?? "");
+                    setEditBio(user.bio ?? "");
+                    setEditing(true);
+                  }}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name="pencil-outline" size={15} color={colors.foreground} />
+                  <Text style={[styles.editProfileText, { color: colors.foreground }]}>Edit Profile</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.settingsBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  onPress={() => router.push("/settings" as any)}
+                  activeOpacity={0.75}
+                  accessibilityLabel="Open settings"
+                >
+                  <Ionicons name="settings-outline" size={18} color={colors.foreground} />
+                </TouchableOpacity>
+              </View>
             </>
           )}
 
@@ -341,6 +353,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 28, fontWeight: "700", fontFamily: "Inter_700Bold" },
   headerBtns: { flexDirection: "row", gap: 8 },
+  headerSpacer: { width: 36, height: 36 },
   iconBtn: {
     width: 36,
     height: 36,
@@ -365,6 +378,25 @@ const styles = StyleSheet.create({
   },
   displayName: { fontSize: 22, fontWeight: "700", fontFamily: "Inter_700Bold" },
   bio: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
+  profileActions: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
+  editProfileBtn: {
+    height: 38,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingHorizontal: 18,
+    borderRadius: 19,
+    borderWidth: 1,
+  },
+  editProfileText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  settingsBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   editFields: { width: "100%", gap: 10 },
   nameInput: { borderWidth: 1, borderRadius: 10, padding: 12, fontSize: 16, fontFamily: "Inter_500Medium" },
   bioInput: {
