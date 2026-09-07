@@ -228,7 +228,14 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={styles.headerSpacer} />
+            <TouchableOpacity
+              style={[styles.headerGoLiveBtn, { backgroundColor: colors.primary }]}
+              onPress={() => router.push("/go-live" as any)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="radio" size={14} color="#FFF" />
+              <Text style={styles.headerGoLiveBtnText}>Go Live</Text>
+            </TouchableOpacity>
           )}
         </View>
 
@@ -317,15 +324,6 @@ export default function ProfileScreen() {
             <Text style={[styles.coinLabel, { color: colors.mutedForeground }]}>coins</Text>
           </View>
 
-          {/* Go Live CTA */}
-          <TouchableOpacity
-            style={[styles.goLiveBtn, { backgroundColor: colors.primary }]}
-            onPress={() => router.push("/go-live" as any)}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="radio" size={16} color="#FFF" />
-            <Text style={styles.goLiveBtnText}>Go Live</Text>
-          </TouchableOpacity>
           <TouchableOpacity
             style={[styles.packsBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
             onPress={() => router.push("/media-packs" as any)}
@@ -401,7 +399,19 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 28, fontWeight: "700", fontFamily: "Inter_700Bold" },
   headerBtns: { flexDirection: "row", gap: 8 },
-  headerSpacer: { width: 36, height: 36 },
+  headerGoLiveBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
+  },
+  headerGoLiveBtnText: {
+    color: "#FFF",
+    fontSize: 14,
+    fontFamily: "Inter_700Bold",
+  },
   iconBtn: {
     width: 36,
     height: 36,
