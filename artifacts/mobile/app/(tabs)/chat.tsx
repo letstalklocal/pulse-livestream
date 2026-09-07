@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
+  Alert,
   FlatList,
   Modal,
   Platform,
@@ -69,13 +70,24 @@ export default function ChatScreen() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Text style={[styles.screenTitle, { color: colors.foreground }]}>Messages</Text>
-        <TouchableOpacity
-          style={[styles.newBtn, { backgroundColor: "rgba(255,25,102,0.12)", borderColor: "rgba(255,25,102,0.3)" }]}
-          onPress={() => setShowNewDm(true)}
-          activeOpacity={0.75}
-        >
-          <Ionicons name="create-outline" size={20} color={colors.primary} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.headerActionBtn}
+            onPress={() => Alert.alert("Search", "Message search will be available soon.")}
+            activeOpacity={0.7}
+            accessibilityLabel="Search messages"
+          >
+            <Ionicons name="search-outline" size={23} color="#FFFFFF" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerActionBtn}
+            onPress={() => setShowNewDm(true)}
+            activeOpacity={0.7}
+            accessibilityLabel="Start a new chat"
+          >
+            <Ionicons name="create-outline" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {conversations.length === 0 ? (
@@ -198,11 +210,14 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontFamily: "Inter_700Bold",
   },
-  newBtn: {
-    width: 36,
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  headerActionBtn: {
+    width: 30,
     height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
