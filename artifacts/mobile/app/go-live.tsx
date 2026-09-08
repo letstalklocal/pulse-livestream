@@ -138,6 +138,7 @@ export default function GoLiveScreen() {
   const [category, setCategory] = useState("Gaming");
   const [isPremium, setIsPremium] = useState(false);
   const [requiredGiftId, setRequiredGiftId] = useState<CreateStreamRequestRequiredGiftId>(null);
+  const [draftRequiredGiftId, setDraftRequiredGiftId] = useState<CreateStreamRequestRequiredGiftId>(null);
   const [showPremiumGiftSheet, setShowPremiumGiftSheet] = useState(false);
   const [isLive, setIsLive] = useState(false);
   const [activeChannelId, setActiveChannelId] = useState("");
@@ -432,7 +433,7 @@ export default function GoLiveScreen() {
     return () => clearTimeout(t);
   }, [isLive, user?.uid]);
 
-  const startLive = useCallback(async () => {
+  const startLive = useCallback(async (premiumGiftId?: CreateStreamRequestRequiredGiftId) => {
     if (!title.trim()) return;
     if (!user?.streamBackgroundImagePath) {
       Alert.alert(
@@ -445,6 +446,9 @@ export default function GoLiveScreen() {
       setCameraError("Wait for the camera preview before going live.");
       return;
     }
+    const confirmedGiftId = isPrivateInvite ? null : (premiumGiftId ?? requiredGiftId);
+    if (isPremium && !confirmedGiftId) return;
+
     setIsStarting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
@@ -468,7 +472,7 @@ export default function GoLiveScreen() {
           hostAvatarUrl: user!.avatarUri ?? null,
           title: title.trim(),
           category,
-          requiredGiftId: isPrivateInvite ? null : requiredGiftId,
+          requiredGiftId: confirmedGiftId,
         },
       });
       createdStream = true;
@@ -1055,7 +1059,7 @@ export default function GoLiveScreen() {
                 <TouchableOpacity
                   testID="go-live-submit"
                   style={[styles.modePrimary, { backgroundColor: canStart ? "#FF1966" : "rgba(255,255,255,0.22)" }]}
-                  onPress={startLive}
+                  onPress={() => void startLive()}
                   disabled={!canStart}
                   activeOpacity={0.85}
                 >
@@ -1067,7 +1071,7 @@ export default function GoLiveScreen() {
                 <TouchableOpacity
                   testID="go-live-submit"
                   style={[styles.modePrimary, { backgroundColor: canStart ? catColor : "rgba(255,255,255,0.22)" }]}
-                  onPress={startLive}
+                  onPress={() => void startLive()}
                   disabled={!canStart}
                   activeOpacity={0.85}
                 >
@@ -1079,6 +1083,7 @@ export default function GoLiveScreen() {
                     style={styles.modeSecondary}
                     onPress={() => {
                       setIsPremium(true);
+                      setDraftRequiredGiftId(requiredGiftId);
                       setShowPremiumGiftSheet(true);
                       Haptics.selectionAsync();
                     }}
@@ -1104,6 +1109,7 @@ export default function GoLiveScreen() {
         statusBarTranslucent
         onRequestClose={() => {
           setShowPremiumGiftSheet(false);
+          setDraftRequiredGiftId(requiredGiftId);
           if (!requiredGiftId) setIsPremium(false);
         }}
       >
@@ -1113,6 +1119,7 @@ export default function GoLiveScreen() {
             activeOpacity={1}
             onPress={() => {
               setShowPremiumGiftSheet(false);
+              setDraftRequiredGiftId(requiredGiftId);
               if (!requiredGiftId) setIsPremium(false);
             }}
           />
@@ -1127,6 +1134,7 @@ export default function GoLiveScreen() {
                 style={styles.giftSheetClose}
                 onPress={() => {
                   setShowPremiumGiftSheet(false);
+                  setDraftRequiredGiftId(requiredGiftId);
                   if (!requiredGiftId) setIsPremium(false);
                 }}
               >
@@ -1134,25 +1142,59 @@ export default function GoLiveScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={styles.giftSheetGrid} showsVerticalScrollIndicator={false}>
-              {GIFTS.map((gift) => (
-                <TouchableOpacity
-                  key={gift.id}
-                  testID={`stream-required-gift-${gift.id}`}
-                  style={styles.giftSheetOption}
-                  onPress={() => {
-                    setRequiredGiftId(gift.id as CreateStreamRequestRequiredGiftId);
-                    setIsPremium(true);
-                    setShowPremiumGiftSheet(false);
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.giftSheetEmoji}>{gift.emoji}</Text>
-                  <Text style={styles.giftSheetGiftName}>{gift.name}</Text>
-                  <Text style={styles.giftSheetGiftCost}>🪙 {gift.coins}</Text>
-                </TouchableOpacity>
-              ))}
+              {GIFTS.map((gift) => {
+                const selected = draftRequiredGiftId === gift.id;
+                return (
+                  <TouchableOpacity
+                    key={gift.id}
+                    testID={`stream-required-gift-${gift.id}`}
+                    style={[styles.giftSheetOption, selected ? styles.giftSheetOptionSelected : null]}
+                    onPress={() => {
+                      setDraftRequiredGiftId(gift.id as CreateStreamRequestRequiredGiftId);
+                      Haptics.selectionAsync();
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    {selected ? (
+                      <View style={styles.giftSheetSelectedBadge}>
+                        <Ionicons name="checkmark" size={14} color="#FFF" />
+                      </View>
+                    ) : null}
+                    <Text style={styles.giftSheetEmoji}>{gift.emoji}</Text>
+                    <Text style={styles.giftSheetGiftName}>{gift.name}</Text>
+                    <Text style={styles.giftSheetGiftCost}>🪙 {gift.coins}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
+            <TouchableOpacity
+              testID="go-premium-submit"
+              style={[
+                styles.giftSheetSubmit,
+                !draftRequiredGiftId || isStarting ? styles.giftSheetSubmitDisabled : null,
+              ]}
+              disabled={!draftRequiredGiftId || isStarting}
+              onPress={() => {
+                const giftId = draftRequiredGiftId;
+                if (!giftId) return;
+                setRequiredGiftId(giftId);
+                setIsPremium(true);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                void startLive(giftId);
+              }}
+              activeOpacity={0.85}
+            >
+              {isStarting ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <>
+                  <Ionicons name="key" size={18} color="#FFF" />
+                  <Text style={styles.giftSheetSubmitText}>
+                    {draftRequiredGiftId ? "Go Premium" : "Choose a gift"}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -1390,6 +1432,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   giftSheetOption: {
+    position: "relative",
     width: "31%",
     minHeight: 112,
     borderRadius: 18,
@@ -1399,6 +1442,22 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.07)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
+  },
+  giftSheetOptionSelected: {
+    backgroundColor: "rgba(255,25,102,0.16)",
+    borderColor: "#FF1966",
+    borderWidth: 2,
+  },
+  giftSheetSelectedBadge: {
+    position: "absolute",
+    top: 7,
+    right: 7,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FF1966",
   },
   giftSheetEmoji: {
     fontSize: 31,
@@ -1415,6 +1474,24 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 4,
     fontFamily: "Inter_600SemiBold",
+  },
+  giftSheetSubmit: {
+    minHeight: 56,
+    marginTop: 14,
+    borderRadius: 28,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#FF1966",
+  },
+  giftSheetSubmitDisabled: {
+    backgroundColor: "rgba(255,255,255,0.14)",
+  },
+  giftSheetSubmitText: {
+    color: "#FFF",
+    fontSize: 17,
+    fontFamily: "Inter_700Bold",
   },
   backgroundPicker: {
     width: "100%",
