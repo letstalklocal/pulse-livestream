@@ -53,11 +53,14 @@ export default function DmScreen() {
   const [showMediaChooser, setShowMediaChooser] = useState(false);
   const [showInviteComposer, setShowInviteComposer] = useState(false);
   const [inviteGiftId, setInviteGiftId] = useState<string | null>(null);
+  const [listPositioned, setListPositioned] = useState(false);
   const listRef = useRef<FlatList>(null);
   const pendingInitialScrollRef = useRef(true);
   const isNearBottomRef = useRef(true);
   const scrollFrameRef = useRef<number | null>(null);
+  const messagesLengthRef = useRef(0);
   const paymentBalanceStateRef = useRef("");
+  messagesLengthRef.current = messages.length;
 
   const coinBalanceQuery = useGetCoinBalance(
     { uid: user?.uid ?? 0 },
@@ -80,12 +83,14 @@ export default function DmScreen() {
   }, [peerIdStr, getMessages]);
 
   const scrollToLatest = useCallback((animated: boolean) => {
+    if (messagesLengthRef.current === 0) return;
     if (scrollFrameRef.current != null) cancelAnimationFrame(scrollFrameRef.current);
     scrollFrameRef.current = requestAnimationFrame(() => {
       scrollFrameRef.current = requestAnimationFrame(() => {
         listRef.current?.scrollToEnd({ animated });
         pendingInitialScrollRef.current = false;
         isNearBottomRef.current = true;
+        setListPositioned(true);
         scrollFrameRef.current = null;
       });
     });
@@ -95,6 +100,7 @@ export default function DmScreen() {
     useCallback(() => {
       pendingInitialScrollRef.current = true;
       isNearBottomRef.current = true;
+      setListPositioned(false);
       markRead(peerIdStr);
       scrollToLatest(false);
       return () => {
@@ -172,6 +178,7 @@ export default function DmScreen() {
       <FlatList
         ref={listRef}
         data={messages}
+        style={{ opacity: messages.length === 0 || listPositioned ? 1 : 0 }}
         keyExtractor={(item) => item.messageId}
         contentContainerStyle={[styles.listContent, { paddingBottom: 8 }]}
         showsVerticalScrollIndicator={false}
