@@ -664,6 +664,12 @@ export const GetDirectMessagesResponse = zod.object({
   "expiresAt": zod.number(),
   "startedAt": zod.number().nullish(),
   "endedAt": zod.number().nullish(),
+  "requiredGiftId": zod.string().nullish(),
+  "requiredGiftName": zod.string().nullish(),
+  "requiredGiftAmount": zod.number().optional(),
+  "paidAt": zod.number().nullish(),
+  "refundedAt": zod.number().nullish(),
+  "paymentStatus": zod.enum(['free', 'pending', 'paid', 'settled', 'refunded']).optional(),
   "backgroundImageUrl": zod.string()
 }).optional()
 }))
@@ -717,7 +723,8 @@ export const createPrivateStreamInvitationBodyTitleMax = 120;
 
 export const CreatePrivateStreamInvitationBody = zod.object({
   "invitedUserId": zod.number(),
-  "title": zod.string().max(createPrivateStreamInvitationBodyTitleMax).optional()
+  "title": zod.string().max(createPrivateStreamInvitationBodyTitleMax).optional(),
+  "requiredGiftId": zod.enum(['rose', 'heart', 'party', 'diamond', 'rocket', 'crown']).nullish()
 })
 
 
@@ -736,6 +743,12 @@ export const GetPrivateStreamInvitationResponse = zod.object({
   "expiresAt": zod.number(),
   "startedAt": zod.number().nullish(),
   "endedAt": zod.number().nullish(),
+  "requiredGiftId": zod.string().nullish(),
+  "requiredGiftName": zod.string().nullish(),
+  "requiredGiftAmount": zod.number().optional(),
+  "paidAt": zod.number().nullish(),
+  "refundedAt": zod.number().nullish(),
+  "paymentStatus": zod.enum(['free', 'pending', 'paid', 'settled', 'refunded']).optional(),
   "backgroundImageUrl": zod.string()
 })
 })
@@ -757,6 +770,12 @@ export const ActOnPrivateStreamInvitationResponse = zod.object({
   "expiresAt": zod.number(),
   "startedAt": zod.number().nullish(),
   "endedAt": zod.number().nullish(),
+  "requiredGiftId": zod.string().nullish(),
+  "requiredGiftName": zod.string().nullish(),
+  "requiredGiftAmount": zod.number().optional(),
+  "paidAt": zod.number().nullish(),
+  "refundedAt": zod.number().nullish(),
+  "paymentStatus": zod.enum(['free', 'pending', 'paid', 'settled', 'refunded']).optional(),
   "backgroundImageUrl": zod.string()
 })
 })

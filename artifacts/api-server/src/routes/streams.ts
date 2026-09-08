@@ -284,8 +284,10 @@ router.post("/streams", async (req, res) => {
       .where(eq(privateStreamInvitationsTable.channelId, channelId)).limit(1))[0] ?? null
     : null;
   const requester = await currentUser(req);
-  const privateInvitationIsFresh = privateInvitation?.status === "active"
-    && privateInvitation.updatedAt.getTime() > Date.now() - PRIVATE_HEARTBEAT_TTL_MS;
+  const privateInvitationIsFresh = (privateInvitation?.status === "active"
+    && privateInvitation.updatedAt.getTime() > Date.now() - PRIVATE_HEARTBEAT_TTL_MS)
+    || (privateInvitation?.status === "accepted"
+      && (privateInvitation.requiredGiftAmount === 0 || privateInvitation.paymentStatus === "paid"));
   if (channelId.startsWith("private-") && (
     !privateInvitation ||
     !privateInvitationIsFresh ||

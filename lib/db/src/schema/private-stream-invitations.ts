@@ -30,8 +30,14 @@ export const privateStreamInvitationsTable = pgTable(
     title: text("title").notNull(),
     backgroundObjectPath: text("background_object_path").notNull(),
     status: text("status").notNull().default("pending"),
+    requiredGiftId: text("required_gift_id"),
+    requiredGiftName: text("required_gift_name"),
+    requiredGiftAmount: integer("required_gift_amount").notNull().default(0),
+    paymentStatus: text("payment_status").notNull().default("free"),
     expiresAt: timestamp("expires_at").notNull(),
     acceptedAt: timestamp("accepted_at"),
+    paidAt: timestamp("paid_at"),
+    refundedAt: timestamp("refunded_at"),
     declinedAt: timestamp("declined_at"),
     cancelledAt: timestamp("cancelled_at"),
     startedAt: timestamp("started_at"),
@@ -51,6 +57,13 @@ export const privateStreamInvitationsTable = pgTable(
     check(
       "private_stream_invitations_status_valid",
       sql`${table.status} in ('pending', 'accepted', 'declined', 'cancelled', 'expired', 'active', 'ended')`,
+    ),
+    check(
+      "private_stream_invitations_payment_valid",
+      sql`${table.paymentStatus} in ('free', 'pending', 'paid', 'settled', 'refunded')
+        and ${table.requiredGiftAmount} >= 0
+        and ((${table.requiredGiftAmount} = 0 and ${table.requiredGiftId} is null and ${table.requiredGiftName} is null)
+          or (${table.requiredGiftAmount} > 0 and ${table.requiredGiftId} is not null and ${table.requiredGiftName} is not null))`,
     ),
   ],
 );

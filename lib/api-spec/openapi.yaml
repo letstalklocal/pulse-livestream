@@ -805,7 +805,7 @@ components:
   schemas:
     CreatePrivateStreamInvitationRequest:
       type: object
-      properties: { invitedUserId: { type: integer }, title: { type: string, maxLength: 120 } }
+      properties: { invitedUserId: { type: integer }, title: { type: string, maxLength: 120 }, requiredGiftId: { type: string, nullable: true, enum: [rose, heart, party, diamond, rocket, crown] } }
       required: [invitedUserId]
     PrivateStreamInvitation:
       type: object
@@ -820,6 +820,12 @@ components:
         expiresAt: { type: integer }
         startedAt: { type: integer, nullable: true }
         endedAt: { type: integer, nullable: true }
+        requiredGiftId: { type: string, nullable: true }
+        requiredGiftName: { type: string, nullable: true }
+        requiredGiftAmount: { type: integer }
+        paidAt: { type: integer, nullable: true }
+        refundedAt: { type: integer, nullable: true }
+        paymentStatus: { type: string, enum: [free, pending, paid, settled, refunded] }
         backgroundImageUrl: { type: string }
     PrivateStreamInvitationResponse:
       type: object

@@ -5,10 +5,23 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type CreatePrivateStreamInvitationRequestRequiredGiftId = typeof CreatePrivateStreamInvitationRequestRequiredGiftId[keyof typeof CreatePrivateStreamInvitationRequestRequiredGiftId] | null;
+
+
+export const CreatePrivateStreamInvitationRequestRequiredGiftId = {
+  rose: 'rose',
+  heart: 'heart',
+  party: 'party',
+  diamond: 'diamond',
+  rocket: 'rocket',
+  crown: 'crown',
+} as const;
+
 export interface CreatePrivateStreamInvitationRequest {
   invitedUserId: number;
   /** @maxLength 120 */
   title?: string;
+  requiredGiftId?: CreatePrivateStreamInvitationRequestRequiredGiftId;
 }
 
 export type PrivateStreamInvitationStatus = typeof PrivateStreamInvitationStatus[keyof typeof PrivateStreamInvitationStatus];
@@ -24,6 +37,17 @@ export const PrivateStreamInvitationStatus = {
   ended: 'ended',
 } as const;
 
+export type PrivateStreamInvitationPaymentStatus = typeof PrivateStreamInvitationPaymentStatus[keyof typeof PrivateStreamInvitationPaymentStatus];
+
+
+export const PrivateStreamInvitationPaymentStatus = {
+  free: 'free',
+  pending: 'pending',
+  paid: 'paid',
+  settled: 'settled',
+  refunded: 'refunded',
+} as const;
+
 export interface PrivateStreamInvitation {
   id: string;
   streamerUserId: string;
@@ -34,6 +58,12 @@ export interface PrivateStreamInvitation {
   expiresAt: number;
   startedAt?: number | null;
   endedAt?: number | null;
+  requiredGiftId?: string | null;
+  requiredGiftName?: string | null;
+  requiredGiftAmount?: number;
+  paidAt?: number | null;
+  refundedAt?: number | null;
+  paymentStatus?: PrivateStreamInvitationPaymentStatus;
   backgroundImageUrl: string;
 }
 

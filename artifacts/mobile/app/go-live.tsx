@@ -458,12 +458,8 @@ export default function GoLiveScreen() {
     let activatedPrivate = false;
     let createdStream = false;
     try {
-      // The server validates that this Clerk user owns an accepted invitation
-      // before it makes the channel active and allows a broadcaster token.
-      if (isPrivateInvite) {
-        await invitationAction.mutateAsync({ id: privateInvitationId, action: "start" });
-        activatedPrivate = true;
-      }
+      // Create the durable private session first. Invitation activation then
+      // atomically verifies this exact host/channel before releasing escrow.
       await createStream.mutateAsync({
         data: {
           channelId,
@@ -476,6 +472,10 @@ export default function GoLiveScreen() {
         },
       });
       createdStream = true;
+      if (isPrivateInvite) {
+        await invitationAction.mutateAsync({ id: privateInvitationId, action: "start" });
+        activatedPrivate = true;
+      }
 
       // The durable live session must exist before Agora can authorize any
       // token for this channel, including the broadcaster's first token.

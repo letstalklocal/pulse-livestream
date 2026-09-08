@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { PrivateStreamInvitationPaymentStatus } from './privateStreamInvitationPaymentStatus';
 import type { PrivateStreamInvitationStatus } from './privateStreamInvitationStatus';
 
 export interface PrivateStreamInvitation {
@@ -17,5 +18,11 @@ export interface PrivateStreamInvitation {
   expiresAt: number;
   startedAt?: number | null;
   endedAt?: number | null;
+  requiredGiftId?: string | null;
+  requiredGiftName?: string | null;
+  requiredGiftAmount?: number;
+  paidAt?: number | null;
+  refundedAt?: number | null;
+  paymentStatus?: PrivateStreamInvitationPaymentStatus;
   backgroundImageUrl: string;
 }

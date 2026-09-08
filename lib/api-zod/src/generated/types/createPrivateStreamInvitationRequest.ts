@@ -5,9 +5,11 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CreatePrivateStreamInvitationRequestRequiredGiftId } from './createPrivateStreamInvitationRequestRequiredGiftId';
 
 export interface CreatePrivateStreamInvitationRequest {
   invitedUserId: number;
   /** @maxLength 120 */
   title?: string;
+  requiredGiftId?: CreatePrivateStreamInvitationRequestRequiredGiftId;
 }

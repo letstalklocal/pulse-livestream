@@ -3,6 +3,7 @@ import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { coinBalancesTable, coinTransactionsTable, db, directMediaPurchasesTable, directMessagesTable, privateStreamInvitationsTable, usersTable } from "@workspace/db";
 import { createPrivateGetUrl } from "../lib/objectStorage";
 import { endRuntimeStream } from "./streams";
+import { expirePrivateInvitation } from "./private-stream-invitations";
 
 const router = Router();
 const MAX_MESSAGE_LENGTH = 2_000;
@@ -57,6 +58,9 @@ async function messageResponse(message: typeof directMessagesTable.$inferSelect,
         invitedUserId: String(invitation.invitedUserId), channelId: invitation.channelId, title: invitation.title,
         status, expiresAt: invitation.expiresAt.getTime(), startedAt: invitation.startedAt?.getTime() ?? null,
         endedAt: invitation.endedAt?.getTime() ?? null,
+        requiredGiftId: invitation.requiredGiftId, requiredGiftName: invitation.requiredGiftName,
+        requiredGiftAmount: invitation.requiredGiftAmount, paidAt: invitation.paidAt?.getTime() ?? null,
+        refundedAt: invitation.refundedAt?.getTime() ?? null, paymentStatus: invitation.paymentStatus,
         backgroundImageUrl: await createPrivateGetUrl(invitation.backgroundObjectPath),
       };
     }
@@ -78,20 +82,20 @@ router.get("/dms/:uid", async (req, res): Promise<any> => {
   ]);
   const names = new Map(users.map((user) => [user.uid, user.name]));
   const purchased = new Set(purchases.map((purchase) => purchase.messageId));
-  const expiredInvitationIds = invitations
-    .filter((invitation) => invitation.status === "pending" && invitation.expiresAt <= new Date())
+   const expiredInvitationIds = invitations
+     .filter((invitation) => (invitation.status === "pending" && invitation.expiresAt <= new Date()) ||
+       (invitation.status === "accepted" && invitation.requiredGiftAmount > 0 && invitation.paidAt && invitation.paidAt.getTime() <= Date.now() - 300_000))
     .map((invitation) => invitation.id);
   const staleActiveInvitationIds = invitations
     .filter((invitation) => invitation.status === "active" && invitation.updatedAt.getTime() <= Date.now() - 75_000)
     .map((invitation) => invitation.id);
-  if (expiredInvitationIds.length) {
-    await db.update(privateStreamInvitationsTable)
-      .set({ status: "expired", updatedAt: new Date() })
-      .where(inArray(privateStreamInvitationsTable.id, expiredInvitationIds));
-    for (const invitation of invitations) {
-      if (expiredInvitationIds.includes(invitation.id)) invitation.status = "expired";
-    }
-  }
+   if (expiredInvitationIds.length) {
+     const refreshed = await Promise.all(expiredInvitationIds.map((id) => expirePrivateInvitation(id)));
+     for (const updated of refreshed) {
+       const index = (invitations as typeof privateStreamInvitationsTable.$inferSelect[]).findIndex((invitation) => invitation.id === updated?.id);
+       if (index >= 0 && updated) (invitations as typeof privateStreamInvitationsTable.$inferSelect[])[index] = updated;
+     }
+   }
   if (staleActiveInvitationIds.length) {
     const now = new Date();
     await db.update(privateStreamInvitationsTable)

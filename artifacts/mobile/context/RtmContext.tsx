@@ -30,6 +30,8 @@ export interface DmMessage {
     id: string; streamerUserId: string; invitedUserId: string; channelId: string;
     title: string; status: "pending" | "accepted" | "declined" | "cancelled" | "expired" | "active" | "ended";
     expiresAt: number; startedAt: number | null; endedAt: number | null; backgroundImageUrl: string;
+    requiredGiftId: string | null; requiredGiftName: string | null; requiredGiftAmount: number;
+    paidAt: number | null; refundedAt: number | null; paymentStatus: "free" | "pending" | "paid" | "settled" | "refunded";
   };
 }
 
