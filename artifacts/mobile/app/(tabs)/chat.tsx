@@ -1,19 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React from "react";
 import {
   Alert,
   FlatList,
-  Modal,
-  Platform,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useGetUserFollowing } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRtm } from "@/context/RtmContext";
 import { useColors } from "@/hooks/useColors";
@@ -25,21 +21,8 @@ export default function ChatScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { conversations } = useRtm();
-  const [showNewDm, setShowNewDm] = useState(false);
-  const [search, setSearch] = useState("");
-
-  const { data: followingData } = useGetUserFollowing(user?.uid ?? 0, {
-    query: { enabled: !!user?.uid, staleTime: 30000 } as any,
-  });
-  const following = followingData?.users ?? [];
-
-  const filtered = following.filter((u) =>
-    u.name.toLowerCase().includes(search.toLowerCase())
-  );
 
   const openDm = (peerId: number, peerName: string) => {
-    setShowNewDm(false);
-    setSearch("");
     router.push({ pathname: "/dm/[peerId]", params: { peerId: String(peerId), peerName } });
   };
 
@@ -81,7 +64,7 @@ export default function ChatScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerActionBtn}
-            onPress={() => setShowNewDm(true)}
+            onPress={() => router.push("/new-chat")}
             activeOpacity={0.7}
             accessibilityLabel="Start a new chat"
           >
@@ -135,53 +118,6 @@ export default function ChatScreen() {
         />
       )}
 
-      {/* New DM modal — search following list */}
-      <Modal visible={showNewDm} transparent animationType="slide" onRequestClose={() => setShowNewDm(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalSheet, { backgroundColor: colors.card, paddingBottom: insets.bottom + (Platform.OS === "android" ? 28 : 16) }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]}>New Message</Text>
-              <TouchableOpacity onPress={() => { setShowNewDm(false); setSearch(""); }}>
-                <Ionicons name="close" size={22} color={colors.mutedForeground} />
-              </TouchableOpacity>
-            </View>
-            <View style={[styles.searchBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
-              <Ionicons name="search" size={16} color={colors.mutedForeground} style={{ marginRight: 8 }} />
-              <TextInput
-                style={[styles.searchInput, { color: colors.foreground }]}
-                placeholder="Search people you follow…"
-                placeholderTextColor={colors.mutedForeground}
-                value={search}
-                onChangeText={setSearch}
-                autoFocus
-              />
-            </View>
-            {filtered.length === 0 ? (
-              <View style={styles.noResults}>
-                <Text style={[styles.noResultsText, { color: colors.mutedForeground }]}>
-                  {following.length === 0 ? "Follow someone to start a DM" : "No results"}
-                </Text>
-              </View>
-            ) : (
-              <FlatList
-                data={filtered}
-                keyExtractor={(item) => String(item.uid)}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={[styles.followRow, { borderBottomColor: colors.border }]}
-                    onPress={() => openDm(item.uid, item.name)}
-                    activeOpacity={0.75}
-                  >
-                    <Avatar uid={item.uid} name={item.name} size={40} />
-                    <Text style={[styles.followName, { color: colors.foreground }]}>{item.name}</Text>
-                    <Ionicons name="chevron-forward" size={16} color={colors.mutedForeground} />
-                  </TouchableOpacity>
-                )}
-              />
-            )}
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -270,42 +206,4 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   unreadText: { color: "#FFF", fontSize: 11, fontWeight: "700", fontFamily: "Inter_700Bold" },
-  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  modalSheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 20,
-    paddingBottom: Platform.OS === "ios" ? 40 : 24,
-    maxHeight: "80%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  modalTitle: { fontSize: 18, fontWeight: "700", fontFamily: "Inter_700Bold" },
-  searchBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: 16,
-    marginBottom: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  searchInput: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular" },
-  followRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: 12,
-  },
-  followName: { flex: 1, fontSize: 15, fontFamily: "Inter_500Medium" },
-  noResults: { paddingVertical: 32, alignItems: "center" },
-  noResultsText: { fontSize: 14, fontFamily: "Inter_400Regular" },
 });
