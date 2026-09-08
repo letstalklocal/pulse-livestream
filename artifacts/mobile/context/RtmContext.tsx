@@ -142,11 +142,12 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
       invitation: message.invitation,
     };
 
-    if (!messageStore[peerId]) messageStore[peerId] = [];
-    const priorIndex = messageStore[peerId]!.findIndex((item) => item.messageId === stored.messageId);
-    if (priorIndex >= 0) messageStore[peerId]![priorIndex] = stored;
-    else messageStore[peerId]!.push(stored);
-    messageStore[peerId]!.sort((a, b) => a.ts - b.ts);
+    const peerMessages = [...(messageStore[peerId] ?? [])];
+    const priorIndex = peerMessages.findIndex((item) => item.messageId === stored.messageId);
+    if (priorIndex >= 0) peerMessages[priorIndex] = stored;
+    else peerMessages.push(stored);
+    peerMessages.sort((a, b) => a.ts - b.ts);
+    messageStore[peerId] = peerMessages;
     upsertConversation(
       peerId,
       peerName,

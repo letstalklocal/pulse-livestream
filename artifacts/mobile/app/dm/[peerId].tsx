@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as Crypto from "expo-crypto";
 import * as Haptics from "expo-haptics";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   ActivityIndicator,
@@ -54,7 +54,9 @@ export default function DmScreen() {
   const [showInviteComposer, setShowInviteComposer] = useState(false);
   const [inviteGiftId, setInviteGiftId] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
-  const hasInitialScrolledRef = useRef(false);
+  const pendingInitialScrollRef = useRef(true);
+  const isNearBottomRef = useRef(true);
+  const scrollFrameRef = useRef<number | null>(null);
   const paymentBalanceStateRef = useRef("");
 
   const coinBalanceQuery = useGetCoinBalance(
@@ -77,15 +79,34 @@ export default function DmScreen() {
     return () => clearInterval(interval);
   }, [peerIdStr, getMessages]);
 
-  useEffect(() => {
-    hasInitialScrolledRef.current = false;
-    markRead(peerIdStr);
-  }, [peerIdStr, markRead]);
+  const scrollToLatest = useCallback((animated: boolean) => {
+    if (scrollFrameRef.current != null) cancelAnimationFrame(scrollFrameRef.current);
+    scrollFrameRef.current = requestAnimationFrame(() => {
+      scrollFrameRef.current = requestAnimationFrame(() => {
+        listRef.current?.scrollToEnd({ animated });
+        pendingInitialScrollRef.current = false;
+        isNearBottomRef.current = true;
+        scrollFrameRef.current = null;
+      });
+    });
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      pendingInitialScrollRef.current = true;
+      isNearBottomRef.current = true;
+      markRead(peerIdStr);
+      scrollToLatest(false);
+      return () => {
+        if (scrollFrameRef.current != null) cancelAnimationFrame(scrollFrameRef.current);
+        scrollFrameRef.current = null;
+      };
+    }, [markRead, peerIdStr, scrollToLatest]),
+  );
 
   useEffect(() => {
     if (messages.length > 0) {
       markRead(peerIdStr);
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
     }
   }, [messages.length, markRead, peerIdStr]);
 
@@ -154,10 +175,19 @@ export default function DmScreen() {
         keyExtractor={(item) => item.messageId}
         contentContainerStyle={[styles.listContent, { paddingBottom: 8 }]}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={({ nativeEvent }) => {
+          const distanceFromBottom =
+            nativeEvent.contentSize.height -
+            nativeEvent.layoutMeasurement.height -
+            nativeEvent.contentOffset.y;
+          isNearBottomRef.current = distanceFromBottom <= 80;
+        }}
         onContentSizeChange={() => {
-          if (hasInitialScrolledRef.current || messages.length === 0) return;
-          hasInitialScrolledRef.current = true;
-          requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: false }));
+          if (messages.length === 0) return;
+          if (pendingInitialScrollRef.current || isNearBottomRef.current) {
+            scrollToLatest(pendingInitialScrollRef.current ? false : true);
+          }
         }}
         renderItem={({ item }) => {
           const isMe = item.senderId === myUidStr;
