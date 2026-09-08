@@ -14,6 +14,7 @@ import {
   Image,
   KeyboardAvoidingView,
   Linking,
+  Modal,
   PermissionsAndroid,
   Platform,
   ScrollView,
@@ -137,6 +138,7 @@ export default function GoLiveScreen() {
   const [category, setCategory] = useState("Gaming");
   const [isPremium, setIsPremium] = useState(false);
   const [requiredGiftId, setRequiredGiftId] = useState<CreateStreamRequestRequiredGiftId>(null);
+  const [showPremiumGiftSheet, setShowPremiumGiftSheet] = useState(false);
   const [isLive, setIsLive] = useState(false);
   const [activeChannelId, setActiveChannelId] = useState("");
   const [isMuted, setIsMuted] = useState(false);
@@ -909,283 +911,251 @@ export default function GoLiveScreen() {
   }
 
   // ── SETUP screen ─────────────────────────────────────────────────────────
+  const selectedRequiredGift = GIFTS.find((gift) => gift.id === requiredGiftId);
+  const canStart =
+    !!title.trim() &&
+    !!user.streamBackgroundImagePath &&
+    !isStarting &&
+    !isUploadingBackground &&
+    (!isNative || cameraReady) &&
+    (!isPremium || !!requiredGiftId);
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: "#000" }]}>
+      <View style={[styles.setupCamera, { backgroundColor: catColor + "22" }]}>
+        {isNative && cameraViewReady && VideoView ? (
+          <VideoView
+            canvas={{ uid: 0, sourceType: VideoSourceType.VideoSourceCamera }}
+            style={StyleSheet.absoluteFill}
+          />
+        ) : null}
+        {isNative && !cameraReady ? (
+          <View style={styles.cameraPreviewStatus}>
+            {!cameraError ? (
+              <ActivityIndicator color={catColor} />
+            ) : (
+              <Ionicons name="videocam-off" size={40} color={catColor} />
+            )}
+            <Text style={styles.fullScreenCameraStatusText}>
+              {cameraError ?? "Preparing camera…"}
+            </Text>
+            {cameraError ? (
+              <TouchableOpacity
+                style={[styles.cameraRetryBtn, { backgroundColor: catColor }]}
+                onPress={() => {
+                  if (!permissionCanAskAgain) {
+                    void Linking.openSettings().catch(() => {
+                      setCameraError("Open Android settings and allow camera and microphone access.");
+                    });
+                    return;
+                  }
+                  setPermissionRetryCount((count) => count + 1);
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.cameraRetryText}>
+                  {permissionCanAskAgain ? "Try Again" : "Open Settings"}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        ) : !isNative ? (
+          <DemoCamera color={catColor} />
+        ) : null}
+      </View>
+      <View pointerEvents="none" style={styles.setupShade} />
+
       <TouchableOpacity
         style={[styles.closeBtn, { top: topPad + 12 }]}
         onPress={() => router.back()}
         activeOpacity={0.8}
       >
-        <Ionicons name="close" size={20} color={colors.foreground} />
+        <Ionicons name="arrow-back" size={24} color="#FFF" />
       </TouchableOpacity>
 
-      <ScrollView
-        contentContainerStyle={[
-          styles.setupContent,
-          { paddingTop: topPad + 60, paddingBottom: bottomPad + 24 },
-        ]}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={styles.setupOverlay}
+        behavior="padding"
+        keyboardVerticalOffset={0}
       >
-        <View style={styles.inputSection}>
-          <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Stream title</Text>
-          <TextInput
-            style={[
-              styles.titleInput,
-              {
-                color: colors.foreground,
-                borderColor: title ? catColor : colors.border,
-                backgroundColor: colors.card,
-              },
-            ]}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="What are you streaming today?"
-            placeholderTextColor={colors.mutedForeground}
-            maxLength={80}
-            returnKeyType="done"
-          />
-        </View>
-
-        <View style={styles.inputSection}>
-          <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>
-            Stream background
-          </Text>
-          <TouchableOpacity
-            style={[
-              styles.backgroundPicker,
-              { borderColor: user.streamBackgroundImagePath ? catColor : colors.border },
-            ]}
-            onPress={() => void chooseStreamBackground()}
-            disabled={isUploadingBackground}
-            activeOpacity={0.85}
+        <View style={[styles.setupBottomDock, { paddingBottom: bottomPad + 18 }]}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.compactCategoryRow}
           >
-            {user.streamBackgroundImageUrl ? (
-              <Image
-                source={{ uri: user.streamBackgroundImageUrl }}
-                style={StyleSheet.absoluteFill}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={[styles.backgroundPickerEmpty, { backgroundColor: colors.card }]}>
-                <Ionicons name="image-outline" size={34} color={colors.mutedForeground} />
-                <Text style={[styles.backgroundPickerEmptyText, { color: colors.mutedForeground }]}>
-                  Add the image shown behind your live preview
-                </Text>
-              </View>
-            )}
-            <View style={styles.backgroundPickerAction}>
-              {isUploadingBackground ? (
-                <ActivityIndicator color="#FFF" size="small" />
-              ) : (
-                <>
-                  <Ionicons
-                    name={user.streamBackgroundImagePath ? "camera-outline" : "add"}
-                    size={17}
-                    color="#FFF"
-                  />
-                  <Text style={styles.backgroundPickerActionText}>
-                    {user.streamBackgroundImagePath ? "Change image" : "Choose image"}
-                  </Text>
-                </>
-              )}
-            </View>
-          </TouchableOpacity>
-          {!user.streamBackgroundImagePath ? (
-            <Text style={[styles.backgroundRequired, { color: colors.mutedForeground }]}>
-              Required before you can go live
-            </Text>
-          ) : null}
-        </View>
-
-        <View style={[styles.cameraPreview, { backgroundColor: catColor + "22", borderColor: catColor + "55" }]}>
-          {isNative && cameraViewReady && VideoView ? (
-            <VideoView
-              canvas={{ uid: 0, sourceType: VideoSourceType.VideoSourceCamera }}
-              style={StyleSheet.absoluteFill}
-            />
-          ) : null}
-          {isNative && !cameraReady ? (
-            <View style={styles.cameraPreviewStatus}>
-              {!cameraError ? (
-                <ActivityIndicator color={catColor} />
-              ) : (
-                <Ionicons name="videocam-off" size={40} color={catColor} />
-              )}
-              <Text style={[styles.cameraPreviewText, { color: colors.mutedForeground }]}>
-                {cameraError ?? "Preparing camera…"}
-              </Text>
-              {cameraError ? (
-                <TouchableOpacity
-                  style={[styles.cameraRetryBtn, { backgroundColor: catColor }]}
-                  onPress={() => {
-                    if (!permissionCanAskAgain) {
-                      void Linking.openSettings().catch(() => {
-                        setCameraError("Open Android settings and allow camera and microphone access.");
-                      });
-                      return;
-                    }
-                    setPermissionRetryCount((count) => count + 1);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.cameraRetryText}>
-                    {permissionCanAskAgain ? "Try Again" : "Open Settings"}
-                  </Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          ) : !isNative ? (
-            <View style={styles.cameraPreviewStatus}>
-              <Ionicons name="radio" size={40} color={catColor} />
-              <Text style={[styles.cameraPreviewText, { color: colors.mutedForeground }]}>
-                Camera preview requires a native build
-              </Text>
-            </View>
-          ) : null}
-        </View>
-        {isNative ? (
-          <View
-            style={[
-              styles.cameraDiagnosticPanel,
-              cameraError ? styles.cameraDiagnosticPanelError : null,
-            ]}
-          >
-            <Ionicons
-              name={cameraError ? "warning-outline" : cameraReady ? "checkmark-circle-outline" : "time-outline"}
-              size={18}
-              color={cameraError ? "#FF6B6B" : cameraReady ? "#00C896" : "#FFD166"}
-            />
-            <Text style={styles.cameraDiagnosticText}>
-              <Text style={styles.cameraDiagnosticLabel}>Message: </Text>
-              {cameraError ?? cameraDiagnostic}
-            </Text>
-          </View>
-        ) : null}
-
-        <Text style={[styles.setupTitle, { color: colors.foreground }]}>
-          Start your stream
-        </Text>
-        <Text style={[styles.setupSubtitle, { color: colors.mutedForeground }]}>
-          {isNative ? "Choose a category and go live" : "Demo mode — stream info saved, no camera on web"}
-        </Text>
-
-        <View style={styles.inputSection}>
-          <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Category</Text>
-          <View style={styles.categoryGrid}>
             {CATEGORIES.map((cat) => {
               const selected = category === cat;
-              const cc = CATEGORY_COLORS[cat] ?? colors.primary;
               return (
                 <TouchableOpacity
                   key={cat}
-                  style={[
-                    styles.categoryChip,
-                    {
-                      backgroundColor: selected ? cc + "33" : colors.card,
-                      borderColor: selected ? cc : colors.border,
-                    },
-                  ]}
+                  style={[styles.compactCategoryChip, selected ? styles.compactCategoryChipSelected : null]}
                   onPress={() => { setCategory(cat); Haptics.selectionAsync(); }}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.categoryChipText, { color: selected ? cc : colors.mutedForeground }]}>
-                    {cat}
-                  </Text>
+                  <Text style={[styles.compactCategoryText, selected ? styles.compactCategoryTextSelected : null]}>{cat}</Text>
                 </TouchableOpacity>
               );
             })}
-          </View>
-        </View>
+          </ScrollView>
 
-        {!isPrivateInvite ? (
-          <View style={styles.inputSection}>
-            <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Entry</Text>
-            <View style={styles.entryOptions}>
+          <View style={styles.setupMetaRow}>
+            <View style={styles.titleGlassCard}>
+              <Text style={styles.titleGlassLabel}>LIVE TITLE</Text>
+              <TextInput
+                style={styles.titleGlassInput}
+                value={title}
+                onChangeText={setTitle}
+                placeholder="What are you streaming today?"
+                placeholderTextColor="rgba(255,255,255,0.55)"
+                maxLength={80}
+                returnKeyType="done"
+              />
+              {selectedRequiredGift ? (
+                <Text style={styles.selectedGiftSummary}>
+                  {selectedRequiredGift.emoji} {selectedRequiredGift.name} · 🪙{selectedRequiredGift.coins}
+                </Text>
+              ) : null}
+            </View>
+            <TouchableOpacity
+              style={[styles.backgroundThumbnail, !user.streamBackgroundImagePath ? styles.backgroundThumbnailMissing : null]}
+              onPress={() => void chooseStreamBackground()}
+              disabled={isUploadingBackground}
+              activeOpacity={0.85}
+            >
+              {user.streamBackgroundImageUrl ? (
+                <Image source={{ uri: user.streamBackgroundImageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+              ) : (
+                <Ionicons name="image-outline" size={28} color="#FFF" />
+              )}
+              <View style={styles.backgroundEditBadge}>
+                {isUploadingBackground ? (
+                  <ActivityIndicator color="#FFF" size="small" />
+                ) : (
+                  <Ionicons name={user.streamBackgroundImagePath ? "pencil" : "add"} size={15} color="#FFF" />
+                )}
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.modeSelector}>
+            {isPremium && requiredGiftId ? (
+              <>
+                <TouchableOpacity
+                  testID="stream-entry-free"
+                  style={styles.modeSecondary}
+                  onPress={() => {
+                    setIsPremium(false);
+                    setRequiredGiftId(null);
+                    Haptics.selectionAsync();
+                  }}
+                >
+                  <Text style={styles.modeSecondaryText}>Go Live</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  testID="go-live-submit"
+                  style={[styles.modePrimary, { backgroundColor: canStart ? "#FF1966" : "rgba(255,255,255,0.22)" }]}
+                  onPress={startLive}
+                  disabled={!canStart}
+                  activeOpacity={0.85}
+                >
+                  {isStarting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.modePrimaryText}>Go Premium</Text>}
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <TouchableOpacity
+                  testID="go-live-submit"
+                  style={[styles.modePrimary, { backgroundColor: canStart ? catColor : "rgba(255,255,255,0.22)" }]}
+                  onPress={startLive}
+                  disabled={!canStart}
+                  activeOpacity={0.85}
+                >
+                  {isStarting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.modePrimaryText}>Go Live</Text>}
+                </TouchableOpacity>
+                {!isPrivateInvite ? (
+                  <TouchableOpacity
+                    testID="stream-entry-premium"
+                    style={styles.modeSecondary}
+                    onPress={() => {
+                      setIsPremium(true);
+                      setShowPremiumGiftSheet(true);
+                      Haptics.selectionAsync();
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="key" size={17} color="#FFF" />
+                    <Text style={styles.modeSecondaryText}>Premium</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </>
+            )}
+          </View>
+          {!user.streamBackgroundImagePath ? (
+            <Text style={styles.setupRequirementText}>Add a background image before going live</Text>
+          ) : null}
+        </View>
+      </KeyboardAvoidingView>
+
+      <Modal
+        visible={showPremiumGiftSheet}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => {
+          setShowPremiumGiftSheet(false);
+          if (!requiredGiftId) setIsPremium(false);
+        }}
+      >
+        <View style={styles.giftSheetBackdrop}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => {
+              setShowPremiumGiftSheet(false);
+              if (!requiredGiftId) setIsPremium(false);
+            }}
+          />
+          <View style={[styles.giftSheet, { paddingBottom: bottomPad + 18 }]}>
+            <View style={styles.giftSheetGrabber} />
+            <View style={styles.giftSheetHeader}>
+              <View>
+                <Text style={styles.giftSheetTitle}>Choose an entry gift</Text>
+                <Text style={styles.giftSheetSubtitle}>Viewers send this gift to enter your Premium live.</Text>
+              </View>
               <TouchableOpacity
-                testID="stream-entry-free"
-                style={[styles.entryOption, { backgroundColor: !isPremium ? catColor + "26" : colors.card, borderColor: !isPremium ? catColor : colors.border }]}
-                onPress={() => { setIsPremium(false); setRequiredGiftId(null); Haptics.selectionAsync(); }}
-                activeOpacity={0.8}
+                style={styles.giftSheetClose}
+                onPress={() => {
+                  setShowPremiumGiftSheet(false);
+                  if (!requiredGiftId) setIsPremium(false);
+                }}
               >
-                <Text style={[styles.entryOptionTitle, { color: !isPremium ? catColor : colors.foreground }]}>Free</Text>
-                <Text style={[styles.entryOptionSub, { color: colors.mutedForeground }]}>Anyone can watch</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                testID="stream-entry-premium"
-                style={[styles.entryOption, { backgroundColor: isPremium ? "#FFD70022" : colors.card, borderColor: isPremium ? "#FFD700" : colors.border }]}
-                onPress={() => { setIsPremium(true); Haptics.selectionAsync(); }}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.entryOptionTitle, { color: isPremium ? "#FFD700" : colors.foreground }]}>Premium</Text>
-                <Text style={[styles.entryOptionSub, { color: colors.mutedForeground }]}>Gift required to enter</Text>
+                <Ionicons name="close" size={20} color="#FFF" />
               </TouchableOpacity>
             </View>
-            {isPremium ? (
-              <View style={styles.requiredGiftGrid}>
-                {GIFTS.map((gift) => {
-                  const selected = requiredGiftId === gift.id;
-                  return (
-                    <TouchableOpacity
-                      key={gift.id}
-                      testID={`stream-required-gift-${gift.id}`}
-                      style={[styles.requiredGiftOption, { backgroundColor: selected ? "#FFD70020" : colors.card, borderColor: selected ? "#FFD700" : colors.border }]}
-                      onPress={() => { setRequiredGiftId(gift.id as CreateStreamRequestRequiredGiftId); Haptics.selectionAsync(); }}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.requiredGiftEmoji}>{gift.emoji}</Text>
-                      <Text style={[styles.requiredGiftText, { color: colors.foreground }]}>{gift.name} · 🪙{gift.coins}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            ) : null}
+            <ScrollView contentContainerStyle={styles.giftSheetGrid} showsVerticalScrollIndicator={false}>
+              {GIFTS.map((gift) => (
+                <TouchableOpacity
+                  key={gift.id}
+                  testID={`stream-required-gift-${gift.id}`}
+                  style={styles.giftSheetOption}
+                  onPress={() => {
+                    setRequiredGiftId(gift.id as CreateStreamRequestRequiredGiftId);
+                    setIsPremium(true);
+                    setShowPremiumGiftSheet(false);
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.giftSheetEmoji}>{gift.emoji}</Text>
+                  <Text style={styles.giftSheetGiftName}>{gift.name}</Text>
+                  <Text style={styles.giftSheetGiftCost}>🪙 {gift.coins}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
-        ) : null}
-
-        <TouchableOpacity
-          testID="go-live-submit"
-          style={[
-            styles.goLiveBtn,
-            {
-              backgroundColor:
-                title.trim() && cameraReady && user.streamBackgroundImagePath && (!isPremium || !!requiredGiftId)
-                  ? catColor
-                  : colors.muted,
-              opacity:
-                isStarting || isUploadingBackground || (isNative && !cameraReady)
-                  ? 0.7
-                  : 1,
-            },
-          ]}
-          onPress={startLive}
-          disabled={
-            !title.trim() ||
-            !user.streamBackgroundImagePath ||
-            isStarting ||
-            isUploadingBackground ||
-            (isNative && !cameraReady) ||
-            (isPremium && !requiredGiftId)
-          }
-          activeOpacity={0.85}
-        >
-          {isStarting ? (
-            <ActivityIndicator color="#FFF" size="small" />
-          ) : (
-            <>
-              <Ionicons name="radio" size={20} color="#FFF" />
-              <Text style={styles.goLiveBtnText}>
-                {!user.streamBackgroundImagePath
-                  ? "Add Background Image"
-                  : isNative && !cameraReady
-                    ? "Preparing Camera"
-                    : isNative
-                      ? "Go Live"
-                      : "Go Live (Demo)"}
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1213,6 +1183,239 @@ const styles = StyleSheet.create({
   demoCameraLabel: { fontSize: 18, fontWeight: "700", fontFamily: "Inter_700Bold" },
   demoCameraNote: { color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "Inter_400Regular" },
   setupContent: { alignItems: "center", paddingHorizontal: 24, gap: 20 },
+  setupCamera: {
+    ...StyleSheet.absoluteFill,
+    overflow: "hidden",
+  },
+  setupShade: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "transparent",
+    borderBottomWidth: 360,
+    borderBottomColor: "rgba(0,0,0,0.58)",
+  },
+  setupOverlay: {
+    ...StyleSheet.absoluteFill,
+    justifyContent: "flex-end",
+  },
+  setupBottomDock: {
+    paddingHorizontal: 14,
+    gap: 12,
+  },
+  compactCategoryRow: {
+    gap: 7,
+    paddingRight: 14,
+  },
+  compactCategoryChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: "rgba(0,0,0,0.34)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+  },
+  compactCategoryChipSelected: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderColor: "rgba(255,255,255,0.7)",
+  },
+  compactCategoryText: {
+    color: "rgba(255,255,255,0.65)",
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+  },
+  compactCategoryTextSelected: {
+    color: "#FFF",
+  },
+  setupMetaRow: {
+    minHeight: 104,
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 10,
+  },
+  titleGlassCard: {
+    flex: 1,
+    borderRadius: 17,
+    paddingHorizontal: 15,
+    paddingVertical: 13,
+    justifyContent: "center",
+    backgroundColor: "rgba(12,12,16,0.62)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+  },
+  titleGlassLabel: {
+    color: "rgba(255,255,255,0.58)",
+    fontSize: 10,
+    letterSpacing: 0.8,
+    fontFamily: "Inter_700Bold",
+  },
+  titleGlassInput: {
+    color: "#FFF",
+    fontSize: 17,
+    lineHeight: 23,
+    fontFamily: "Inter_600SemiBold",
+    paddingVertical: 5,
+    paddingHorizontal: 0,
+  },
+  selectedGiftSummary: {
+    color: "#FFD76A",
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+  },
+  backgroundThumbnail: {
+    width: 72,
+    borderRadius: 17,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.42)",
+  },
+  backgroundThumbnailMissing: {
+    borderStyle: "dashed",
+  },
+  backgroundEditBadge: {
+    position: "absolute",
+    right: 6,
+    bottom: 6,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.72)",
+  },
+  modeSelector: {
+    minHeight: 56,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  modePrimary: {
+    flex: 1,
+    minHeight: 54,
+    borderRadius: 27,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+  modePrimaryText: {
+    color: "#FFF",
+    fontSize: 17,
+    fontFamily: "Inter_700Bold",
+  },
+  modeSecondary: {
+    flex: 1,
+    minHeight: 54,
+    borderRadius: 27,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    paddingHorizontal: 18,
+    backgroundColor: "rgba(0,0,0,0.34)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+  },
+  modeSecondaryText: {
+    color: "#FFF",
+    fontSize: 16,
+    fontFamily: "Inter_600SemiBold",
+  },
+  setupRequirementText: {
+    color: "#FFD76A",
+    fontSize: 12,
+    textAlign: "center",
+    fontFamily: "Inter_600SemiBold",
+  },
+  fullScreenCameraStatusText: {
+    color: "rgba(255,255,255,0.82)",
+    fontSize: 14,
+    textAlign: "center",
+    paddingHorizontal: 28,
+    fontFamily: "Inter_500Medium",
+  },
+  giftSheetBackdrop: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.55)",
+  },
+  giftSheet: {
+    maxHeight: "68%",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 10,
+    paddingHorizontal: 18,
+    backgroundColor: "#17171D",
+  },
+  giftSheetGrabber: {
+    alignSelf: "center",
+    width: 42,
+    height: 5,
+    borderRadius: 3,
+    marginBottom: 17,
+    backgroundColor: "rgba(255,255,255,0.22)",
+  },
+  giftSheetHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  giftSheetTitle: {
+    color: "#FFF",
+    fontSize: 22,
+    fontFamily: "Inter_700Bold",
+  },
+  giftSheetSubtitle: {
+    color: "rgba(255,255,255,0.58)",
+    fontSize: 12,
+    marginTop: 4,
+    maxWidth: 290,
+    fontFamily: "Inter_400Regular",
+  },
+  giftSheetClose: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.1)",
+  },
+  giftSheetGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    paddingBottom: 8,
+  },
+  giftSheetOption: {
+    width: "31%",
+    minHeight: 112,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 10,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  giftSheetEmoji: {
+    fontSize: 31,
+    marginBottom: 6,
+  },
+  giftSheetGiftName: {
+    color: "#FFF",
+    fontSize: 12,
+    textAlign: "center",
+    fontFamily: "Inter_600SemiBold",
+  },
+  giftSheetGiftCost: {
+    color: "#FFD76A",
+    fontSize: 11,
+    marginTop: 4,
+    fontFamily: "Inter_600SemiBold",
+  },
   backgroundPicker: {
     width: "100%",
     height: 190,
