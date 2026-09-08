@@ -51,6 +51,7 @@ export default function DmScreen() {
   const [showPackPicker, setShowPackPicker] = useState(false);
   const [showMediaChooser, setShowMediaChooser] = useState(false);
   const listRef = useRef<FlatList>(null);
+  const hasInitialScrolledRef = useRef(false);
 
   const coinBalanceQuery = useGetCoinBalance(
     { uid: user?.uid ?? 0 },
@@ -73,14 +74,16 @@ export default function DmScreen() {
   }, [peerIdStr, getMessages]);
 
   useEffect(() => {
+    hasInitialScrolledRef.current = false;
     markRead(peerIdStr);
   }, [peerIdStr, markRead]);
 
   useEffect(() => {
     if (messages.length > 0) {
+      markRead(peerIdStr);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
     }
-  }, [messages.length]);
+  }, [messages.length, markRead, peerIdStr]);
 
   const [sendError, setSendError] = useState<string | null>(null);
 
@@ -135,6 +138,11 @@ export default function DmScreen() {
         keyExtractor={(item) => item.messageId}
         contentContainerStyle={[styles.listContent, { paddingBottom: 8 }]}
         showsVerticalScrollIndicator={false}
+        onContentSizeChange={() => {
+          if (hasInitialScrolledRef.current || messages.length === 0) return;
+          hasInitialScrolledRef.current = true;
+          requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: false }));
+        }}
         renderItem={({ item }) => {
           const isMe = item.senderId === myUidStr;
           const isGift = item.text.startsWith("🎁");

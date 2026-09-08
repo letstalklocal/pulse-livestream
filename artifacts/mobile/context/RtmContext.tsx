@@ -117,7 +117,8 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
     if (!uidStr) return;
     // Invitation rows are deliberately refreshed by the DM poll so both
     // parties see accept/start/end transitions without reopening the thread.
-    if (syncedMessageIdsRef.current.has(message.id) && message.kind !== "private_stream_invitation") return;
+    const wasAlreadySynced = syncedMessageIdsRef.current.has(message.id);
+    if (wasAlreadySynced && message.kind !== "private_stream_invitation") return;
     syncedMessageIdsRef.current.add(message.id);
 
     const isIncoming = message.senderId !== uidStr;
@@ -144,7 +145,13 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
     if (priorIndex >= 0) messageStore[peerId]![priorIndex] = stored;
     else messageStore[peerId]!.push(stored);
     messageStore[peerId]!.sort((a, b) => a.ts - b.ts);
-    upsertConversation(peerId, peerName, message.kind === "private_stream_invitation" ? "Private live invitation" : message.kind === "media_pack" ? "Media pack" : message.kind === "media" ? "Media" : message.text, message.ts, isIncoming && unread ? 1 : 0);
+    upsertConversation(
+      peerId,
+      peerName,
+      message.kind === "private_stream_invitation" ? "Private live invitation" : message.kind === "media_pack" ? "Media pack" : message.kind === "media" ? "Media" : message.text,
+      message.ts,
+      isIncoming && unread && !wasAlreadySynced ? 1 : 0,
+    );
     setTick((tick) => tick + 1);
   }, [uidStr, upsertConversation]);
 
