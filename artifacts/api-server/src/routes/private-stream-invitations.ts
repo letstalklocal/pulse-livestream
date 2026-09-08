@@ -53,15 +53,18 @@ export async function expirePrivateInvitation(id: number, cancellation = false) 
     const status = cancellation ? "cancelled" : "expired";
     if (invitation.status === "accepted" && invitation.requiredGiftAmount > 0 && invitation.paidAt && !invitation.refundedAt) {
       const amount = invitation.requiredGiftAmount;
-      // Funds were held in invitation escrow; refund never depends on the streamer balance.
+      const [refund] = await tx.insert(coinTransactionsTable).values({
+        fromUserId: null, toUserId: invitation.invitedUserId, amount, type: "private_invitation_refund",
+        giftName: invitation.requiredGiftName, channelId: invitation.channelId, description: "Private invitation refund",
+        idempotencyKey: `private-invitation:${invitation.id}:refund`, balanceAfter: null,
+      }).onConflictDoNothing().returning();
+      // Claim the unique refund key before crediting, so even a future caller that
+      // misses the invitation lock cannot increase the balance twice.
+      if (!refund) return invitation;
       await tx.insert(coinBalancesTable).values({ userId: invitation.invitedUserId, balance: 0 }).onConflictDoNothing();
       const [recipient] = await tx.update(coinBalancesTable).set({ balance: sql`${coinBalancesTable.balance} + ${amount}`, updatedAt: now })
         .where(eq(coinBalancesTable.userId, invitation.invitedUserId)).returning();
-      await tx.insert(coinTransactionsTable).values({
-        fromUserId: null, toUserId: invitation.invitedUserId, amount, type: "private_invitation_refund",
-        giftName: invitation.requiredGiftName, channelId: invitation.channelId, description: "Private invitation refund",
-        idempotencyKey: `private-invitation:${invitation.id}:refund`, balanceAfter: recipient!.balance,
-      }).onConflictDoNothing();
+      await tx.update(coinTransactionsTable).set({ balanceAfter: recipient!.balance }).where(eq(coinTransactionsTable.id, refund.id));
       const [updated] = await tx.update(privateStreamInvitationsTable).set({ status, paymentStatus: "refunded", refundedAt: now, cancelledAt: cancellation ? now : undefined, updatedAt: now })
         .where(and(eq(privateStreamInvitationsTable.id, id), eq(privateStreamInvitationsTable.status, "accepted"), sql`${privateStreamInvitationsTable.refundedAt} is null`)).returning();
       return updated ?? invitation;
@@ -191,10 +194,13 @@ router.post("/private-stream-invitations/:id/:action", async (req, res): Promise
       )).limit(1))[0];
       if (!liveSession) return "no-session" as const;
       if (current.requiredGiftAmount > 0) {
+        const [settlement] = await tx.insert(coinTransactionsTable).values({ fromUserId: null, toUserId: current.streamerUserId, amount: current.requiredGiftAmount, type: "private_invitation_settlement", giftName: current.requiredGiftName, channelId: current.channelId, description: "Private invitation escrow settlement", idempotencyKey: `private-invitation:${current.id}:settlement`, balanceAfter: null })
+          .onConflictDoNothing().returning();
+        if (!settlement) return null;
         await tx.insert(coinBalancesTable).values({ userId: current.streamerUserId, balance: 0 }).onConflictDoNothing();
-        await tx.update(coinBalancesTable).set({ balance: sql`${coinBalancesTable.balance} + ${current.requiredGiftAmount}`, updatedAt: now })
-          .where(eq(coinBalancesTable.userId, current.streamerUserId));
-        await tx.insert(coinTransactionsTable).values({ fromUserId: null, toUserId: current.streamerUserId, amount: current.requiredGiftAmount, type: "private_invitation_settlement", giftName: current.requiredGiftName, channelId: current.channelId, description: "Private invitation escrow settlement", idempotencyKey: `private-invitation:${current.id}:settlement`, balanceAfter: null });
+        const [recipient] = await tx.update(coinBalancesTable).set({ balance: sql`${coinBalancesTable.balance} + ${current.requiredGiftAmount}`, updatedAt: now })
+          .where(eq(coinBalancesTable.userId, current.streamerUserId)).returning();
+        await tx.update(coinTransactionsTable).set({ balanceAfter: recipient!.balance }).where(eq(coinTransactionsTable.id, settlement.id));
       }
       return (await tx.update(privateStreamInvitationsTable).set({ status: "active", paymentStatus: current.requiredGiftAmount > 0 ? "settled" : "free", startedAt: now, updatedAt: now })
         .where(and(eq(privateStreamInvitationsTable.id, id), eq(privateStreamInvitationsTable.status, "accepted"))).returning())[0] ?? null;

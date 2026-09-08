@@ -10,7 +10,8 @@
   "scripts": {
     "push": "drizzle-kit push --config ./drizzle.config.ts",
     "push-force": "drizzle-kit push --force --config ./drizzle.config.ts",
-    "test:idempotency": "pnpm --filter @workspace/api-server run build && node ./tests/coin-idempotency.integration.mjs"
+    "test:idempotency": "pnpm --filter @workspace/api-server run build && node ./tests/coin-idempotency.integration.mjs",
+    "test:private-escrow": "node ./tests/private-invitation-escrow.integration.mjs"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",
