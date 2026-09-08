@@ -26,6 +26,12 @@ interface Stream {
   viewerCount: number;
   startedAt: string;
   category: string;
+  requiredGift: {
+    id: string;
+    name: string;
+    emoji: string;
+    coinCost: number;
+  } | null;
 }
 
 interface Props {
@@ -69,6 +75,11 @@ export function StreamCard({ stream, isVisible = false }: Props) {
       style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
       onPress={openStream}
       activeOpacity={0.85}
+      accessibilityLabel={
+        stream.requiredGift
+          ? `${stream.title}, Premium live, requires ${stream.requiredGift.coinCost.toLocaleString()} coins`
+          : stream.title
+      }
     >
       <View style={[styles.thumbnail, { backgroundColor: bg2 }]}>
         <View style={[styles.innerGlow, { backgroundColor: bg1 + "44" }]} />
@@ -89,6 +100,16 @@ export function StreamCard({ stream, isVisible = false }: Props) {
         <View style={[styles.categoryBadge, { backgroundColor: bg1 }]}>
           <Text style={styles.categoryText}>{stream.category.toUpperCase()}</Text>
         </View>
+
+        {stream.requiredGift ? (
+          <View style={[styles.premiumBadge, { backgroundColor: colors.accent }]}>
+            <Ionicons name="lock-closed" size={9} color={colors.accentForeground} />
+            <Text style={[styles.premiumText, { color: colors.accentForeground }]}>
+              PREMIUM · {stream.requiredGift.coinCost.toLocaleString()}
+            </Text>
+            <Ionicons name="logo-bitcoin" size={10} color={colors.accentForeground} />
+          </View>
+        ) : null}
 
         {/* Top-right: viewer count */}
         <View style={styles.viewerBadge}>
@@ -146,6 +167,22 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontFamily: "Inter_700Bold",
     letterSpacing: 0.5,
+  },
+  premiumBadge: {
+    position: "absolute",
+    top: 34,
+    left: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  premiumText: {
+    fontSize: 9,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 0.3,
   },
   viewerBadge: {
     position: "absolute",
