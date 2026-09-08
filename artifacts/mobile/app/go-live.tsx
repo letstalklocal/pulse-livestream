@@ -1000,23 +1000,6 @@ export default function GoLiveScreen() {
           </ScrollView>
 
           <View style={styles.setupMetaRow}>
-            <View style={styles.titleGlassCard}>
-              <Text style={styles.titleGlassLabel}>LIVE TITLE</Text>
-              <TextInput
-                style={styles.titleGlassInput}
-                value={title}
-                onChangeText={setTitle}
-                placeholder="What are you streaming today?"
-                placeholderTextColor="rgba(255,255,255,0.55)"
-                maxLength={80}
-                returnKeyType="done"
-              />
-              {selectedRequiredGift ? (
-                <Text style={styles.selectedGiftSummary}>
-                  {selectedRequiredGift.emoji} {selectedRequiredGift.name} · 🪙{selectedRequiredGift.coins}
-                </Text>
-              ) : null}
-            </View>
             <TouchableOpacity
               style={[styles.backgroundThumbnail, !user.streamBackgroundImagePath ? styles.backgroundThumbnailMissing : null]}
               onPress={() => void chooseStreamBackground()}
@@ -1036,6 +1019,23 @@ export default function GoLiveScreen() {
                 )}
               </View>
             </TouchableOpacity>
+            <View style={styles.titleGlassCard}>
+              <Text style={styles.titleGlassLabel}>LIVE TITLE</Text>
+              <TextInput
+                style={styles.titleGlassInput}
+                value={title}
+                onChangeText={setTitle}
+                placeholder="What are you streaming today?"
+                placeholderTextColor="rgba(255,255,255,0.55)"
+                maxLength={80}
+                returnKeyType="done"
+              />
+              {selectedRequiredGift ? (
+                <Text style={styles.selectedGiftSummary}>
+                  {selectedRequiredGift.emoji} {selectedRequiredGift.name} · 🪙{selectedRequiredGift.coins}
+                </Text>
+              ) : null}
+            </View>
           </View>
 
           <View style={styles.modeSelector}>
