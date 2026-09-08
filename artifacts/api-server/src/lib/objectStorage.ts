@@ -2,6 +2,9 @@ import { randomUUID } from "crypto";
 import { Storage } from "@google-cloud/storage";
 
 const endpoint = "http://127.0.0.1:1106";
+const GET_URL_CACHE_MS = 12 * 60 * 1000;
+const getUrlCache = new Map<string, { url: string; refreshAt: number }>();
+const pendingGetUrls = new Map<string, Promise<string>>();
 export const objectStorageClient = new Storage({
   credentials: { audience: "replit", subject_token_type: "access_token", token_url: `${endpoint}/token`, type: "external_account", credential_source: { url: `${endpoint}/credential`, format: { type: "json", subject_token_field_name: "access_token" } }, universe_domain: "googleapis.com" },
   projectId: "",
@@ -36,10 +39,27 @@ export async function createPrivateUploadUrl() {
   return { uploadUrl: await signed(`${privatePath()}/${name}`, "PUT"), objectPath: `/objects/${name}` };
 }
 export async function createPrivateGetUrl(path: string) {
-  return signed(objectName(path), "GET");
+  const cached = getUrlCache.get(path);
+  if (cached && cached.refreshAt > Date.now()) return cached.url;
+
+  const pending = pendingGetUrls.get(path);
+  if (pending) return pending;
+
+  const request = signed(objectName(path), "GET")
+    .then((url) => {
+      getUrlCache.set(path, { url, refreshAt: Date.now() + GET_URL_CACHE_MS });
+      return url;
+    })
+    .finally(() => {
+      pendingGetUrls.delete(path);
+    });
+  pendingGetUrls.set(path, request);
+  return request;
 }
 
 export async function deletePrivateObject(path: string) {
+  getUrlCache.delete(path);
+  pendingGetUrls.delete(path);
   const { bucketName, objectName: storedObjectName } = split(objectName(path));
   await objectStorageClient.bucket(bucketName).file(storedObjectName).delete({ ignoreNotFound: true });
 }
