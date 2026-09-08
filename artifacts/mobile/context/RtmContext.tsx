@@ -99,12 +99,14 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
       const idx = prev.findIndex((c) => c.peerId === peerId);
       if (idx >= 0) {
         const updated = [...prev];
+        const existing = updated[idx]!;
+        const isLatestMessage = ts >= existing.lastTs;
         updated[idx] = {
-          ...updated[idx]!,
-          peerName: peerName || updated[idx]!.peerName,
-          lastMessage: text,
-          lastTs: ts,
-          unread: updated[idx]!.unread + unreadDelta,
+          ...existing,
+          peerName: peerName || existing.peerName,
+          lastMessage: isLatestMessage ? text : existing.lastMessage,
+          lastTs: isLatestMessage ? ts : existing.lastTs,
+          unread: existing.unread + unreadDelta,
         };
         return updated.sort((a, b) => b.lastTs - a.lastTs);
       }
