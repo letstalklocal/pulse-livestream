@@ -1,20 +1,23 @@
 import type { WebSocket } from "ws";
 
+const viewers = new Map<WebSocket, number>();
 const channels = new Map<string, Set<WebSocket>>();
 
-export function subscribe(channelId: string, ws: WebSocket): void {
+export function subscribe(channelId: string, ws: WebSocket, viewerUid?: number): void {
   let sockets = channels.get(channelId);
   if (!sockets) {
     sockets = new Set();
     channels.set(channelId, sockets);
   }
   sockets.add(ws);
+  if (viewerUid != null) viewers.set(ws, viewerUid);
 }
 
 export function unsubscribe(channelId: string, ws: WebSocket): void {
   const sockets = channels.get(channelId);
   if (!sockets) return;
   sockets.delete(ws);
+  viewers.delete(ws);
   if (sockets.size === 0) channels.delete(channelId);
 }
 
@@ -43,4 +46,13 @@ export function pushStreamEnded(channelId: string): void {
 
 export function pushStreamUpdated(channelId: string): void {
   broadcast(channelId, { type: "stream_updated", channelId });
+}
+
+export function disconnectViewer(channelId: string, viewerUid: number) {
+  for (const ws of channels.get(channelId) ?? []) {
+    if (viewers.get(ws) === viewerUid && ws.readyState === 1) {
+      ws.send(JSON.stringify({ type: "stream_restricted", channelId }));
+      ws.close(1000, "Stream access changed");
+    }
+  }
 }

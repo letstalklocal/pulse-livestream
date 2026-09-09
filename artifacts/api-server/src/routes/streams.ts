@@ -1,3 +1,4 @@
+import { viewerModeration } from "../lib/streamModeration";
 import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
@@ -381,8 +382,13 @@ router.post("/streams", async (req, res) => {
   res.status(201).json({ stream: await toStreamResponse(stream) });
 });
 
+export function forgetViewer(channelId: string, uid: number) {
+  viewerPresence.get(channelId)?.delete(uid);
+  const stream = streams.get(channelId);
+  if (stream) stream.viewerCount = activeViewerIds(channelId).length;
+}
 const viewerPresence = new Map<string, Map<number, number>>();
-function activeViewerIds(channelId: string): number[] {
+export function activeViewerIds(channelId: string): number[] {
   const entries = viewerPresence.get(channelId);
   if (!entries) return [];
   for (const [uid, at] of entries) if (at < Date.now() - 45000) entries.delete(uid);
@@ -396,12 +402,16 @@ router.post("/streams/:channelId/presence", async (req, res) => {
   const stream = await getActiveRuntimeStream(req.params.channelId);
   if (!stream) return void res.status(404).json({ error: "Stream not found" });
   if (!await authorizePrivateStream(req, res, stream)) return;
+  const moderation = stream.sessionId ? await viewerModeration(stream.sessionId, stream.hostUid, viewer.uid) : null;
+  if (req.body?.action !== "leave" && (moderation?.removed || moderation?.blocked)) return void res.status(403).json({ error: "Stream access denied" });
   if (req.body?.action === "leave") viewerPresence.get(stream.channelId)?.delete(viewer.uid);
   else if (req.body?.action === "join" && viewer.uid !== stream.hostUid) {
     const entries = viewerPresence.get(stream.channelId) ?? new Map<number, number>();
     entries.set(viewer.uid, Date.now());
     viewerPresence.set(stream.channelId, entries);
   } else return void res.status(400).json({ error: "Invalid presence action" });
+  stream.viewerCount = activeViewerIds(stream.channelId).length;
+  stream.peakViewers = Math.max(stream.peakViewers, stream.viewerCount);
   res.json({ success: true });
 });
 
@@ -491,6 +501,8 @@ router.post("/streams/:channelId/admission", async (req, res) => {
     return;
   }
 
+  const moderation = await viewerModeration(stream.sessionId!, stream.hostUid, viewer.uid);
+  if (moderation.removed || moderation.blocked) return void res.status(403).json({ error: "Stream access denied" });
   if ((stream.premiumFreeViewerIds ?? []).includes(viewer.uid)) {
     const balance = (await db.select({ balance: coinBalancesTable.balance }).from(coinBalancesTable)
       .where(eq(coinBalancesTable.userId, viewer.uid)).limit(1))[0]?.balance ?? 0;
@@ -613,13 +625,15 @@ router.get("/streams/:channelId", async (req, res) => {
     return;
   }
   if (!await authorizePrivateStream(req, res, stream)) return;
-  const viewer = stream.requiredGift ? await currentUser(req) : null;
+  if (stream.sessionId) stream.viewerCount = activeViewerIds(stream.channelId).length;
+  const viewer = await currentUser(req);
+  const moderation = viewer && stream.sessionId ? await viewerModeration(stream.sessionId, stream.hostUid, viewer.uid) : { muted: false, removed: false, blocked: false };
   const viewerAdmitted = !stream.requiredGift || !!viewer && (
     viewer.uid === stream.hostUid || (stream.premiumFreeViewerIds ?? []).includes(viewer.uid) ||
     !!(await db.select({ id: premiumStreamAdmissionsTable.id }).from(premiumStreamAdmissionsTable)
       .where(and(eq(premiumStreamAdmissionsTable.sessionId, stream.sessionId!), eq(premiumStreamAdmissionsTable.viewerUserId, viewer.uid))).limit(1))[0]
   );
-  res.json({ stream: { ...await toStreamResponse(stream), viewerAdmitted } });
+  res.json({ stream: { ...await toStreamResponse(stream), viewerAdmitted, viewerMuted: moderation.muted, viewerRemoved: moderation.removed, viewerBlocked: moderation.blocked } });
 });
 
 router.delete("/streams/:channelId", async (req, res) => {
@@ -667,12 +681,10 @@ router.post("/streams/:channelId/viewers", async (req, res) => {
     return;
   }
 
-  const { action } = parsed.data;
-  if (action === "join") {
-    stream.viewerCount += 1;
+  // Presence is keyed by authenticated user, so reconnects cannot double-count.
+  if (stream.sessionId) {
+    stream.viewerCount = activeViewerIds(channelId).length;
     stream.peakViewers = Math.max(stream.peakViewers, stream.viewerCount);
-  } else if (action === "leave" && stream.viewerCount > 0) {
-    stream.viewerCount -= 1;
   }
 
   streams.set(channelId, stream);

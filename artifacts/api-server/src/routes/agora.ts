@@ -1,3 +1,5 @@
+import { canAccessChannel } from "../lib/privateChannelAccess";
+import { viewerModeration } from "../lib/streamModeration";
 import { Router } from "express";
 import { RtcTokenBuilder, RtcRole } from "agora-token";
 import { GenerateAgoraTokenBody } from "@workspace/api-zod";
@@ -33,6 +35,7 @@ router.post("/agora/token", async (req: any, res): Promise<any> => {
     if ((user.uid === invitation.streamerUserId && role !== "broadcaster") || (user.uid === invitation.invitedUserId && role !== "audience")) {
       return res.status(403).json({ error: "Private stream role denied" });
     }
+    if (!await canAccessChannel(channelName, clerkId)) return res.status(403).json({ error: "Private stream access denied" });
     tokenUid = user.uid;
   }
 
@@ -62,6 +65,8 @@ router.post("/agora/token", async (req: any, res): Promise<any> => {
       res.status(401).json({ error: "Authentication is required for live streams" });
       return;
     }
+    const moderation = await viewerModeration(session.id, session.hostUserId, user.uid);
+    if (moderation.removed || moderation.blocked) return res.status(403).json({ error: "You no longer have access to this stream" });
     if (role === "broadcaster") {
       if (user.uid !== session.hostUserId) {
         res.status(403).json({ error: "Only the host may broadcast this stream" });

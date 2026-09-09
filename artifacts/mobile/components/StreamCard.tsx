@@ -18,6 +18,7 @@ import { useColors } from "@/hooks/useColors";
 
 interface Stream {
   channelId: string;
+  rtcChannelName?: string | null;
   hostUid: number;
   hostName: string;
   hostAvatarUrl?: string | null;
@@ -94,7 +95,7 @@ export function StreamCard({ stream, isVisible = false }: Props) {
         ) : null}
 
         {/* Live video preview — 5s each time the card enters the viewport */}
-        <LivePreviewThumbnail channelId={stream.channelId} hostUid={stream.hostUid} isVisible={isVisible} />
+        <LivePreviewThumbnail key={stream.rtcChannelName ?? stream.channelId} channelId={stream.channelId} hostUid={stream.hostUid} isVisible={isVisible} />
 
         {/* Top-left: category */}
         <View style={[styles.categoryBadge, { backgroundColor: bg1 }]}>

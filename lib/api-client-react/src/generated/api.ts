@@ -43,15 +43,18 @@ import type {
   GetCoinBalanceParams,
   GetFollowStatusParams,
   GetStreamChatParams,
+  GetStreamModeration200,
   HealthStatus,
   MediaPackMessageResponse,
   MediaPackResponse,
   MediaPackUploadRequest,
   MediaPackUploadResponse,
   MediaPacksResponse,
+  ModerateStreamViewerBody,
   PostListResponse,
   PostResponse,
   PrivateStreamInvitationResponse,
+  ReportStreamBody,
   SendChatMessageRequest,
   SendMediaDmRequest,
   SendMediaPackRequest,
@@ -531,6 +534,227 @@ export const useEndStream = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getEndStreamMutationOptions(options));
+    }
+
+export const getGetStreamModerationUrl = (channelId: string,) => {
+
+
+
+
+  return `/api/streams/${channelId}/moderation`
+}
+
+/**
+ * @summary Host viewer management list
+ */
+export const getStreamModeration = async (channelId: string, options?: RequestInit): Promise<GetStreamModeration200> => {
+
+  return customFetch<GetStreamModeration200>(getGetStreamModerationUrl(channelId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStreamModerationQueryKey = (channelId: string,) => {
+    return [
+    `/api/streams/${channelId}/moderation`
+    ] as const;
+    }
+
+
+export const getGetStreamModerationQueryOptions = <TData = Awaited<ReturnType<typeof getStreamModeration>>, TError = ErrorType<unknown>>(channelId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStreamModeration>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStreamModerationQueryKey(channelId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStreamModeration>>> = ({ signal }) => getStreamModeration(channelId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(channelId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStreamModeration>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStreamModerationQueryResult = NonNullable<Awaited<ReturnType<typeof getStreamModeration>>>
+export type GetStreamModerationQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Host viewer management list
+ */
+
+export function useGetStreamModeration<TData = Awaited<ReturnType<typeof getStreamModeration>>, TError = ErrorType<unknown>>(
+ channelId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStreamModeration>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStreamModerationQueryOptions(channelId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getModerateStreamViewerUrl = (channelId: string,) => {
+
+
+
+
+  return `/api/streams/${channelId}/moderation`
+}
+
+/**
+ * @summary Host moderation action
+ */
+export const moderateStreamViewer = async (channelId: string,
+    moderateStreamViewerBody: ModerateStreamViewerBody, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getModerateStreamViewerUrl(channelId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      moderateStreamViewerBody,)
+  }
+);}
+
+
+
+
+export const getModerateStreamViewerMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moderateStreamViewer>>, TError,{channelId: string;data: BodyType<ModerateStreamViewerBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof moderateStreamViewer>>, TError,{channelId: string;data: BodyType<ModerateStreamViewerBody>}, TContext> => {
+
+const mutationKey = ['moderateStreamViewer'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof moderateStreamViewer>>, {channelId: string;data: BodyType<ModerateStreamViewerBody>}> = (props) => {
+          const {channelId,data} = props ?? {};
+
+          return  moderateStreamViewer(channelId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ModerateStreamViewerMutationResult = NonNullable<Awaited<ReturnType<typeof moderateStreamViewer>>>
+    export type ModerateStreamViewerMutationBody = BodyType<ModerateStreamViewerBody>
+    export type ModerateStreamViewerMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Host moderation action
+ */
+export const useModerateStreamViewer = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moderateStreamViewer>>, TError,{channelId: string;data: BodyType<ModerateStreamViewerBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof moderateStreamViewer>>,
+        TError,
+        {channelId: string;data: BodyType<ModerateStreamViewerBody>},
+        TContext
+      > => {
+      return useMutation(getModerateStreamViewerMutationOptions(options));
+    }
+
+export const getReportStreamUrl = (channelId: string,) => {
+
+
+
+
+  return `/api/streams/${channelId}/reports`
+}
+
+/**
+ * @summary Submit a report for review
+ */
+export const reportStream = async (channelId: string,
+    reportStreamBody: ReportStreamBody, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getReportStreamUrl(channelId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      reportStreamBody,)
+  }
+);}
+
+
+
+
+export const getReportStreamMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportStream>>, TError,{channelId: string;data: BodyType<ReportStreamBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reportStream>>, TError,{channelId: string;data: BodyType<ReportStreamBody>}, TContext> => {
+
+const mutationKey = ['reportStream'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reportStream>>, {channelId: string;data: BodyType<ReportStreamBody>}> = (props) => {
+          const {channelId,data} = props ?? {};
+
+          return  reportStream(channelId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReportStreamMutationResult = NonNullable<Awaited<ReturnType<typeof reportStream>>>
+    export type ReportStreamMutationBody = BodyType<ReportStreamBody>
+    export type ReportStreamMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Submit a report for review
+ */
+export const useReportStream = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportStream>>, TError,{channelId: string;data: BodyType<ReportStreamBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reportStream>>,
+        TError,
+        {channelId: string;data: BodyType<ReportStreamBody>},
+        TContext
+      > => {
+      return useMutation(getReportStreamMutationOptions(options));
     }
 
 export const getConvertStreamToPremiumUrl = (channelId: string,) => {

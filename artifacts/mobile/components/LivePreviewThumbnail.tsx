@@ -161,7 +161,7 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
         });
         if (didUnmount) return;
 
-        const joinResult = engine.joinChannel(tokenData.token, channelId, tokenData.uid, {
+        const joinResult = engine.joinChannel(tokenData.token, tokenData.channelName, tokenData.uid, {
           clientRoleType: ClientRoleType.ClientRoleAudience,
           autoSubscribeVideo: true,
           autoSubscribeAudio: false,

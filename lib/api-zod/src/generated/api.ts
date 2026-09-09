@@ -44,6 +44,9 @@ export const ListStreamsResponse = zod.object({
   "streams": zod.array(zod.object({
   "channelId": zod.string(),
   "rtcChannelName": zod.string().optional().describe('Protected media channel; logical stream and chat ID remain unchanged.'),
+  "viewerMuted": zod.boolean().optional(),
+  "viewerRemoved": zod.boolean().optional(),
+  "viewerBlocked": zod.boolean().optional(),
   "viewerAdmitted": zod.boolean().optional().describe('Personalized admission status, included in stream detail responses only.'),
   "hostUid": zod.number(),
   "hostName": zod.string(),
@@ -90,6 +93,9 @@ export const GetStreamResponse = zod.object({
   "stream": zod.object({
   "channelId": zod.string(),
   "rtcChannelName": zod.string().optional().describe('Protected media channel; logical stream and chat ID remain unchanged.'),
+  "viewerMuted": zod.boolean().optional(),
+  "viewerRemoved": zod.boolean().optional(),
+  "viewerBlocked": zod.boolean().optional(),
   "viewerAdmitted": zod.boolean().optional().describe('Personalized admission status, included in stream detail responses only.'),
   "hostUid": zod.number(),
   "hostName": zod.string(),
@@ -123,6 +129,60 @@ export const EndStreamResponse = zod.object({
 
 
 /**
+ * @summary Host viewer management list
+ */
+export const GetStreamModerationParams = zod.object({
+  "channelId": zod.coerce.string()
+})
+
+export const GetStreamModerationResponse = zod.object({
+  "users": zod.array(zod.object({
+  "uid": zod.number(),
+  "name": zod.string(),
+  "avatarImageUrl": zod.string().nullish(),
+  "present": zod.boolean(),
+  "muted": zod.boolean(),
+  "removed": zod.boolean(),
+  "blocked": zod.boolean()
+}))
+})
+
+
+/**
+ * @summary Host moderation action
+ */
+export const ModerateStreamViewerParams = zod.object({
+  "channelId": zod.coerce.string()
+})
+
+export const ModerateStreamViewerBody = zod.object({
+  "viewerUid": zod.number(),
+  "action": zod.enum(['mute', 'unmute', 'remove', 'allow', 'block', 'unblock'])
+})
+
+export const ModerateStreamViewerResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Submit a report for review
+ */
+export const ReportStreamParams = zod.object({
+  "channelId": zod.coerce.string()
+})
+
+export const reportStreamBodyDetailsMax = 2000;
+
+
+
+export const ReportStreamBody = zod.object({
+  "reason": zod.enum(['harassment', 'spam', 'sexual_content', 'violence', 'child_safety', 'other']),
+  "details": zod.string().max(reportStreamBodyDetailsMax).optional()
+})
+
+
+/**
  * @summary Convert the host's active stream to Premium
  */
 export const ConvertStreamToPremiumParams = zod.object({
@@ -142,6 +202,9 @@ export const ConvertStreamToPremiumResponse = zod.object({
   "stream": zod.object({
   "channelId": zod.string(),
   "rtcChannelName": zod.string().optional().describe('Protected media channel; logical stream and chat ID remain unchanged.'),
+  "viewerMuted": zod.boolean().optional(),
+  "viewerRemoved": zod.boolean().optional(),
+  "viewerBlocked": zod.boolean().optional(),
   "viewerAdmitted": zod.boolean().optional().describe('Personalized admission status, included in stream detail responses only.'),
   "hostUid": zod.number(),
   "hostName": zod.string(),
@@ -387,6 +450,9 @@ export const UpdateViewerCountResponse = zod.object({
   "stream": zod.object({
   "channelId": zod.string(),
   "rtcChannelName": zod.string().optional().describe('Protected media channel; logical stream and chat ID remain unchanged.'),
+  "viewerMuted": zod.boolean().optional(),
+  "viewerRemoved": zod.boolean().optional(),
+  "viewerBlocked": zod.boolean().optional(),
   "viewerAdmitted": zod.boolean().optional().describe('Personalized admission status, included in stream detail responses only.'),
   "hostUid": zod.number(),
   "hostName": zod.string(),

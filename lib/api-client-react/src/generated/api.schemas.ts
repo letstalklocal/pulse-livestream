@@ -142,6 +142,9 @@ export interface Stream {
   channelId: string;
   /** Protected media channel; logical stream and chat ID remain unchanged. */
   rtcChannelName?: string;
+  viewerMuted?: boolean;
+  viewerRemoved?: boolean;
+  viewerBlocked?: boolean;
   /** Personalized admission status, included in stream detail responses only. */
   viewerAdmitted?: boolean;
   hostUid: number;
@@ -543,6 +546,56 @@ export interface UnlockMediaDmResponse {
   unlocked: boolean;
   mediaUrl?: string;
 }
+
+export type GetStreamModeration200UsersItem = {
+  uid: number;
+  name: string;
+  /** @nullable */
+  avatarImageUrl?: string | null;
+  present: boolean;
+  muted: boolean;
+  removed: boolean;
+  blocked: boolean;
+};
+
+export type GetStreamModeration200 = {
+  users: GetStreamModeration200UsersItem[];
+};
+
+export type ModerateStreamViewerBodyAction = typeof ModerateStreamViewerBodyAction[keyof typeof ModerateStreamViewerBodyAction];
+
+
+export const ModerateStreamViewerBodyAction = {
+  mute: 'mute',
+  unmute: 'unmute',
+  remove: 'remove',
+  allow: 'allow',
+  block: 'block',
+  unblock: 'unblock',
+} as const;
+
+export type ModerateStreamViewerBody = {
+  viewerUid: number;
+  action: ModerateStreamViewerBodyAction;
+};
+
+export type ReportStreamBodyReason = typeof ReportStreamBodyReason[keyof typeof ReportStreamBodyReason];
+
+
+export const ReportStreamBodyReason = {
+  harassment: 'harassment',
+  spam: 'spam',
+  sexual_content: 'sexual_content',
+  violence: 'violence',
+  child_safety: 'child_safety',
+  other: 'other',
+} as const;
+
+export type ReportStreamBody = {
+  reason: ReportStreamBodyReason;
+  /** @maxLength 2000 */
+  details?: string;
+};
 
 export type ConvertStreamToPremiumBody = {
   requiredGiftId: string;

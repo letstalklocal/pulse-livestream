@@ -8,3 +8,4 @@ export * from "./direct-messages";
 export * from "./private-stream-invitations";
 export * from "./media-packs";
 export * from "./posts";
+export * from "./stream-moderation";

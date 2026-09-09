@@ -149,6 +149,90 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /streams/{channelId}/moderation:
+    get:
+      operationId: getStreamModeration
+      tags: [streams]
+      summary: Host viewer management list
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Current and restricted viewers
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [users]
+                properties:
+                  users:
+                    type: array
+                    items:
+                      type: object
+                      required: [uid, name, present, muted, removed, blocked]
+                      properties:
+                        uid: { type: integer }
+                        name: { type: string }
+                        avatarImageUrl: { type: [string, "null"] }
+                        present: { type: boolean }
+                        muted: { type: boolean }
+                        removed: { type: boolean }
+                        blocked: { type: boolean }
+    post:
+      operationId: moderateStreamViewer
+      tags: [streams]
+      summary: Host moderation action
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [viewerUid, action]
+              properties:
+                viewerUid: { type: integer }
+                action: { type: string, enum: [mute, unmute, remove, allow, block, unblock] }
+      responses:
+        "200":
+          description: Moderation updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SuccessResponse" }
+  /streams/{channelId}/reports:
+    post:
+      operationId: reportStream
+      tags: [streams]
+      summary: Submit a report for review
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, enum: [harassment, spam, sexual_content, violence, child_safety, other] }
+                details: { type: string, maxLength: 2000 }
+      responses:
+        "201":
+          description: Report saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SuccessResponse" }
+
   /streams/{channelId}/premium:
     post:
       operationId: convertStreamToPremium
@@ -1009,6 +1093,9 @@ components:
         rtcChannelName:
           type: string
           description: Protected media channel; logical stream and chat ID remain unchanged.
+        viewerMuted: { type: boolean }
+        viewerRemoved: { type: boolean }
+        viewerBlocked: { type: boolean }
         viewerAdmitted:
           type: boolean
           description: Personalized admission status, included in stream detail responses only.

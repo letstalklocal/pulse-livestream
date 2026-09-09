@@ -27,7 +27,7 @@ import { StreamCard } from "@/components/StreamCard";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
-const CATEGORIES = ["All", "Gaming", "Music", "Talk", "Art"];
+const CATEGORIES = ["All", "Premium", "Gaming", "Music", "Talk", "Art"];
 
 export default function DiscoveryScreen() {
   const colors = useColors();
@@ -85,7 +85,7 @@ export default function DiscoveryScreen() {
   const filtered =
     selectedCategory === "All"
       ? feedStreams
-      : feedStreams.filter((s) => s.category === selectedCategory);
+      : feedStreams.filter((s) => selectedCategory === "Premium" ? !!s.requiredGift : s.category === selectedCategory);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 

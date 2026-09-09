@@ -11,6 +11,9 @@ export interface Stream {
   channelId: string;
   /** Protected media channel; logical stream and chat ID remain unchanged. */
   rtcChannelName?: string;
+  viewerMuted?: boolean;
+  viewerRemoved?: boolean;
+  viewerBlocked?: boolean;
   /** Personalized admission status, included in stream detail responses only. */
   viewerAdmitted?: boolean;
   hostUid: number;

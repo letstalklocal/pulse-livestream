@@ -75,11 +75,12 @@ router.get("/dms/:uid", async (req, res): Promise<any> => {
   const rows = await db.select().from(directMessagesTable).where(or(eq(directMessagesTable.fromUserId, uid), eq(directMessagesTable.toUserId, uid))).orderBy(desc(directMessagesTable.createdAt), desc(directMessagesTable.id)).limit(HISTORY_LIMIT);
   const userIds = [...new Set(rows.flatMap((message) => [message.fromUserId, message.toUserId]))];
   const invitationIds = rows.flatMap((message) => message.privateStreamInvitationId ? [message.privateStreamInvitationId] : []);
-  const [users, purchases, invitations] = await Promise.all([
+  const [users, purchases, invitationRows] = await Promise.all([
     userIds.length ? db.select({ uid: usersTable.uid, name: usersTable.name }).from(usersTable).where(inArray(usersTable.uid, userIds)) : [],
     rows.length ? db.select({ messageId: directMediaPurchasesTable.messageId }).from(directMediaPurchasesTable).where(and(eq(directMediaPurchasesTable.buyerUserId, viewer.uid), inArray(directMediaPurchasesTable.messageId, rows.map((x) => x.id)))) : [],
     invitationIds.length ? db.select().from(privateStreamInvitationsTable).where(inArray(privateStreamInvitationsTable.id, invitationIds)) : [],
   ]);
+  const invitations: (typeof privateStreamInvitationsTable.$inferSelect)[] = invitationRows;
   const names = new Map(users.map((user) => [user.uid, user.name]));
   const purchased = new Set(purchases.map((purchase) => purchase.messageId));
    const expiredInvitationIds = invitations

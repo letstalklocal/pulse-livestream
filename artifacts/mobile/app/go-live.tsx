@@ -1,3 +1,4 @@
+import { ViewerManagementSheet } from "@/components/ViewerManagementSheet";
 import { useStreamSocket } from "@/hooks/useStreamSocket";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth as useClerkAuth } from "@clerk/expo";
@@ -214,11 +215,11 @@ export default function GoLiveScreen() {
         if (isNative) await switchBroadcastChannel(engine, token.token, token.channelName, user!.uid, isMuted, stillActive);
         if (!stillActive()) return;
         mediaChannelRef.current = token.channelName;
-        setIsPremium(true);
+        setIsPremium(!!liveStreamData?.stream.requiredGift);
         setCameraError(null);
       } catch (error) {
         if (isLiveRef.current && !isStoppingRef.current) {
-          setCameraError(error instanceof Error ? error.message : "Could not connect to Premium. Retrying…");
+          setCameraError(error instanceof Error ? error.message : "Could not reconnect live video. Retrying…");
           mediaRetryTimerRef.current = setTimeout(() => setMediaRetry(attempt => attempt + 1), 2000);
         }
       } finally {
@@ -263,6 +264,7 @@ export default function GoLiveScreen() {
     }
   };
 
+  const [showViewerManagement, setShowViewerManagement] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   // WebSocket push — server sends earnings + gift events in real time
@@ -291,6 +293,9 @@ export default function GoLiveScreen() {
             giftName?: string;
             senderName?: string;
           };
+          if (msg.type === "stream_updated") {
+            void queryClient.invalidateQueries({ queryKey: getGetStreamQueryKey(activeChannelId) });
+          }
           if (msg.type === "earnings" && typeof msg.coins === "number") {
             const coins = msg.coins;
             setRealtimeEarnings(previous => ({
@@ -666,6 +671,7 @@ export default function GoLiveScreen() {
     setRequiredGiftId(null);
     setDraftRequiredGiftId(null);
     setShowLeaderboard(false);
+    setShowViewerManagement(false);
     setShowChat(false);
     setChatText("");
     setChatMessages([]);
@@ -924,10 +930,10 @@ export default function GoLiveScreen() {
                 >
                   <Text style={styles.viewerPillText}>🪙 {streamCoins.toLocaleString()}</Text>
                 </TouchableOpacity>
-                <View style={styles.viewerPill}>
+                <TouchableOpacity style={styles.viewerPill} disabled={isPrivateInvite} onPress={() => setShowViewerManagement(true)} accessibilityLabel="Manage viewers">
                   <Ionicons name="eye" size={13} color="#FFF" />
                   <Text style={styles.viewerPillText}>{viewerCount}</Text>
-                </View>
+                </TouchableOpacity>
               </View>
             </View>
           </View>
@@ -1013,6 +1019,7 @@ export default function GoLiveScreen() {
           </View>
         </KeyboardAvoidingView>
 
+        {showViewerManagement ? <ViewerManagementSheet channelId={activeChannelId} onClose={() => setShowViewerManagement(false)} onProfile={(uid, name) => router.push({ pathname: "/profile/[hostUid]", params: { hostUid: String(uid), name } })} /> : null}
         {showLivePremium ? <LivePremiumSheet channelId={activeChannelId} onClose={() => setShowLivePremium(false)} onConfirm={convertLiveToPremium} /> : null}
         <GiftLeaderboard
           channelId={channelIdRef.current}

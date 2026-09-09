@@ -1,3 +1,4 @@
+import { ReportStreamSheet } from "@/components/ReportStreamSheet";
 import { useStreamSocket } from "@/hooks/useStreamSocket";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth as useClerkAuth } from "@clerk/expo";
@@ -168,6 +169,8 @@ export default function StreamScreen() {
   const [likeCount, setLikeCount] = useState(Math.floor(Math.random() * 500) + 50);
   const [showGiftPicker, setShowGiftPicker] = useState(false);
   const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
+  const [showReport, setShowReport] = useState(false);
+  const [restrictedByEvent, setRestrictedByEvent] = useState(false);
   const [showKebabMenu, setShowKebabMenu] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [streamEnded, setStreamEnded] = useState(false);
@@ -223,7 +226,12 @@ export default function StreamScreen() {
   // its server details so a Premium requirement cannot be bypassed.
   const streamDetailsLoaded = isDemo || !!stream;
   const hasAdmission = admitted || stream?.viewerAdmitted === true;
-  const canEnterStream = streamDetailsLoaded && (!requiresAdmission || hasAdmission);
+  const accessRestricted = restrictedByEvent || !!stream?.viewerRemoved || !!stream?.viewerBlocked;
+  useEffect(() => { setRestrictedByEvent(false); }, [channelId]);
+  useEffect(() => {
+    if (stream) setRestrictedByEvent(!!stream.viewerRemoved || !!stream.viewerBlocked);
+  }, [stream]);
+  const canEnterStream = !accessRestricted && streamDetailsLoaded && (!requiresAdmission || hasAdmission);
   const { data: privateInvitationData } = useGetPrivateStreamInvitation(
     privateInvitationIdNumber,
     {
@@ -455,7 +463,7 @@ export default function StreamScreen() {
 
   useStreamSocket({
     channelId: channelId ?? "",
-    enabled: !!channelId && !isDemo,
+    enabled: !!channelId && !isDemo && !accessRestricted,
     onConnect: () => {
       void streamEarningsQuery.refetch();
       void queryClient.invalidateQueries({ queryKey: getGetStreamQueryKey(channelId ?? "") });
@@ -468,7 +476,10 @@ export default function StreamScreen() {
             giftName?: string;
             senderName?: string;
           };
-          if (msg.type === "stream_updated") {
+          if (msg.type === "stream_restricted") {
+            setRestrictedByEvent(true);
+            void queryClient.invalidateQueries({ queryKey: getGetStreamQueryKey(channelId ?? "") });
+          } else if (msg.type === "stream_updated") {
             void queryClient.invalidateQueries({ queryKey: getGetStreamQueryKey(channelId ?? "") });
           } else if (msg.type === "stream_ended") {
             streamEndedRef.current = true;
@@ -764,6 +775,7 @@ export default function StreamScreen() {
   });
 
   const sendMessage = () => {
+    if (stream?.viewerMuted || accessRestricted) return;
     const text = inputText.trim();
     if (!text) return;
     setInputText("");
@@ -787,8 +799,8 @@ export default function StreamScreen() {
           ].slice(-100);
         });
         void queryClient.invalidateQueries({ queryKey: getGetStreamChatQueryKey(channelId) });
-      }).catch(() => {
-        Alert.alert("Message not sent", "Check your connection and try again.");
+      }).catch(error => {
+        Alert.alert("Message not sent", error instanceof Error ? error.message : "Check your connection and try again.");
       });
     }
   };
@@ -798,6 +810,16 @@ export default function StreamScreen() {
 
   const VideoView = RtcSurfaceViewComponent;
   const showNativeVideo = isNative && joined && remoteUid !== null && VideoView;
+
+  if (accessRestricted) {
+    return <View style={[styles.endedScreen, { padding: 24 }]}>
+      <Ionicons name="lock-closed-outline" size={40} color="#FFF" />
+      <Text style={styles.endedTitle}>{stream?.viewerBlocked ? "Blocked from this creator's streams" : "Removed from this stream"}</Text>
+      <TouchableOpacity onPress={() => router.back()} style={{ padding: 16 }}><Text style={{ color: "#FF1966", fontSize: 16 }}>Back to streams</Text></TouchableOpacity>
+      <TouchableOpacity onPress={() => setShowReport(true)} style={{ padding: 12 }}><Text style={{ color: "#AAA" }}>Report stream</Text></TouchableOpacity>
+      {showReport ? <ReportStreamSheet channelId={channelId ?? ""} onClose={() => setShowReport(false)} /> : null}
+    </View>;
+  }
 
   if (streamEnded) {
     return (
@@ -954,7 +976,8 @@ export default function StreamScreen() {
             style={styles.chatInput}
             value={inputText}
             onChangeText={setInputText}
-            placeholder="Say something…"
+            editable={!stream?.viewerMuted}
+            placeholder={stream?.viewerMuted ? "Chat muted by host" : "Say something…"}
             placeholderTextColor="rgba(255,255,255,0.45)"
             onSubmitEditing={sendMessage}
             returnKeyType="send"
@@ -1101,6 +1124,7 @@ export default function StreamScreen() {
         <StreamBackdrop {...transitionBackground} />
       </Animated.View>
     )}
+    {showReport ? <ReportStreamSheet channelId={channelId ?? ""} onClose={() => setShowReport(false)} /> : null}
     {/* Kebab menu */}
     <Modal
       transparent
@@ -1135,7 +1159,8 @@ export default function StreamScreen() {
                 activeOpacity={0.7}
                 onPress={() => {
                   setShowKebabMenu(false);
-                  Alert.alert("Report", "Thank you for your report. Our team will review this stream shortly.", [{ text: "OK" }]);
+                  if (isDemo) { Alert.alert("Demo stream", "This is a demo, not a live creator stream."); return; }
+                  setShowReport(true);
                 }}
               >
                 <Ionicons name="flag-outline" size={20} color="#FF453A" />
