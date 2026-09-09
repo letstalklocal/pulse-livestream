@@ -1,3 +1,4 @@
+import { useStreamSocket } from "@/hooks/useStreamSocket";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth as useClerkAuth } from "@clerk/expo";
 import * as ImagePicker from "expo-image-picker";
@@ -28,12 +29,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   type CreateStreamRequestRequiredGiftId,
   getListStreamsQueryKey,
+  getGetStreamQueryKey,
+  convertStreamToPremium,
+  getStream,
   getGetStreamChatQueryKey,
   useCreateStream,
   useActOnPrivateStreamInvitation,
   useEndStream,
   useGenerateAgoraToken,
   useGetStream,
+  useGetStreamEarnings,
   useGetStreamChat,
   useHeartbeatStream,
   useRequestStreamBackgroundUpload,
@@ -54,6 +59,8 @@ import {
 import { setIsBroadcasting } from "@/utils/agoraState";
 import { GiftFloater, type FloatingGift } from "@/components/GiftFloater";
 import { GIFTS } from "@/components/GiftPicker";
+import { LivePremiumSheet } from "@/components/LivePremiumSheet";
+import { switchBroadcastChannel } from "@/utils/switchBroadcastChannel";
 import { GiftLeaderboard } from "@/components/GiftLeaderboard";
 
 const isNative = Platform.OS === "ios" || Platform.OS === "android";
@@ -140,6 +147,13 @@ export default function GoLiveScreen() {
   const [requiredGiftId, setRequiredGiftId] = useState<CreateStreamRequestRequiredGiftId>(null);
   const [draftRequiredGiftId, setDraftRequiredGiftId] = useState<CreateStreamRequestRequiredGiftId>(null);
   const [showPremiumGiftSheet, setShowPremiumGiftSheet] = useState(false);
+  const [showLivePremium, setShowLivePremium] = useState(false);
+  const [premiumConnecting, setPremiumConnecting] = useState(false);
+  const mediaChannelRef = useRef("");
+  const mediaSwitchBusyRef = useRef(false);
+  const [mediaRetry, setMediaRetry] = useState(0);
+  const mediaRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (mediaRetryTimerRef.current) clearTimeout(mediaRetryTimerRef.current); }, []);
   const [isLive, setIsLive] = useState(false);
   const [activeChannelId, setActiveChannelId] = useState("");
   const [isMuted, setIsMuted] = useState(false);
@@ -184,34 +198,90 @@ export default function GoLiveScreen() {
   });
   const viewerCount = liveStreamData?.stream?.viewerCount ?? 0;
 
+  // A converted stream keeps its logical ID, but moves publishing to protected media.
+  useEffect(() => {
+    const target = liveStreamData?.stream.rtcChannelName;
+    if (!isLive || !target || target === activeChannelId || target === mediaChannelRef.current || mediaSwitchBusyRef.current) return;
+    const engine = engineRef.current;
+    mediaSwitchBusyRef.current = true;
+    setPremiumConnecting(true);
+    void (async () => {
+      try {
+        if (isNative && !engine) throw new Error("Live camera is unavailable.");
+        const token = await generateToken.mutateAsync({ data: { channelName: activeChannelId, uid: user!.uid, role: "broadcaster" } });
+        const stillActive = () => isLiveRef.current && !isStoppingRef.current && engineRef.current === engine;
+        if (!stillActive()) return;
+        if (isNative) await switchBroadcastChannel(engine, token.token, token.channelName, user!.uid, isMuted, stillActive);
+        if (!stillActive()) return;
+        mediaChannelRef.current = token.channelName;
+        setIsPremium(true);
+        setCameraError(null);
+      } catch (error) {
+        if (isLiveRef.current && !isStoppingRef.current) {
+          setCameraError(error instanceof Error ? error.message : "Could not connect to Premium. Retrying…");
+          mediaRetryTimerRef.current = setTimeout(() => setMediaRetry(attempt => attempt + 1), 2000);
+        }
+      } finally {
+        mediaSwitchBusyRef.current = false;
+        setPremiumConnecting(false);
+      }
+    })();
+  }, [liveStreamData, isLive, activeChannelId, user?.uid, isMuted, mediaRetry]);
+
+  const convertLiveToPremium = async (giftId: string, freeViewerIds: number[]) => {
+    const channelId = channelIdRef.current;
+    const engine = engineRef.current;
+    // Pause before committing access changes, including when the HTTP response is lost.
+    if (isNative) {
+      if (!engine) throw new Error("Live camera is unavailable.");
+      const result = engine.updateChannelMediaOptions({ publishCameraTrack: false, publishMicrophoneTrack: false });
+      if (result < 0) throw new Error("Could not pause the broadcast. Please try again.");
+    }
+    try {
+      const result = await convertStreamToPremium(channelId, { requiredGiftId: giftId, freeViewerIds });
+      queryClient.setQueryData(getGetStreamQueryKey(channelId), result);
+      setRequiredGiftId(giftId as CreateStreamRequestRequiredGiftId);
+      setIsPremium(true);
+      setShowLivePremium(false);
+      void queryClient.invalidateQueries({ queryKey: getListStreamsQueryKey() });
+    } catch (error) {
+      // Only resume the public channel after the server confirms conversion did not commit.
+      const confirmed = await getStream(channelId).catch(() => null);
+      if (confirmed?.stream.requiredGift) {
+        queryClient.setQueryData(getGetStreamQueryKey(channelId), confirmed);
+        setIsPremium(true);
+        setShowLivePremium(false);
+      } else {
+        if (confirmed && engineRef.current === engine && isLiveRef.current) {
+          engine?.muteLocalAudioStream(isMuted);
+          engine?.updateChannelMediaOptions({ publishCameraTrack: true, publishMicrophoneTrack: true });
+        }
+        throw error;
+      }
+    }
+  };
+
   const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   // WebSocket push — server sends earnings + gift events in real time
-  const [streamCoins, setStreamCoins] = useState(0);
+  const [realtimeEarnings, setRealtimeEarnings] = useState({ channelId: "", coins: 0 });
+  const earningsQuery = useGetStreamEarnings(activeChannelId, {
+    query: { enabled: isLive && !!activeChannelId, refetchInterval: 3000 } as any,
+  });
+  // Push updates remain immediate; polling recovers missed events and reconnects.
+  // An older HTTP response must not overwrite a newer push total.
+  const streamCoins = Math.max(
+    earningsQuery.data?.coins ?? 0,
+    realtimeEarnings.channelId === activeChannelId ? realtimeEarnings.coins : 0,
+  );
   const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
-  const wsRef = useRef<WebSocket | null>(null);
   const serverEndedShutdownRef = useRef<() => void>(() => {});
 
-  useEffect(() => {
-    const channelId = activeChannelId;
-    if (!isLive || !channelId) return;
-
-    const domain = process.env["EXPO_PUBLIC_DOMAIN"];
-    if (!domain) return;
-
-    let disposed = false;
-    let ws: WebSocket | null = null;
-    void (async () => {
-      const token = await getToken().catch(() => null);
-      if (disposed) return;
-      ws = new WebSocket(`wss://${domain}/api/ws`);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        ws?.send(JSON.stringify({ type: "subscribe", channelId, token }));
-      };
-
-      ws.onmessage = (event) => {
+  useStreamSocket({
+    channelId: activeChannelId,
+    enabled: isLive && !!activeChannelId,
+    onConnect: () => { void earningsQuery.refetch(); },
+    onMessage: event => {
         try {
           const msg = JSON.parse(String(event.data)) as {
             type?: string;
@@ -220,7 +290,11 @@ export default function GoLiveScreen() {
             senderName?: string;
           };
           if (msg.type === "earnings" && typeof msg.coins === "number") {
-            setStreamCoins(msg.coins);
+            const coins = msg.coins;
+            setRealtimeEarnings(previous => ({
+              channelId: activeChannelId,
+              coins: previous.channelId === activeChannelId ? Math.max(previous.coins, coins) : coins,
+            }));
           }
           if (msg.type === "gift" && msg.giftName) {
             const gift = GIFTS.find((g) => g.name === msg.giftName) ?? GIFTS[0]!;
@@ -236,15 +310,8 @@ export default function GoLiveScreen() {
         } catch {
           // ignore
         }
-      };
-    })();
-
-    return () => {
-      disposed = true;
-      ws?.close();
-      wsRef.current = null;
-    };
-  }, [isLive, activeChannelId, getToken]);
+    },
+  });
 
   // Poll chat messages while live (broadcaster sees viewer messages too)
   const { data: chatPollData } = useGetStreamChat(activeChannelId, undefined, {
@@ -484,7 +551,8 @@ export default function GoLiveScreen() {
       });
 
       if (isNative && engineRef.current) {
-        pendingJoinRef.current = { token: tokenData.token, channelId };
+        pendingJoinRef.current = { token: tokenData.token, channelId: tokenData.channelName };
+        mediaChannelRef.current = tokenData.channelName;
       }
 
       isLiveRef.current = true;
@@ -797,7 +865,7 @@ export default function GoLiveScreen() {
               <View style={styles.liveBadgeRow}>
                 <View style={styles.liveBadge}>
                   <View style={styles.liveDot} />
-                  <Text style={styles.liveBadgeText}>LIVE</Text>
+                  <Text style={styles.liveBadgeText}>{liveStreamData?.stream.requiredGift || isPremium ? "PREMIUM" : "LIVE"}</Text>
                 </View>
                 <Text style={styles.liveDuration}>{formatDuration(duration)}</Text>
               </View>
@@ -884,6 +952,13 @@ export default function GoLiveScreen() {
                 <Ionicons name="chatbubble-ellipses" size={26} color="#FFF" />
               </TouchableOpacity>
 
+              {!isPrivateInvite && !isPremium && !liveStreamData?.stream.requiredGift ? (
+                <TouchableOpacity style={styles.liveIconBtn} onPress={() => setShowLivePremium(true)} accessibilityRole="button" accessibilityLabel="Convert to Premium" activeOpacity={0.7}>
+                  <Ionicons name="lock-closed-outline" size={26} color="#FFF" />
+                </TouchableOpacity>
+              ) : null}
+              {premiumConnecting ? <ActivityIndicator color="#FFD700" /> : null}
+
               <TouchableOpacity style={styles.endLiveIconBtn} onPress={confirmStopLive} activeOpacity={0.85}>
                 <Ionicons name="stop-circle" size={32} color="#FFF" />
               </TouchableOpacity>
@@ -896,6 +971,7 @@ export default function GoLiveScreen() {
           </View>
         </KeyboardAvoidingView>
 
+        {showLivePremium ? <LivePremiumSheet channelId={activeChannelId} onClose={() => setShowLivePremium(false)} onConfirm={convertLiveToPremium} /> : null}
         <GiftLeaderboard
           channelId={channelIdRef.current}
           visible={showLeaderboard}

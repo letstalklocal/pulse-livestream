@@ -1,4 +1,4 @@
-import { boolean, integer, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, integer, jsonb, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 
 /** A channel is allocated once, making a live session and its admissions non-reusable. */
@@ -11,6 +11,8 @@ export const liveStreamSessionsTable = pgTable("live_stream_sessions", {
   hostBackgroundImagePath: text("host_background_image_path"),
   title: text("title").notNull(),
   category: text("category").notNull(),
+  rtcChannelName: text("rtc_channel_name"),
+  premiumFreeViewerIds: jsonb("premium_free_viewer_ids").$type<number[]>().notNull().default([]),
   requiredGiftId: text("required_gift_id"),
   requiredGiftName: text("required_gift_name"),
   requiredGiftEmoji: text("required_gift_emoji"),

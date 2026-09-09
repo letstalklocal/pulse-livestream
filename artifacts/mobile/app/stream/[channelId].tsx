@@ -1,9 +1,10 @@
+import { useStreamSocket } from "@/hooks/useStreamSocket";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth as useClerkAuth } from "@clerk/expo";
 import * as Crypto from "expo-crypto";
 import * as Haptics from "expo-haptics";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -28,6 +29,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGenerateAgoraToken,
+  updateStreamPresence,
+  getGetStreamQueryKey,
   useGetStream,
   useGetStreamChat,
   getGetStreamChatQueryKey,
@@ -219,7 +222,8 @@ export default function StreamScreen() {
   // Demo streams have no persisted stream record. Every live channel waits for
   // its server details so a Premium requirement cannot be bypassed.
   const streamDetailsLoaded = isDemo || !!stream;
-  const canEnterStream = streamDetailsLoaded && (!requiresAdmission || admitted);
+  const hasAdmission = admitted || stream?.viewerAdmitted === true;
+  const canEnterStream = streamDetailsLoaded && (!requiresAdmission || hasAdmission);
   const { data: privateInvitationData } = useGetPrivateStreamInvitation(
     privateInvitationIdNumber,
     {
@@ -250,6 +254,17 @@ export default function StreamScreen() {
       setStreamEnded(true);
     }
   }, [isPrivateStream, privateInvitationData]);
+
+  useFocusEffect(useCallback(() => {
+    if (!channelId || isDemo || !user?.uid || !canEnterStream) return;
+    const refresh = () => void updateStreamPresence(channelId, { action: "join" }).catch(() => {});
+    refresh();
+    const timer = setInterval(refresh, 15000);
+    return () => {
+      clearInterval(timer);
+      void updateStreamPresence(channelId, { action: "leave" }).catch(() => {});
+    };
+  }, [channelId, isDemo, user?.uid, canEnterStream]));
 
   // Poll real chat for non-demo streams
   const { data: chatPollData } = useGetStreamChat(channelId ?? "", undefined, {
@@ -296,7 +311,8 @@ export default function StreamScreen() {
     query: { enabled: !!channelId && !isDemo, refetchInterval: 30000 } as any,
   });
   const [realtimeCoins, setRealtimeCoins] = useState<number | null>(null);
-  const hostCoins = realtimeCoins ?? streamEarningsQuery.data?.coins ?? 0;
+  const hostCoins = Math.max(realtimeCoins ?? 0, streamEarningsQuery.data?.coins ?? 0);
+  useEffect(() => { setRealtimeCoins(null); }, [channelId]);
   const { data: followStatusData, refetch: refetchFollow } = useGetFollowStatus(
     hostUid ?? 0,
     { followerUid: user?.uid ?? 0 },
@@ -371,6 +387,7 @@ export default function StreamScreen() {
         );
       }
       setAdmitted(true);
+      void streamEarningsQuery.refetch();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
@@ -436,20 +453,14 @@ export default function StreamScreen() {
     }
   }, [messages]);
 
-  // WebSocket — subscribe to channel events (stream_ended, gifts, etc.)
-  useEffect(() => {
-    if (!channelId || isDemo) return;
-    const domain = process.env["EXPO_PUBLIC_DOMAIN"];
-    if (!domain) return;
-
-    let disposed = false;
-    let ws: WebSocket | null = null;
-    void (async () => {
-      const token = await getToken().catch(() => null);
-      if (disposed) return;
-      ws = new WebSocket(`wss://${domain}/api/ws`);
-      ws.onopen = () => ws?.send(JSON.stringify({ type: "subscribe", channelId, token }));
-      ws.onmessage = (event) => {
+  useStreamSocket({
+    channelId: channelId ?? "",
+    enabled: !!channelId && !isDemo,
+    onConnect: () => {
+      void streamEarningsQuery.refetch();
+      void queryClient.invalidateQueries({ queryKey: getGetStreamQueryKey(channelId ?? "") });
+    },
+    onMessage: event => {
         try {
           const msg = JSON.parse(String(event.data)) as {
             type?: string;
@@ -457,24 +468,21 @@ export default function StreamScreen() {
             giftName?: string;
             senderName?: string;
           };
-          if (msg.type === "stream_ended") {
+          if (msg.type === "stream_updated") {
+            void queryClient.invalidateQueries({ queryKey: getGetStreamQueryKey(channelId ?? "") });
+          } else if (msg.type === "stream_ended") {
             streamEndedRef.current = true;
             setStreamEnded(true);
           } else if (msg.type === "earnings" && typeof msg.coins === "number") {
-            setRealtimeCoins(msg.coins);
+            setRealtimeCoins(previous => Math.max(previous ?? 0, msg.coins!));
           } else if (msg.type === "gift" && msg.giftName) {
-            if (typeof msg.coins === "number") setRealtimeCoins(msg.coins);
+            if (typeof msg.coins === "number") setRealtimeCoins(previous => Math.max(previous ?? 0, msg.coins!));
             const gift = GIFTS.find((g) => g.name === msg.giftName);
             if (gift) spawnGift(gift, msg.senderName ?? "Viewer");
           }
         } catch { /* ignore */ }
-      };
-    })();
-    return () => {
-      disposed = true;
-      ws?.close();
-    };
-  }, [channelId, isDemo, getToken]);
+    },
+  });
 
   // Countdown + auto-navigate when stream ends
   useEffect(() => {
@@ -632,7 +640,7 @@ export default function StreamScreen() {
           releaseSetupEngine();
           return;
         }
-        const joinResult = engine.joinChannel(tokenData.token, channelId, user?.uid ?? 0, {
+        const joinResult = engine.joinChannel(tokenData.token, tokenData.channelName, user?.uid ?? 0, {
           clientRoleType: ClientRoleType.ClientRoleAudience,
           autoSubscribeAudio: true,
           autoSubscribeVideo: true,
@@ -669,7 +677,7 @@ export default function StreamScreen() {
       try { updateViewers.mutate({ channelId, data: { action: "leave" } }); } catch (_e) {}
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channelId, canEnterStream]);
+  }, [channelId, canEnterStream, stream?.rtcChannelName]);
 
   // Once joined, pre-set the remote uid from the known host uid so the
   // RtcTextureView mounts immediately — don't wait for onUserPublished
@@ -1041,7 +1049,7 @@ export default function StreamScreen() {
         has been explicitly confirmed. */}
     <Modal
       transparent
-      visible={requiresAdmission && !admitted}
+      visible={requiresAdmission && !hasAdmission}
       animationType="fade"
       onRequestClose={() => router.back()}
       statusBarTranslucent

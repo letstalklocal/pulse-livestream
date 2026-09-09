@@ -149,6 +149,66 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /streams/{channelId}/premium:
+    post:
+      operationId: convertStreamToPremium
+      tags: [streams]
+      summary: Convert the host's active stream to Premium
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requiredGiftId, freeViewerIds]
+              properties:
+                requiredGiftId: { type: string }
+                freeViewerIds:
+                  type: array
+                  maxItems: 500
+                  items: { type: integer }
+      responses:
+        "200":
+          description: Converted stream
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StreamResponse" }
+        "409":
+          description: Already Premium or selected viewers have left
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /streams/{channelId}/presence:
+    post:
+      operationId: updateStreamPresence
+      tags: [streams]
+      summary: Refresh or remove authenticated viewer presence
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action: { type: string, enum: [join, leave] }
+      responses:
+        "200":
+          description: Presence updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SuccessResponse" }
+
   /streams/{channelId}/admission:
     post:
       operationId: admitToStream
@@ -438,6 +498,21 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
 
   /streams/{channelId}/viewers:
+    get:
+      operationId: getStreamViewers
+      tags: [streams]
+      summary: List current authenticated viewers for the host
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Current viewers
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FollowingListResponse" }
     post:
       operationId: updateViewerCount
       tags: [streams]
@@ -931,6 +1006,12 @@ components:
       properties:
         channelId:
           type: string
+        rtcChannelName:
+          type: string
+          description: Protected media channel; logical stream and chat ID remain unchanged.
+        viewerAdmitted:
+          type: boolean
+          description: Personalized admission status, included in stream detail responses only.
         hostUid:
           type: integer
         hostName:

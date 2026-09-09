@@ -19,6 +19,7 @@ router.post("/agora/token", async (req: any, res): Promise<any> => {
 
   const { channelName, role } = parsed.data;
   let tokenUid = parsed.data.uid;
+  let rtcChannelName = channelName;
   // A private channel is never authorized from client supplied uid/role. Its
   // durable invitation is the ACL and Clerk determines the Agora UID.
   const invitation = await privateInvitationForChannel(channelName);
@@ -66,7 +67,7 @@ router.post("/agora/token", async (req: any, res): Promise<any> => {
         res.status(403).json({ error: "Only the host may broadcast this stream" });
         return;
       }
-    } else if (session.requiredGiftId) {
+    } else if (session.requiredGiftId && !(session.premiumFreeViewerIds ?? []).includes(user.uid)) {
       const admission = (await db.select({ id: premiumStreamAdmissionsTable.id })
         .from(premiumStreamAdmissionsTable)
         .where(and(
@@ -80,6 +81,7 @@ router.post("/agora/token", async (req: any, res): Promise<any> => {
       }
     }
     tokenUid = user.uid;
+    rtcChannelName = session.rtcChannelName ?? channelName;
   }
 
   if (!APP_ID || !APP_CERTIFICATE) {
@@ -96,7 +98,7 @@ router.post("/agora/token", async (req: any, res): Promise<any> => {
   const token = RtcTokenBuilder.buildTokenWithUid(
     APP_ID,
     APP_CERTIFICATE,
-    channelName,
+    rtcChannelName,
     tokenUid,
     rtcRole,
     privilegeExpireTs,
@@ -106,7 +108,7 @@ router.post("/agora/token", async (req: any, res): Promise<any> => {
   res.json({
     token,
     appId: APP_ID,
-    channelName,
+    channelName: rtcChannelName,
     uid: tokenUid,
     expiresAt: privilegeExpireTs,
   });

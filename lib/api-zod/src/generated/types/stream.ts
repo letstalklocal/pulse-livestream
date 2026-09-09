@@ -9,6 +9,10 @@ import type { StreamRequiredGift } from './streamRequiredGift';
 
 export interface Stream {
   channelId: string;
+  /** Protected media channel; logical stream and chat ID remain unchanged. */
+  rtcChannelName?: string;
+  /** Personalized admission status, included in stream detail responses only. */
+  viewerAdmitted?: boolean;
   hostUid: number;
   hostName: string;
   hostAvatarUrl?: string | null;

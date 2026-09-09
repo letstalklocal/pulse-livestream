@@ -1,5 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { Router } from "express";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import {
   coinBalancesTable,
   coinTransactionsTable,
@@ -31,6 +32,8 @@ export type PremiumGift = (typeof PREMIUM_GIFT_CATALOG)[keyof typeof PREMIUM_GIF
 
 export interface StreamRecord {
   sessionId?: number;
+  rtcChannelName?: string;
+  premiumFreeViewerIds?: number[];
   channelId: string;
   hostUid: number;
   hostName: string;
@@ -65,6 +68,8 @@ function sessionToRuntime(session: typeof liveStreamSessionsTable.$inferSelect):
     : null;
   return {
     sessionId: session.id,
+    rtcChannelName: session.rtcChannelName ?? session.channelId,
+    premiumFreeViewerIds: session.premiumFreeViewerIds ?? [],
     channelId: session.channelId,
     hostUid: session.hostUserId,
     hostName: session.hostName,
@@ -101,7 +106,7 @@ export async function getActiveRuntimeStream(channelId: string): Promise<StreamR
 }
 
 async function toStreamResponse(stream: StreamRecord) {
-  const { hostBackgroundImagePath, isPrivate: _isPrivate, ...response } = stream;
+  const { hostBackgroundImagePath, isPrivate: _isPrivate, premiumFreeViewerIds: _free, ...response } = stream;
   return {
     ...response,
     hostBackgroundImageUrl: hostBackgroundImagePath
@@ -376,6 +381,86 @@ router.post("/streams", async (req, res) => {
   res.status(201).json({ stream: await toStreamResponse(stream) });
 });
 
+const viewerPresence = new Map<string, Map<number, number>>();
+function activeViewerIds(channelId: string): number[] {
+  const entries = viewerPresence.get(channelId);
+  if (!entries) return [];
+  for (const [uid, at] of entries) if (at < Date.now() - 45000) entries.delete(uid);
+  if (!entries.size) viewerPresence.delete(channelId);
+  return [...entries.keys()];
+}
+
+router.post("/streams/:channelId/presence", async (req, res) => {
+  const viewer = await currentUser(req);
+  if (!viewer) return void res.status(401).json({ error: "Authentication required" });
+  const stream = await getActiveRuntimeStream(req.params.channelId);
+  if (!stream) return void res.status(404).json({ error: "Stream not found" });
+  if (!await authorizePrivateStream(req, res, stream)) return;
+  if (req.body?.action === "leave") viewerPresence.get(stream.channelId)?.delete(viewer.uid);
+  else if (req.body?.action === "join" && viewer.uid !== stream.hostUid) {
+    const entries = viewerPresence.get(stream.channelId) ?? new Map<number, number>();
+    entries.set(viewer.uid, Date.now());
+    viewerPresence.set(stream.channelId, entries);
+  } else return void res.status(400).json({ error: "Invalid presence action" });
+  res.json({ success: true });
+});
+
+router.get("/streams/:channelId/viewers", async (req, res) => {
+  const host = await currentUser(req);
+  if (!host) return void res.status(401).json({ error: "Authentication required" });
+  const stream = await getActiveRuntimeStream(req.params.channelId);
+  if (!stream) return void res.status(404).json({ error: "Stream not found" });
+  if (host.uid !== stream.hostUid) return void res.status(403).json({ error: "Only the host can view this list" });
+  const ids = activeViewerIds(stream.channelId);
+  const rows = ids.length ? await db.select({ uid: usersTable.uid, name: usersTable.name, avatarImagePath: usersTable.avatarImagePath })
+    .from(usersTable).where(inArray(usersTable.uid, ids)).orderBy(usersTable.name) : [];
+  res.json({ users: await Promise.all(rows.map(async ({ avatarImagePath, ...person }) => ({
+    ...person, avatarImageUrl: avatarImagePath ? await createPrivateGetUrl(avatarImagePath) : null,
+  }))) });
+});
+
+router.post("/streams/:channelId/premium", async (req, res) => {
+  const host = await currentUser(req);
+  if (!host) return void res.status(401).json({ error: "Authentication required" });
+  const { requiredGiftId, freeViewerIds = [] } = req.body ?? {};
+  if (typeof requiredGiftId !== "string" || !Object.hasOwn(PREMIUM_GIFT_CATALOG, requiredGiftId) ||
+      !Array.isArray(freeViewerIds) || freeViewerIds.length > 500 ||
+      !freeViewerIds.every((id: unknown) => Number.isInteger(id) && Number(id) > 0)) {
+    return void res.status(400).json({ error: "Choose a valid gift and viewer list" });
+  }
+  const gift = PREMIUM_GIFT_CATALOG[requiredGiftId as keyof typeof PREMIUM_GIFT_CATALOG];
+  const ids = [...new Set<number>(freeViewerIds)].sort((a, b) => a - b);
+  const channelId = req.params.channelId;
+  const result = await db.transaction(async tx => {
+    const session = (await tx.select().from(liveStreamSessionsTable)
+      .where(and(eq(liveStreamSessionsTable.channelId, channelId), isNull(liveStreamSessionsTable.endedAt))).for("update"))[0];
+    if (!session || session.lastHeartbeatAt.getTime() <= Date.now() - HEARTBEAT_TTL_MS) return { status: 404, error: "Active stream not found" };
+    if (session.hostUserId !== host.uid) return { status: 403, error: "Only the host can convert this stream" };
+    if (session.isPrivate) return { status: 400, error: "Private streams cannot be converted" };
+    if (session.requiredGiftId) {
+      // A lost response can be retried, but never change the price or invitees twice.
+      if (session.requiredGiftId === gift.id && JSON.stringify(session.premiumFreeViewerIds) === JSON.stringify(ids) && session.rtcChannelName) return { session };
+      return { status: 409, error: "This stream is already Premium" };
+    }
+    const active = new Set(activeViewerIds(channelId));
+    if (ids.some(id => !active.has(id))) return { status: 409, error: "A selected viewer has left. Refresh the viewer list and try again." };
+    const [updated] = await tx.update(liveStreamSessionsTable).set({
+      requiredGiftId: gift.id, requiredGiftName: gift.name, requiredGiftEmoji: gift.emoji,
+      requiredGiftCoinCost: gift.coinCost, premiumFreeViewerIds: ids,
+      rtcChannelName: `premium-${randomUUID()}`,
+    }).where(eq(liveStreamSessionsTable.id, session.id)).returning();
+    return { session: updated! };
+  });
+  if (!result.session) return void res.status(result.status!).json({ error: result.error });
+  const previous = streams.get(channelId);
+  const updated = sessionToRuntime(result.session);
+  updated.viewerCount = previous?.viewerCount ?? 0;
+  updated.peakViewers = previous?.peakViewers ?? 0;
+  streams.set(channelId, updated);
+  wsHub.pushStreamUpdated(channelId);
+  res.json({ stream: await toStreamResponse(updated) });
+});
+
 class AdmissionIdempotencyConflictError extends Error {}
 
 router.post("/streams/:channelId/admission", async (req, res) => {
@@ -404,6 +489,12 @@ router.post("/streams/:channelId/admission", async (req, res) => {
   if (viewer.uid === stream.hostUid) {
     res.status(403).json({ error: "Hosts cannot purchase admission to their own stream" });
     return;
+  }
+
+  if ((stream.premiumFreeViewerIds ?? []).includes(viewer.uid)) {
+    const balance = (await db.select({ balance: coinBalancesTable.balance }).from(coinBalancesTable)
+      .where(eq(coinBalancesTable.userId, viewer.uid)).limit(1))[0]?.balance ?? 0;
+    return void res.json({ admitted: true, charged: false, balance });
   }
 
   const { idempotencyKey } = parsed.data;
@@ -522,7 +613,13 @@ router.get("/streams/:channelId", async (req, res) => {
     return;
   }
   if (!await authorizePrivateStream(req, res, stream)) return;
-  res.json({ stream: await toStreamResponse(stream) });
+  const viewer = stream.requiredGift ? await currentUser(req) : null;
+  const viewerAdmitted = !stream.requiredGift || !!viewer && (
+    viewer.uid === stream.hostUid || (stream.premiumFreeViewerIds ?? []).includes(viewer.uid) ||
+    !!(await db.select({ id: premiumStreamAdmissionsTable.id }).from(premiumStreamAdmissionsTable)
+      .where(and(eq(premiumStreamAdmissionsTable.sessionId, stream.sessionId!), eq(premiumStreamAdmissionsTable.viewerUserId, viewer.uid))).limit(1))[0]
+  );
+  res.json({ stream: { ...await toStreamResponse(stream), viewerAdmitted } });
 });
 
 router.delete("/streams/:channelId", async (req, res) => {

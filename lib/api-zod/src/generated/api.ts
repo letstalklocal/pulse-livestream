@@ -43,6 +43,8 @@ export const GenerateAgoraTokenResponse = zod.object({
 export const ListStreamsResponse = zod.object({
   "streams": zod.array(zod.object({
   "channelId": zod.string(),
+  "rtcChannelName": zod.string().optional().describe('Protected media channel; logical stream and chat ID remain unchanged.'),
+  "viewerAdmitted": zod.boolean().optional().describe('Personalized admission status, included in stream detail responses only.'),
   "hostUid": zod.number(),
   "hostName": zod.string(),
   "hostAvatarUrl": zod.string().nullish(),
@@ -87,6 +89,8 @@ export const GetStreamParams = zod.object({
 export const GetStreamResponse = zod.object({
   "stream": zod.object({
   "channelId": zod.string(),
+  "rtcChannelName": zod.string().optional().describe('Protected media channel; logical stream and chat ID remain unchanged.'),
+  "viewerAdmitted": zod.boolean().optional().describe('Personalized admission status, included in stream detail responses only.'),
   "hostUid": zod.number(),
   "hostName": zod.string(),
   "hostAvatarUrl": zod.string().nullish(),
@@ -114,6 +118,61 @@ export const EndStreamParams = zod.object({
 })
 
 export const EndStreamResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Convert the host's active stream to Premium
+ */
+export const ConvertStreamToPremiumParams = zod.object({
+  "channelId": zod.coerce.string()
+})
+
+export const convertStreamToPremiumBodyFreeViewerIdsMax = 500;
+
+
+
+export const ConvertStreamToPremiumBody = zod.object({
+  "requiredGiftId": zod.string(),
+  "freeViewerIds": zod.array(zod.number()).max(convertStreamToPremiumBodyFreeViewerIdsMax)
+})
+
+export const ConvertStreamToPremiumResponse = zod.object({
+  "stream": zod.object({
+  "channelId": zod.string(),
+  "rtcChannelName": zod.string().optional().describe('Protected media channel; logical stream and chat ID remain unchanged.'),
+  "viewerAdmitted": zod.boolean().optional().describe('Personalized admission status, included in stream detail responses only.'),
+  "hostUid": zod.number(),
+  "hostName": zod.string(),
+  "hostAvatarUrl": zod.string().nullish(),
+  "hostBackgroundImageUrl": zod.string().nullish(),
+  "title": zod.string(),
+  "viewerCount": zod.number(),
+  "startedAt": zod.coerce.date(),
+  "category": zod.string(),
+  "requiredGift": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "emoji": zod.string(),
+  "coinCost": zod.number()
+}).nullable()
+})
+})
+
+
+/**
+ * @summary Refresh or remove authenticated viewer presence
+ */
+export const UpdateStreamPresenceParams = zod.object({
+  "channelId": zod.coerce.string()
+})
+
+export const UpdateStreamPresenceBody = zod.object({
+  "action": zod.enum(['join', 'leave'])
+})
+
+export const UpdateStreamPresenceResponse = zod.object({
   "success": zod.boolean()
 })
 
@@ -295,6 +354,24 @@ export const HeartbeatStreamResponse = zod.object({
 
 
 /**
+ * @summary List current authenticated viewers for the host
+ */
+export const GetStreamViewersParams = zod.object({
+  "channelId": zod.coerce.string()
+})
+
+export const GetStreamViewersResponse = zod.object({
+  "users": zod.array(zod.object({
+  "uid": zod.number(),
+  "name": zod.string(),
+  "bio": zod.string().optional(),
+  "avatarImageUrl": zod.string().nullish(),
+  "postIds": zod.array(zod.number()).optional().describe('Photo post IDs, newest first; included for following lists.')
+}))
+})
+
+
+/**
  * Increment or decrement viewer count for a stream
  * @summary Update viewer count
  */
@@ -309,6 +386,8 @@ export const UpdateViewerCountBody = zod.object({
 export const UpdateViewerCountResponse = zod.object({
   "stream": zod.object({
   "channelId": zod.string(),
+  "rtcChannelName": zod.string().optional().describe('Protected media channel; logical stream and chat ID remain unchanged.'),
+  "viewerAdmitted": zod.boolean().optional().describe('Personalized admission status, included in stream detail responses only.'),
   "hostUid": zod.number(),
   "hostName": zod.string(),
   "hostAvatarUrl": zod.string().nullish(),

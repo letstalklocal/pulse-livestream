@@ -29,6 +29,7 @@ import type {
   CoinBalanceResponse,
   CoinGrantRequest,
   CoinSpendRequest,
+  ConvertStreamToPremiumBody,
   CreateMediaPackRequest,
   CreatePostRequest,
   CreatePrivateStreamInvitationRequest,
@@ -65,6 +66,7 @@ import type {
   UnlockMediaDmRequest,
   UnlockMediaDmResponse,
   UnlockMediaPackRequest,
+  UpdateStreamPresenceBody,
   UpsertUserRequest,
   UserResponse,
   ViewerUpdateRequest
@@ -529,6 +531,150 @@ export const useEndStream = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getEndStreamMutationOptions(options));
+    }
+
+export const getConvertStreamToPremiumUrl = (channelId: string,) => {
+
+
+
+
+  return `/api/streams/${channelId}/premium`
+}
+
+/**
+ * @summary Convert the host's active stream to Premium
+ */
+export const convertStreamToPremium = async (channelId: string,
+    convertStreamToPremiumBody: ConvertStreamToPremiumBody, options?: RequestInit): Promise<StreamResponse> => {
+
+  return customFetch<StreamResponse>(getConvertStreamToPremiumUrl(channelId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      convertStreamToPremiumBody,)
+  }
+);}
+
+
+
+
+export const getConvertStreamToPremiumMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof convertStreamToPremium>>, TError,{channelId: string;data: BodyType<ConvertStreamToPremiumBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof convertStreamToPremium>>, TError,{channelId: string;data: BodyType<ConvertStreamToPremiumBody>}, TContext> => {
+
+const mutationKey = ['convertStreamToPremium'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof convertStreamToPremium>>, {channelId: string;data: BodyType<ConvertStreamToPremiumBody>}> = (props) => {
+          const {channelId,data} = props ?? {};
+
+          return  convertStreamToPremium(channelId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConvertStreamToPremiumMutationResult = NonNullable<Awaited<ReturnType<typeof convertStreamToPremium>>>
+    export type ConvertStreamToPremiumMutationBody = BodyType<ConvertStreamToPremiumBody>
+    export type ConvertStreamToPremiumMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Convert the host's active stream to Premium
+ */
+export const useConvertStreamToPremium = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof convertStreamToPremium>>, TError,{channelId: string;data: BodyType<ConvertStreamToPremiumBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof convertStreamToPremium>>,
+        TError,
+        {channelId: string;data: BodyType<ConvertStreamToPremiumBody>},
+        TContext
+      > => {
+      return useMutation(getConvertStreamToPremiumMutationOptions(options));
+    }
+
+export const getUpdateStreamPresenceUrl = (channelId: string,) => {
+
+
+
+
+  return `/api/streams/${channelId}/presence`
+}
+
+/**
+ * @summary Refresh or remove authenticated viewer presence
+ */
+export const updateStreamPresence = async (channelId: string,
+    updateStreamPresenceBody: UpdateStreamPresenceBody, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getUpdateStreamPresenceUrl(channelId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateStreamPresenceBody,)
+  }
+);}
+
+
+
+
+export const getUpdateStreamPresenceMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStreamPresence>>, TError,{channelId: string;data: BodyType<UpdateStreamPresenceBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateStreamPresence>>, TError,{channelId: string;data: BodyType<UpdateStreamPresenceBody>}, TContext> => {
+
+const mutationKey = ['updateStreamPresence'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateStreamPresence>>, {channelId: string;data: BodyType<UpdateStreamPresenceBody>}> = (props) => {
+          const {channelId,data} = props ?? {};
+
+          return  updateStreamPresence(channelId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateStreamPresenceMutationResult = NonNullable<Awaited<ReturnType<typeof updateStreamPresence>>>
+    export type UpdateStreamPresenceMutationBody = BodyType<UpdateStreamPresenceBody>
+    export type UpdateStreamPresenceMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Refresh or remove authenticated viewer presence
+ */
+export const useUpdateStreamPresence = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStreamPresence>>, TError,{channelId: string;data: BodyType<UpdateStreamPresenceBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateStreamPresence>>,
+        TError,
+        {channelId: string;data: BodyType<UpdateStreamPresenceBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateStreamPresenceMutationOptions(options));
     }
 
 export const getAdmitToStreamUrl = (channelId: string,) => {
@@ -1272,6 +1418,83 @@ export const useHeartbeatStream = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getHeartbeatStreamMutationOptions(options));
     }
+
+export const getGetStreamViewersUrl = (channelId: string,) => {
+
+
+
+
+  return `/api/streams/${channelId}/viewers`
+}
+
+/**
+ * @summary List current authenticated viewers for the host
+ */
+export const getStreamViewers = async (channelId: string, options?: RequestInit): Promise<FollowingListResponse> => {
+
+  return customFetch<FollowingListResponse>(getGetStreamViewersUrl(channelId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStreamViewersQueryKey = (channelId: string,) => {
+    return [
+    `/api/streams/${channelId}/viewers`
+    ] as const;
+    }
+
+
+export const getGetStreamViewersQueryOptions = <TData = Awaited<ReturnType<typeof getStreamViewers>>, TError = ErrorType<unknown>>(channelId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStreamViewers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStreamViewersQueryKey(channelId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStreamViewers>>> = ({ signal }) => getStreamViewers(channelId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(channelId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStreamViewers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStreamViewersQueryResult = NonNullable<Awaited<ReturnType<typeof getStreamViewers>>>
+export type GetStreamViewersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List current authenticated viewers for the host
+ */
+
+export function useGetStreamViewers<TData = Awaited<ReturnType<typeof getStreamViewers>>, TError = ErrorType<unknown>>(
+ channelId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStreamViewers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStreamViewersQueryOptions(channelId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getUpdateViewerCountUrl = (channelId: string,) => {
 

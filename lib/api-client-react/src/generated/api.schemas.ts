@@ -140,6 +140,10 @@ export type StreamRequiredGift = {
 
 export interface Stream {
   channelId: string;
+  /** Protected media channel; logical stream and chat ID remain unchanged. */
+  rtcChannelName?: string;
+  /** Personalized admission status, included in stream detail responses only. */
+  viewerAdmitted?: boolean;
   hostUid: number;
   hostName: string;
   hostAvatarUrl?: string | null;
@@ -539,6 +543,24 @@ export interface UnlockMediaDmResponse {
   unlocked: boolean;
   mediaUrl?: string;
 }
+
+export type ConvertStreamToPremiumBody = {
+  requiredGiftId: string;
+  /** @maxItems 500 */
+  freeViewerIds: number[];
+};
+
+export type UpdateStreamPresenceBodyAction = typeof UpdateStreamPresenceBodyAction[keyof typeof UpdateStreamPresenceBodyAction];
+
+
+export const UpdateStreamPresenceBodyAction = {
+  join: 'join',
+  leave: 'leave',
+} as const;
+
+export type UpdateStreamPresenceBody = {
+  action: UpdateStreamPresenceBodyAction;
+};
 
 export type GetFollowStatusParams = {
 followerUid: number;
