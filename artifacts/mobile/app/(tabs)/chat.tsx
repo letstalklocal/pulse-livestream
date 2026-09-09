@@ -87,13 +87,26 @@ export default function ChatScreen() {
           keyExtractor={(item) => item.peerId}
           contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
           renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[styles.convoRow, { borderBottomColor: colors.border }]}
-              onPress={() => openDm(parseInt(item.peerId), item.peerName)}
-              activeOpacity={0.75}
-            >
-              <Avatar uid={parseInt(item.peerId)} name={item.peerName} size={46} />
-              <View style={styles.convoInfo}>
+            <View style={[styles.convoRow, { borderBottomColor: colors.border }]}>
+              <TouchableOpacity
+                style={styles.avatarButton}
+                accessibilityRole="button"
+                accessibilityLabel={`View ${item.peerName}'s profile`}
+                onPress={() => router.push({
+                  pathname: "/profile/[hostUid]",
+                  params: { hostUid: item.peerId, name: item.peerName },
+                })}
+                activeOpacity={0.75}
+              >
+                <Avatar uid={parseInt(item.peerId)} name={item.peerName} size={46} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.convoInfo}
+                accessibilityRole="button"
+                accessibilityLabel={`Open conversation with ${item.peerName}`}
+                onPress={() => openDm(parseInt(item.peerId), item.peerName)}
+                activeOpacity={0.75}
+              >
                 <View style={styles.convoTopRow}>
                   <Text style={[styles.convoName, { color: colors.foreground }]} numberOfLines={1}>
                     {item.peerName}
@@ -112,8 +125,8 @@ export default function ChatScreen() {
                     </View>
                   )}
                 </View>
-              </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </View>
           )}
         />
       )}
@@ -186,11 +199,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: 12,
   },
-  convoInfo: { flex: 1 },
+  avatarButton: { paddingVertical: 14 },
+  convoInfo: { flex: 1, alignSelf: "stretch", justifyContent: "center", paddingVertical: 14 },
   convoTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   convoName: { fontSize: 15, fontWeight: "600", fontFamily: "Inter_600SemiBold", flex: 1 },
   convoTime: { fontSize: 12, fontFamily: "Inter_400Regular", marginLeft: 8 },
