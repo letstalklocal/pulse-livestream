@@ -9,4 +9,7 @@
 export interface FollowingUser {
   uid: number;
   name: string;
+  bio?: string;
+  /** @nullable */
+  avatarImageUrl?: string | null;
 }

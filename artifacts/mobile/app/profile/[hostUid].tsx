@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import React from "react";
+import React, { useCallback } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -15,6 +15,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
+  getGetUserQueryKey,
+  getGetFollowStatusQueryKey,
+  getGetUserFollowingQueryKey,
+  getGetUserFollowersQueryKey,
   useGetUser,
   useGetUserStreams,
   useFollowUser,
@@ -67,7 +71,7 @@ export default function PublicProfileScreen() {
   const uid = parseInt(hostUid ?? "0", 10);
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
-  const { data: userData, isLoading: userLoading } = useGetUser(uid, {
+  const { data: userData, isLoading: userLoading, refetch: refetchUser } = useGetUser(uid, {
     query: { refetchOnWindowFocus: false, retry: false } as any,
   });
   const { data: historyData } = useGetUserStreams(uid, {
@@ -77,11 +81,16 @@ export default function PublicProfileScreen() {
   const followerUid = currentUser?.uid;
   const canFollow = !!followerUid && followerUid !== uid;
 
-  const { data: followStatusData } = useGetFollowStatus(
+  const { data: followStatusData, refetch: refetchFollowStatus } = useGetFollowStatus(
     uid,
     { followerUid: followerUid ?? 0 },
     { query: { enabled: canFollow, refetchOnWindowFocus: false } as any },
   );
+
+  useFocusEffect(useCallback(() => {
+    void refetchUser();
+    if (canFollow) void refetchFollowStatus();
+  }, [uid, canFollow, refetchUser, refetchFollowStatus]));
 
   const isFollowing = followStatusData?.isFollowing ?? false;
 
@@ -96,8 +105,13 @@ export default function PublicProfileScreen() {
   const streamHistory = historyData?.streams ?? [];
 
   const invalidateUser = () => {
-    void queryClient.invalidateQueries({ queryKey: ["getUser", uid] });
-    void queryClient.invalidateQueries({ queryKey: ["getFollowStatus", uid] });
+    if (followerUid) {
+      void queryClient.invalidateQueries({ queryKey: getGetUserFollowingQueryKey(followerUid) });
+      void queryClient.invalidateQueries({ queryKey: getGetUserQueryKey(followerUid), exact: true });
+    }
+    void queryClient.invalidateQueries({ queryKey: getGetUserFollowersQueryKey(uid) });
+    void queryClient.invalidateQueries({ queryKey: getGetUserQueryKey(uid), exact: true });
+    void queryClient.invalidateQueries({ queryKey: getGetFollowStatusQueryKey(uid, { followerUid: followerUid ?? 0 }) });
   };
 
   const toggleFollow = () => {
@@ -141,7 +155,7 @@ export default function PublicProfileScreen() {
           <>
             {/* Profile info */}
             <View style={styles.profileBlock}>
-              <Avatar uid={uid} name={displayName} avatarUri={paramAvatarUri} size={88} borderWidth={2} />
+              <Avatar uid={uid} name={displayName} avatarUri={profile?.avatarImageUrl ?? paramAvatarUri} size={88} borderWidth={2} />
 
               <Text style={[styles.displayName, { color: colors.foreground }]}>
                 {displayName}
@@ -152,19 +166,21 @@ export default function PublicProfileScreen() {
 
               {/* Stats */}
               <View style={styles.statsRow}>
-                <View style={styles.stat}>
+                <TouchableOpacity style={styles.stat} accessibilityRole="button" accessibilityLabel="View followers"
+                  onPress={() => router.push({ pathname: "/connections/[uid]", params: { uid: String(uid), tab: "followers", name: displayName } })}>
                   <Text style={[styles.statValue, { color: colors.foreground }]}>
                     {fmtCount(followersCount)}
                   </Text>
                   <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Followers</Text>
-                </View>
+                </TouchableOpacity>
                 <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-                <View style={styles.stat}>
+                <TouchableOpacity style={styles.stat} accessibilityRole="button" accessibilityLabel="View following"
+                  onPress={() => router.push({ pathname: "/connections/[uid]", params: { uid: String(uid), tab: "following", name: displayName } })}>
                   <Text style={[styles.statValue, { color: colors.foreground }]}>
                     {fmtCount(followingCount)}
                   </Text>
                   <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Following</Text>
-                </View>
+                </TouchableOpacity>
                 <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
                 <View style={styles.stat}>
                   <Text style={[styles.statValue, { color: colors.foreground }]}>

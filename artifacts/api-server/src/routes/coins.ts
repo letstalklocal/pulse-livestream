@@ -1,6 +1,7 @@
 import { Router } from "express";
+import { getAuth } from "@clerk/express";
 import { eq, sql, and, inArray } from "drizzle-orm";
-import { db, coinBalancesTable, coinTransactionsTable } from "@workspace/db";
+import { db, coinBalancesTable, coinTransactionsTable, usersTable } from "@workspace/db";
 import * as wsHub from "../lib/wsHub";
 import { requireChannelAccess } from "../lib/privateChannelAccess";
 
@@ -92,6 +93,12 @@ router.get("/coins/balance", async (req, res) => {
 
 // POST /coins/spend
 router.post("/coins/spend", async (req, res) => {
+  const { userId: clerkId } = getAuth(req);
+  if (!clerkId) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+
   const { uid, recipientUid, amount, giftName, senderName, channelId, description, idempotencyKey } = req.body as {
     uid?: number;
     recipientUid?: number;
@@ -105,6 +112,14 @@ router.post("/coins/spend", async (req, res) => {
 
   if (!uid || typeof uid !== "number") {
     res.status(400).json({ error: "uid is required" });
+    return;
+  }
+  const [sender] = await db.select({ uid: usersTable.uid })
+    .from(usersTable)
+    .where(eq(usersTable.clerkId, clerkId))
+    .limit(1);
+  if (!sender || sender.uid !== uid) {
+    res.status(403).json({ error: "You can only spend your own coins" });
     return;
   }
   if (!amount || typeof amount !== "number" || amount <= 0) {

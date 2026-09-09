@@ -349,6 +349,9 @@ export interface AgoraRtmTokenResponse {
 export interface FollowingUser {
   uid: number;
   name: string;
+  bio?: string;
+  /** @nullable */
+  avatarImageUrl?: string | null;
 }
 
 export interface FollowingListResponse {

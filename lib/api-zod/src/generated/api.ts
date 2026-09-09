@@ -477,7 +477,26 @@ export const GetUserFollowingParams = zod.object({
 export const GetUserFollowingResponse = zod.object({
   "users": zod.array(zod.object({
   "uid": zod.number(),
-  "name": zod.string()
+  "name": zod.string(),
+  "bio": zod.string().optional(),
+  "avatarImageUrl": zod.string().nullish()
+}))
+})
+
+
+/**
+ * @summary List followers of a user
+ */
+export const GetUserFollowersParams = zod.object({
+  "uid": zod.coerce.number()
+})
+
+export const GetUserFollowersResponse = zod.object({
+  "users": zod.array(zod.object({
+  "uid": zod.number(),
+  "name": zod.string(),
+  "bio": zod.string().optional(),
+  "avatarImageUrl": zod.string().nullish()
 }))
 })
 

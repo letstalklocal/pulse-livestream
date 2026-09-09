@@ -2,8 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { fetch as expoFetch } from "expo/fetch";
-import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
   Alert,
   Dimensions,
@@ -21,10 +21,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   getGetCoinBalanceQueryKey,
+  getGetUserQueryKey,
   getGetUserPostsQueryKey,
   useCreatePost,
   useDeletePost,
   useGetCoinBalance,
+  useGetUser,
   useGetUserPosts,
   useGetUserStreams,
   useGrantCoins,
@@ -76,6 +78,13 @@ export default function ProfileScreen() {
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
   const queryClient = useQueryClient();
+  const { data: profileData, refetch: refetchProfile } = useGetUser(user?.uid ?? 0, {
+    query: { queryKey: getGetUserQueryKey(user?.uid ?? 0), enabled: !!user?.uid },
+  });
+  useFocusEffect(useCallback(() => {
+    if (user?.uid) void refetchProfile();
+  }, [user?.uid, refetchProfile]));
+
 
   const { data: historyData } = useGetUserStreams(user?.uid ?? 0, {
     query: { refetchOnWindowFocus: false } as any,
@@ -394,15 +403,17 @@ export default function ProfileScreen() {
 
           {/* Stats */}
           <View style={styles.statsRow}>
-            <View style={styles.stat}>
-              <Text style={[styles.statValue, { color: colors.foreground }]}>{user.followersCount}</Text>
+            <TouchableOpacity style={styles.stat} accessibilityRole="button" accessibilityLabel="View followers"
+              onPress={() => router.push({ pathname: "/connections/[uid]", params: { uid: String(user.uid), tab: "followers", name: user.name } })}>
+              <Text style={[styles.statValue, { color: colors.foreground }]}>{profileData?.user.followersCount ?? user.followersCount}</Text>
               <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Followers</Text>
-            </View>
+            </TouchableOpacity>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-            <View style={styles.stat}>
-              <Text style={[styles.statValue, { color: colors.foreground }]}>{user.followingCount}</Text>
+            <TouchableOpacity style={styles.stat} accessibilityRole="button" accessibilityLabel="View following"
+              onPress={() => router.push({ pathname: "/connections/[uid]", params: { uid: String(user.uid), tab: "following", name: user.name } })}>
+              <Text style={[styles.statValue, { color: colors.foreground }]}>{profileData?.user.followingCount ?? user.followingCount}</Text>
               <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Following</Text>
-            </View>
+            </TouchableOpacity>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.stat}>
               <Text style={[styles.statValue, { color: colors.foreground }]}>{streamHistory.length}</Text>

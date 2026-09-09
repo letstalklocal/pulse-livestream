@@ -692,6 +692,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/FollowingListResponse"
 
+  /users/{uid}/followers:
+    get:
+      operationId: getUserFollowers
+      tags: [users]
+      summary: List followers of a user
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of followers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FollowingListResponse"
+
   /media-packs/uploads:
     post:
       operationId: requestMediaPackUpload
@@ -1324,6 +1343,10 @@ components:
           type: integer
         name:
           type: string
+        bio:
+          type: string
+        avatarImageUrl:
+          type: [string, "null"]
       required:
         - uid
         - name

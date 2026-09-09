@@ -2036,6 +2036,83 @@ export function useGetUserFollowing<TData = Awaited<ReturnType<typeof getUserFol
 
 
 
+export const getGetUserFollowersUrl = (uid: number,) => {
+
+
+
+
+  return `/api/users/${uid}/followers`
+}
+
+/**
+ * @summary List followers of a user
+ */
+export const getUserFollowers = async (uid: number, options?: RequestInit): Promise<FollowingListResponse> => {
+
+  return customFetch<FollowingListResponse>(getGetUserFollowersUrl(uid),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetUserFollowersQueryKey = (uid: number,) => {
+    return [
+    `/api/users/${uid}/followers`
+    ] as const;
+    }
+
+
+export const getGetUserFollowersQueryOptions = <TData = Awaited<ReturnType<typeof getUserFollowers>>, TError = ErrorType<unknown>>(uid: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUserFollowers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetUserFollowersQueryKey(uid);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getUserFollowers>>> = ({ signal }) => getUserFollowers(uid, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(uid), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getUserFollowers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetUserFollowersQueryResult = NonNullable<Awaited<ReturnType<typeof getUserFollowers>>>
+export type GetUserFollowersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List followers of a user
+ */
+
+export function useGetUserFollowers<TData = Awaited<ReturnType<typeof getUserFollowers>>, TError = ErrorType<unknown>>(
+ uid: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUserFollowers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetUserFollowersQueryOptions(uid,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getRequestMediaPackUploadUrl = () => {
 
 

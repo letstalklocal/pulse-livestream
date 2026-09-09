@@ -233,20 +233,28 @@ router.get("/users/:uid/follow-status", async (req, res) => {
   res.json({ isFollowing: !!row[0] });
 });
 
-router.get("/users/:uid/following", async (req, res) => {
-  const uid = parseInt(req.params["uid"] ?? "", 10);
-  if (isNaN(uid)) {
-    res.status(400).json({ error: "Invalid uid" });
-    return;
-  }
-  const rows = await db
-    .select({ uid: usersTable.uid, name: usersTable.name })
-    .from(followsTable)
-    .innerJoin(usersTable, eq(usersTable.uid, followsTable.followedId))
-    .where(eq(followsTable.followerId, uid))
-    .orderBy(usersTable.name);
-  res.json({ users: rows });
-});
+for (const direction of ["following", "followers"] as const) {
+  router.get(`/users/:uid/${direction}`, async (req, res) => {
+    const uid = Number(req.params["uid"]);
+    if (!Number.isInteger(uid) || uid <= 0) {
+      res.status(400).json({ error: "Invalid uid" });
+      return;
+    }
+    const personId = direction === "following" ? followsTable.followedId : followsTable.followerId;
+    const ownerId = direction === "following" ? followsTable.followerId : followsTable.followedId;
+    const rows = await db
+      .select({ uid: usersTable.uid, name: usersTable.name, bio: usersTable.bio, avatarImagePath: usersTable.avatarImagePath })
+      .from(followsTable)
+      .innerJoin(usersTable, eq(usersTable.uid, personId))
+      .where(eq(ownerId, uid))
+      .orderBy(usersTable.name, usersTable.uid);
+    const users = await Promise.all(rows.map(async ({ avatarImagePath, ...user }) => ({
+      ...user,
+      avatarImageUrl: avatarImagePath ? await createPrivateGetUrl(avatarImagePath) : null,
+    })));
+    res.json({ users });
+  });
+}
 
 router.get("/users/:uid/streams", async (req, res) => {
   const uid = parseInt(req.params["uid"] ?? "", 10);
