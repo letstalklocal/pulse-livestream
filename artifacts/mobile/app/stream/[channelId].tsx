@@ -12,6 +12,7 @@ import {
   FlatList,
   Image,
   KeyboardAvoidingView,
+  Keyboard,
   Modal,
   PanResponder,
   Platform,
@@ -188,6 +189,18 @@ export default function StreamScreen() {
 
   // Slide animation for swipe transitions
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const overlaySlideAnim = useRef(new Animated.Value(0)).current;
+  const [overlaysHidden, setOverlaysHidden] = useState(false);
+  const horizontalSwipeRef = useRef<(hide: boolean) => void>(() => {});
+  horizontalSwipeRef.current = (hide) => {
+    if (hide) Keyboard.dismiss();
+    setOverlaysHidden(hide);
+    Animated.timing(overlaySlideAnim, {
+      toValue: hide ? SCREEN_W : 0,
+      duration: 240,
+      useNativeDriver: true,
+    }).start();
+  };
   // Overlay animation for the incoming stream during transition
   const transitionAnim = useRef(new Animated.Value(SCREEN_H)).current;
   const [transitionBackground, setTransitionBackground] = useState<{
@@ -220,6 +233,8 @@ export default function StreamScreen() {
   useEffect(() => {
     streamEndedRef.current = false;
     slideAnim.setValue(0);
+    overlaySlideAnim.setValue(0);
+    setOverlaysHidden(false);
     setIsTransitioning(false);
     setStreamEnded(false);
     setCountdown(10);
@@ -693,13 +708,20 @@ export default function StreamScreen() {
     });
   };
 
-  // PanResponder for swipe-up / swipe-down on the video area
+  // Horizontal swipes clear/restore the UI; vertical swipes switch streams.
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => false,
+      // Capture horizontal swipes even over chat, without taking its vertical scrolling.
+      onMoveShouldSetPanResponderCapture: (_evt, gs) =>
+        Math.abs(gs.dx) > 15 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.2,
       onMoveShouldSetPanResponder: (_evt, gs) =>
-        Math.abs(gs.dy) > 10 && Math.abs(gs.dy) > Math.abs(gs.dx),
+        Math.max(Math.abs(gs.dx), Math.abs(gs.dy)) > 15,
       onPanResponderRelease: (_evt, gs) => {
+        if (Math.abs(gs.dx) > Math.abs(gs.dy)) {
+          if (Math.abs(gs.dx) > 60) horizontalSwipeRef.current(gs.dx > 0);
+          return;
+        }
         if (gs.dy < -60) {
           // Swipe up — go to next stream
           // Access via closure; use refs to avoid stale state
@@ -840,12 +862,15 @@ export default function StreamScreen() {
       </View>
 
       {/* Overlay UI */}
-      <View
+      <Animated.View
         style={[
           styles.overlay,
-          { paddingTop: topPad + 8, paddingBottom: bottomPad + 8 },
+          { paddingTop: topPad + 8, paddingBottom: bottomPad + 8,
+            transform: [{ translateX: overlaySlideAnim }] },
         ]}
-        pointerEvents="box-none"
+        pointerEvents={overlaysHidden ? "none" : "box-none"}
+        accessibilityElementsHidden={overlaysHidden}
+        importantForAccessibility={overlaysHidden ? "no-hide-descendants" : "auto"}
       >
         {/* Top bar */}
         <View style={styles.topBar} pointerEvents="auto">
@@ -965,11 +990,12 @@ export default function StreamScreen() {
             <Ionicons name="ellipsis-vertical" size={24} color="#FFF" />
           </TouchableOpacity>
         </View>
-      </View>
+      </Animated.View>
     </KeyboardAvoidingView>
     </Animated.View>
 
-    {/* Floating gift animations */}
+    {/* Floating gifts follow the UI while continuing their normal lifecycle. */}
+    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { transform: [{ translateX: overlaySlideAnim }] }]}>
     {floatingGifts.map((fg) => (
       <GiftFloater
         key={fg.id}
@@ -977,6 +1003,7 @@ export default function StreamScreen() {
         onDone={(id) => setFloatingGifts((prev) => prev.filter((g) => g.id !== id))}
       />
     ))}
+    </Animated.View>
 
     {/* Gift picker */}
     <GiftPicker
@@ -1135,7 +1162,7 @@ export default function StreamScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, overflow: "hidden" },
   admissionBlocked: {
     ...StyleSheet.absoluteFill,
     alignItems: "center",
