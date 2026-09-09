@@ -24,7 +24,7 @@ export function LivePremiumSheet({ channelId, onClose, onConfirm }: {
   const noViewers = viewers.isSuccess && viewers.data.users.length === 0;
   const showViewers = step === "viewers" && !noViewers;
   const nextIsViewers = !showViewers && !noViewers;
-  const checkingViewers = !showViewers && viewers.isLoading;
+  const checkingViewers = !!giftId && !showViewers && viewers.isLoading;
   const gift = GIFTS.find(item => item.id === giftId);
   const close = () => { if (!busy) onClose(); };
   return (
@@ -65,7 +65,7 @@ export function LivePremiumSheet({ channelId, onClose, onConfirm }: {
             setBusy(true); setError(null);
             void onConfirm(giftId!, noViewers ? [] : selected).catch(err => setError(err instanceof Error ? err.message : "Couldn't go Premium. Try again.")).finally(() => setBusy(false));
           }}>
-            {busy || checkingViewers ? <ActivityIndicator color="#FFF" /> : <><Ionicons name={nextIsViewers ? "arrow-forward" : "lock-closed"} size={18} color="#FFF" /><Text style={styles.submitText}>{nextIsViewers ? "Next" : "Go Premium"}</Text></>}
+            {busy || checkingViewers ? <ActivityIndicator color="#FFF" /> : <><Ionicons name={nextIsViewers ? "arrow-forward" : "lock-closed"} size={18} color="#FFF" /><Text style={styles.submitText}>{!giftId ? "Choose a gift" : nextIsViewers ? "Next" : "Go Premium"}</Text></>}
           </TouchableOpacity>
           {showViewers ? <TouchableOpacity disabled={busy} onPress={() => setStep("gift")} style={{ padding: 12, alignItems: "center" }}><Text style={styles.giftName}>Change gift</Text></TouchableOpacity> : null}
         </View>

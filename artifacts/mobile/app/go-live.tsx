@@ -239,6 +239,7 @@ export default function GoLiveScreen() {
     }
     try {
       const result = await convertStreamToPremium(channelId, { requiredGiftId: giftId, freeViewerIds });
+      if (!isLiveRef.current || isStoppingRef.current || channelIdRef.current !== channelId) return;
       queryClient.setQueryData(getGetStreamQueryKey(channelId), result);
       setRequiredGiftId(giftId as CreateStreamRequestRequiredGiftId);
       setIsPremium(true);
@@ -247,6 +248,7 @@ export default function GoLiveScreen() {
     } catch (error) {
       // Only resume the public channel after the server confirms conversion did not commit.
       const confirmed = await getStream(channelId).catch(() => null);
+      if (!isLiveRef.current || isStoppingRef.current || channelIdRef.current !== channelId) return;
       if (confirmed?.stream.requiredGift) {
         queryClient.setQueryData(getGetStreamQueryKey(channelId), confirmed);
         setIsPremium(true);
@@ -555,6 +557,8 @@ export default function GoLiveScreen() {
         mediaChannelRef.current = tokenData.channelName;
       }
 
+      setShowPremiumGiftSheet(false);
+      setShowLivePremium(false);
       isLiveRef.current = true;
       setActiveChannelId(channelId);
       setIsBroadcasting(true);
@@ -655,6 +659,28 @@ export default function GoLiveScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [isMuted]);
 
+  const resetLiveSetup = useCallback(() => {
+    setShowPremiumGiftSheet(false);
+    setShowLivePremium(false);
+    setIsPremium(false);
+    setRequiredGiftId(null);
+    setDraftRequiredGiftId(null);
+    setShowLeaderboard(false);
+    setShowChat(false);
+    setChatText("");
+    setChatMessages([]);
+    setFloatingGifts([]);
+    setDuration(0);
+    setIsMuted(false);
+    setCameraError(null);
+    setCameraReady(!isNative);
+    setCameraViewReady(false);
+    setPremiumConnecting(false);
+    pendingJoinRef.current = null;
+    mediaChannelRef.current = "";
+    if (mediaRetryTimerRef.current) clearTimeout(mediaRetryTimerRef.current);
+  }, []);
+
   const stopLive = useCallback(async () => {
     if (isStoppingRef.current) return;
     isStoppingRef.current = true;
@@ -662,6 +688,8 @@ export default function GoLiveScreen() {
     if (durationRef.current) clearInterval(durationRef.current);
     // Mark not-live before async ops so the unmount cleanup doesn't double-delete
     isLiveRef.current = false;
+    resetLiveSetup();
+    setIsStarting(true);
     setIsLive(false);
     setActiveChannelId("");
     setIsBroadcasting(false);
@@ -682,14 +710,22 @@ export default function GoLiveScreen() {
       // best effort — still invalidate so stale data is cleared
       void queryClient.invalidateQueries({ queryKey: getListStreamsQueryKey() });
     }
-    router.back();
-  }, [endStream, queryClient, router, invitationAction, isPrivateInvite, privateInvitationId]);
+    if (isPrivateInvite) {
+      router.back();
+    } else {
+      isStoppingRef.current = false;
+      setIsStarting(false);
+      setPermissionRetryCount(count => count + 1);
+    }
+  }, [endStream, queryClient, router, invitationAction, isPrivateInvite, privateInvitationId, resetLiveSetup]);
 
   const stopLiveFromServer = useCallback(() => {
     if (isStoppingRef.current) return;
     isStoppingRef.current = true;
     if (durationRef.current) clearInterval(durationRef.current);
     isLiveRef.current = false;
+    resetLiveSetup();
+    setIsStarting(true);
     setIsLive(false);
     setActiveChannelId("");
     setIsBroadcasting(false);
@@ -697,8 +733,14 @@ export default function GoLiveScreen() {
     engineRef.current = null;
     releaseAgoraEngine(engine);
     void queryClient.invalidateQueries({ queryKey: getListStreamsQueryKey() });
-    router.back();
-  }, [queryClient, router]);
+    if (isPrivateInvite) {
+      router.back();
+    } else {
+      isStoppingRef.current = false;
+      setIsStarting(false);
+      setPermissionRetryCount(count => count + 1);
+    }
+  }, [queryClient, router, isPrivateInvite, resetLiveSetup]);
 
   useEffect(() => {
     serverEndedShutdownRef.current = stopLiveFromServer;
