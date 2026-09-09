@@ -12,4 +12,6 @@ export interface FollowingUser {
   bio?: string;
   /** @nullable */
   avatarImageUrl?: string | null;
+  /** Photo post IDs, newest first; included for following lists. */
+  postIds?: number[];
 }

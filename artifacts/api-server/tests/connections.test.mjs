@@ -17,7 +17,7 @@ const edges = [{ followerId: 1, followedId: 2 }, { followerId: 3, followedId: 1 
 
 function fixture() {
   let queries = 0;
-  const db = { select() {
+  const db = { select(fields) {
     queries++;
     let join, predicate;
     const chain = {
@@ -26,14 +26,17 @@ function fixture() {
       where: condition => { predicate = condition; return chain; },
       orderBy: async () => edges
         .filter(edge => edge[predicate.left.split(".")[1]] === predicate.right)
-        .map(edge => people.find(person => person.uid === edge[join.right.split(".")[1]])),
+        .map(edge => {
+          const person = people.find(person => person.uid === edge[join.right.split(".")[1]]);
+          return { ...person, ...(fields.postIds ? { postIds: person.uid === 2 ? [12, 8] : [] } : {}) };
+        }),
     };
     return chain;
   } };
   const module = { exports: {} };
   new Function("require", "module", "exports", code)((id) => {
     if (id === "@workspace/db") return { db, usersTable, followsTable, streamHistoryTable: {} };
-    if (id === "drizzle-orm") return { eq: (left, right) => ({ left, right }) };
+    if (id === "drizzle-orm") return { eq: (left, right) => ({ left, right }), sql: () => ({}) };
     if (id === "../lib/objectStorage") return { createPrivateGetUrl: async path => `signed:${path}` };
     return require(id);
   }, module, module.exports);
@@ -51,7 +54,7 @@ function fixture() {
 test("following returns outgoing connections with signed avatars", async () => {
   const result = await fixture().get("following", "1");
   assert.equal(result.statusCode, 200);
-  assert.deepEqual(result.body.users, [{ uid: 2, name: "Blair", bio: "Music", avatarImageUrl: "signed:/objects/blair" }]);
+  assert.deepEqual(result.body.users, [{ uid: 2, name: "Blair", bio: "Music", postIds: [12, 8], avatarImageUrl: "signed:/objects/blair" }]);
 });
 test("followers returns incoming connections, not outgoing ones", async () => {
   const result = await fixture().get("followers", "1");

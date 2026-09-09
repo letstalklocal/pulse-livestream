@@ -1,3 +1,4 @@
+import { FollowingActivity } from "@/components/FollowingActivity";
 import { Ionicons } from "@expo/vector-icons";
 import { usePathname, useRouter } from "expo-router";
 import React, { useCallback, useRef, useState } from "react";
@@ -167,6 +168,8 @@ export default function DiscoveryScreen() {
           })}
         </ScrollView>
       </View>
+
+      {selectedFeed === "discover" && <FollowingActivity />}
 
       {/* Stream grid */}
       {isLoading ? (

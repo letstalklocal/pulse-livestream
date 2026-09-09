@@ -479,7 +479,8 @@ export const GetUserFollowingResponse = zod.object({
   "uid": zod.number(),
   "name": zod.string(),
   "bio": zod.string().optional(),
-  "avatarImageUrl": zod.string().nullish()
+  "avatarImageUrl": zod.string().nullish(),
+  "postIds": zod.array(zod.number()).optional().describe('Photo post IDs, newest first; included for following lists.')
 }))
 })
 
@@ -496,7 +497,8 @@ export const GetUserFollowersResponse = zod.object({
   "uid": zod.number(),
   "name": zod.string(),
   "bio": zod.string().optional(),
-  "avatarImageUrl": zod.string().nullish()
+  "avatarImageUrl": zod.string().nullish(),
+  "postIds": zod.array(zod.number()).optional().describe('Photo post IDs, newest first; included for following lists.')
 }))
 })
 

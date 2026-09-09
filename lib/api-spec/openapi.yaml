@@ -1347,6 +1347,11 @@ components:
           type: string
         avatarImageUrl:
           type: [string, "null"]
+        postIds:
+          type: array
+          items:
+            type: integer
+          description: Photo post IDs, newest first; included for following lists.
       required:
         - uid
         - name

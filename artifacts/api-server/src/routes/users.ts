@@ -243,7 +243,11 @@ for (const direction of ["following", "followers"] as const) {
     const personId = direction === "following" ? followsTable.followedId : followsTable.followerId;
     const ownerId = direction === "following" ? followsTable.followerId : followsTable.followedId;
     const rows = await db
-      .select({ uid: usersTable.uid, name: usersTable.name, bio: usersTable.bio, avatarImagePath: usersTable.avatarImagePath })
+      .select({ uid: usersTable.uid, name: usersTable.name, bio: usersTable.bio, avatarImagePath: usersTable.avatarImagePath,
+        ...(direction === "following" ? {
+          postIds: sql<number[]>`coalesce((select json_agg(id order by id desc) from posts where owner_user_id = ${usersTable.uid}), '[]'::json)`,
+        } : {}),
+      })
       .from(followsTable)
       .innerJoin(usersTable, eq(usersTable.uid, personId))
       .where(eq(ownerId, uid))

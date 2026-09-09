@@ -1,3 +1,4 @@
+import { FollowingActivity } from "@/components/FollowingActivity";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
@@ -72,6 +73,8 @@ export default function ChatScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      <FollowingActivity />
 
       {conversations.length === 0 ? (
         <View style={styles.empty}>
