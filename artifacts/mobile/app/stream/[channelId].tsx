@@ -10,6 +10,7 @@ import {
   Animated,
   Dimensions,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Modal,
   PanResponder,
@@ -124,6 +125,20 @@ function DemoVideo({ category }: { category?: string }) {
   );
 }
 
+function StreamBackdrop({ imageUrl, demo = false, category }: {
+  imageUrl?: string | null;
+  demo?: boolean;
+  category?: string;
+}) {
+  if (demo) return <DemoVideo category={category} />;
+  return (
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: "#000" }]} pointerEvents="none">
+      {imageUrl ? <Image source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" fadeDuration={0} /> : null}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.25)" }]} />
+    </View>
+  );
+}
+
 export default function StreamScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -175,7 +190,9 @@ export default function StreamScreen() {
   const slideAnim = useRef(new Animated.Value(0)).current;
   // Overlay animation for the incoming stream during transition
   const transitionAnim = useRef(new Animated.Value(SCREEN_H)).current;
-  const [transitionCategory, setTransitionCategory] = useState<string | undefined>(undefined);
+  const [transitionBackground, setTransitionBackground] = useState<{
+    imageUrl?: string | null; demo: boolean; category?: string;
+  }>({ demo: false });
   const [isTransitioning, setIsTransitioning] = useState(false);
   // Hint arrow fade-in
   const hintOpacity = useRef(new Animated.Value(0)).current;
@@ -202,6 +219,8 @@ export default function StreamScreen() {
 
   useEffect(() => {
     streamEndedRef.current = false;
+    slideAnim.setValue(0);
+    setIsTransitioning(false);
     setStreamEnded(false);
     setCountdown(10);
     setAdmitted(false);
@@ -302,6 +321,18 @@ export default function StreamScreen() {
     ? allStreams[currentIndex + 1]
     : null;
   const prevStream = currentIndex > 0 ? allStreams[currentIndex - 1] : null;
+  // The list is already cached when swiping, before the destination detail query resolves.
+  const backgroundImageUrl = stream?.hostBackgroundImageUrl
+    ?? allStreams.find((item) => item.channelId === channelId)?.hostBackgroundImageUrl
+    ?? privateInvitationData?.invitation?.backgroundImageUrl;
+
+  useEffect(() => {
+    const urls = [backgroundImageUrl, nextStream?.hostBackgroundImageUrl, prevStream?.hostBackgroundImageUrl];
+    for (const url of new Set(urls)) {
+      if (url) void Image.prefetch(url).catch(() => {});
+    }
+  }, [backgroundImageUrl, nextStream?.hostBackgroundImageUrl, prevStream?.hostBackgroundImageUrl]);
+
 
   const generateToken = useGenerateAgoraToken();
   const updateViewers = useUpdateViewerCount();
@@ -642,10 +673,14 @@ export default function StreamScreen() {
 
     const exitValue = direction === "up" ? -SCREEN_H : SCREEN_H;
     const entryStart = direction === "up" ? SCREEN_H : -SCREEN_H;
-    const targetCategory = allStreams.find((s) => s.channelId === targetChannelId)?.category;
+    const targetStream = allStreams.find((s) => s.channelId === targetChannelId);
 
     transitionAnim.setValue(entryStart);
-    setTransitionCategory(targetCategory);
+    setTransitionBackground({
+      imageUrl: targetStream?.hostBackgroundImageUrl,
+      demo: targetChannelId.endsWith("-demo"),
+      category: targetStream?.category,
+    });
     setIsTransitioning(true);
 
     Animated.parallel([
@@ -653,7 +688,7 @@ export default function StreamScreen() {
       Animated.timing(transitionAnim, { toValue: 0, duration: 320, useNativeDriver: true }),
     ]).start(() => {
       isNavigatingRef.current = false;
-      setIsTransitioning(false);
+      // Keep the incoming image covering the screen until navigation completes.
       router.replace(`/stream/${targetChannelId}` as any);
     });
   };
@@ -765,11 +800,14 @@ export default function StreamScreen() {
       >
         {!canEnterStream ? (
           <View style={styles.admissionBlocked}>
+            <StreamBackdrop imageUrl={backgroundImageUrl} />
             <ActivityIndicator color="#FFF" />
             <Text style={styles.nativeVideoStatusText}>Loading stream details…</Text>
           </View>
         ) : streamEnded ? (
           <View style={[StyleSheet.absoluteFill, { backgroundColor: "#000" }]} />
+        ) : isDemo ? (
+          <DemoVideo category={stream?.category} />
         ) : showNativeVideo && VideoView ? (
           <>
             <VideoView
@@ -778,6 +816,7 @@ export default function StreamScreen() {
             />
             {!remoteVideoReady ? (
               <View style={styles.nativeVideoStatus}>
+                <StreamBackdrop imageUrl={backgroundImageUrl} />
                 <ActivityIndicator color="#FFF" />
                 <Text style={styles.nativeVideoStatusText}>Waiting for host video…</Text>
               </View>
@@ -785,6 +824,7 @@ export default function StreamScreen() {
           </>
         ) : isNative ? (
           <View style={styles.nativeVideoStatus}>
+            <StreamBackdrop imageUrl={backgroundImageUrl} />
             {agoraError ? (
               <Ionicons name="warning-outline" size={36} color="#FF6B6B" />
             ) : (
@@ -795,7 +835,7 @@ export default function StreamScreen() {
             </Text>
           </View>
         ) : (
-          <DemoVideo category={stream?.category} />
+          <StreamBackdrop imageUrl={backgroundImageUrl} />
         )}
       </View>
 
@@ -1023,7 +1063,7 @@ export default function StreamScreen() {
         style={[StyleSheet.absoluteFill, { transform: [{ translateY: transitionAnim }] }]}
         pointerEvents="none"
       >
-        <DemoVideo category={transitionCategory} />
+        <StreamBackdrop {...transitionBackground} />
       </Animated.View>
     )}
     {/* Kebab menu */}
