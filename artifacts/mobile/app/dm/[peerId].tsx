@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as Crypto from "expo-crypto";
 import * as Haptics from "expo-haptics";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   ActivityIndicator,
@@ -38,7 +38,7 @@ export default function DmScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
-  const { getMessages, sendDm, markRead } = useRtm();
+  const { getMessages, sendDm, markRead, conversations } = useRtm();
   const queryClient = useQueryClient();
 
   const { peerId, peerName } = useLocalSearchParams<{ peerId: string; peerName: string }>();
@@ -47,7 +47,7 @@ export default function DmScreen() {
   const myUidStr = user?.uid != null ? String(user.uid) : null;
 
   const [inputText, setInputText] = useState("");
-  const [messages, setMessages] = useState<DmMessage[]>([]);
+  const [messages, setMessages] = useState<DmMessage[]>(() => getMessages(peerIdStr));
   const [showGiftPicker, setShowGiftPicker] = useState(false);
   const [showPackPicker, setShowPackPicker] = useState(false);
   const [showMediaChooser, setShowMediaChooser] = useState(false);
@@ -55,12 +55,70 @@ export default function DmScreen() {
   const [inviteGiftId, setInviteGiftId] = useState<string | null>(null);
   const [listPositioned, setListPositioned] = useState(false);
   const listRef = useRef<FlatList>(null);
-  const pendingInitialScrollRef = useRef(true);
   const isNearBottomRef = useRef(true);
+  const [followingBottom, setFollowingBottom] = useState(true);
+  const updateFollowingBottom = useCallback((following: boolean) => {
+    isNearBottomRef.current = following;
+    setFollowingBottom(following);
+  }, []);
+  const draggingRef = useRef(false);
+  const initialTargetRef = useRef<string | null>(null);
+  const positionedRef = useRef(false);
+  const positionFailedRef = useRef(false);
+  const positionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollFrameRef = useRef<number | null>(null);
-  const messagesLengthRef = useRef(0);
+  const focusedRef = useRef(false);
+  const latestMessageRef = useRef<string | undefined>(undefined);
+  const conversationsRef = useRef(conversations);
+  conversationsRef.current = conversations;
+  const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
+  const reversedMessagesRef = useRef(reversedMessages);
+  reversedMessagesRef.current = reversedMessages;
   const paymentBalanceStateRef = useRef("");
-  messagesLengthRef.current = messages.length;
+
+  // An inverted list starts at the newest message without scrolling through history.
+  // Only unread openings need an explicit (hidden, nonanimated) position change.
+  const positionOnOpen = useCallback(() => {
+    if (!focusedRef.current || positionedRef.current) return;
+    if (scrollFrameRef.current != null) {
+      cancelAnimationFrame(scrollFrameRef.current);
+      scrollFrameRef.current = null;
+    }
+    const data = reversedMessagesRef.current;
+    if (!data.length) return;
+    const index = initialTargetRef.current
+      ? data.findIndex((message) => message.messageId === initialTargetRef.current)
+      : -1;
+    positionFailedRef.current = false;
+    if (index >= 0) {
+      listRef.current?.scrollToIndex({ index, animated: false, viewPosition: 1 });
+    } else {
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    }
+    if (positionFailedRef.current) return;
+    scrollFrameRef.current = requestAnimationFrame(() => {
+      scrollFrameRef.current = requestAnimationFrame(() => {
+        positionedRef.current = true;
+        updateFollowingBottom(index <= 0);
+        setListPositioned(true);
+        markRead(peerIdStr);
+        scrollFrameRef.current = null;
+      });
+    });
+  }, [markRead, peerIdStr, updateFollowingBottom]);
+
+  // At the bottom, keep offset zero instead of anchoring an older message and
+  // then animating back to the newest one after insertion or keyboard layout.
+  const keepAtBottom = useCallback(() => {
+    if (focusedRef.current && positionedRef.current && isNearBottomRef.current && !draggingRef.current) {
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    }
+  }, []);
+
+  const handleListLayout = useCallback(() => {
+    if (!positionedRef.current) positionOnOpen();
+    else if (isNearBottomRef.current) keepAtBottom();
+  }, [keepAtBottom, positionOnOpen]);
 
   const coinBalanceQuery = useGetCoinBalance(
     { uid: user?.uid ?? 0 },
@@ -73,48 +131,57 @@ export default function DmScreen() {
   const invitationAction = useActOnPrivateStreamInvitation();
   const viewerCoins = coinBalanceQuery.data?.balance ?? 0;
 
-  // Sync messages from RtmContext store
+  // Conversation updates are published as soon as the message store changes.
+  // Read that update directly instead of waiting for a separate 500 ms poll.
   useEffect(() => {
-    const interval = setInterval(() => {
-      setMessages(getMessages(peerIdStr));
-    }, 500);
-    setMessages(getMessages(peerIdStr));
-    return () => clearInterval(interval);
-  }, [peerIdStr, getMessages]);
-
-  const scrollToLatest = useCallback((animated: boolean) => {
-    if (messagesLengthRef.current === 0) return;
-    if (scrollFrameRef.current != null) cancelAnimationFrame(scrollFrameRef.current);
-    scrollFrameRef.current = requestAnimationFrame(() => {
-      scrollFrameRef.current = requestAnimationFrame(() => {
-        listRef.current?.scrollToEnd({ animated });
-        pendingInitialScrollRef.current = false;
-        isNearBottomRef.current = true;
-        setListPositioned(true);
-        scrollFrameRef.current = null;
-      });
-    });
-  }, []);
+    const next = getMessages(peerIdStr);
+    const latest = next[next.length - 1];
+    if (focusedRef.current && positionedRef.current && latest &&
+        latest.messageId !== latestMessageRef.current && latest.senderId === myUidStr) {
+      // Switch anchoring in the same render that inserts our outgoing message.
+      updateFollowingBottom(true);
+      keepAtBottom();
+    }
+    setMessages((current) => current.length === 0 && next.length === 0 ? current : next);
+  }, [peerIdStr, getMessages, conversations, myUidStr, updateFollowingBottom, keepAtBottom]);
 
   useFocusEffect(
     useCallback(() => {
-      pendingInitialScrollRef.current = true;
-      isNearBottomRef.current = true;
+      focusedRef.current = true;
+      draggingRef.current = false;
+      positionedRef.current = false;
       setListPositioned(false);
-      markRead(peerIdStr);
-      scrollToLatest(false);
+      const cached = getMessages(peerIdStr);
+      const unread = conversationsRef.current.find((c) => c.peerId === peerIdStr)?.unread ?? 0;
+      const incoming = cached.filter((message) => message.senderId === peerIdStr);
+      initialTargetRef.current = unread > 0
+        ? incoming[Math.max(0, incoming.length - unread)]?.messageId ?? null
+        : null;
+      latestMessageRef.current = cached[cached.length - 1]?.messageId;
+      updateFollowingBottom(initialTargetRef.current === null);
+      setMessages(cached);
+      // Also handles returning to an already mounted conversation.
+      positionTimerRef.current = setTimeout(positionOnOpen, 0);
       return () => {
+        focusedRef.current = false;
+        if (positionTimerRef.current != null) clearTimeout(positionTimerRef.current);
         if (scrollFrameRef.current != null) cancelAnimationFrame(scrollFrameRef.current);
-        scrollFrameRef.current = null;
       };
-    }, [markRead, peerIdStr, scrollToLatest]),
+    }, [getMessages, peerIdStr, positionOnOpen, updateFollowingBottom]),
   );
 
   useEffect(() => {
-    if (messages.length > 0) {
-      markRead(peerIdStr);
+    if (!focusedRef.current) return;
+    const latest = messages[messages.length - 1];
+    const hasNewMessage = latest && latest.messageId !== latestMessageRef.current;
+    latestMessageRef.current = latest?.messageId;
+    if (!positionedRef.current) return;
+    if (hasNewMessage && (isNearBottomRef.current || latest.senderId === myUidStr)) {
+      updateFollowingBottom(true);
+      keepAtBottom();
     }
-  }, [messages.length, markRead, peerIdStr]);
+    if (messages.length > 0) markRead(peerIdStr);
+  }, [messages, markRead, peerIdStr, myUidStr, keepAtBottom, updateFollowingBottom]);
 
   useEffect(() => {
     const paymentState = messages
@@ -177,24 +244,44 @@ export default function DmScreen() {
       {/* Messages */}
       <FlatList
         ref={listRef}
-        data={messages}
-        style={{ opacity: messages.length === 0 || listPositioned ? 1 : 0 }}
+        data={reversedMessages}
+        inverted={messages.length > 0}
+        maintainVisibleContentPosition={followingBottom ? undefined : { minIndexForVisible: 0 }}
+        style={{ flex: 1, minHeight: 0, opacity: messages.length === 0 || listPositioned ? 1 : 0 }}
         keyExtractor={(item) => item.messageId}
         contentContainerStyle={[styles.listContent, { paddingBottom: 8 }]}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
-        onScroll={({ nativeEvent }) => {
-          const distanceFromBottom =
-            nativeEvent.contentSize.height -
-            nativeEvent.layoutMeasurement.height -
-            nativeEvent.contentOffset.y;
-          isNearBottomRef.current = distanceFromBottom <= 80;
+        onScrollBeginDrag={() => {
+          draggingRef.current = true;
         }}
-        onContentSizeChange={() => {
-          if (messages.length === 0) return;
-          if (pendingInitialScrollRef.current || isNearBottomRef.current) {
-            scrollToLatest(pendingInitialScrollRef.current ? false : true);
+        onScroll={({ nativeEvent }) => {
+          // Native anchoring can change the offset when a message is inserted.
+          // Only a user's scroll should switch off following the conversation.
+          if (draggingRef.current) {
+            updateFollowingBottom(nativeEvent.contentOffset.y <= 80);
           }
+        }}
+        onScrollEndDrag={({ nativeEvent }) => {
+          draggingRef.current = false;
+          updateFollowingBottom(nativeEvent.contentOffset.y <= 80);
+        }}
+        onMomentumScrollBegin={() => {
+          draggingRef.current = true;
+        }}
+        onMomentumScrollEnd={({ nativeEvent }) => {
+          draggingRef.current = false;
+          updateFollowingBottom(nativeEvent.contentOffset.y <= 80);
+        }}
+        onLayout={handleListLayout}
+        onContentSizeChange={handleListLayout}
+        onScrollToIndexFailed={({ index, averageItemLength }) => {
+          // Variable-height rows outside the render window must be measured first.
+          // Keep the list hidden until the exact unread index can be positioned.
+          positionFailedRef.current = true;
+          listRef.current?.scrollToOffset({ offset: averageItemLength * index, animated: false });
+          if (positionTimerRef.current != null) clearTimeout(positionTimerRef.current);
+          positionTimerRef.current = setTimeout(positionOnOpen, 100);
         }}
         renderItem={({ item }) => {
           const isMe = item.senderId === myUidStr;

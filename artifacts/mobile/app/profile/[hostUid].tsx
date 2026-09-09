@@ -1,10 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
+  Image,
   Platform,
   ScrollView,
   StatusBar,
@@ -20,6 +21,8 @@ import {
   getGetUserFollowingQueryKey,
   getGetUserFollowersQueryKey,
   useGetUser,
+  useGetUserPosts,
+  getGetUserPostsQueryKey,
   useGetUserStreams,
   useFollowUser,
   useUnfollowUser,
@@ -33,19 +36,6 @@ import { useAuth } from "@/context/AuthContext";
 const { width } = Dimensions.get("window");
 const GRID_CELL = (width - 4) / 3;
 
-const CATEGORY_COLORS: Record<string, [string, string]> = {
-  Gaming: ["#7B4FFF", "#3D1FA8"],
-  Music:  ["#FF1966", "#8B0030"],
-  Talk:   ["#00C896", "#006B51"],
-  Art:    ["#FF8C00", "#8B4700"],
-  Dance:  ["#FF1966", "#8B0030"],
-  Other:  ["#4FC3F7", "#1565C0"],
-};
-
-function catColors(cat: string): [string, string] {
-  return CATEGORY_COLORS[cat] ?? ["#4FC3F7", "#1565C0"];
-}
-
 function formatDate(iso: string) {
   const d = new Date(iso);
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -57,6 +47,7 @@ function fmtCount(n: number): string {
 
 export default function PublicProfileScreen() {
   const colors = useColors();
+  const [historyView, setHistoryView] = useState<"grid" | "feed">("grid");
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -78,6 +69,11 @@ export default function PublicProfileScreen() {
     query: { refetchOnWindowFocus: false } as any,
   });
 
+  const { data: postsData, isLoading: postsLoading, isError: postsError, refetch: refetchPosts } = useGetUserPosts(uid, {
+    query: { queryKey: getGetUserPostsQueryKey(uid), enabled: uid > 0 },
+  });
+  const posts = postsData?.posts ?? [];
+
   const followerUid = currentUser?.uid;
   const canFollow = !!followerUid && followerUid !== uid;
 
@@ -89,8 +85,9 @@ export default function PublicProfileScreen() {
 
   useFocusEffect(useCallback(() => {
     void refetchUser();
+    if (uid > 0) void refetchPosts();
     if (canFollow) void refetchFollowStatus();
-  }, [uid, canFollow, refetchUser, refetchFollowStatus]));
+  }, [uid, canFollow, refetchUser, refetchFollowStatus, refetchPosts]));
 
   const isFollowing = followStatusData?.isFollowing ?? false;
 
@@ -234,37 +231,111 @@ export default function PublicProfileScreen() {
               )}
             </View>
 
-            {/* Grid header */}
-            <View style={[styles.gridHeader, { borderColor: colors.border }]}>
-              <Ionicons name="grid-outline" size={20} color={colors.primary} />
-            </View>
+        {/* Grid divider */}
+        <View style={[styles.gridHeader, { borderColor: colors.border }]}>
+          <TouchableOpacity
+            style={[
+              styles.viewOption,
+              historyView === "grid" && { borderBottomColor: colors.primary },
+            ]}
+            onPress={() => setHistoryView("grid")}
+            activeOpacity={0.7}
+            accessibilityLabel="Grid view"
+          >
+            <Ionicons
+              name={historyView === "grid" ? "grid" : "grid-outline"}
+              size={20}
+              color={historyView === "grid" ? colors.primary : colors.mutedForeground}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.viewOption,
+              historyView === "feed" && { borderBottomColor: colors.primary },
+            ]}
+            onPress={() => setHistoryView("feed")}
+            activeOpacity={0.7}
+            accessibilityLabel="Feed view"
+          >
+            <Ionicons
+              name={historyView === "feed" ? "list" : "list-outline"}
+              size={22}
+              color={historyView === "feed" ? colors.primary : colors.mutedForeground}
+            />
+          </TouchableOpacity>
+        </View>
 
-            {/* 3-column past streams grid */}
-            {streamHistory.length === 0 ? (
-              <View style={styles.emptyGrid}>
-                <Ionicons name="radio-outline" size={36} color={colors.mutedForeground} />
-                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                  No past streams yet
-                </Text>
+        {/* Photo posts */}
+        {postsLoading ? (
+          <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
+        ) : postsError ? (
+          <TouchableOpacity style={styles.emptyGrid} onPress={() => void refetchPosts()} accessibilityRole="button">
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Could not load posts. Tap to retry.</Text>
+          </TouchableOpacity>
+        ) : posts.length === 0 ? (
+          <View style={styles.emptyGrid}>
+            <Ionicons name="images-outline" size={36} color={colors.mutedForeground} />
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+              No posts yet
+            </Text>
+          </View>
+        ) : historyView === "grid" ? (
+          <View style={styles.grid}>
+            {posts.map((post) => (
+              <View key={post.id} style={styles.gridCell}>
+                <Image source={{ uri: post.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
               </View>
-            ) : (
-              <View style={styles.grid}>
-                {streamHistory.map((item) => {
-                  const [c1, c2] = catColors(item.category);
-                  return (
-                    <View key={item.id} style={[styles.gridCell, { backgroundColor: c2 }]}>
-                      <View style={[StyleSheet.absoluteFill, { backgroundColor: c1, opacity: 0.5 }]} />
-                      <Text style={styles.gridCellLabel}>{item.category.slice(0, 2).toUpperCase()}</Text>
-                      <Text style={styles.gridCellDate}>{formatDate(item.startedAt)}</Text>
-                      <View style={styles.gridCellViewers}>
-                        <Ionicons name="eye-outline" size={10} color="rgba(255,255,255,0.7)" />
-                        <Text style={styles.gridCellViewersText}>{item.peakViewers}</Text>
-                      </View>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.feed}>
+            {posts.map((post) => (
+                <View
+                  key={post.id}
+                  style={[styles.feedCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                >
+                  <View style={styles.feedPostHeader}>
+                    <Avatar
+                      uid={uid}
+                      name={displayName}
+                      avatarUri={profile?.avatarImageUrl ?? paramAvatarUri}
+                      size={34}
+                      borderWidth={1}
+                    />
+                    <View style={styles.feedPostIdentity}>
+                      <Text style={[styles.feedUserName, { color: colors.foreground }]}>
+                        {displayName}
+                      </Text>
+                      <Text style={[styles.feedDate, { color: colors.mutedForeground }]}>{formatDate(post.createdAt)}</Text>
                     </View>
-                  );
-                })}
-              </View>
-            )}
+
+                  </View>
+
+                  <View style={styles.feedMedia}>
+                    <Image source={{ uri: post.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                  </View>
+
+                  <View style={styles.feedActions}>
+                    <View style={styles.feedPrimaryActions}>
+                      <Ionicons name="heart-outline" size={25} color={colors.foreground} />
+                      <Ionicons name="chatbubble-outline" size={23} color={colors.foreground} />
+                      <Ionicons name="paper-plane-outline" size={24} color={colors.foreground} />
+                    </View>
+                    <Ionicons name="bookmark-outline" size={25} color={colors.foreground} />
+                  </View>
+
+                  <View style={styles.feedCaption}>
+                    {post.caption ? (
+                      <Text style={[styles.feedCategory, { color: colors.foreground }]}>
+                        <Text style={styles.feedCaptionName}>{displayName} </Text>
+                        {post.caption}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+            ))}
+          </View>
+        )}
           </>
         )}
 
@@ -335,10 +406,18 @@ const styles = StyleSheet.create({
   gridHeader: {
     flexDirection: "row",
     justifyContent: "center",
-    paddingVertical: 12,
+    gap: 32,
     marginTop: 12,
     borderTopWidth: 1,
     borderBottomWidth: 1,
+  },
+  viewOption: {
+    width: 52,
+    height: 46,
+    alignItems: "center",
+    justifyContent: "center",
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
   },
   emptyGrid: {
     alignItems: "center",
@@ -346,6 +425,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyText: { fontSize: 15, fontWeight: "600", fontFamily: "Inter_500Medium" },
+  emptySubText: { fontSize: 13, fontFamily: "Inter_400Regular" },
   grid: { flexDirection: "row", flexWrap: "wrap" },
   gridCell: {
     width: GRID_CELL,
@@ -380,5 +460,69 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: "rgba(255,255,255,0.7)",
     fontFamily: "Inter_400Regular",
+  },
+  feed: {
+    paddingTop: 14,
+    gap: 18,
+  },
+  feedCard: {
+    width: "100%",
+    borderWidth: 1,
+  },
+  feedPostHeader: {
+    height: 56,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    gap: 10,
+  },
+  feedPostIdentity: {
+    flex: 1,
+    gap: 2,
+  },
+  feedUserName: {
+    fontSize: 13,
+    fontFamily: "Inter_700Bold",
+  },
+  feedDate: {
+    fontSize: 10,
+    fontFamily: "Inter_400Regular",
+  },
+  feedMedia: {
+    width: "100%",
+    aspectRatio: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  feedActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 13,
+    paddingTop: 12,
+    paddingBottom: 9,
+  },
+  feedPrimaryActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 17,
+  },
+  feedCaption: {
+    paddingHorizontal: 13,
+    paddingBottom: 14,
+    gap: 6,
+  },
+  feedViewerText: {
+    fontSize: 13,
+    fontFamily: "Inter_700Bold",
+  },
+  feedCategory: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: "Inter_400Regular",
+  },
+  feedCaptionName: {
+    fontFamily: "Inter_700Bold",
   },
 });
