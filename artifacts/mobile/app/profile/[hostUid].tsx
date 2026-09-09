@@ -152,7 +152,7 @@ export default function PublicProfileScreen() {
           <>
             {/* Profile info */}
             <View style={styles.profileBlock}>
-              <Avatar uid={uid} name={displayName} avatarUri={profile?.avatarImageUrl ?? paramAvatarUri} size={88} borderWidth={2} />
+              <Avatar uid={uid} name={displayName} avatarUri={profile?.avatarImageUrl ?? paramAvatarUri} size={88} />
 
               <Text style={[styles.displayName, { color: colors.foreground }]}>
                 {displayName}

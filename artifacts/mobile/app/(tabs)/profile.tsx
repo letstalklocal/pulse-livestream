@@ -331,12 +331,13 @@ export default function ProfileScreen() {
             </View>
           ) : (
             <TouchableOpacity
-              style={[styles.headerGoLiveBtn, { backgroundColor: colors.primary }]}
-              onPress={() => router.push("/go-live" as any)}
+              style={styles.headerMenuBtn}
+              onPress={() => router.push("/settings" as any)}
+              accessibilityRole="button"
+              accessibilityLabel="Open settings"
               activeOpacity={0.8}
             >
-              <Ionicons name="radio" size={14} color="#FFF" />
-              <Text style={styles.headerGoLiveBtnText}>Go Live</Text>
+              <Ionicons name="menu-outline" size={28} color={colors.foreground} />
             </TouchableOpacity>
           )}
         </View>
@@ -344,7 +345,7 @@ export default function ProfileScreen() {
         {/* Avatar + info */}
         <View style={styles.profileBlock}>
           <TouchableOpacity onPress={pickAvatar} activeOpacity={0.8} style={styles.avatarWrapper}>
-            <Avatar uid={user.uid} name={user.name} avatarUri={user.avatarUri} size={96} borderWidth={3} />
+            <Avatar uid={user.uid} name={user.name} avatarUri={user.avatarUri} size={96} />
             <View style={[styles.avatarEditBadge, { backgroundColor: colors.primary }]}>
               <Ionicons name="camera" size={12} color="#FFF" />
             </View>
@@ -388,14 +389,6 @@ export default function ProfileScreen() {
                 >
                   <Ionicons name="pencil-outline" size={15} color={colors.foreground} />
                   <Text style={[styles.editProfileText, { color: colors.foreground }]}>Edit Profile</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.settingsBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-                  onPress={() => router.push("/settings" as any)}
-                  activeOpacity={0.75}
-                  accessibilityLabel="Open settings"
-                >
-                  <Ionicons name="settings-outline" size={18} color={colors.foreground} />
                 </TouchableOpacity>
               </View>
             </>
@@ -632,18 +625,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Inter_700Bold",
   },
-  headerGoLiveBtn: {
-    flexDirection: "row",
+  headerMenuBtn: {
+    width: 44,
+    height: 44,
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
-  },
-  headerGoLiveBtnText: {
-    color: "#FFF",
-    fontSize: 14,
-    fontFamily: "Inter_700Bold",
+    justifyContent: "center",
   },
   iconBtn: {
     width: 36,
@@ -680,14 +666,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   editProfileText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  settingsBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   newPostFab: {
     position: "absolute",
     right: 20,

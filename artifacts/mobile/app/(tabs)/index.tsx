@@ -107,7 +107,6 @@ export default function DiscoveryScreen() {
               name={user.name}
               avatarUri={user.avatarUri}
               size={38}
-              borderWidth={2}
             />
           ) : (
             <View style={[styles.guestAvatar, { backgroundColor: colors.card, borderColor: colors.border }]}>
