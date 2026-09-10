@@ -1,3 +1,4 @@
+import { requireContactAllowed } from "../lib/userSafety";
 import { Router } from "express";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, coinBalancesTable, coinTransactionsTable, directMessagesTable, mediaPackItemsTable, mediaPackPurchasesTable, mediaPacksTable, usersTable } from "@workspace/db";
@@ -70,6 +71,7 @@ router.get("/media-packs/:packId", async (req, res): Promise<any> => {
 router.post("/media-packs/:packId/send", async (req, res): Promise<any> => {
   const user = await requireUser(req, res); if (!user) return; const id = Number(req.params.packId), recipientId = Number(req.body?.recipientId), idempotencyKey = key(req.body?.idempotencyKey);
   if (!Number.isInteger(id) || !Number.isInteger(recipientId) || !idempotencyKey) return res.status(400).json({ error: "recipientId and idempotencyKey are required" });
+  if (!await requireContactAllowed(res, user.uid, recipientId)) return;
   const pack = (await db.select().from(mediaPacksTable).where(and(eq(mediaPacksTable.id, id), eq(mediaPacksTable.ownerUserId, user.uid))).limit(1))[0]; if (!pack) return res.status(404).json({ error: "Pack not found" });
   const existing = (await db.select().from(directMessagesTable).where(eq(directMessagesTable.idempotencyKey, idempotencyKey)).limit(1))[0];
   if (existing) { if (existing.fromUserId !== user.uid || existing.toUserId !== recipientId || existing.mediaPackId !== id) return res.status(409).json({ error: "Idempotency key was used for another request" }); return res.json({ message: { id: String(existing.id), kind: existing.kind, mediaPackId: String(id), ts: existing.createdAt.getTime() } }); }

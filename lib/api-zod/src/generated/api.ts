@@ -665,6 +665,20 @@ export const CreatePostBody = zod.object({
 })
 
 
+export const ReportPostParams = zod.object({
+  "postId": zod.coerce.number()
+})
+
+export const reportPostBodyDetailsMax = 2000;
+
+
+
+export const ReportPostBody = zod.object({
+  "reason": zod.enum(['harassment', 'spam', 'sexual_content', 'violence', 'child_safety', 'other']),
+  "details": zod.string().max(reportPostBodyDetailsMax).optional()
+})
+
+
 export const DeletePostParams = zod.object({
   "postId": zod.coerce.number()
 })
@@ -966,6 +980,45 @@ export const TranslateChatMessageResponse = zod.object({
   "translated": zod.boolean(),
   "targetLanguage": zod.string(),
   "sourceLanguage": zod.string().optional()
+})
+
+
+export const GetUserSafetyParams = zod.object({
+  "uid": zod.coerce.number()
+})
+
+export const GetUserSafetyResponse = zod.object({
+  "blockedByMe": zod.boolean(),
+  "contactBlocked": zod.boolean()
+})
+
+
+export const SetUserBlockParams = zod.object({
+  "uid": zod.coerce.number()
+})
+
+export const SetUserBlockBody = zod.object({
+  "blocked": zod.boolean()
+})
+
+export const SetUserBlockResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+export const ReportUserParams = zod.object({
+  "uid": zod.coerce.number()
+})
+
+export const reportUserBodyDetailsMax = 2000;
+
+
+
+export const ReportUserBody = zod.object({
+  "source": zod.enum(['profile', 'dm']),
+  "messageId": zod.number().optional(),
+  "reason": zod.enum(['harassment', 'spam', 'sexual_content', 'violence', 'child_safety', 'other']),
+  "details": zod.string().max(reportUserBodyDetailsMax).optional()
 })
 
 

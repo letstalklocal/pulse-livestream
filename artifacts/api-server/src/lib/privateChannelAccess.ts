@@ -1,3 +1,4 @@
+import { contactBlocked } from "./userSafety";
 import { viewerModeration } from "./streamModeration";
 import { and, eq } from "drizzle-orm";
 import { db, creatorBlocksTable, liveStreamSessionsTable, privateStreamInvitationsTable, usersTable } from "@workspace/db";
@@ -29,6 +30,7 @@ export async function canAccessChannel(channelId: string, clerkId: string | null
   const user = (await db.select({ uid: usersTable.uid }).from(usersTable)
     .where(eq(usersTable.clerkId, clerkId)).limit(1))[0] ?? null;
   if (!user || (user.uid !== invitation.streamerUserId && user.uid !== invitation.invitedUserId)) return false;
+  if (await contactBlocked(invitation.streamerUserId, invitation.invitedUserId)) return false;
   if (user.uid === invitation.streamerUserId) return true;
   const blocked = (await db.select().from(creatorBlocksTable).where(and(
     eq(creatorBlocksTable.hostUserId, invitation.streamerUserId), eq(creatorBlocksTable.viewerUserId, user.uid),

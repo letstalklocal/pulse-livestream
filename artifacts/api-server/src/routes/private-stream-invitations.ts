@@ -1,3 +1,4 @@
+import { requireContactAllowed } from "../lib/userSafety";
 import { Router } from "express";
 import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { coinBalancesTable, coinTransactionsTable, db, directMessagesTable, liveStreamSessionsTable, privateStreamInvitationsTable, usersTable } from "@workspace/db";
@@ -100,6 +101,7 @@ router.post("/private-stream-invitations", async (req, res): Promise<any> => {
   const gift = requestedGiftId == null || requestedGiftId === "" ? null : GIFTS.find((candidate) => candidate.id === requestedGiftId);
   if (requestedGiftId != null && requestedGiftId !== "" && !gift) return res.status(400).json({ error: "Choose a valid gift from the invitation catalog" });
   if (!Number.isInteger(invitedUserId) || invitedUserId === streamer.uid) return res.status(400).json({ error: "Choose a valid DM recipient" });
+  if (!await requireContactAllowed(res, streamer.uid, invitedUserId)) return;
   const invited = (await db.select({ uid: usersTable.uid }).from(usersTable).where(eq(usersTable.uid, invitedUserId)).limit(1))[0];
   if (!invited) return res.status(404).json({ error: "Recipient not found" });
   const threadMessage = (await db.select({ id: directMessagesTable.id }).from(directMessagesTable).where(or(
@@ -154,6 +156,7 @@ router.post("/private-stream-invitations/:id/:action", async (req, res): Promise
   const id = Number(req.params["id"]); const action = req.params["action"];
   let invitation = await getInvite(id);
   if (!invitation || (invitation.streamerUserId !== user.uid && invitation.invitedUserId !== user.uid)) return res.status(404).json({ error: "Invitation not found" });
+  if (["accept", "start"].includes(action) && !await requireContactAllowed(res, invitation.streamerUserId, invitation.invitedUserId)) return;
   invitation = await expireIfNeeded(invitation);
   const isStreamer = invitation.streamerUserId === user.uid;
   const allowed = (action === "accept" || action === "decline") ? !isStreamer : action === "cancel" || action === "end" || action === "start" || action === "heartbeat" ? isStreamer : false;

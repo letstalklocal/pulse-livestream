@@ -890,6 +890,40 @@ paths:
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CreatePostRequest" } } } }
       responses:
         "201": { description: Created post, content: { application/json: { schema: { $ref: "#/components/schemas/PostResponse" } } } }
+  /posts/{postId}/reports:
+    post:
+      operationId: reportPost
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  enum: [harassment, spam, sexual_content, violence, child_safety, other]
+                details:
+                  type: string
+                  maxLength: 2000
+      responses:
+        '201':
+          description: Photo report saved for review
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success:
+                    type: boolean
   /posts/{postId}:
     delete:
       operationId: deletePost
@@ -1030,6 +1064,81 @@ paths:
                     type: string
                   sourceLanguage:
                     type: string
+  /safety/users/{uid}:
+    get:
+      operationId: getUserSafety
+      parameters:
+        - &safetyUid
+          in: path
+          name: uid
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Account contact status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [blockedByMe, contactBlocked]
+                properties:
+                  blockedByMe:
+                    type: boolean
+                  contactBlocked:
+                    type: boolean
+  /safety/users/{uid}/block:
+    post:
+      operationId: setUserBlock
+      parameters:
+        - *safetyUid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [blocked]
+              properties:
+                blocked:
+                  type: boolean
+      responses:
+        '200': &safetySuccess
+          description: Action saved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success:
+                    type: boolean
+  /safety/users/{uid}/reports:
+    post:
+      operationId: reportUser
+      parameters:
+        - *safetyUid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [source, reason]
+              properties:
+                source:
+                  type: string
+                  enum: [profile, dm]
+                messageId:
+                  type: integer
+                reason:
+                  type: string
+                  enum: [harassment, spam, sexual_content, violence, child_safety, other]
+                details:
+                  type: string
+                  maxLength: 2000
+      responses:
+        '201': *safetySuccess
 components:
   schemas:
     CreatePrivateStreamInvitationRequest:

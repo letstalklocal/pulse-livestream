@@ -1,3 +1,5 @@
+import { AccountSafetyMenu, ReportMessageButton } from "@/components/AccountSafetyMenu";
+import { useAccountSafety } from "@/hooks/useAccountSafety";
 import { TranslatedMessage } from "@/components/TranslatedMessage";
 import { TranslationToggle } from "@/components/TranslationToggle";
 import { Ionicons } from "@expo/vector-icons";
@@ -46,6 +48,8 @@ export default function DmScreen() {
   const { peerId, peerName } = useLocalSearchParams<{ peerId: string; peerName: string }>();
   const peerIdStr = peerId ?? "";
   const name = peerName ?? "User";
+  const safety = useAccountSafety(Number(peerIdStr));
+  const contactBlocked = safety.data?.contactBlocked === true;
   const myUidStr = user?.uid != null ? String(user.uid) : null;
 
   const [inputText, setInputText] = useState("");
@@ -201,7 +205,7 @@ export default function DmScreen() {
 
   const send = async () => {
     const text = inputText.trim();
-    if (!text) return;
+    if (!text || contactBlocked) return;
     setInputText("");
     setSendError(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -239,9 +243,10 @@ export default function DmScreen() {
           {name}
         </Text>
         <TranslationToggle peerId={peerIdStr} color={colors.foreground} />
-        <TouchableOpacity onPress={() => setShowInviteComposer(true)} disabled={createInviteMutation.isPending} accessibilityLabel={`Invite ${name} to a private live stream`}>
+        <TouchableOpacity onPress={() => setShowInviteComposer(true)} disabled={createInviteMutation.isPending || contactBlocked} accessibilityLabel={`Invite ${name} to a private live stream`}>
           {createInviteMutation.isPending ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="videocam-outline" size={23} color={colors.primary} />}
         </TouchableOpacity>
+        <AccountSafetyMenu uid={Number(peerIdStr)} source="dm" color={colors.foreground} />
       </View>
 
       {/* Messages */}
@@ -303,10 +308,10 @@ export default function DmScreen() {
                    {item.invitation.requiredGiftAmount > 0 ? <Text style={styles.invitePrice}>🎁 {item.invitation.requiredGiftName} · 🪙 {item.invitation.requiredGiftAmount}{item.invitation.paymentStatus === "paid" ? " · paid" : item.invitation.paymentStatus === "refunded" ? " · refunded" : ""}</Text> : <Text style={[styles.inviteStatus, { color: colors.mutedForeground }]}>Free invitation</Text>}
                   {item.invitation.status === "pending" && !isMe ? <View style={styles.inviteActions}>
                     <TouchableOpacity disabled={invitationAction.isPending} onPress={() => invitationAction.mutate({ id: Number(item.invitation!.id), action: "decline" })}><Text style={[styles.inviteSecondary, { color: colors.mutedForeground }]}>Decline</Text></TouchableOpacity>
-                    <TouchableOpacity disabled={invitationAction.isPending} onPress={() => invitationAction.mutate({ id: Number(item.invitation!.id), action: "accept" }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetCoinBalanceQueryKey({ uid: user?.uid ?? 0 }) }), onError: (error: any) => { const message = error?.message ?? "Unable to accept invitation."; setSendError(message.includes("Insufficient") ? "Insufficient coins to accept this invitation." : message); if (message.includes("Insufficient")) Alert.alert("Insufficient coins", `You need ${item.invitation!.requiredGiftAmount} coins to accept this private live.`); } })} style={styles.invitePrimary}><Text style={styles.invitePrimaryText}>{item.invitation.requiredGiftAmount > 0 ? `Pay ${item.invitation.requiredGiftAmount} coins & Accept` : "Accept"}</Text></TouchableOpacity>
+                    <TouchableOpacity disabled={invitationAction.isPending || contactBlocked} onPress={() => invitationAction.mutate({ id: Number(item.invitation!.id), action: "accept" }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetCoinBalanceQueryKey({ uid: user?.uid ?? 0 }) }), onError: (error: any) => { const message = error?.message ?? "Unable to accept invitation."; setSendError(message.includes("Insufficient") ? "Insufficient coins to accept this invitation." : message); if (message.includes("Insufficient")) Alert.alert("Insufficient coins", `You need ${item.invitation!.requiredGiftAmount} coins to accept this private live.`); } })} style={styles.invitePrimary}><Text style={styles.invitePrimaryText}>{item.invitation.requiredGiftAmount > 0 ? `Pay ${item.invitation.requiredGiftAmount} coins & Accept` : "Accept"}</Text></TouchableOpacity>
                   </View> : null}
                   {item.invitation.status === "pending" && isMe ? <TouchableOpacity disabled={invitationAction.isPending} onPress={() => invitationAction.mutate({ id: Number(item.invitation!.id), action: "cancel" })}><Text style={[styles.inviteSecondary, { color: colors.mutedForeground }]}>Cancel invitation</Text></TouchableOpacity> : null}
-                  {item.invitation.status === "accepted" && isMe ? <TouchableOpacity disabled={invitationAction.isPending} onPress={() => router.push({ pathname: "/go-live", params: { invitationId: item.invitation!.id, channelId: item.invitation!.channelId } } as any)} style={styles.invitePrimary}><Text style={styles.invitePrimaryText}>Start private live</Text></TouchableOpacity> : null}
+                  {item.invitation.status === "accepted" && isMe ? <TouchableOpacity disabled={invitationAction.isPending || contactBlocked} onPress={() => router.push({ pathname: "/go-live", params: { invitationId: item.invitation!.id, channelId: item.invitation!.channelId } } as any)} style={styles.invitePrimary}><Text style={styles.invitePrimaryText}>Start private live</Text></TouchableOpacity> : null}
                   {item.invitation.status === "active" && !isMe ? <TouchableOpacity onPress={() => {
                     router.push({ pathname: "/stream/[channelId]", params: { channelId: item.invitation!.channelId, privateInvitationId: item.invitation!.id } } as any);
                   }} style={styles.invitePrimary}><Text style={styles.invitePrimaryText}>Join live</Text></TouchableOpacity> : null}
@@ -326,6 +331,7 @@ export default function DmScreen() {
               >
                 <TranslatedMessage text={item.text} messageId={item.messageId} kind="dm" peerId={peerIdStr} incoming={!isMe && !isGift} style={[styles.bubbleText, { color: isGift ? "#FFD700" : isMe ? "#FFF" : colors.foreground }]} />
               </View>}
+              {!isMe ? <ReportMessageButton uid={Number(peerIdStr)} messageId={item.messageId} color={colors.mutedForeground} /> : null}
             </View>
           );
         }}
@@ -347,7 +353,7 @@ export default function DmScreen() {
         </View>
       )}
       {/* Input bar */}
-      <View style={[styles.inputBar, { borderTopColor: colors.border, paddingBottom: insets.bottom + 8 }]}>
+      {contactBlocked ? <Text style={{ color: colors.mutedForeground, textAlign: "center", padding: 16, paddingBottom: insets.bottom + 16 }}>{safety.data?.blockedByMe ? "You blocked this user. Use the user menu to unblock." : "Messaging is unavailable with this account."}</Text> : <View style={[styles.inputBar, { borderTopColor: colors.border, paddingBottom: insets.bottom + 8 }]}>
         <TextInput
           style={[styles.input, { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border }]}
           value={inputText}
@@ -391,10 +397,10 @@ export default function DmScreen() {
         >
           <Ionicons name="send" size={18} color={inputText.trim() ? "#FFF" : "rgba(255,255,255,0.4)"} />
         </TouchableOpacity>
-      </View>
+      </View>}
 
       <MediaChooser
-        visible={showMediaChooser}
+        visible={showMediaChooser && !contactBlocked}
         peerId={peerIdStr}
         onClose={() => setShowMediaChooser(false)}
         onOpenPackPicker={() => setShowPackPicker(true)}
@@ -403,7 +409,7 @@ export default function DmScreen() {
         }}
       />
       <GiftPicker
-        visible={showGiftPicker}
+        visible={showGiftPicker && !contactBlocked}
         coins={viewerCoins}
         hintText="Tap a gift to send it in chat"
         onClose={() => setShowGiftPicker(false)}
@@ -451,16 +457,16 @@ export default function DmScreen() {
           })();
         }}
       />
-       <Modal visible={showInviteComposer} transparent animationType="slide" onRequestClose={() => setShowInviteComposer(false)}>
+       <Modal visible={showInviteComposer && !contactBlocked} transparent animationType="slide" onRequestClose={() => setShowInviteComposer(false)}>
          <View style={styles.pickerShade}><View style={[styles.packPicker, { backgroundColor: colors.card }]}>
            <View style={styles.pickerHead}><Text style={[styles.pickerTitle, { color: colors.foreground }]}>Private live invite</Text><TouchableOpacity onPress={() => setShowInviteComposer(false)}><Ionicons name="close" size={23} color={colors.foreground} /></TouchableOpacity></View>
            <TouchableOpacity style={[styles.packOption, { borderColor: colors.border }, !inviteGiftId && styles.inviteChoice]} onPress={() => setInviteGiftId(null)}><Text style={[styles.packOptionName, { color: colors.foreground }]}>Free</Text><Text style={[styles.packOptionMeta, { color: colors.mutedForeground }]}>No gift required</Text></TouchableOpacity>
            <Text style={[styles.packOptionMeta, { color: colors.mutedForeground }]}>Paid — recipient pays when accepting</Text>
            {GIFTS.map((gift) => <TouchableOpacity key={gift.id} style={[styles.packOption, { borderColor: colors.border }, inviteGiftId === gift.id && styles.inviteChoice]} onPress={() => setInviteGiftId(gift.id)}><Text style={{ fontSize: 21 }}>{gift.emoji}</Text><Text style={[styles.packOptionName, { color: colors.foreground }]}>{gift.name}</Text><Text style={styles.price}>🪙 {gift.coins}</Text></TouchableOpacity>)}
-           <TouchableOpacity disabled={createInviteMutation.isPending} onPress={() => void invitePeer()} style={styles.inviteSend}><Text style={styles.invitePrimaryText}>{createInviteMutation.isPending ? "Sending…" : "Send invite"}</Text></TouchableOpacity>
+           <TouchableOpacity disabled={createInviteMutation.isPending || contactBlocked} onPress={() => void invitePeer()} style={styles.inviteSend}><Text style={styles.invitePrimaryText}>{createInviteMutation.isPending ? "Sending…" : "Send invite"}</Text></TouchableOpacity>
          </View></View>
        </Modal>
-      <Modal visible={showPackPicker} transparent animationType="slide" onRequestClose={() => setShowPackPicker(false)}>
+      <Modal visible={showPackPicker && !contactBlocked} transparent animationType="slide" onRequestClose={() => setShowPackPicker(false)}>
         <View style={[styles.pickerShade, { paddingBottom: Platform.OS === "android" ? 28 : 0 }]}><View style={[styles.packPicker,{backgroundColor:colors.card}]}>
           <View style={styles.pickerHead}><Text style={[styles.pickerTitle,{color:colors.foreground}]}>Send a media pack</Text><TouchableOpacity onPress={()=>setShowPackPicker(false)}><Ionicons name="close" size={23} color={colors.foreground}/></TouchableOpacity></View>
           {(((packsQuery.data as any)?.packs ?? packsQuery.data ?? []) as any[]).map((pack:any)=><TouchableOpacity key={pack.id} testID={`pack-send-${pack.id}`} disabled={sendPackMutation.isPending} onPress={async()=>{const recipientId=Number(peerIdStr); if(!Number.isInteger(recipientId)) return; try {await sendPackMutation.mutateAsync({packId:pack.id,data:{recipientId,idempotencyKey:createGiftRequestKey()}} as any);setShowPackPicker(false);setTimeout(()=>setMessages(getMessages(peerIdStr)),300);} catch {setSendError("Media pack couldn't be sent. Try again.");}}} style={[styles.packOption,{borderColor:colors.border}]}><Ionicons name="images" size={19} color={colors.primary}/><View style={{flex:1}}><Text style={[styles.packOptionName,{color:colors.foreground}]}>{pack.name}</Text><Text style={[styles.packOptionMeta,{color:colors.mutedForeground}]}>{pack.itemCount} items</Text></View><Text style={styles.price}>🪙 {pack.price}</Text></TouchableOpacity>)}

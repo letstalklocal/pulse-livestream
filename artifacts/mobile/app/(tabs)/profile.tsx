@@ -488,6 +488,8 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 key={post.id}
                 style={styles.gridCell}
+                onPress={() => router.push({ pathname: "/posts/[uid]", params: { uid: String(user.uid), name: user.name, postId: String(post.id) } })}
+                accessibilityLabel="Open photo"
                 onLongPress={() => confirmDeletePost(post.id)}
                 activeOpacity={0.85}
               >

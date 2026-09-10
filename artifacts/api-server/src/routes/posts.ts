@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { and, desc, eq } from "drizzle-orm";
-import { db, postsTable, usersTable } from "@workspace/db";
+import { db, postsTable, usersTable, postReportsTable } from "@workspace/db";
 import {
   createPrivateGetUrl,
   createPrivateUploadUrl,
@@ -78,6 +78,31 @@ router.get("/users/:uid/posts", async (req, res) => {
     .where(eq(postsTable.ownerUserId, uid))
     .orderBy(desc(postsTable.createdAt));
   res.json({ posts: await Promise.all(posts.map(postResponse)) });
+});
+
+router.post("/posts/:postId/reports", async (req, res) => {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  const postId = Number(req.params.postId);
+  const { reason, details = "" } = req.body ?? {};
+  if (!Number.isInteger(postId) || postId <= 0 || postId > 2147483647 ||
+    !["harassment", "spam", "sexual_content", "violence", "child_safety", "other"].includes(reason) ||
+    typeof details !== "string" || details.length > 2000) {
+    res.status(400).json({ error: "Choose a reason and keep details under 2,000 characters" });
+    return;
+  }
+  const result = await db.transaction(async tx => {
+    // Keep the post from disappearing between validation and report creation.
+    const post = (await tx.select().from(postsTable).where(eq(postsTable.id, postId)).for("share"))[0];
+    if (!post) return 404;
+    if (post.ownerUserId === user.uid) return 400;
+    await tx.insert(postReportsTable).values({ postId, reportedPostId: postId, ownerUserId: post.ownerUserId,
+      reporterUserId: user.uid, reason, details: details.trim() }).onConflictDoNothing();
+    return 201;
+  });
+  if (result === 404) return void res.status(404).json({ error: "Photo is no longer available" });
+  if (result === 400) return void res.status(400).json({ error: "You cannot report your own photo" });
+  res.status(201).json({ success: true });
 });
 
 router.delete("/posts/:postId", async (req, res) => {

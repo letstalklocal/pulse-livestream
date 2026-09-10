@@ -1,3 +1,4 @@
+import { requireContactAllowed } from "../lib/userSafety";
 import { Router } from "express";
 import { getAuth } from "@clerk/express";
 import { eq, sql, and, inArray } from "drizzle-orm";
@@ -130,6 +131,7 @@ router.post("/coins/spend", async (req, res) => {
     res.status(400).json({ error: "idempotencyKey is required and must be at most 100 characters" });
     return;
   }
+  if (Number.isInteger(recipientUid) && !await requireContactAllowed(res, sender.uid, recipientUid!)) return;
   if (channelId && !await requireChannelAccess(req, res, channelId)) return;
 
   const effectiveRecipientUid =

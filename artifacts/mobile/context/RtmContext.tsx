@@ -202,9 +202,11 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
     if (!uidStr || !text.trim()) return { ok: false, error: "Nothing to send" };
 
     try {
+      const token = await getTokenRef.current();
+      if (!token) return { ok: false, error: "Please sign in again to send messages." };
       const response = await fetch(`${BASE_URL}/api/dms`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           senderId: Number(uidStr),
           recipientId: Number(peerId),

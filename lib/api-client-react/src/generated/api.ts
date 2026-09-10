@@ -45,6 +45,7 @@ import type {
   GetStreamChatParams,
   GetStreamModeration200,
   GetTranslationStatus200,
+  GetUserSafety200,
   HealthStatus,
   MediaPackMessageResponse,
   MediaPackResponse,
@@ -55,10 +56,16 @@ import type {
   PostListResponse,
   PostResponse,
   PrivateStreamInvitationResponse,
+  ReportPost201,
+  ReportPostBody,
   ReportStreamBody,
+  ReportUser201,
+  ReportUserBody,
   SendChatMessageRequest,
   SendMediaDmRequest,
   SendMediaPackRequest,
+  SetUserBlock200,
+  SetUserBlockBody,
   StreamAdmissionRequest,
   StreamAdmissionResponse,
   StreamEarningsResponse,
@@ -2757,6 +2764,72 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getCreatePostMutationOptions(options));
     }
 
+export const getReportPostUrl = (postId: number,) => {
+
+
+
+
+  return `/api/posts/${postId}/reports`
+}
+
+export const reportPost = async (postId: number,
+    reportPostBody: ReportPostBody, options?: RequestInit): Promise<ReportPost201> => {
+
+  return customFetch<ReportPost201>(getReportPostUrl(postId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      reportPostBody,)
+  }
+);}
+
+
+
+
+export const getReportPostMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportPost>>, TError,{postId: number;data: BodyType<ReportPostBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reportPost>>, TError,{postId: number;data: BodyType<ReportPostBody>}, TContext> => {
+
+const mutationKey = ['reportPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reportPost>>, {postId: number;data: BodyType<ReportPostBody>}> = (props) => {
+          const {postId,data} = props ?? {};
+
+          return  reportPost(postId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReportPostMutationResult = NonNullable<Awaited<ReturnType<typeof reportPost>>>
+    export type ReportPostMutationBody = BodyType<ReportPostBody>
+    export type ReportPostMutationError = ErrorType<unknown>
+
+    export const useReportPost = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportPost>>, TError,{postId: number;data: BodyType<ReportPostBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reportPost>>,
+        TError,
+        {postId: number;data: BodyType<ReportPostBody>},
+        TContext
+      > => {
+      return useMutation(getReportPostMutationOptions(options));
+    }
+
 export const getDeletePostUrl = (postId: number,) => {
 
 
@@ -3839,5 +3912,208 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getTranslateChatMessageMutationOptions(options));
+    }
+
+export const getGetUserSafetyUrl = (uid: number,) => {
+
+
+
+
+  return `/api/safety/users/${uid}`
+}
+
+export const getUserSafety = async (uid: number, options?: RequestInit): Promise<GetUserSafety200> => {
+
+  return customFetch<GetUserSafety200>(getGetUserSafetyUrl(uid),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetUserSafetyQueryKey = (uid: number,) => {
+    return [
+    `/api/safety/users/${uid}`
+    ] as const;
+    }
+
+
+export const getGetUserSafetyQueryOptions = <TData = Awaited<ReturnType<typeof getUserSafety>>, TError = ErrorType<unknown>>(uid: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUserSafety>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetUserSafetyQueryKey(uid);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getUserSafety>>> = ({ signal }) => getUserSafety(uid, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(uid), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getUserSafety>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetUserSafetyQueryResult = NonNullable<Awaited<ReturnType<typeof getUserSafety>>>
+export type GetUserSafetyQueryError = ErrorType<unknown>
+
+
+
+export function useGetUserSafety<TData = Awaited<ReturnType<typeof getUserSafety>>, TError = ErrorType<unknown>>(
+ uid: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUserSafety>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetUserSafetyQueryOptions(uid,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSetUserBlockUrl = (uid: number,) => {
+
+
+
+
+  return `/api/safety/users/${uid}/block`
+}
+
+export const setUserBlock = async (uid: number,
+    setUserBlockBody: SetUserBlockBody, options?: RequestInit): Promise<SetUserBlock200> => {
+
+  return customFetch<SetUserBlock200>(getSetUserBlockUrl(uid),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      setUserBlockBody,)
+  }
+);}
+
+
+
+
+export const getSetUserBlockMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setUserBlock>>, TError,{uid: number;data: BodyType<SetUserBlockBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setUserBlock>>, TError,{uid: number;data: BodyType<SetUserBlockBody>}, TContext> => {
+
+const mutationKey = ['setUserBlock'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setUserBlock>>, {uid: number;data: BodyType<SetUserBlockBody>}> = (props) => {
+          const {uid,data} = props ?? {};
+
+          return  setUserBlock(uid,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetUserBlockMutationResult = NonNullable<Awaited<ReturnType<typeof setUserBlock>>>
+    export type SetUserBlockMutationBody = BodyType<SetUserBlockBody>
+    export type SetUserBlockMutationError = ErrorType<unknown>
+
+    export const useSetUserBlock = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setUserBlock>>, TError,{uid: number;data: BodyType<SetUserBlockBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setUserBlock>>,
+        TError,
+        {uid: number;data: BodyType<SetUserBlockBody>},
+        TContext
+      > => {
+      return useMutation(getSetUserBlockMutationOptions(options));
+    }
+
+export const getReportUserUrl = (uid: number,) => {
+
+
+
+
+  return `/api/safety/users/${uid}/reports`
+}
+
+export const reportUser = async (uid: number,
+    reportUserBody: ReportUserBody, options?: RequestInit): Promise<ReportUser201> => {
+
+  return customFetch<ReportUser201>(getReportUserUrl(uid),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      reportUserBody,)
+  }
+);}
+
+
+
+
+export const getReportUserMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportUser>>, TError,{uid: number;data: BodyType<ReportUserBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reportUser>>, TError,{uid: number;data: BodyType<ReportUserBody>}, TContext> => {
+
+const mutationKey = ['reportUser'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reportUser>>, {uid: number;data: BodyType<ReportUserBody>}> = (props) => {
+          const {uid,data} = props ?? {};
+
+          return  reportUser(uid,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReportUserMutationResult = NonNullable<Awaited<ReturnType<typeof reportUser>>>
+    export type ReportUserMutationBody = BodyType<ReportUserBody>
+    export type ReportUserMutationError = ErrorType<unknown>
+
+    export const useReportUser = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportUser>>, TError,{uid: number;data: BodyType<ReportUserBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reportUser>>,
+        TError,
+        {uid: number;data: BodyType<ReportUserBody>},
+        TContext
+      > => {
+      return useMutation(getReportUserMutationOptions(options));
     }
 

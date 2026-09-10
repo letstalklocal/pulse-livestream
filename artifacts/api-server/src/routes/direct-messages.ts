@@ -1,3 +1,4 @@
+import { requireContactAllowed } from "../lib/userSafety";
 import { Router } from "express";
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { coinBalancesTable, coinTransactionsTable, db, directMediaPurchasesTable, directMessagesTable, privateStreamInvitationsTable, usersTable } from "@workspace/db";
@@ -120,6 +121,7 @@ router.post("/dms/media", async (req, res): Promise<any> => {
   const price = req.body?.price ?? 0;
   const idempotencyKey = key(req.body?.idempotencyKey);
   if (!Number.isInteger(recipientId) || recipientId === sender.uid || typeof objectPath !== "string" || !objectPath.startsWith("/objects/") || (mediaType !== "image" && mediaType !== "video") || typeof contentType !== "string" || !contentType.startsWith(`${mediaType}/`) || !Number.isInteger(width) || width <= 0 || !Number.isInteger(height) || height <= 0 || (durationMs !== undefined && (!Number.isInteger(durationMs) || durationMs < 0)) || !Number.isInteger(price) || price < 0 || !idempotencyKey) return res.status(400).json({ error: "Invalid media DM" });
+  if (!await requireContactAllowed(res, sender.uid, recipientId)) return;
   const recipient = (await db.select({ uid: usersTable.uid, name: usersTable.name }).from(usersTable).where(eq(usersTable.uid, recipientId)).limit(1))[0];
   if (!recipient) return res.status(404).json({ error: "Recipient not found" });
   try {
@@ -189,11 +191,14 @@ router.post("/dms/:messageId/unlock", async (req, res): Promise<any> => {
 });
 
 router.post("/dms", async (req, res) => {
-  const senderId = Number(req.body?.senderId);
+  const sender = await requireUser(req, res); if (!sender) return;
+  const senderId = sender.uid;
+  if (req.body?.senderId !== undefined && Number(req.body.senderId) !== senderId) return void res.status(403).json({ error: "You can only send your own messages" });
   const recipientId = Number(req.body?.recipientId);
   const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
   if (!Number.isInteger(senderId) || !Number.isInteger(recipientId)) { res.status(400).json({ error: "Valid senderId and recipientId are required" }); return; }
   if (senderId === recipientId) { res.status(400).json({ error: "Cannot message yourself" }); return; }
+  if (!await requireContactAllowed(res, senderId, recipientId)) return;
   if (!text || text.length > MAX_MESSAGE_LENGTH) { res.status(400).json({ error: `Message must be 1-${MAX_MESSAGE_LENGTH} characters` }); return; }
   const users = await db.select({ uid: usersTable.uid, name: usersTable.name }).from(usersTable).where(inArray(usersTable.uid, [senderId, recipientId]));
   const names = new Map(users.map((user) => [user.uid, user.name]));

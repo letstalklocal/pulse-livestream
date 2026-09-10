@@ -631,6 +631,28 @@ export type GetCoinBalanceParams = {
 uid: number;
 };
 
+export type ReportPostBodyReason = typeof ReportPostBodyReason[keyof typeof ReportPostBodyReason];
+
+
+export const ReportPostBodyReason = {
+  harassment: 'harassment',
+  spam: 'spam',
+  sexual_content: 'sexual_content',
+  violence: 'violence',
+  child_safety: 'child_safety',
+  other: 'other',
+} as const;
+
+export type ReportPostBody = {
+  reason: ReportPostBodyReason;
+  /** @maxLength 2000 */
+  details?: string;
+};
+
+export type ReportPost201 = {
+  success: boolean;
+};
+
 export type GetTranslationStatus200 = {
   available: boolean;
 };
@@ -655,5 +677,50 @@ export type TranslateChatMessage200 = {
   translated: boolean;
   targetLanguage: string;
   sourceLanguage?: string;
+};
+
+export type GetUserSafety200 = {
+  blockedByMe: boolean;
+  contactBlocked: boolean;
+};
+
+export type SetUserBlockBody = {
+  blocked: boolean;
+};
+
+export type SetUserBlock200 = {
+  success: boolean;
+};
+
+export type ReportUserBodySource = typeof ReportUserBodySource[keyof typeof ReportUserBodySource];
+
+
+export const ReportUserBodySource = {
+  profile: 'profile',
+  dm: 'dm',
+} as const;
+
+export type ReportUserBodyReason = typeof ReportUserBodyReason[keyof typeof ReportUserBodyReason];
+
+
+export const ReportUserBodyReason = {
+  harassment: 'harassment',
+  spam: 'spam',
+  sexual_content: 'sexual_content',
+  violence: 'violence',
+  child_safety: 'child_safety',
+  other: 'other',
+} as const;
+
+export type ReportUserBody = {
+  source: ReportUserBodySource;
+  messageId?: number;
+  reason: ReportUserBodyReason;
+  /** @maxLength 2000 */
+  details?: string;
+};
+
+export type ReportUser201 = {
+  success: boolean;
 };
 

@@ -1,3 +1,5 @@
+import { AccountSafetyMenu } from "@/components/AccountSafetyMenu";
+import { PhotoOptions } from "@/components/PhotoOptions";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -134,6 +136,9 @@ export default function PublicProfileScreen() {
       <StatusBar barStyle="light-content" />
 
       {/* Back button */}
+      <View style={{ position: "absolute", right: 20, top: topInset + 16, zIndex: 10 }}>
+        <AccountSafetyMenu uid={uid} source="profile" color={colors.foreground} />
+      </View>
       <TouchableOpacity
         style={[styles.backBtn, { top: topInset + 10 }]}
         onPress={() => router.back()}
@@ -282,9 +287,10 @@ export default function PublicProfileScreen() {
         ) : historyView === "grid" ? (
           <View style={styles.grid}>
             {posts.map((post) => (
-              <View key={post.id} style={styles.gridCell}>
+              <TouchableOpacity key={post.id} style={styles.gridCell} activeOpacity={0.85} accessibilityLabel="Open photo"
+                onPress={() => router.push({ pathname: "/posts/[uid]", params: { uid: String(uid), name: displayName, postId: String(post.id) } })}>
                 <Image source={{ uri: post.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         ) : (
@@ -308,7 +314,7 @@ export default function PublicProfileScreen() {
                       </Text>
                       <Text style={[styles.feedDate, { color: colors.mutedForeground }]}>{formatDate(post.createdAt)}</Text>
                     </View>
-
+                    <PhotoOptions postId={post.id} ownerUid={uid} color={colors.mutedForeground} />
                   </View>
 
                   <View style={styles.feedMedia}>
