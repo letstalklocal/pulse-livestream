@@ -96,6 +96,7 @@ export const PartyActionAction = {
   battle_request: 'battle_request',
   battle_accept: 'battle_accept',
   battle_decline: 'battle_decline',
+  battle_end: 'battle_end',
 } as const;
 
 export interface PartyAction {

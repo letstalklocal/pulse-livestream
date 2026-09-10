@@ -26,7 +26,7 @@ router.get("/streams/:channelId/party", async (req, res) => {
   const isHost = [first.hostUserId, second.hostUserId].includes(user.uid);
   if (party.status === "pending" && !isHost) return void res.json({ party: null, serverTime: Date.now() });
   if (!(await partyViewerAllowed(party, user.uid)).allowed) return void res.status(403).json({ error: "Party access denied" });
-  let battle = await latestBattle(party.id);
+  let battle: Awaited<ReturnType<typeof latestBattle>> | null = await latestBattle(party.id);
   const mustSettle = battle?.status === "active" && ((battle.endsAt?.getTime() ?? Infinity) <= Date.now() || !partyMediaReady(party))
     || battle?.status === "pending" && battle.expiresAt.getTime() <= Date.now();
   if (mustSettle) battle = await db.transaction(async tx => {
@@ -118,6 +118,13 @@ router.post("/streams/:channelId/party", async (req, res) => {
       if (!partyMediaReady(p)) return { status: 409, error: "Wait for both cameras to connect" };
       if (battle && ["pending", "active"].includes(battle.status)) return { status: 409, error: "A VS round is already pending or running" };
       await tx.insert(liveBattlesTable).values({ id: randomUUID(), partyId: p.id, requesterUid: user.uid, status: "pending", expiresAt: new Date(Date.now() + PARTY_INVITE_MS) });
+      return {};
+    }
+    if (action === "battle_end") {
+      if (!battle || battle.id !== battleId) return { status: 409, error: "This VS round is no longer available" };
+      if (battle.status === "cancelled" || battle.status === "finished") return {};
+      if (battle.status !== "active") return { status: 409, error: "This VS round has not started" };
+      await tx.update(liveBattlesTable).set({ status: "cancelled", endsAt: new Date() }).where(eq(liveBattlesTable.id, battle.id));
       return {};
     }
     if (!battle || battle.id !== battleId || battle.status !== "pending") return { status: 409, error: "This VS request is no longer pending" };

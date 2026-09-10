@@ -1236,7 +1236,7 @@ components:
     LiveParty: {"type":"object","required":["id","status","expiresAt","startedAt","ready","viewerCount","participants","battle"],"properties":{"id":{"type":"string"},"status":{"type":"string","enum":["pending","active"]},"expiresAt":{"type":"integer"},"startedAt":{"type":"integer","nullable":true},"ready":{"type":"boolean"},"viewerCount":{"type":"integer"},"participants":{"type":"array","items":{"$ref":"#/components/schemas/PartyParticipant"}},"battle":{"$ref":"#/components/schemas/PartyBattle","nullable":true}}}
     PartyState: {"type":"object","required":["party","serverTime"],"properties":{"party":{"$ref":"#/components/schemas/LiveParty","nullable":true},"serverTime":{"type":"integer"}}}
     PartyCandidates: {"type":"object","required":["users"],"properties":{"users":{"type":"array","items":{"$ref":"#/components/schemas/PartyParticipant"}}}}
-    PartyAction: {"type":"object","required":["action"],"properties":{"action":{"type":"string","enum":["invite","accept","decline","cancel","leave","ready","battle_request","battle_accept","battle_decline"]},"targetChannelId":{"type":"string"},"partyId":{"type":"string"},"battleId":{"type":"string"}}}
+    PartyAction: {"type":"object","required":["action"],"properties":{"action":{"type":"string","enum":["invite","accept","decline","cancel","leave","ready","battle_request","battle_accept","battle_decline","battle_end"]},"targetChannelId":{"type":"string"},"partyId":{"type":"string"},"battleId":{"type":"string"}}}
     CreatePrivateStreamInvitationRequest:
       type: object
       properties: { invitedUserId: { type: integer }, title: { type: string, maxLength: 120 }, requiredGiftId: { type: string, nullable: true, enum: [rose, heart, party, diamond, rocket, crown] } }

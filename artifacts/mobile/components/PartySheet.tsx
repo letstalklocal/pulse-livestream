@@ -25,7 +25,7 @@ export function PartySheet({ channelId, party, uid, onAction, onClose }: {
     setBusy(true); setError(null);
     try {
       await onAction({ action, targetChannelId, partyId: party?.id, battleId: battle?.id });
-      if (action === "accept" || action === "battle_accept" || action === "leave") onClose();
+      if (action === "accept" || action === "battle_accept" || action === "battle_end" || action === "leave") onClose();
     }
     catch (e) { setError(e instanceof Error ? e.message : "Could not update Party. Try again."); }
     finally { setBusy(false); }
@@ -53,7 +53,12 @@ export function PartySheet({ channelId, party, uid, onAction, onClose }: {
                 <Text style={styles.status}>{battle.requesterUid === uid ? "Waiting for VS acceptance" : "Your partner invited you to a 3-minute VS"}</Text>
                 {battle.requesterUid !== uid ? button("Accept VS", "flash", "battle_accept", !party.ready) : null}
                 {button(battle.requesterUid === uid ? "Cancel VS request" : "Decline VS", "close-circle-outline", "battle_decline")}
-              </> : battle?.status === "active" ? <Text style={styles.status}>VS in progress</Text> : button("Start VS · 3 minutes", "flash", "battle_request", !party.ready)}
+              </> : battle?.status === "active" ? <>
+                <Text style={styles.status}>VS in progress</Text>
+                <TouchableOpacity style={styles.action} disabled={busy} accessibilityRole="button" onPress={() => Alert.alert("End VS early?", "This round will end without a winner. Party and both lives will continue. Gifts already sent stay with their recipients.", [{ text: "Keep battling", style: "cancel" }, { text: "End VS", style: "destructive", onPress: () => void act("battle_end") }])}>
+                  <Ionicons name="stop-circle-outline" color="#FF759A" size={21} /><Text style={[styles.actionText, { color: "#FF759A" }]}>End VS</Text>
+                </TouchableOpacity>
+              </> : button("Start VS · 3 minutes", "flash", "battle_request", !party.ready)}
               <TouchableOpacity style={styles.action} disabled={busy} onPress={() => Alert.alert("Leave Party?", "Both lives will continue separately. Any unfinished VS round will be cancelled.", [{ text: "Stay", style: "cancel" }, { text: "Leave Party", style: "destructive", onPress: () => void act("leave") }])}><Ionicons name="exit-outline" color="#FF759A" size={21} /><Text style={[styles.actionText, { color: "#FF759A" }]}>Leave Party</Text></TouchableOpacity>
             </>}
           </> : <ScrollView style={{ maxHeight: 340 }}>

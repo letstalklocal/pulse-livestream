@@ -1063,7 +1063,7 @@ export const ActOnStreamPartyParams = zod.object({
 })
 
 export const ActOnStreamPartyBody = zod.object({
-  "action": zod.enum(['invite', 'accept', 'decline', 'cancel', 'leave', 'ready', 'battle_request', 'battle_accept', 'battle_decline']),
+  "action": zod.enum(['invite', 'accept', 'decline', 'cancel', 'leave', 'ready', 'battle_request', 'battle_accept', 'battle_decline', 'battle_end']),
   "targetChannelId": zod.string().optional(),
   "partyId": zod.string().optional(),
   "battleId": zod.string().optional()

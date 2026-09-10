@@ -28,6 +28,7 @@ Party links two existing public, free live sessions. Hosts invite from More > Pa
 - Scores and the ledger's battle_id are updated in the same database transaction. Duplicate payment requests cannot score twice.
 - The server determines the winner or draw. Earnings remain with the gift recipient. Ending an unfinished Party cancels the round.
 - The round returns to Party and supports rematches.
+- Either host can choose More > Party / VS > End VS and confirm to stop an active round or countdown early. This cancels the round without a winner, preserves gifts and both live sessions, and returns everyone to Party. Repeated requests are harmless; requests for an older round cannot stop a rematch.
 
 ## Validation
 

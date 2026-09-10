@@ -107,6 +107,37 @@ try {
   await gift(v, a, ca);
   battle = (await state(ca, a)).body.party.battle;
   assert.equal(battle.status, "finished"); assert.equal(battle.firstScore, 5); assert.equal(battle.secondScore, 10); assert.equal(battle.winnerUid, b);
+  for (const [endingChannel, endingUid] of [[ca, a], [cb, b]]) {
+    assert.equal((await action(ca, a, { action: "battle_request", partyId: invitation.id })).statusCode, 200);
+    const early = (await state(cb, b)).body.party.battle;
+    const end = { action: "battle_end", partyId: invitation.id, battleId: early.id };
+    assert.equal((await action(ca, a, end)).statusCode, 409, "Pending rounds cannot be ended as active battles");
+    await action(cb, b, { action: "battle_accept", partyId: invitation.id, battleId: early.id });
+    assert.equal((await action(ca, v, end)).statusCode, 403, "Viewers cannot end VS");
+    assert.equal((await action(cc, c, end)).statusCode, 409, "Unrelated hosts cannot end VS");
+    assert.equal((await action(ca, a, { ...end, battleId: battle.id })).statusCode, 409, "An old round ID cannot stop a rematch");
+    if (endingUid === a) {
+      await pool.query("update live_battles set starts_at=now()-interval '1 second' where id=$1", [early.id]);
+      await gift(v, a, ca);
+    }
+    const scores = (await state(ca, a)).body.party.battle;
+    assert.equal((await action(endingChannel, null, end)).statusCode, 401);
+    const duplicateEnds = await Promise.all([action(endingChannel, endingUid, end), action(endingChannel, endingUid, end)]);
+    assert.ok(duplicateEnds.every(result => result.statusCode === 200));
+    const stopped = (await state(ca, a)).body.party;
+    assert.equal(stopped.status, "active", "Party stays active");
+    assert.equal(stopped.battle.status, "cancelled");
+    assert.equal(stopped.battle.winnerUid, null);
+    assert.ok(stopped.battle.endsAt <= Date.now());
+    assert.equal((await state(cb, b)).body.party.battle.status, "cancelled");
+    const afterKey = randomUUID();
+    assert.equal((await gift(v, a, ca, afterKey)).statusCode, 200, "Gifts still work in Party");
+    const afterGift = (await state(cb, b)).body.party.battle;
+    assert.equal(afterGift.firstScore, scores.firstScore, "Gifts after stopping cannot score");
+    assert.equal(afterGift.secondScore, scores.secondScore);
+    assert.equal((await pool.query("select battle_id from coin_transactions where idempotency_key=$1", [afterKey])).rows[0].battle_id, null);
+    assert.equal((await pool.query("select count(*)::int as n from live_stream_sessions where channel_id=any($1) and ended_at is null", [[ca, cb]])).rows[0].n, 2);
+  }
   assert.equal((await action(ca, a, { action: "battle_request", partyId: invitation.id })).statusCode, 200, "Rematch is allowed");
   const rematch = (await state(cb, b)).body.party.battle;
   await action(cb, b, { action: "battle_accept", partyId: invitation.id, battleId: rematch.id });
@@ -125,7 +156,7 @@ try {
   assert.equal((await action(cb, b, { action: "accept", partyId: expiring.id })).statusCode, 409);
   assert.equal((await call(streams, "/streams/:channelId", "delete", v, {}, { channelId: ca })).statusCode, 403);
   assert.equal((await call(streams, "/streams/:channelId/heartbeat", "post", v, {}, { channelId: ca })).statusCode, 403);
-  console.log("PASS: Party authorization, concurrent invitations, consent, readiness, merged/deduplicated viewers, chat merge/split/deletion/muting, premium exclusion, atomic gift scoring/idempotency, countdown/end boundaries, rematch, disconnect cancellation, invitation expiry, and live ownership.");
+  console.log("PASS: Party authorization, concurrent invitations, consent, readiness, merged/deduplicated viewers, chat merge/split/deletion/muting, premium exclusion, atomic gift scoring/idempotency, countdown/end boundaries, host early-stop and retry safety, rematch, disconnect cancellation, invitation expiry, and live ownership.");
 
   const handlers = new Set();
   const calls = [];
