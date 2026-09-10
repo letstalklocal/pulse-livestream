@@ -1,3 +1,4 @@
+import { contactBlocked } from "../lib/userSafety";
 import { viewerModeration } from "../lib/streamModeration";
 import { closeStreamParty, findParty, expireParties } from "../lib/liveParty";
 import { randomUUID } from "node:crypto";
@@ -277,7 +278,9 @@ router.get("/streams", async (_req, res) => {
   const list = Array.from(streams.values()).filter((stream) => !stream.isPrivate).sort(
     (a, b) => b.viewerCount - a.viewerCount,
   );
-  res.json({ streams: await Promise.all(list.map(toStreamResponse)) });
+  const viewer = await currentUser(_req);
+  const allowed = viewer ? (await Promise.all(list.map(async stream => await contactBlocked(viewer.uid, stream.hostUid) ? null : stream))).filter((stream): stream is NonNullable<typeof stream> => stream !== null) : list;
+  res.json({ streams: await Promise.all(allowed.map(toStreamResponse)) });
 });
 
 router.post("/streams", async (req, res) => {

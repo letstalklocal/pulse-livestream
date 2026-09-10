@@ -1,3 +1,4 @@
+import { enforceAccountBlock } from "../lib/enforceAccountBlock";
 import { Router } from "express";
 import { and, eq } from "drizzle-orm";
 import { db, usersTable, userBlocksTable, userReportsTable, directMessagesTable } from "@workspace/db";
@@ -24,6 +25,7 @@ router.post("/safety/users/:uid/block", async (req,res) => {
   if (typeof req.body?.blocked !== "boolean") return void res.status(400).json({ error: "Invalid block setting" });
   if (req.body.blocked) await db.insert(userBlocksTable).values({ blockerUserId:a.viewer.uid, blockedUserId:a.uid }).onConflictDoNothing();
   else await db.delete(userBlocksTable).where(and(eq(userBlocksTable.blockerUserId,a.viewer.uid),eq(userBlocksTable.blockedUserId,a.uid)));
+  if (req.body.blocked) await enforceAccountBlock(a.viewer.uid, a.uid);
   res.json({ success:true });
 });
 router.post("/safety/users/:uid/reports", async (req,res) => {

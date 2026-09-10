@@ -24,7 +24,7 @@ export function AccountSafetyMenu({ uid, source, color }: { uid: number; source:
     Alert.alert("User options", undefined, [
       { text: "Report user", onPress: () => setReporting(true) },
       { text: blocked ? "Unblock user" : "Block user", style: blocked ? "default" : "destructive", onPress: () => {
-        Alert.alert(blocked ? "Unblock this user?" : "Block this user?", blocked ? "You can contact each other again unless they have also blocked you." : "This stops messages, media, gifts, and private-live invitations between you. Existing messages remain available for reporting.", [
+        Alert.alert(blocked ? "Unblock this user?" : "Block this user?", blocked ? "You can contact each other again unless they have also blocked you." : "This blocks contact and access to each other’s content and live streams across Pulse. Existing messages remain available for reporting.", [
           { text: "Cancel", style: "cancel" },
           { text: blocked ? "Unblock" : "Block", style: blocked ? "default" : "destructive", onPress: () => mutation.mutate({ uid, data: { blocked: !blocked } }, {
             onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ["account-safety"] }); },

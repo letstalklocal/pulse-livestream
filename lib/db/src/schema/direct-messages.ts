@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { type AnyPgColumn, check, index, integer, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 import { privateStreamInvitationsTable } from "./private-stream-invitations";
 
@@ -29,6 +29,7 @@ export const directMessagesTable = pgTable(
     idempotencyKey: text("idempotency_key"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     readAt: timestamp("read_at"),
+    replyToMessageId: integer("reply_to_message_id").references((): AnyPgColumn => directMessagesTable.id, { onDelete: "set null" }),
   },
   (table) => [
     index("direct_messages_sender_idx").on(table.fromUserId, table.createdAt),

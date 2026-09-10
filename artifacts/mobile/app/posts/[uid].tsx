@@ -78,7 +78,7 @@ export default function PostsScreen() {
       {posts[visibleIndex] && initialIndex >= 0 && !query.isError ? <PhotoOptions key={posts[visibleIndex].id} postId={posts[visibleIndex].id} ownerUid={posts[visibleIndex].ownerUserId} color={colors.foreground} /> : null}
     </View>
     {!validOwner ? <Text style={{ color: colors.foreground, padding: 24 }}>Profile not found.</Text> : query.isLoading ? <ActivityIndicator color={colors.primary} /> : query.isError ?
-      <TouchableOpacity onPress={() => void query.refetch()}><Text style={{ color: colors.foreground, padding: 24 }}>Could not load posts. Tap to retry.</Text></TouchableOpacity> : initialIndex < 0 ?
+      (query.error as { status?: number } | null)?.status === 403 ? <Text style={{ color: colors.foreground, padding: 24 }}>Posts are shared with friends. Follow each other to view.</Text> : <TouchableOpacity onPress={() => void query.refetch()}><Text style={{ color: colors.foreground, padding: 24 }}>Could not load posts. Tap to retry.</Text></TouchableOpacity> : initialIndex < 0 ?
       <Text style={{ color: colors.mutedForeground, padding: 24 }}>This photo is no longer available.</Text> : posts.length ?
       <PhotoGallery key={route} posts={posts} initialIndex={initialIndex} onIndexChange={index => setPosition({ route, index })} /> :
       <Text style={{ color: colors.mutedForeground, padding: 24 }}>No posts available.</Text>}

@@ -14,3 +14,7 @@ export * from "./stream-moderation";
 export * from "./post-reports";
 
 export * from "./user-safety";
+export * from "./account-deletion-requests";
+export * from "./notification-preferences";
+export * from "./privacy-preferences";
+export * from "./message-preferences";

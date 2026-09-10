@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslationPreferences } from "@/hooks/useTranslationPreferences";
 import { LANGUAGES, deviceLanguage } from "@/constants/languages";
 import { Ionicons } from "@expo/vector-icons";
@@ -54,48 +55,76 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { signOut } = useClerkAuth();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [signOutError, setSignOutError] = useState("");
+  const queryClient = useQueryClient();
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
   const showPlaceholder = (label: string) => {
     Alert.alert(label, "This setting will be available soon.");
   };
 
-  const handleSignOut = () => {
-    Alert.alert("Log out?", "You’ll need to sign in again to access your account.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Log Out",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            setIsSigningOut(true);
-            await signOut();
-            router.replace("/(auth)/sign-in" as any);
-          } finally {
-            setIsSigningOut(false);
-          }
-        },
-      },
-    ]);
+  const handleSignOut = async () => {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    setSignOutError("");
+    try {
+      await signOut();
+      queryClient.clear();
+      setConfirmSignOut(false);
+      router.replace("/(auth)/sign-in");
+    } catch {
+      setSignOutError("Couldn’t log out. Please try again.");
+    } finally {
+      setIsSigningOut(false);
+    }
   };
 
   const renderSection = (items: SettingsItem[]) => (
-    <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <View
+      style={[
+        styles.section,
+        { backgroundColor: colors.card, borderColor: colors.border },
+      ]}
+    >
       {items.map((item, index) => (
         <TouchableOpacity
           key={item.label}
           style={[
             styles.row,
-            index < items.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border },
+            index < items.length - 1 && {
+              borderBottomWidth: 1,
+              borderBottomColor: colors.border,
+            },
           ]}
-          onPress={() => item.label === "Preferred language" ? setShowLanguage(true) : showPlaceholder(item.label)}
+          onPress={() =>
+            item.label === "Account"
+              ? router.push("/account")
+              : item.label === "Messages"
+                ? router.push("/message-settings")
+                : item.label === "Privacy"
+                ? router.push("/privacy")
+                : item.label === "Notifications"
+                  ? router.push("/notification-settings")
+                  : item.label === "Preferred language"
+                ? setShowLanguage(true)
+                : showPlaceholder(item.label)
+          }
           activeOpacity={0.7}
         >
-          <View style={[styles.iconWrap, { backgroundColor: colors.background }]}>
+          <View
+            style={[styles.iconWrap, { backgroundColor: colors.background }]}
+          >
             <Ionicons name={item.icon} size={18} color={colors.primary} />
           </View>
-          <Text style={[styles.rowLabel, { color: colors.foreground }]}>{item.label}</Text>
-          <Ionicons name="chevron-forward" size={17} color={colors.mutedForeground} />
+          <Text style={[styles.rowLabel, { color: colors.foreground }]}>
+            {item.label}
+          </Text>
+          <Ionicons
+            name="chevron-forward"
+            size={17}
+            color={colors.mutedForeground}
+          />
         </TouchableOpacity>
       ))}
     </View>
@@ -103,23 +132,167 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Modal visible={showLanguage} transparent animationType="slide" onRequestClose={() => setShowLanguage(false)}>
-        <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" }}>
-          <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: insets.bottom + 24, maxHeight: "80%" }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 16 }}>
-              <Text style={{ color: colors.foreground, fontSize: 20, fontWeight: "700" }}>Preferred language</Text>
-              <TouchableOpacity onPress={() => setShowLanguage(false)} accessibilityLabel="Close"><Ionicons name="close" size={24} color={colors.foreground} /></TouchableOpacity>
+      <Modal
+        visible={confirmSignOut}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!isSigningOut) setConfirmSignOut(false);
+        }}
+      >
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            padding: 24,
+            backgroundColor: "rgba(0,0,0,0.6)",
+          }}
+        >
+          <View
+            style={{
+              padding: 24,
+              borderRadius: 20,
+              backgroundColor: colors.card,
+            }}
+          >
+            <Text style={[styles.title, { color: colors.foreground }]}>
+              Log out?
+            </Text>
+            <Text
+              style={{
+                marginTop: 12,
+                color: colors.mutedForeground,
+                fontSize: 14,
+                lineHeight: 22,
+              }}
+            >
+              You’ll need to sign in again to access your account.
+            </Text>
+            {!!signOutError && (
+              <Text
+                accessibilityRole="alert"
+                style={{ color: "#FF4D67", marginTop: 12 }}
+              >
+                {signOutError}
+              </Text>
+            )}
+            <TouchableOpacity
+              accessibilityRole="button"
+              disabled={isSigningOut}
+              onPress={() => {
+                void handleSignOut();
+              }}
+              style={[
+                styles.logoutBtn,
+                { borderColor: colors.border, marginTop: 24 },
+              ]}
+            >
+              <Text style={styles.logoutText}>
+                {isSigningOut ? "Logging Out…" : "Log Out"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole="button"
+              disabled={isSigningOut}
+              onPress={() => setConfirmSignOut(false)}
+              style={{ paddingTop: 20, alignItems: "center" }}
+            >
+              <Text style={{ color: colors.foreground }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={showLanguage}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowLanguage(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "flex-end",
+            backgroundColor: "rgba(0,0,0,0.5)",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: colors.card,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              padding: 24,
+              paddingBottom: insets.bottom + 24,
+              maxHeight: "80%",
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                marginBottom: 16,
+              }}
+            >
+              <Text
+                style={{
+                  color: colors.foreground,
+                  fontSize: 20,
+                  fontWeight: "700",
+                }}
+              >
+                Preferred language
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowLanguage(false)}
+                accessibilityLabel="Close"
+              >
+                <Ionicons name="close" size={24} color={colors.foreground} />
+              </TouchableOpacity>
             </View>
             <ScrollView>
-              {[["device", `Phone language (${LANGUAGES.find(([code]) => code === deviceLanguage())?.[1] ?? "English"})`], ...LANGUAGES].map(([code, label]) => (
-                <TouchableOpacity key={code} disabled={!ready || savingLanguage} accessibilityRole="radio" accessibilityState={{ selected: preferences.language === code }} style={{ paddingVertical: 13, flexDirection: "row", justifyContent: "space-between" }} onPress={async () => {
-                  setSavingLanguage(true);
-                  try { await update({ language: code }); setShowLanguage(false); }
-                  catch { Alert.alert("Couldn't save language", "Please try again."); }
-                  finally { setSavingLanguage(false); }
-                }}>
-                  <Text style={{ color: colors.foreground, fontSize: 16 }}>{label}</Text>
-                  {preferences.language === code ? <Ionicons name="checkmark" size={20} color={colors.primary} /> : null}
+              {[
+                [
+                  "device",
+                  `Phone language (${LANGUAGES.find(([code]) => code === deviceLanguage())?.[1] ?? "English"})`,
+                ],
+                ...LANGUAGES,
+              ].map(([code, label]) => (
+                <TouchableOpacity
+                  key={code}
+                  disabled={!ready || savingLanguage}
+                  accessibilityRole="radio"
+                  accessibilityState={{
+                    selected: preferences.language === code,
+                  }}
+                  style={{
+                    paddingVertical: 13,
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                  }}
+                  onPress={async () => {
+                    setSavingLanguage(true);
+                    try {
+                      await update({ language: code });
+                      setShowLanguage(false);
+                    } catch {
+                      Alert.alert(
+                        "Couldn't save language",
+                        "Please try again.",
+                      );
+                    } finally {
+                      setSavingLanguage(false);
+                    }
+                  }}
+                >
+                  <Text style={{ color: colors.foreground, fontSize: 16 }}>
+                    {label}
+                  </Text>
+                  {preferences.language === code ? (
+                    <Ionicons
+                      name="checkmark"
+                      size={20}
+                      color={colors.primary}
+                    />
+                  ) : null}
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -127,16 +300,26 @@ export default function SettingsScreen() {
         </View>
       </Modal>
       <StatusBar barStyle="light-content" />
-      <View style={[styles.header, { paddingTop: topInset + 10, borderBottomColor: colors.border }]}>
+      <View
+        style={[
+          styles.header,
+          { paddingTop: topInset + 10, borderBottomColor: colors.border },
+        ]}
+      >
         <TouchableOpacity
-          style={[styles.backBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
+          style={[
+            styles.backBtn,
+            { borderColor: colors.border, backgroundColor: colors.card },
+          ]}
           onPress={() => router.back()}
           activeOpacity={0.7}
           accessibilityLabel="Back to profile"
         >
           <Ionicons name="chevron-back" size={20} color={colors.foreground} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.foreground }]}>Settings</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>
+          Settings
+        </Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -149,33 +332,60 @@ export default function SettingsScreen() {
       >
         {renderSection(GENERAL_ITEMS)}
 
-        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>CREATOR</Text>
+        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
+          CREATOR
+        </Text>
         {renderSection(VAULT_ITEMS)}
 
-        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>ABOUT</Text>
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={[styles.versionRow, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.rowLabel, { color: colors.foreground }]}>App version</Text>
-            <Text style={[styles.versionValue, { color: colors.mutedForeground }]}>
+        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
+          ABOUT
+        </Text>
+        <View
+          style={[
+            styles.section,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+        >
+          <View
+            style={[styles.versionRow, { borderBottomColor: colors.border }]}
+          >
+            <Text style={[styles.rowLabel, { color: colors.foreground }]}>
+              App version
+            </Text>
+            <Text
+              style={[styles.versionValue, { color: colors.mutedForeground }]}
+            >
               {Constants.expoConfig?.version ?? "Unknown"}
             </Text>
           </View>
           <View style={styles.versionRow}>
-            <Text style={[styles.rowLabel, { color: colors.foreground }]}>Bundle version</Text>
-            <Text style={[styles.versionValue, { color: colors.mutedForeground }]}>
+            <Text style={[styles.rowLabel, { color: colors.foreground }]}>
+              Bundle version
+            </Text>
+            <Text
+              style={[styles.versionValue, { color: colors.mutedForeground }]}
+            >
               {BUNDLE_VERSION}
             </Text>
           </View>
         </View>
 
         <TouchableOpacity
-          style={[styles.logoutBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-          onPress={handleSignOut}
+          style={[
+            styles.logoutBtn,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+          onPress={() => {
+            setSignOutError("");
+            setConfirmSignOut(true);
+          }}
           activeOpacity={0.75}
           disabled={isSigningOut}
         >
           <Ionicons name="log-out-outline" size={19} color="#FF4D67" />
-          <Text style={styles.logoutText}>{isSigningOut ? "Logging Out…" : "Log Out"}</Text>
+          <Text style={styles.logoutText}>
+            {isSigningOut ? "Logging Out…" : "Log Out"}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </View>

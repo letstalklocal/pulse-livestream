@@ -9,8 +9,8 @@ import { translateChatMessage } from "@workspace/api-client-react";
 import { useTranslationPreferences } from "@/hooks/useTranslationPreferences";
 import { useAuth } from "@/context/AuthContext";
 
-export function TranslatedMessage({ text, messageId, kind, channelId, peerId, incoming, style }: {
-  text: string; messageId: string; kind: "live" | "dm"; channelId?: string; peerId?: string; incoming: boolean; style?: StyleProp<TextStyle>;
+export function TranslatedMessage({ text, messageId, kind, channelId, peerId, incoming, style, trailing }: {
+  text: string; messageId: string; kind: "live" | "dm"; channelId?: string; peerId?: string; incoming: boolean; style?: StyleProp<TextStyle>; trailing?: React.ReactNode;
 }) {
   const { user } = useAuth();
   const [focused, setFocused] = useState(false);
@@ -46,7 +46,7 @@ export function TranslatedMessage({ text, messageId, kind, channelId, peerId, in
   // Manual translation is available via long press; the icon only appears after translation.
   return <View style={{ flexShrink: 1, flexDirection: "row", alignItems: "center" }}>
     <Text style={[style, { flexShrink: 1 }]} accessibilityHint={eligible ? "Long press to translate" : undefined} onLongPress={eligible ? () => { void press(); } : undefined}>
-      {shown}
+      {shown}{trailing ? <> {trailing}</> : null}
     </Text>
     {translation ? <TouchableOpacity onPress={() => void press()} hitSlop={8} accessibilityLabel={original ? "Show translation" : "Show original"} style={{ marginLeft: 5 }}>
       <Ionicons name="globe-outline" size={13} color={original ? "#999" : "#B9B4FF"} />

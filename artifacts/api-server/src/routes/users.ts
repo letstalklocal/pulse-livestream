@@ -1,13 +1,23 @@
+import { canViewPosts, privacyPreferences, redactProfileLocation } from "../lib/privacy";
+import { authenticatedUser } from "../lib/streamModeration";
+import { contactBlocked } from "../lib/userSafety";
 import { Router } from "express";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { db, usersTable, streamHistoryTable, followsTable } from "@workspace/db";
 import { createPrivateGetUrl, createPrivateUploadUrl } from "../lib/objectStorage";
 
 const router = Router();
+router.use("/users/:uid", async (req, res, next) => {
+  const user = await authenticatedUser(req);
+  const uid = Number(req.params.uid);
+  if (user && Number.isInteger(uid) && await contactBlocked(user.uid, uid)) return void res.status(404).json({ error: "Account not available" });
+  next();
+});
+
 
 async function withUserImageUrls(user: typeof usersTable.$inferSelect) {
   return {
-    ...user,
+    ...redactProfileLocation(user, (await privacyPreferences(user.uid)).hideLocation),
     avatarImageUrl: user.avatarImagePath
       ? await createPrivateGetUrl(user.avatarImagePath)
       : null,
@@ -252,7 +262,9 @@ for (const direction of ["following", "followers"] as const) {
       .innerJoin(usersTable, eq(usersTable.uid, personId))
       .where(eq(ownerId, uid))
       .orderBy(usersTable.name, usersTable.uid);
-    const users = await Promise.all(rows.map(async ({ avatarImagePath, ...user }) => ({
+    const viewer = await authenticatedUser(req);
+    const visibleRows = await Promise.all(rows.map(async row => ({ ...row, ...("postIds" in row && !await canViewPosts(row.uid, viewer?.uid) ? { postIds: [] } : {}) })));
+    const users = await Promise.all(visibleRows.map(async ({ avatarImagePath, ...user }) => ({
       ...user,
       avatarImageUrl: avatarImagePath ? await createPrivateGetUrl(avatarImagePath) : null,
     })));

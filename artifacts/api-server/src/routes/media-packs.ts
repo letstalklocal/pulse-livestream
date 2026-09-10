@@ -1,4 +1,5 @@
-import { requireContactAllowed } from "../lib/userSafety";
+import { requireChatAllowed } from "../lib/messagePreferences";
+import { contactBlocked, requireContactAllowed } from "../lib/userSafety";
 import { Router } from "express";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, coinBalancesTable, coinTransactionsTable, directMessagesTable, mediaPackItemsTable, mediaPackPurchasesTable, mediaPacksTable, usersTable } from "@workspace/db";
@@ -63,6 +64,7 @@ router.get("/media-packs/:packId", async (req, res): Promise<any> => {
   const user = await requireUser(req, res); if (!user) return;
   const id = Number(req.params.packId); const pack = Number.isInteger(id) ? (await db.select().from(mediaPacksTable).where(eq(mediaPacksTable.id, id)).limit(1))[0] : null;
   if (!pack) return res.status(404).json({ error: "Pack not found" });
+  if (!await requireContactAllowed(res, user.uid, pack.ownerUserId)) return;
   const isOwner = pack.ownerUserId === user.uid;
   const [purchase, received] = await Promise.all([db.select().from(mediaPackPurchasesTable).where(and(eq(mediaPackPurchasesTable.packId, id), eq(mediaPackPurchasesTable.buyerUserId, user.uid))).limit(1), db.select({ id: directMessagesTable.id }).from(directMessagesTable).where(and(eq(directMessagesTable.mediaPackId, id), eq(directMessagesTable.toUserId, user.uid))).limit(1)]);
   if (!isOwner && !purchase[0] && !received[0]) return res.status(403).json({ error: "Pack access denied" });
@@ -72,6 +74,7 @@ router.post("/media-packs/:packId/send", async (req, res): Promise<any> => {
   const user = await requireUser(req, res); if (!user) return; const id = Number(req.params.packId), recipientId = Number(req.body?.recipientId), idempotencyKey = key(req.body?.idempotencyKey);
   if (!Number.isInteger(id) || !Number.isInteger(recipientId) || !idempotencyKey) return res.status(400).json({ error: "recipientId and idempotencyKey are required" });
   if (!await requireContactAllowed(res, user.uid, recipientId)) return;
+  if (!await requireChatAllowed(res, user.uid, recipientId)) return;
   const pack = (await db.select().from(mediaPacksTable).where(and(eq(mediaPacksTable.id, id), eq(mediaPacksTable.ownerUserId, user.uid))).limit(1))[0]; if (!pack) return res.status(404).json({ error: "Pack not found" });
   const existing = (await db.select().from(directMessagesTable).where(eq(directMessagesTable.idempotencyKey, idempotencyKey)).limit(1))[0];
   if (existing) { if (existing.fromUserId !== user.uid || existing.toUserId !== recipientId || existing.mediaPackId !== id) return res.status(409).json({ error: "Idempotency key was used for another request" }); return res.json({ message: { id: String(existing.id), kind: existing.kind, mediaPackId: String(id), ts: existing.createdAt.getTime() } }); }
@@ -86,6 +89,7 @@ router.post("/media-packs/:packId/unlock", async (req, res): Promise<any> => {
     const result = await db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${idempotencyKey}))`);
       const pack = (await tx.select().from(mediaPacksTable).where(eq(mediaPacksTable.id, id)).limit(1))[0]; if (!pack) return "missing" as const;
+      if (await contactBlocked(user.uid, pack.ownerUserId)) return "forbidden" as const;
       if (pack.ownerUserId === user.uid) return { balance: (await tx.select({ balance: coinBalancesTable.balance }).from(coinBalancesTable).where(eq(coinBalancesTable.userId, user.uid)).limit(1))[0]?.balance ?? 0 };
       if (!(await tx.select({ id: directMessagesTable.id }).from(directMessagesTable).where(and(eq(directMessagesTable.mediaPackId, id), eq(directMessagesTable.toUserId, user.uid))).limit(1))[0]) return "forbidden" as const;
       const old = (await tx.select().from(mediaPackPurchasesTable).where(eq(mediaPackPurchasesTable.idempotencyKey, idempotencyKey)).limit(1))[0];

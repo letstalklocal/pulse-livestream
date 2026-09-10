@@ -1,3 +1,4 @@
+import { canViewPosts } from "../lib/privacy";
 import { Router } from "express";
 import { and, desc, eq, lt, count, or } from "drizzle-orm";
 import { db, postsTable, usersTable, postReportsTable, postReactionsTable, postCommentsTable } from "@workspace/db";
@@ -39,7 +40,7 @@ const validId = (value: unknown) => typeof value === "string" && /^[1-9]\d*$/.te
 async function accessiblePost(req: any, res: any, uid?: number) {
   if (!validId(req.params.postId)) { res.status(400).json({ error: "Invalid post" }); return null; }
   const post = (await db.select().from(postsTable).where(eq(postsTable.id, Number(req.params.postId))).limit(1))[0];
-  if (!post || (uid && await contactBlocked(uid, post.ownerUserId))) {
+  if (!post || !await canViewPosts(post.ownerUserId, uid)) {
     res.status(404).json({ error: "Photo is no longer available" }); return null;
   }
   return post;
@@ -52,7 +53,7 @@ router.get("/posts/saved", async (req, res) => {
     .where(and(eq(postReactionsTable.userId, user.uid), eq(postReactionsTable.kind, "save")))
     .orderBy(desc(postReactionsTable.createdAt));
   const allowed = [];
-  for (const { post } of rows) if (!await contactBlocked(user.uid, post.ownerUserId)) allowed.push(post);
+  for (const { post } of rows) if (await canViewPosts(post.ownerUserId, user.uid)) allowed.push(post);
   res.set("Cache-Control", "no-store").json({ posts: await Promise.all(allowed.map(postResponse)) });
 });
 
@@ -153,10 +154,13 @@ router.post("/posts", async (req, res) => {
 
 router.get("/users/:uid/posts", async (req, res) => {
   const uid = Number(req.params.uid);
+  const viewer = await currentUser(req);
+  if (viewer && await contactBlocked(viewer.uid, uid)) return void res.status(404).json({ error: "Account not available" });
   if (!Number.isInteger(uid)) {
     res.status(400).json({ error: "Invalid uid" });
     return;
   }
+  if (!await canViewPosts(uid, viewer?.uid)) return void res.status(403).json({ error: "Posts are visible to friends only." });
   const posts = await db
     .select()
     .from(postsTable)

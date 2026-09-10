@@ -1,1 +1,1 @@
-export const BUNDLE_VERSION = "private-live-test-3";
+export const BUNDLE_VERSION = "in-app-notifications-1";

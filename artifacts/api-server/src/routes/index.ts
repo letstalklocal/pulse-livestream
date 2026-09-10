@@ -1,3 +1,7 @@
+import messageSettingsRouter from "./message-settings";
+import privacyRouter from "./privacy";
+import notificationsRouter from "./notifications";
+import accountRouter from "./account";
 import userSafetyRouter from "./user-safety";
 import partiesRouter from "./parties";
 import translationRouter from "./translation";
@@ -17,6 +21,10 @@ import privateStreamInvitationsRouter from "./private-stream-invitations";
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(privacyRouter);
+router.use(messageSettingsRouter);
+router.use(notificationsRouter);
+router.use(accountRouter);
 router.use(partiesRouter);
 router.use(userSafetyRouter);
 router.use(translationRouter);

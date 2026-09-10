@@ -1,4 +1,6 @@
-import { AccountSafetyMenu, ReportMessageButton } from "@/components/AccountSafetyMenu";
+import { SwipeToReply } from "@/components/SwipeToReply";
+import { useAuth as useClerkAuth } from "@clerk/expo";
+import { AccountSafetyMenu } from "@/components/AccountSafetyMenu";
 import { useAccountSafety } from "@/hooks/useAccountSafety";
 import { TranslatedMessage } from "@/components/TranslatedMessage";
 import { TranslationToggle } from "@/components/TranslationToggle";
@@ -22,7 +24,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 // @ts-ignore generated media-pack hooks
 import { getGetCoinBalanceQueryKey, useActOnPrivateStreamInvitation, useCreatePrivateStreamInvitation, useGetCoinBalance, useSpendCoins, useGetMediaPacks, useSendMediaPack } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
@@ -50,9 +52,23 @@ export default function DmScreen() {
   const name = peerName ?? "User";
   const safety = useAccountSafety(Number(peerIdStr));
   const contactBlocked = safety.data?.contactBlocked === true;
+  const {getToken}=useClerkAuth();
+  const peerStatus=useQuery({queryKey:["message-peer",user?.uid,peerIdStr],enabled:!!user?.uid&&!!peerIdStr&&!contactBlocked,refetchInterval:5000,queryFn:async():Promise<{online:boolean;lastSeen:number|null;needsGift:boolean}>=>{
+    const token=await getToken();const base=process.env.EXPO_PUBLIC_DOMAIN?`https://${process.env.EXPO_PUBLIC_DOMAIN}`:"";
+    const res=await fetch(`${base}/api/messages/peers/${encodeURIComponent(peerIdStr)}`,{headers:{Authorization:`Bearer ${token}`}});if(!res.ok)throw new Error("Couldn’t load chat status.");return res.json();
+  }});
+  const needsGift=peerStatus.data?.needsGift===true;
+  const roseRequestKey=useRef(createGiftRequestKey());
+  const [sendingRose,setSendingRose]=useState(false);
+  useEffect(()=>{roseRequestKey.current=createGiftRequestKey();},[peerIdStr]);
   const myUidStr = user?.uid != null ? String(user.uid) : null;
 
   const [inputText, setInputText] = useState("");
+  const [replyTo, setReplyTo] = useState<DmMessage | null>(null);
+  const inputRef = useRef<TextInput>(null);
+  const [sendingMessage, setSendingMessage] = useState(false);
+  useEffect(() => { setReplyTo(null); }, [peerIdStr]);
+  const replyText = (message: DmMessage) => message.kind === "media" ? (message.mediaType === "video" ? "Video" : "Photo") : message.kind === "media_pack" ? "Media pack" : message.kind === "private_stream_invitation" ? "Private live invitation" : message.text;
   const [messages, setMessages] = useState<DmMessage[]>(() => getMessages(peerIdStr));
   const [showGiftPicker, setShowGiftPicker] = useState(false);
   const [showPackPicker, setShowPackPicker] = useState(false);
@@ -205,14 +221,31 @@ export default function DmScreen() {
 
   const send = async () => {
     const text = inputText.trim();
-    if (!text || contactBlocked) return;
+    if (!text || contactBlocked || sendingMessage) return;
+    setSendingMessage(true);
     setInputText("");
     setSendError(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const result = await sendDm(peerIdStr, name, text);
+    const result = await sendDm(peerIdStr, name, text, replyTo?.messageId);
+    setSendingMessage(false);
+    if (result.ok) setReplyTo(null);
     if (!result.ok && result.error) {
       setSendError(result.error);
+      setInputText(text);void peerStatus.refetch();
     }
+  };
+
+  const activateChat = async () => {
+    if(!user?.uid||sendingRose)return;
+    setSendingRose(true);setSendError(null);
+    try {
+      const result=await spendMutation.mutateAsync({data:{uid:user.uid,recipientUid:Number(peerIdStr),amount:1,giftName:"Rose",senderName:user.name??"Viewer",description:"🌹 Rose to open chat",idempotencyKey:roseRequestKey.current}});
+      queryClient.setQueryData(getGetCoinBalanceQueryKey({uid:user.uid}),{balance:result.balance});
+      const receipt=await sendDm(peerIdStr,name,"🎁 🌹 Rose gift • 1 coin");
+      await peerStatus.refetch();
+      if(!receipt.ok)setSendError("Rose sent. Your chat is activated, but the gift receipt could not be delivered.");
+    }catch(error){setSendError(error instanceof Error?error.message:"Couldn’t send Rose. Please try again.");}
+    finally{setSendingRose(false);}
   };
 
   const invitePeer = async () => {
@@ -239,11 +272,10 @@ export default function DmScreen() {
           <Ionicons name="chevron-back" size={24} color={colors.foreground} />
         </TouchableOpacity>
         <Avatar uid={parseInt(peerIdStr)} name={name} size={34} />
-        <Text style={[styles.headerName, { color: colors.foreground }]} numberOfLines={1}>
-          {name}
-        </Text>
+        <View style={{flex:1}}><Text style={[styles.headerName, { color: colors.foreground }]} numberOfLines={1}>{name}</Text>
+        {!contactBlocked&&peerStatus.data?.lastSeen!=null&&<Text style={{fontSize:11,color:colors.mutedForeground}}>{peerStatus.data.online?"Online":`Last seen ${new Date(peerStatus.data.lastSeen).toLocaleString()}`}</Text>}</View>
         <TranslationToggle peerId={peerIdStr} color={colors.foreground} />
-        <TouchableOpacity onPress={() => setShowInviteComposer(true)} disabled={createInviteMutation.isPending || contactBlocked} accessibilityLabel={`Invite ${name} to a private live stream`}>
+        <TouchableOpacity onPress={() => setShowInviteComposer(true)} disabled={createInviteMutation.isPending || contactBlocked || needsGift} accessibilityLabel={`Invite ${name} to a private live stream`}>
           {createInviteMutation.isPending ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="videocam-outline" size={23} color={colors.primary} />}
         </TouchableOpacity>
         <AccountSafetyMenu uid={Number(peerIdStr)} source="dm" color={colors.foreground} />
@@ -295,6 +327,7 @@ export default function DmScreen() {
           const isMe = item.senderId === myUidStr;
           const isGift = item.text.startsWith("🎁");
           return (
+            <SwipeToReply color={colors.primary} disabled={contactBlocked || needsGift || sendingMessage} onReply={() => { setReplyTo(item); inputRef.current?.focus(); void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}>
             <View style={[styles.bubbleRow, isMe && styles.bubbleRowMe]}>
               {!isMe && (
                 <Avatar uid={parseInt(item.senderId)} name={item.senderName} size={28} />
@@ -315,9 +348,10 @@ export default function DmScreen() {
                   {item.invitation.status === "active" && !isMe ? <TouchableOpacity onPress={() => {
                     router.push({ pathname: "/stream/[channelId]", params: { channelId: item.invitation!.channelId, privateInvitationId: item.invitation!.id } } as any);
                   }} style={styles.invitePrimary}><Text style={styles.invitePrimaryText}>Join live</Text></TouchableOpacity> : null}
+                {isMe ? <Ionicons name="checkmark-done" size={16} color={item.readAt != null ? colors.primary : colors.mutedForeground} accessibilityLabel={item.readAt != null ? "Read" : "Sent"} style={{ alignSelf: "flex-end" }} /> : null}
                 </View>
               ) : item.kind === "media_pack" && item.mediaPackId ? (
-                <MediaPackMessage packId={item.mediaPackId} mine={isMe} />
+                <MediaPackMessage packId={item.mediaPackId} mine={isMe} read={isMe && item.readAt != null} />
               ) : item.kind === "media" ? (
                 <DirectMediaMessage message={item} mine={isMe} />
               ) : <View
@@ -329,10 +363,11 @@ export default function DmScreen() {
                   isGift && styles.giftBubble,
                 ]}
               >
-                <TranslatedMessage text={item.text} messageId={item.messageId} kind="dm" peerId={peerIdStr} incoming={!isMe && !isGift} style={[styles.bubbleText, { color: isGift ? "#FFD700" : isMe ? "#FFF" : colors.foreground }]} />
+                {item.replyTo && <View style={{ borderLeftWidth: 3, borderLeftColor: isMe ? "#FFF" : colors.primary, backgroundColor: "rgba(0,0,0,0.12)", borderRadius: 6, padding: 8, marginBottom: 6 }}><Text style={{ color: isMe ? "#FFF" : colors.primary, fontWeight: "600", fontSize: 12 }}>{item.replyTo.senderId === myUidStr ? "You" : item.replyTo.senderName}</Text><Text numberOfLines={2} style={{ color: isMe ? "#FFF" : colors.foreground, fontSize: 13 }}>{item.replyTo.text}</Text></View>}
+                <TranslatedMessage trailing={<Text style={{ fontSize: 10, color: isGift ? "#FFD700" : isMe ? "rgba(255,255,255,0.8)" : colors.mutedForeground }}>{new Date(item.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}{isMe ? <> <Ionicons name="checkmark-done" size={16} color={item.readAt != null ? (isGift ? "#FFD700" : "#FFF") : (isGift ? "rgba(255,215,0,0.45)" : "rgba(255,255,255,0.45)")} accessibilityLabel={item.readAt != null ? "Read" : "Sent"} /></> : null}</Text>} text={item.text} messageId={item.messageId} kind="dm" peerId={peerIdStr} incoming={!isMe && !isGift} style={[styles.bubbleText, { color: isGift ? "#FFD700" : isMe ? "#FFF" : colors.foreground }]} />
               </View>}
-              {!isMe ? <ReportMessageButton uid={Number(peerIdStr)} messageId={item.messageId} color={colors.mutedForeground} /> : null}
             </View>
+            </SwipeToReply>
           );
         }}
         ListEmptyComponent={
@@ -340,7 +375,7 @@ export default function DmScreen() {
             <Avatar uid={parseInt(peerIdStr)} name={name} size={64} />
             <Text style={[styles.emptyName, { color: colors.foreground }]}>{name}</Text>
             <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-              Say hi to start the conversation!
+              {needsGift ? "Send a Rose to activate this chat." : "Say hi to start the conversation!"}
             </Text>
           </View>
         }
@@ -352,13 +387,16 @@ export default function DmScreen() {
           <Text style={styles.errorText}>{sendError}</Text>
         </View>
       )}
+      {replyTo && !contactBlocked && !needsGift && <View style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 12, marginHorizontal: 16, borderLeftWidth: 3, borderLeftColor: colors.primary, backgroundColor: colors.card }}><View style={{ flex: 1 }}><Text style={{ color: colors.primary, fontWeight: "600" }}>Replying to {replyTo.senderId === myUidStr ? "yourself" : replyTo.senderName}</Text><Text numberOfLines={2} style={{ color: colors.mutedForeground, marginTop: 4 }}>{replyText(replyTo)}</Text></View><TouchableOpacity accessibilityLabel="Cancel reply" disabled={sendingMessage} onPress={() => setReplyTo(null)}><Ionicons name="close" size={22} color={colors.mutedForeground} /></TouchableOpacity></View>}
       {/* Input bar */}
-      {contactBlocked ? <Text style={{ color: colors.mutedForeground, textAlign: "center", padding: 16, paddingBottom: insets.bottom + 16 }}>{safety.data?.blockedByMe ? "You blocked this user. Use the user menu to unblock." : "Messaging is unavailable with this account."}</Text> : <View style={[styles.inputBar, { borderTopColor: colors.border, paddingBottom: insets.bottom + 8 }]}>
+      {contactBlocked ? <Text style={{ color: colors.mutedForeground, textAlign: "center", padding: 16, paddingBottom: insets.bottom + 16 }}>{safety.data?.blockedByMe ? "You blocked this user. Use the user menu to unblock." : "Messaging is unavailable with this account."}</Text> : peerStatus.isPending ? <ActivityIndicator color={colors.primary} style={{padding:20}}/> : peerStatus.isError ? <TouchableOpacity onPress={()=>void peerStatus.refetch()} style={{padding:20}}><Text style={{color:colors.mutedForeground,textAlign:"center"}}>Couldn’t load chat settings. Tap to retry.</Text></TouchableOpacity> : needsGift ? <View style={{padding:20,paddingBottom:insets.bottom+20,gap:10}}><Text style={{color:colors.mutedForeground,textAlign:"center"}}>Send a Rose to activate your chat with {name}.</Text><TouchableOpacity disabled={sendingRose} onPress={()=>void activateChat()} style={{padding:16,borderRadius:14,backgroundColor:colors.primary,alignItems:"center"}}>{sendingRose?<ActivityIndicator color="#FFF"/>:<Text style={{color:"#FFF",fontWeight:"600"}}>🌹 Send Rose · 1 coin</Text>}</TouchableOpacity></View> : <View style={[styles.inputBar, { borderTopColor: colors.border, paddingBottom: insets.bottom + 8 }]}>
         <TextInput
+          ref={inputRef}
+          editable={!sendingMessage}
           style={[styles.input, { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border }]}
           value={inputText}
           onChangeText={setInputText}
-          placeholder={`Message ${name}…`}
+          placeholder="Type..."
           placeholderTextColor={colors.mutedForeground}
           onSubmitEditing={send}
           returnKeyType="send"
@@ -393,7 +431,7 @@ export default function DmScreen() {
           style={[styles.sendBtn, { backgroundColor: inputText.trim() ? "#FF1966" : "rgba(255,25,102,0.2)" }]}
           onPress={send}
           activeOpacity={0.75}
-          disabled={!inputText.trim()}
+          disabled={!inputText.trim() || sendingMessage}
         >
           <Ionicons name="send" size={18} color={inputText.trim() ? "#FFF" : "rgba(255,255,255,0.4)"} />
         </TouchableOpacity>
@@ -463,7 +501,7 @@ export default function DmScreen() {
            <TouchableOpacity style={[styles.packOption, { borderColor: colors.border }, !inviteGiftId && styles.inviteChoice]} onPress={() => setInviteGiftId(null)}><Text style={[styles.packOptionName, { color: colors.foreground }]}>Free</Text><Text style={[styles.packOptionMeta, { color: colors.mutedForeground }]}>No gift required</Text></TouchableOpacity>
            <Text style={[styles.packOptionMeta, { color: colors.mutedForeground }]}>Paid — recipient pays when accepting</Text>
            {GIFTS.map((gift) => <TouchableOpacity key={gift.id} style={[styles.packOption, { borderColor: colors.border }, inviteGiftId === gift.id && styles.inviteChoice]} onPress={() => setInviteGiftId(gift.id)}><Text style={{ fontSize: 21 }}>{gift.emoji}</Text><Text style={[styles.packOptionName, { color: colors.foreground }]}>{gift.name}</Text><Text style={styles.price}>🪙 {gift.coins}</Text></TouchableOpacity>)}
-           <TouchableOpacity disabled={createInviteMutation.isPending || contactBlocked} onPress={() => void invitePeer()} style={styles.inviteSend}><Text style={styles.invitePrimaryText}>{createInviteMutation.isPending ? "Sending…" : "Send invite"}</Text></TouchableOpacity>
+           <TouchableOpacity disabled={createInviteMutation.isPending || contactBlocked || needsGift} onPress={() => void invitePeer()} style={styles.inviteSend}><Text style={styles.invitePrimaryText}>{createInviteMutation.isPending ? "Sending…" : "Send invite"}</Text></TouchableOpacity>
          </View></View>
        </Modal>
       <Modal visible={showPackPicker && !contactBlocked} transparent animationType="slide" onRequestClose={() => setShowPackPicker(false)}>
@@ -488,7 +526,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   headerName: {
-    flex: 1,
     fontSize: 17,
     fontWeight: "600",
     fontFamily: "Inter_600SemiBold",

@@ -37,7 +37,7 @@ export function ViewerManagementSheet({ channelId, onClose, onProfile }: {
       });
     };
     if (action === "block" || action === "remove") {
-      Alert.alert(`${action === "block" ? "Block" : "Remove"} ${selected.name}?`, action === "block" ? "They won't be able to enter your live streams until you unblock them." : "They won't be able to rejoin this stream unless you allow them back.", [{ text: "Cancel", style: "cancel" }, { text: action === "block" ? "Block" : "Remove", style: "destructive", onPress: execute }]);
+      Alert.alert(`${action === "block" ? "Block" : "Remove"} ${selected.name}?`, action === "block" ? "This blocks contact and access to each other’s content and live streams across Pulse." : "They won't be able to rejoin this stream unless you allow them back.", [{ text: "Cancel", style: "cancel" }, { text: action === "block" ? "Block" : "Remove", style: "destructive", onPress: execute }]);
     } else execute();
   };
   return <Modal visible transparent animationType="slide" onRequestClose={close} statusBarTranslucent>

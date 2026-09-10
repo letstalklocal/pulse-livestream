@@ -70,6 +70,7 @@ export function DirectMediaMessage({ message, mine }: { message: DmMessage; mine
 
   return (
     <View style={[styles.wrapper, mine ? styles.wrapperMe : styles.wrapperThem, { borderColor: colors.border }]}>
+      {mine ? <View pointerEvents="none" style={{ position: "absolute", right: 8, bottom: 8, zIndex: 1, backgroundColor: "rgba(0,0,0,0.5)", borderRadius: 8, paddingHorizontal: 4 }}><Ionicons name="checkmark-done" size={16} color={message.readAt != null ? "#FFF" : "rgba(255,255,255,0.45)"} accessibilityLabel={message.readAt != null ? "Read" : "Sent"} /></View> : null}
       <TouchableOpacity activeOpacity={0.8} onPress={handlePress} accessibilityLabel={canView ? "View media" : `Unlock media for ${price} coins`} testID={`media-msg-${message.messageId}`}>
         {canView ? (
           <>

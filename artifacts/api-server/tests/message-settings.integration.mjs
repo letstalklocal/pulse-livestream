@@ -1,0 +1,82 @@
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+import { readFileSync, unlinkSync } from 'node:fs';
+import { build } from 'esbuild';
+const dir=fileURLToPath(new URL('..',import.meta.url));
+const output=`${dir}/tests/.messages-${randomUUID()}.cjs`;
+await build({stdin:{contents:`export { default as settings } from './src/routes/message-settings'; export { default as dms } from './src/routes/direct-messages'; export { default as coins } from './src/routes/coins'; export { default as packs } from './src/routes/media-packs'; export { default as invites } from './src/routes/private-stream-invitations'; export { chatNeedsGift } from './src/lib/messagePreferences'; export { pool } from '@workspace/db';`,resolveDir:dir},outfile:output,bundle:true,platform:'node',format:'cjs',external:['pg-native'],logLevel:'silent'});
+const {settings,dms,coins,packs,invites,chatNeedsGift,pool}=createRequire(import.meta.url)(output);
+const prefix=`messages-test-${randomUUID()}`,a=1860000000+Math.floor(Math.random()*1000000),b=a+1,c=a+2;
+const call=async(router,path,method,uid,body={},params={})=>{
+ const res={statusCode:200,set(){return this;},status(n){this.statusCode=n;return this;},json(body){this.body=body;return this;}};
+ await router.stack.find(l=>l.route?.path===path&&l.route.methods[method]).route.stack[0].handle({auth:()=>({userId:uid?`${prefix}-${uid}`:null,tokenType:'session_token'}),body,params},res);return res;
+};
+const prefs=uid=>call(settings,'/message-settings','get',uid);
+const save=(uid,body)=>call(settings,'/message-settings','patch',uid,body);
+const send=(uid,to)=>call(dms,'/dms','post',uid,{recipientId:to,text:'Hello'});
+const peer=(uid,to)=>call(settings,'/messages/peers/:uid','get',uid,{}, {uid:String(to)});
+const history=uid=>call(dms,'/dms/:uid','get',uid,{}, {uid:String(uid)});
+try {
+ await pool.query(readFileSync(new URL('../../../lib/db/migrations/20260910_dm_replies.sql',import.meta.url),'utf8'));
+ await pool.query(readFileSync(new URL('../../../lib/db/migrations/20260910_message_preferences.sql',import.meta.url),'utf8'));
+ for(const uid of [a,b,c])await pool.query('insert into users(uid,clerk_id,name) values($1,$2,$3)',[uid,`${prefix}-${uid}`,'Messages test']);
+ assert.equal((await prefs(null)).statusCode,401);
+ assert.deepEqual((await prefs(a)).body,{lastSeenOnline:true,readReceipts:true,giftToOpenChat:true,requiredGiftId:'rose'});
+ for(const body of [{},{readReceipts:'no'},{requiredGiftId:'crown'},{userId:b}])assert.equal((await save(a,body)).statusCode,400);
+ await save(a,{readReceipts:false});await save(a,{lastSeenOnline:false});
+ assert.equal((await prefs(a)).body.readReceipts,false);assert.equal((await prefs(b)).body.readReceipts,true);
+ assert.equal(await chatNeedsGift(a,b),true);
+ assert.equal((await send(a,b)).body.code,'CHAT_GIFT_REQUIRED');
+ // Following the recipient does not exempt the sender; the recipient must follow the sender.
+ await pool.query('insert into follows(follower_id,followed_id) values($1,$2)',[a,b]);
+ assert.equal(await chatNeedsGift(a,b),true);
+ await pool.query('insert into follows(follower_id,followed_id) values($1,$2)',[b,a]);
+ assert.equal(await chatNeedsGift(a,b),false);
+ const first=await send(a,b);assert.equal(first.statusCode,201);
+ const reply=await call(dms,'/dms','post',b,{recipientId:a,text:'Reply',replyToMessageId:Number(first.body.message.id)});
+ assert.equal(reply.statusCode,201);assert.equal(reply.body.message.replyTo.text,'Hello');assert.equal(reply.body.message.replyTo.senderId,String(a));
+ assert.equal((await history(b)).body.messages.find(m=>m.id===reply.body.message.id).replyTo.messageId,first.body.message.id);
+ const unrelated=(await pool.query("insert into direct_messages(from_user_id,to_user_id,text) values($1,$2,'Private third-party text') returning id",[a,c])).rows[0];
+ assert.equal((await call(dms,'/dms','post',b,{recipientId:a,text:'Invalid quote',replyToMessageId:unrelated.id})).statusCode,404);
+ assert.equal((await call(dms,'/dms','post',b,{recipientId:a,text:'Invalid quote',replyToMessageId:'bad'})).statusCode,400);
+ await pool.query('delete from direct_messages where id=$1',[unrelated.id]);
+ await pool.query('delete from follows where follower_id=$1',[b]);
+ assert.equal(await chatNeedsGift(a,b),false); // Existing conversation stays open.
+ assert.equal((await call(dms,'/dms/media','post',c,{recipientId:b,objectPath:'/objects/unused',mediaType:'image',contentType:'image/jpeg',width:1,height:1,idempotencyKey:randomUUID()})).body.code,'CHAT_GIFT_REQUIRED');
+ assert.equal((await call(packs,'/media-packs/:packId/send','post',c,{recipientId:b,idempotencyKey:randomUUID()},{packId:'1'})).body.code,'CHAT_GIFT_REQUIRED');
+ assert.equal((await call(invites,'/private-stream-invitations','post',c,{invitedUserId:b})).body.code,'CHAT_GIFT_REQUIRED');
+ await call(settings,'/messages/peers/:uid/read','post',c,{}, {uid:String(a)});
+ assert.equal((await history(a)).body.messages[0].readAt,null);
+ await call(settings,'/messages/peers/:uid/read','post',b,{}, {uid:String(a)});
+ assert.ok((await history(a)).body.messages[0].readAt);
+ await save(b,{readReceipts:false});assert.equal((await history(a)).body.messages[0].readAt,null);
+ await call(settings,'/messages/presence','post',b);
+ assert.equal((await peer(a,b)).body.online,true);
+ await save(b,{lastSeenOnline:false});assert.equal((await peer(a,b)).body.lastSeen,null);assert.equal((await peer(a,b)).body.online,false);
+ await save(b,{giftToOpenChat:false});assert.equal(await chatNeedsGift(c,b),false);
+ await save(b,{giftToOpenChat:true});
+ await pool.query("insert into coin_transactions(from_user_id,to_user_id,amount,type,gift_name,channel_id) values($1,$2,1,'gift','Heart',null),($1,$2,1,'gift','Rose','live-test')",[c,b]);
+ assert.equal(await chatNeedsGift(c,b),true); // Only a DM Rose qualifies.
+ const giftKey=randomUUID();const gift={uid:c,recipientUid:b,amount:1,giftName:'Rose',idempotencyKey:giftKey};
+ assert.equal((await call(coins,'/coins/spend','post',c,gift)).statusCode,402);
+ assert.equal(await chatNeedsGift(c,b),true);
+ await pool.query('insert into coin_balances(user_id,balance) values($1,2) on conflict(user_id) do update set balance=2',[c]);
+ assert.equal((await call(coins,'/coins/spend','post',c,gift)).statusCode,200);
+ assert.equal((await call(coins,'/coins/spend','post',c,gift)).statusCode,200);
+ assert.equal((await pool.query('select balance from coin_balances where user_id=$1',[c])).rows[0].balance,1);
+ assert.equal(await chatNeedsGift(c,b),false);
+ await pool.query('insert into user_blocks(blocker_user_id,blocked_user_id) values($1,$2)',[b,c]);
+ assert.equal((await send(c,b)).statusCode,403);assert.equal((await peer(c,b)).statusCode,403);
+ await pool.query('delete from direct_messages where id=$1',[Number(first.body.message.id)]);
+ assert.equal((await history(b)).body.messages.find(m=>m.id===reply.body.message.id).replyTo,undefined);
+ console.log('PASS: quoted reply persistence, same-chat authorization, deleted quote handling; settings validation and isolation; recipient-follow direction; existing chats; media/invite gate; receipt ownership and hiding; online privacy; insufficient coins; Rose activation and idempotent retry; block override.');
+}finally{
+ await pool.query('delete from follows where follower_id=any($1::int[]) or followed_id=any($1::int[])',[[a,b,c]]);
+ await pool.query('delete from coin_transactions where from_user_id=any($1::int[]) or to_user_id=any($1::int[])',[[a,b,c]]);
+ await pool.query('delete from coin_balances where user_id=any($1::int[])',[[a,b,c]]);
+ await pool.query('delete from users where uid=any($1::int[])',[[a,b,c]]);
+ await pool.end();unlinkSync(output);
+}
+process.exit(0);

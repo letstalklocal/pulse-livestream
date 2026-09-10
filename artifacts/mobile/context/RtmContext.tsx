@@ -1,3 +1,4 @@
+import { AppState } from "react-native";
 import React, {
   createContext,
   useCallback,
@@ -19,6 +20,8 @@ export interface DmMessage {
   senderName: string;
   text: string;
   ts: number;
+  readAt?: number | null;
+  replyTo?: { messageId: string; senderId: string; senderName: string; text: string };
   kind?: "text" | "media_pack" | "media" | "private_stream_invitation";
   mediaPackId?: string;
   mediaUrl?: string;
@@ -54,7 +57,7 @@ interface RtmContextValue {
   rtmError: string | null;
   conversations: Conversation[];
   getMessages: (peerId: string) => DmMessage[];
-  sendDm: (peerId: string, peerName: string, text: string) => Promise<{ ok: boolean; error?: string }>;
+  sendDm: (peerId: string, peerName: string, text: string, replyToMessageId?: string) => Promise<{ ok: boolean; error?: string }>;
   markRead: (peerId: string) => void;
 }
 
@@ -122,7 +125,12 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
     // Invitation rows are deliberately refreshed by the DM poll so both
     // parties see accept/start/end transitions without reopening the thread.
     const wasAlreadySynced = syncedMessageIdsRef.current.has(message.id);
-    if (wasAlreadySynced && message.kind !== "private_stream_invitation") return;
+
+    if (wasAlreadySynced && message.kind !== "private_stream_invitation") {
+      const peer=message.senderId===uidStr?message.recipientId:message.senderId;
+      const previous=messageStore[peer]?.find(item=>item.messageId===message.id);
+      if(previous?.readAt===message.readAt && JSON.stringify(previous?.replyTo)===JSON.stringify(message.replyTo))return;
+    }
     syncedMessageIdsRef.current.add(message.id);
 
     const isIncoming = message.senderId !== uidStr;
@@ -134,6 +142,8 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
       senderName: message.senderName,
       text: message.text,
       ts: message.ts,
+      readAt: message.readAt,
+      replyTo: message.replyTo,
       kind: message.kind,
       mediaPackId: message.mediaPackId,
       mediaUrl: message.mediaUrl,
@@ -171,6 +181,7 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
 
     const syncMessages = async () => {
       try {
+        if (AppState.currentState !== "active" || (typeof document !== "undefined" && document.hidden)) return;
         const token = await getTokenRef.current();
         const response = await fetch(`${BASE_URL}/api/dms/${encodeURIComponent(uidStr)}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -186,11 +197,18 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    const heartbeat = async () => {
+      if (AppState.currentState !== "active" || (typeof document !== "undefined" && document.hidden)) return;
+      try { const token=await getTokenRef.current();if(token) await fetch(`${BASE_URL}/api/messages/presence`,{method:"POST",headers:{Authorization:`Bearer ${token}`}}); } catch {}
+    };
+    void heartbeat();
+    const presenceInterval=setInterval(()=>void heartbeat(),20000);
     void syncMessages();
     const interval = setInterval(() => void syncMessages(), 2_500);
     return () => {
       active = false;
       clearInterval(interval);
+      clearInterval(presenceInterval);
     };
   }, [uidStr, storePersistedMessage]);
 
@@ -198,6 +216,7 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
     peerId: string,
     peerName: string,
     text: string,
+    replyToMessageId?: string,
   ): Promise<{ ok: boolean; error?: string }> => {
     if (!uidStr || !text.trim()) return { ok: false, error: "Nothing to send" };
 
@@ -211,6 +230,7 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
           senderId: Number(uidStr),
           recipientId: Number(peerId),
           text: text.trim(),
+          ...(replyToMessageId ? { replyToMessageId: Number(replyToMessageId) } : {}),
         }),
       });
       const data = await response.json() as { message?: PersistedDm; error?: string };
@@ -230,7 +250,13 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
     return messageStore[peerId] ?? [];
   }, []);
 
+  const readRequests=useRef(new Map<string,number>());
   const markRead = useCallback((peerId: string) => {
+    if(AppState.currentState !== "active" || (typeof document !== "undefined" && document.hidden))return;
+    if(Date.now()-(readRequests.current.get(peerId)??0)>2000){
+      readRequests.current.set(peerId,Date.now());
+      void (async()=>{try {const token=await getTokenRef.current();if(token)await fetch(`${BASE_URL}/api/messages/peers/${encodeURIComponent(peerId)}/read`,{method:"POST",headers:{Authorization:`Bearer ${token}`}});}catch{}})();
+    }
     setConversations((prev) =>
       prev.map((c) => c.peerId === peerId ? { ...c, unread: 0 } : c)
     );

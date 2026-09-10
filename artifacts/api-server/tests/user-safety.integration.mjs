@@ -21,6 +21,8 @@ const send=(who,target,extra={})=>call(dms,'/dms',who,{recipientId:target,text:'
 try {
  await pool.query(readFileSync(new URL('../../../lib/db/migrations/20260910_user_safety.sql',import.meta.url),'utf8'));
  for(const uid of [a,b,c])await pool.query('insert into users(uid,clerk_id,name) values($1,$2,$3)',[uid,`${prefix}-${uid}`,'Safety test']);
+ // This suite exercises unrestricted chats; paid activation has its own suite.
+ await pool.query('insert into message_preferences(user_id,gift_to_open_chat) select unnest($1::int[]),false',[[a,b,c]]);
  assert.equal((await block(null,b)).statusCode,401);
  assert.equal((await block(a,a)).statusCode,400);
  assert.equal((await send(null,b)).statusCode,401);

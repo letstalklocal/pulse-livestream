@@ -1,7 +1,8 @@
-import { requireContactAllowed } from "../lib/userSafety";
+import { requireChatAllowed } from "../lib/messagePreferences";
+import { contactBlocked, requireContactAllowed } from "../lib/userSafety";
 import { Router } from "express";
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
-import { coinBalancesTable, coinTransactionsTable, db, directMediaPurchasesTable, directMessagesTable, privateStreamInvitationsTable, usersTable } from "@workspace/db";
+import { messagePreferencesTable, coinBalancesTable, coinTransactionsTable, db, directMediaPurchasesTable, directMessagesTable, privateStreamInvitationsTable, usersTable } from "@workspace/db";
 import { createPrivateGetUrl } from "../lib/objectStorage";
 import { endRuntimeStream } from "./streams";
 import { expirePrivateInvitation } from "./private-stream-invitations";
@@ -22,7 +23,7 @@ async function requireUser(req: any, res: any) {
   return user;
 }
 
-async function messageResponse(message: typeof directMessagesTable.$inferSelect, names: Map<number, string>, viewerId: number, purchased: Set<number>, invitations = new Map<number, typeof privateStreamInvitationsTable.$inferSelect>()) {
+async function messageResponse(message: typeof directMessagesTable.$inferSelect, names: Map<number, string>, viewerId: number, purchased: Set<number>, invitations = new Map<number, typeof privateStreamInvitationsTable.$inferSelect>(), shareRead = true) {
   const isMedia = message.kind === "media";
   const price = message.mediaPrice ?? 0;
   const unlocked = !isMedia || message.fromUserId === viewerId || price === 0 || purchased.has(message.id);
@@ -36,7 +37,14 @@ async function messageResponse(message: typeof directMessagesTable.$inferSelect,
     kind: message.kind,
     mediaPackId: message.mediaPackId === null ? null : String(message.mediaPackId),
     ts: message.createdAt.getTime(),
+    readAt: message.fromUserId !== viewerId || shareRead ? message.readAt?.getTime() ?? null : null,
   };
+  if (message.replyToMessageId) {
+    const [original] = await db.select().from(directMessagesTable).where(eq(directMessagesTable.id,message.replyToMessageId)).limit(1);
+    if (original && ((original.fromUserId === message.fromUserId && original.toUserId === message.toUserId) || (original.fromUserId === message.toUserId && original.toUserId === message.fromUserId))) {
+      response.replyTo = { messageId: String(original.id), senderId: String(original.fromUserId), senderName: names.get(original.fromUserId) ?? String(original.fromUserId), text: original.kind === "text" ? original.text : original.kind === "media" ? (original.mediaContentType?.startsWith("video/") ? "Video" : "Photo") : original.kind === "media_pack" ? "Media pack" : "Private live invitation" };
+    }
+  }
   if (isMedia) {
     response.mediaType = message.mediaContentType?.startsWith("video/") ? "video" : "image";
     response.contentType = message.mediaContentType;
@@ -111,8 +119,10 @@ router.get("/dms/:uid", async (req, res): Promise<any> => {
       }
     }
   }
+  const receiptRows = userIds.length ? await db.select().from(messagePreferencesTable).where(inArray(messagePreferencesTable.userId,userIds)) : [];
+  const receiptVisibility = new Map(await Promise.all(userIds.map(async id => [id, (receiptRows.find(row=>row.userId===id)?.readReceipts ?? true) && !await contactBlocked(id,viewer.uid)] as const)));
   const invitationMap = new Map(invitations.map((invitation) => [invitation.id, invitation]));
-  res.json({ messages: await Promise.all(rows.reverse().map((message) => messageResponse(message, names, viewer.uid, purchased, invitationMap))) });
+  res.json({ messages: await Promise.all(rows.reverse().map((message) => messageResponse(message, names, viewer.uid, purchased, invitationMap, receiptVisibility.get(message.toUserId) ?? true))) });
 });
 
 router.post("/dms/media", async (req, res): Promise<any> => {
@@ -122,6 +132,7 @@ router.post("/dms/media", async (req, res): Promise<any> => {
   const idempotencyKey = key(req.body?.idempotencyKey);
   if (!Number.isInteger(recipientId) || recipientId === sender.uid || typeof objectPath !== "string" || !objectPath.startsWith("/objects/") || (mediaType !== "image" && mediaType !== "video") || typeof contentType !== "string" || !contentType.startsWith(`${mediaType}/`) || !Number.isInteger(width) || width <= 0 || !Number.isInteger(height) || height <= 0 || (durationMs !== undefined && (!Number.isInteger(durationMs) || durationMs < 0)) || !Number.isInteger(price) || price < 0 || !idempotencyKey) return res.status(400).json({ error: "Invalid media DM" });
   if (!await requireContactAllowed(res, sender.uid, recipientId)) return;
+  if (!await requireChatAllowed(res, sender.uid, recipientId)) return;
   const recipient = (await db.select({ uid: usersTable.uid, name: usersTable.name }).from(usersTable).where(eq(usersTable.uid, recipientId)).limit(1))[0];
   if (!recipient) return res.status(404).json({ error: "Recipient not found" });
   try {
@@ -199,11 +210,18 @@ router.post("/dms", async (req, res) => {
   if (!Number.isInteger(senderId) || !Number.isInteger(recipientId)) { res.status(400).json({ error: "Valid senderId and recipientId are required" }); return; }
   if (senderId === recipientId) { res.status(400).json({ error: "Cannot message yourself" }); return; }
   if (!await requireContactAllowed(res, senderId, recipientId)) return;
+  if (!await requireChatAllowed(res, senderId, recipientId)) return;
   if (!text || text.length > MAX_MESSAGE_LENGTH) { res.status(400).json({ error: `Message must be 1-${MAX_MESSAGE_LENGTH} characters` }); return; }
   const users = await db.select({ uid: usersTable.uid, name: usersTable.name }).from(usersTable).where(inArray(usersTable.uid, [senderId, recipientId]));
   const names = new Map(users.map((user) => [user.uid, user.name]));
   if (!names.has(senderId) || !names.has(recipientId)) { res.status(404).json({ error: "Sender or recipient was not found" }); return; }
-  const [message] = await db.insert(directMessagesTable).values({ fromUserId: senderId, toUserId: recipientId, text }).returning();
+  const replyToMessageId = req.body?.replyToMessageId ?? null;
+  if (replyToMessageId !== null) {
+    if (!Number.isSafeInteger(replyToMessageId) || replyToMessageId <= 0 || replyToMessageId > 2147483647) return void res.status(400).json({ error: "Invalid reply message." });
+    const [original] = await db.select().from(directMessagesTable).where(eq(directMessagesTable.id,replyToMessageId)).limit(1);
+    if (!original || !((original.fromUserId === senderId && original.toUserId === recipientId) || (original.fromUserId === recipientId && original.toUserId === senderId))) return void res.status(404).json({ error: "The message you’re replying to is unavailable." });
+  }
+  const [message] = await db.insert(directMessagesTable).values({ fromUserId: senderId, toUserId: recipientId, text, replyToMessageId }).returning();
   if (!message) { res.status(500).json({ error: "Message could not be saved" }); return; }
   res.status(201).json({ message: await messageResponse(message, names, senderId, new Set()) });
 });

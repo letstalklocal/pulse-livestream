@@ -1,3 +1,4 @@
+import { requireChatAllowed } from "../lib/messagePreferences";
 import { requireContactAllowed } from "../lib/userSafety";
 import { Router } from "express";
 import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
@@ -102,6 +103,7 @@ router.post("/private-stream-invitations", async (req, res): Promise<any> => {
   if (requestedGiftId != null && requestedGiftId !== "" && !gift) return res.status(400).json({ error: "Choose a valid gift from the invitation catalog" });
   if (!Number.isInteger(invitedUserId) || invitedUserId === streamer.uid) return res.status(400).json({ error: "Choose a valid DM recipient" });
   if (!await requireContactAllowed(res, streamer.uid, invitedUserId)) return;
+  if (!await requireChatAllowed(res, streamer.uid, invitedUserId)) return;
   const invited = (await db.select({ uid: usersTable.uid }).from(usersTable).where(eq(usersTable.uid, invitedUserId)).limit(1))[0];
   if (!invited) return res.status(404).json({ error: "Recipient not found" });
   const threadMessage = (await db.select({ id: directMessagesTable.id }).from(directMessagesTable).where(or(

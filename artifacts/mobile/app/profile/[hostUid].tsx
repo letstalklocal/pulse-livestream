@@ -73,10 +73,10 @@ export default function PublicProfileScreen() {
     query: { refetchOnWindowFocus: false } as any,
   });
 
-  const { data: postsData, isLoading: postsLoading, isError: postsError, refetch: refetchPosts } = useGetUserPosts(uid, {
+  const { data: postsData, isLoading: postsLoading, isError: postsError, error: postsFailure, refetch: refetchPosts } = useGetUserPosts(uid, {
     query: { queryKey: getGetUserPostsQueryKey(uid), enabled: uid > 0 },
   });
-  const posts = postsData?.posts ?? [];
+  const posts = postsError ? [] : postsData?.posts ?? [];
 
   const followerUid = currentUser?.uid;
   const canFollow = !!followerUid && followerUid !== uid;
@@ -275,6 +275,8 @@ export default function PublicProfileScreen() {
         {/* Photo posts */}
         {postsLoading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
+        ) : postsError && (postsFailure as { status?: number } | null)?.status === 403 ? (
+          <View style={styles.emptyGrid}><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Posts are shared with friends. Follow each other to view.</Text></View>
         ) : postsError ? (
           <TouchableOpacity style={styles.emptyGrid} onPress={() => void refetchPosts()} accessibilityRole="button">
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Could not load posts. Tap to retry.</Text>

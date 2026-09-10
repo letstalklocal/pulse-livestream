@@ -1,3 +1,4 @@
+import { canInviteParty } from "../lib/privacy";
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import { and, eq, inArray, isNull, or } from "drizzle-orm";
@@ -57,7 +58,7 @@ router.get("/streams/:channelId/party/candidates", async (req, res) => {
   const sessions = await db.select().from(liveStreamSessionsTable).where(and(isNull(liveStreamSessionsTable.endedAt), eq(liveStreamSessionsTable.isPrivate, false), isNull(liveStreamSessionsTable.requiredGiftId)));
   const candidates = [];
   for (const s of sessions) {
-    if (s.hostUserId === user.uid || Date.now() - s.lastHeartbeatAt.getTime() >= 60000 || await findParty(s.channelId, db, true) || await contactBlocked(user.uid, s.hostUserId)) continue;
+    if (s.hostUserId === user.uid || Date.now() - s.lastHeartbeatAt.getTime() >= 60000 || await findParty(s.channelId, db, true) || !await canInviteParty(s.hostUserId, user.uid)) continue;
     candidates.push({ channelId: s.channelId, rtcChannelName: s.rtcChannelName ?? s.channelId, uid: s.hostUserId, name: s.hostName, avatarUrl: s.hostAvatarUrl });
   }
   res.json({ users: candidates });
@@ -86,6 +87,7 @@ router.post("/streams/:channelId/party", async (req, res) => {
       const peer = (await tx.select().from(liveStreamSessionsTable).where(eq(liveStreamSessionsTable.channelId, targetChannelId)).for("update"))[0];
       if (!peer || peer.endedAt || peer.isPrivate || peer.requiredGiftId || Date.now() - peer.lastHeartbeatAt.getTime() >= 60000 || peer.hostUserId === user.uid) return { status: 409, error: "This host is not available for Party" };
       if (await contactBlocked(user.uid, peer.hostUserId)) return { status: 403, error: "This host is unavailable" };
+      if (!await canInviteParty(peer.hostUserId, user.uid, tx)) return { status: 403, error: "This host only accepts Party invitations from friends." };
       const existing = await findParty(channelId, tx, true);
       if (existing?.status === "pending" && existing.firstChannelId === channelId && existing.secondChannelId === targetChannelId) return {};
       if (existing || await findParty(targetChannelId, tx, true)) return { status: 409, error: "One of these hosts already has a Party or invitation" };

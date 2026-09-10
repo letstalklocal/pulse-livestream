@@ -1,3 +1,4 @@
+import { InAppNotifications } from "@/components/InAppNotifications";
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -68,7 +69,11 @@ function RootLayoutNav() {
       <Stack.Screen name="connections/[uid]" options={{ headerShown: false }} />
       <Stack.Screen name="new-chat" options={{ headerShown: false }} />
       <Stack.Screen name="media-packs" options={{ headerShown: false }} />
+      <Stack.Screen name="notification-settings" options={{ headerShown: false }} />
+      <Stack.Screen name="message-settings" options={{ headerShown: false }} />
+        <Stack.Screen name="privacy" options={{ headerShown: false }} />
       <Stack.Screen name="settings" options={{ headerShown: false }} />
+      <Stack.Screen name="account" options={{ headerShown: false }} />
     </Stack>
   );
 }
@@ -109,6 +114,7 @@ export default function RootLayout() {
                   <AuthProvider>
                     <RtmProvider>
                       <RootLayoutNav />
+                      <InAppNotifications />
                     </RtmProvider>
                   </AuthProvider>
                 </KeyboardProvider>
