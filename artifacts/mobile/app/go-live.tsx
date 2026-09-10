@@ -11,16 +11,18 @@ import { PartyStage } from "@/components/PartyStage";
 import { PartySheet } from "@/components/PartySheet";
 import { partyLayout } from "@/utils/partyLayout";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useAuth as useClerkAuth } from "@clerk/expo";
 import * as ImagePicker from "expo-image-picker";
 import { fetch as expoFetch } from "expo/fetch";
 import * as Haptics from "expo-haptics";
-import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Animated,
+  AppState,
   BackHandler,
   FlatList,
   Image,
@@ -43,6 +45,7 @@ import {
   type CreateStreamRequestRequiredGiftId,
   getListStreamsQueryKey,
   getGetStreamQueryKey,
+  getGetUserQueryKey,
   convertStreamToPremium,
   getStream,
   deleteStreamChatMessage,
@@ -52,6 +55,7 @@ import {
   useEndStream,
   useGenerateAgoraToken,
   useGetStream,
+  useGetUser,
   useGetStreamEarnings,
   useGetStreamChat,
   useHeartbeatStream,
@@ -250,6 +254,22 @@ export default function GoLiveScreen() {
   const sendChatMutation = useSendChatMessage();
   const requestBackgroundUpload = useRequestStreamBackgroundUpload();
   const upsertUser = useUpsertUser();
+  const { data: backgroundProfile, refetch: refreshBackground } = useGetUser(user?.uid ?? 0, {
+    query: { queryKey: getGetUserQueryKey(user?.uid ?? 0), enabled: !!user && !isLive, staleTime: 0, refetchOnMount: "always", refetchInterval: 60_000 },
+  });
+  // Stored object paths persist, but the image URLs expire after fifteen minutes.
+  const backgroundImageUrl = backgroundProfile?.user.streamBackgroundImagePath === user?.streamBackgroundImagePath
+    ? backgroundProfile?.user.streamBackgroundImageUrl ?? user?.streamBackgroundImageUrl
+    : user?.streamBackgroundImageUrl;
+  const failedBackgroundUrlRef = useRef<string | null>(null);
+  useFocusEffect(useCallback(() => {
+    if (!user?.uid || isLive) return;
+    void refreshBackground();
+    const listener = AppState.addEventListener("change", state => {
+      if (state === "active") void refreshBackground();
+    });
+    return () => listener.remove();
+  }, [user?.uid, isLive, refreshBackground]));
 
   // If not signed in, show gate screen — hooks must be called unconditionally so this goes after them
   // Poll viewer count while live
@@ -263,8 +283,6 @@ export default function GoLiveScreen() {
   const [showParty, setShowParty] = useState(false);
   const [hostJoined, setHostJoined] = useState(false);
   const partyMedia = usePartyMedia(engineRef, activeChannelId, party, isNative && isLive && hostJoined && !premiumConnecting, true);
-  const partyPeerRtcRef = useRef<string | undefined>(undefined);
-  partyPeerRtcRef.current = partyMedia.peer?.rtcChannelName;
   const viewerCount = party?.status === "active" ? party.viewerCount : liveStreamData?.stream?.viewerCount ?? 0;
   const incomingPartyId = party?.status === "pending" && party.participants[1]?.uid === user?.uid ? party.id : null;
   const incomingBattleId = party?.battle?.status === "pending" && party.battle.requesterUid !== user?.uid ? party.battle.id : null;
@@ -287,6 +305,7 @@ export default function GoLiveScreen() {
         if (isNative) await switchBroadcastChannel(engine, token.token, token.channelName, user!.uid, isMuted, stillActive, mediaChannelRef.current || activeChannelId);
         if (!stillActive()) return;
         mediaChannelRef.current = token.channelName;
+        setHostJoined(true);
         setIsPremium(!!liveStreamData?.stream.requiredGift);
         setCameraError(null);
       } catch (error) {
@@ -462,14 +481,14 @@ export default function GoLiveScreen() {
             mounted && setCameraError(`Live video error ${err}: ${msg || "Unknown Agora error"}`);
           },
           onJoinChannelSuccess: (connection: any, elapsed: number) => {
-            if (connection?.channelId === partyPeerRtcRef.current) return;
+            if (!mounted || engineRef.current !== engine || !mediaChannelRef.current || connection?.channelId !== mediaChannelRef.current) return;
             mounted && setHostJoined(true);
             console.log("[Agora] joined channel:", connection?.channelId, "elapsed:", elapsed);
             mounted && setCameraDiagnostic(`Live channel joined in ${elapsed} ms`);
             mounted && setCameraError(null);
           },
           onConnectionStateChanged: (connection: any, state: number, reason: number) => {
-            if (connection?.channelId === partyPeerRtcRef.current) return;
+            if (!mounted || engineRef.current !== engine || !mediaChannelRef.current || connection?.channelId !== mediaChannelRef.current) return;
             if (mounted && (state === 1 || state === 4 || state === 5)) setHostJoined(false);
             if (mounted && state === 3) setHostJoined(true);
             console.log(
@@ -721,6 +740,7 @@ export default function GoLiveScreen() {
         streamBackgroundImagePath: updated.user.streamBackgroundImagePath,
         streamBackgroundImageUrl: updated.user.streamBackgroundImageUrl,
       });
+      void refreshBackground();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       Alert.alert(
@@ -733,6 +753,7 @@ export default function GoLiveScreen() {
   }, [
     isUploadingBackground,
     requestBackgroundUpload,
+    refreshBackground,
     updateUser,
     upsertUser,
     user,
@@ -765,6 +786,7 @@ export default function GoLiveScreen() {
     setCameraReady(!isNative);
     setCameraViewReady(false);
     setPremiumConnecting(false);
+    setHostJoined(false);
     pendingJoinRef.current = null;
     mediaChannelRef.current = "";
     if (mediaRetryTimerRef.current) clearTimeout(mediaRetryTimerRef.current);
@@ -1227,7 +1249,24 @@ export default function GoLiveScreen() {
           <DemoCamera color={catColor} />
         ) : null}
       </View>
-      <View pointerEvents="none" style={styles.setupShade} />
+      <LinearGradient
+        pointerEvents="none"
+        colors={[
+          "rgba(0,0,0,0)",
+          "rgba(0,0,0,0.025)",
+          "rgba(0,0,0,0.091)",
+          "rgba(0,0,0,0.184)",
+          "rgba(0,0,0,0.29)",
+          "rgba(0,0,0,0.396)",
+          "rgba(0,0,0,0.489)",
+          "rgba(0,0,0,0.555)",
+          "rgba(0,0,0,0.58)",
+          "rgba(0,0,0,0.58)",
+        ]}
+        locations={[0, 0.025, 0.05, 0.075, 0.1, 0.125, 0.15, 0.175, 0.2, 1]}
+        dither
+        style={styles.setupShade}
+      />
 
       <TouchableOpacity
         style={[styles.closeBtn, { top: topPad + 12 }]}
@@ -1281,8 +1320,12 @@ export default function GoLiveScreen() {
               disabled={isUploadingBackground}
               activeOpacity={0.85}
             >
-              {user.streamBackgroundImageUrl ? (
-                <Image source={{ uri: user.streamBackgroundImageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+              {backgroundImageUrl ? (
+                <Image source={{ uri: backgroundImageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" onError={() => {
+                  if (failedBackgroundUrlRef.current === backgroundImageUrl) return;
+                  failedBackgroundUrlRef.current = backgroundImageUrl;
+                  void refreshBackground();
+                }} />
               ) : (
                 <Ionicons name="image-outline" size={28} color="#FFF" />
               )}
@@ -1501,10 +1544,11 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   setupShade: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: "transparent",
-    borderBottomWidth: 360,
-    borderBottomColor: "rgba(0,0,0,0.58)",
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 360,
   },
   setupOverlay: {
     ...StyleSheet.absoluteFill,
