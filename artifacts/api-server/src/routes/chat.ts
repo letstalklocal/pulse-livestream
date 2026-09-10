@@ -17,6 +17,9 @@ interface ChatMessage {
 
 const chatStore = new Map<string, ChatMessage[]>();
 const MAX_MESSAGES = 200;
+export function getChatMessage(channelId: string, messageId: string) {
+  return chatStore.get(channelId)?.find(message => message.id === messageId);
+}
 
 export function clearChat(channelId: string) {
   chatStore.delete(channelId);

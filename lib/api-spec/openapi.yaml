@@ -979,6 +979,57 @@ paths:
         - { name: action, in: path, required: true, schema: { type: string, enum: [accept, decline, cancel, start, heartbeat, end] } }
       responses: { "200": { description: Invitation updated, content: { application/json: { schema: { $ref: "#/components/schemas/PrivateStreamInvitationResponse" } } } } }
 
+  /translation/status:
+    get:
+      operationId: getTranslationStatus
+      responses:
+        '200':
+          description: Translation availability
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [available]
+                properties:
+                  available:
+                    type: boolean
+  /translation/messages:
+    post:
+      operationId: translateChatMessage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, messageId, targetLanguage]
+              properties:
+                kind:
+                  type: string
+                  enum: [live, dm]
+                messageId:
+                  type: string
+                channelId:
+                  type: string
+                targetLanguage:
+                  type: string
+      responses:
+        '200':
+          description: Translation, with original messages preserved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [text, translated, targetLanguage]
+                properties:
+                  text:
+                    type: string
+                  translated:
+                    type: boolean
+                  targetLanguage:
+                    type: string
+                  sourceLanguage:
+                    type: string
 components:
   schemas:
     CreatePrivateStreamInvitationRequest:
@@ -1414,6 +1465,8 @@ components:
       properties:
         id:
           type: string
+        senderUid:
+          type: integer
         senderName:
           type: string
         text:

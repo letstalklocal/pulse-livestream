@@ -486,6 +486,7 @@ export const GetStreamChatQueryParams = zod.object({
 export const GetStreamChatResponse = zod.object({
   "messages": zod.array(zod.object({
   "id": zod.string(),
+  "senderUid": zod.number().optional(),
   "senderName": zod.string(),
   "text": zod.string(),
   "color": zod.string(),
@@ -510,6 +511,7 @@ export const SendChatMessageBody = zod.object({
 export const SendChatMessageResponse = zod.object({
   "message": zod.object({
   "id": zod.string(),
+  "senderUid": zod.number().optional(),
   "senderName": zod.string(),
   "text": zod.string(),
   "color": zod.string(),
@@ -944,6 +946,26 @@ export const ActOnPrivateStreamInvitationResponse = zod.object({
   "paymentStatus": zod.enum(['free', 'pending', 'paid', 'settled', 'refunded']).optional(),
   "backgroundImageUrl": zod.string()
 })
+})
+
+
+export const GetTranslationStatusResponse = zod.object({
+  "available": zod.boolean()
+})
+
+
+export const TranslateChatMessageBody = zod.object({
+  "kind": zod.enum(['live', 'dm']),
+  "messageId": zod.string(),
+  "channelId": zod.string().optional(),
+  "targetLanguage": zod.string()
+})
+
+export const TranslateChatMessageResponse = zod.object({
+  "text": zod.string(),
+  "translated": zod.boolean(),
+  "targetLanguage": zod.string(),
+  "sourceLanguage": zod.string().optional()
 })
 
 

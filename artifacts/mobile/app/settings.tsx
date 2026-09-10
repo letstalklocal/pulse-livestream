@@ -1,3 +1,5 @@
+import { useTranslationPreferences } from "@/hooks/useTranslationPreferences";
+import { LANGUAGES, deviceLanguage } from "@/constants/languages";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth as useClerkAuth } from "@clerk/expo";
 import Constants from "expo-constants";
@@ -5,6 +7,7 @@ import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
+  Modal,
   Platform,
   ScrollView,
   StatusBar,
@@ -29,6 +32,7 @@ const GENERAL_ITEMS: SettingsItem[] = [
   { label: "Notifications", icon: "notifications-outline" },
   { label: "Privacy", icon: "shield-checkmark-outline" },
   { label: "Messages", icon: "chatbubble-outline" },
+  { label: "Preferred language", icon: "language-outline" },
   { label: "General", icon: "options-outline" },
 ];
 
@@ -43,6 +47,9 @@ const VAULT_ITEMS: SettingsItem[] = [
 
 export default function SettingsScreen() {
   const colors = useColors();
+  const { preferences, ready, update } = useTranslationPreferences();
+  const [showLanguage, setShowLanguage] = useState(false);
+  const [savingLanguage, setSavingLanguage] = useState(false);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { signOut } = useClerkAuth();
@@ -81,7 +88,7 @@ export default function SettingsScreen() {
             styles.row,
             index < items.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border },
           ]}
-          onPress={() => showPlaceholder(item.label)}
+          onPress={() => item.label === "Preferred language" ? setShowLanguage(true) : showPlaceholder(item.label)}
           activeOpacity={0.7}
         >
           <View style={[styles.iconWrap, { backgroundColor: colors.background }]}>
@@ -96,6 +103,29 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Modal visible={showLanguage} transparent animationType="slide" onRequestClose={() => setShowLanguage(false)}>
+        <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: insets.bottom + 24, maxHeight: "80%" }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 16 }}>
+              <Text style={{ color: colors.foreground, fontSize: 20, fontWeight: "700" }}>Preferred language</Text>
+              <TouchableOpacity onPress={() => setShowLanguage(false)} accessibilityLabel="Close"><Ionicons name="close" size={24} color={colors.foreground} /></TouchableOpacity>
+            </View>
+            <ScrollView>
+              {[["device", `Phone language (${LANGUAGES.find(([code]) => code === deviceLanguage())?.[1] ?? "English"})`], ...LANGUAGES].map(([code, label]) => (
+                <TouchableOpacity key={code} disabled={!ready || savingLanguage} accessibilityRole="radio" accessibilityState={{ selected: preferences.language === code }} style={{ paddingVertical: 13, flexDirection: "row", justifyContent: "space-between" }} onPress={async () => {
+                  setSavingLanguage(true);
+                  try { await update({ language: code }); setShowLanguage(false); }
+                  catch { Alert.alert("Couldn't save language", "Please try again."); }
+                  finally { setSavingLanguage(false); }
+                }}>
+                  <Text style={{ color: colors.foreground, fontSize: 16 }}>{label}</Text>
+                  {preferences.language === code ? <Ionicons name="checkmark" size={20} color={colors.primary} /> : null}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
       <StatusBar barStyle="light-content" />
       <View style={[styles.header, { paddingTop: topInset + 10, borderBottomColor: colors.border }]}>
         <TouchableOpacity

@@ -314,6 +314,7 @@ export interface StreamEarningsResponse {
 
 export interface ChatMessage {
   id: string;
+  senderUid?: number;
   senderName: string;
   text: string;
   color: string;
@@ -628,5 +629,31 @@ since?: number;
 
 export type GetCoinBalanceParams = {
 uid: number;
+};
+
+export type GetTranslationStatus200 = {
+  available: boolean;
+};
+
+export type TranslateChatMessageBodyKind = typeof TranslateChatMessageBodyKind[keyof typeof TranslateChatMessageBodyKind];
+
+
+export const TranslateChatMessageBodyKind = {
+  live: 'live',
+  dm: 'dm',
+} as const;
+
+export type TranslateChatMessageBody = {
+  kind: TranslateChatMessageBodyKind;
+  messageId: string;
+  channelId?: string;
+  targetLanguage: string;
+};
+
+export type TranslateChatMessage200 = {
+  text: string;
+  translated: boolean;
+  targetLanguage: string;
+  sourceLanguage?: string;
 };
 

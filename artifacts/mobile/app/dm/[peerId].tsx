@@ -1,3 +1,5 @@
+import { TranslatedMessage } from "@/components/TranslatedMessage";
+import { TranslationToggle } from "@/components/TranslationToggle";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as Crypto from "expo-crypto";
@@ -236,6 +238,7 @@ export default function DmScreen() {
         <Text style={[styles.headerName, { color: colors.foreground }]} numberOfLines={1}>
           {name}
         </Text>
+        <TranslationToggle peerId={peerIdStr} color={colors.foreground} />
         <TouchableOpacity onPress={() => setShowInviteComposer(true)} disabled={createInviteMutation.isPending} accessibilityLabel={`Invite ${name} to a private live stream`}>
           {createInviteMutation.isPending ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="videocam-outline" size={23} color={colors.primary} />}
         </TouchableOpacity>
@@ -321,9 +324,7 @@ export default function DmScreen() {
                   isGift && styles.giftBubble,
                 ]}
               >
-                <Text style={[styles.bubbleText, { color: isGift ? "#FFD700" : isMe ? "#FFF" : colors.foreground }]}>
-                  {item.text}
-                </Text>
+                <TranslatedMessage text={item.text} messageId={item.messageId} kind="dm" peerId={peerIdStr} incoming={!isMe && !isGift} style={[styles.bubbleText, { color: isGift ? "#FFD700" : isMe ? "#FFF" : colors.foreground }]} />
               </View>}
             </View>
           );

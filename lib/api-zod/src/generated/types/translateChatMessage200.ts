@@ -6,11 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface ChatMessage {
-  id: string;
-  senderUid?: number;
-  senderName: string;
+export type TranslateChatMessage200 = {
   text: string;
-  color: string;
-  ts: number;
-}
+  translated: boolean;
+  targetLanguage: string;
+  sourceLanguage?: string;
+};

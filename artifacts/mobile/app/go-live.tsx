@@ -1,3 +1,5 @@
+import { TranslatedMessage } from "@/components/TranslatedMessage";
+import { TranslationToggle } from "@/components/TranslationToggle";
 import { BeautySheet, DEFAULT_BEAUTY, type BeautySettings } from "@/components/BeautySheet";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ViewerManagementSheet } from "@/components/ViewerManagementSheet";
@@ -174,7 +176,7 @@ export default function GoLiveScreen() {
   const [permissionCanAskAgain, setPermissionCanAskAgain] = useState(true);
   const [permissionRetryCount, setPermissionRetryCount] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [chatMessages, setChatMessages] = useState<Array<{ id: string; senderName: string; text: string; color: string; ts: number }>>([]);
+  const [chatMessages, setChatMessages] = useState<Array<{ id: string; senderName: string; senderUid?: number; text: string; color: string; ts: number }>>([]);
 
   const channelIdRef = useRef("");
   const isLiveRef = useRef(false);
@@ -987,11 +989,12 @@ export default function GoLiveScreen() {
           <View style={[styles.liveBottomDock, { bottom: bottomPad + 12 }]}>
             {/* Chat messages grow upward above the fixed action bar. */}
             <View style={styles.liveChatArea} pointerEvents="box-none">
+              <View style={{ alignItems: "flex-start" }}><TranslationToggle /></View>
               <View style={styles.liveChatList}>
                 {chatMessages.slice(-6).map((item) => (
                   <View key={item.id} style={styles.liveChatBubble}>
                     <Text style={[styles.liveChatSender, { color: item.color }]}>{item.senderName}: </Text>
-                    <Text style={styles.liveChatText}>{item.text}</Text>
+                    <TranslatedMessage text={item.text} messageId={item.id} kind="live" channelId={activeChannelId} incoming={item.senderUid !== undefined && item.senderUid !== user?.uid} style={styles.liveChatText} />
                   </View>
                 ))}
               </View>

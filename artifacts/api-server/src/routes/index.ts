@@ -1,3 +1,4 @@
+import translationRouter from "./translation";
 import { Router, type IRouter } from "express";
 import moderationRouter from "./moderation";
 import healthRouter from "./health";
@@ -14,6 +15,7 @@ import privateStreamInvitationsRouter from "./private-stream-invitations";
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(translationRouter);
 router.use(moderationRouter);
 router.use(agoraRouter);
 router.use(streamsRouter);

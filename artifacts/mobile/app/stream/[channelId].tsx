@@ -1,3 +1,5 @@
+import { TranslatedMessage } from "@/components/TranslatedMessage";
+import { TranslationToggle } from "@/components/TranslationToggle";
 import { ReportStreamSheet } from "@/components/ReportStreamSheet";
 import { useStreamSocket } from "@/hooks/useStreamSocket";
 import { Ionicons } from "@expo/vector-icons";
@@ -68,6 +70,7 @@ const createGiftRequestKey = () =>
 interface ChatMsg {
   id: string;
   sender: string;
+  senderUid?: number;
   text: string;
   color: string;
 }
@@ -285,7 +288,7 @@ export default function StreamScreen() {
       const existingIds = new Set(prev.map((m) => m.id));
       const next = chatPollData.messages
         .filter((m) => !existingIds.has(m.id))
-        .map((m) => ({ id: m.id, sender: m.senderName, text: m.text, color: m.color }));
+        .map((m) => ({ id: m.id, sender: m.senderName, senderUid: m.senderUid, text: m.text, color: m.color }));
       if (next.length === 0) return prev;
       return [...prev, ...next].slice(-100);
     });
@@ -793,6 +796,7 @@ export default function StreamScreen() {
             {
               id: data.message.id,
               sender: data.message.senderName,
+              senderUid: data.message.senderUid,
               text: data.message.text,
               color: data.message.color,
             },
@@ -952,6 +956,7 @@ export default function StreamScreen() {
 
         {/* Live chat */}
         <View style={styles.chatArea} pointerEvents="box-none">
+          <View style={{ alignItems: "flex-start" }}><TranslationToggle /></View>
           <FlatList
             ref={listRef}
             data={messages}
@@ -964,7 +969,7 @@ export default function StreamScreen() {
                 <Text style={[styles.chatSender, { color: item.color }]}>
                   {item.sender}:{" "}
                 </Text>
-                <Text style={styles.chatText}>{item.text}</Text>
+                <TranslatedMessage text={item.text} messageId={item.id} kind="live" channelId={channelId} incoming={item.senderUid !== undefined && item.senderUid !== user?.uid} style={styles.chatText} />
               </View>
             )}
           />

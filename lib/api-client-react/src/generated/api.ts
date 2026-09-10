@@ -44,6 +44,7 @@ import type {
   GetFollowStatusParams,
   GetStreamChatParams,
   GetStreamModeration200,
+  GetTranslationStatus200,
   HealthStatus,
   MediaPackMessageResponse,
   MediaPackResponse,
@@ -66,6 +67,8 @@ import type {
   StreamListResponse,
   StreamResponse,
   SuccessResponse,
+  TranslateChatMessage200,
+  TranslateChatMessageBody,
   UnlockMediaDmRequest,
   UnlockMediaDmResponse,
   UnlockMediaPackRequest,
@@ -3700,5 +3703,141 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getActOnPrivateStreamInvitationMutationOptions(options));
+    }
+
+export const getGetTranslationStatusUrl = () => {
+
+
+
+
+  return `/api/translation/status`
+}
+
+export const getTranslationStatus = async ( options?: RequestInit): Promise<GetTranslationStatus200> => {
+
+  return customFetch<GetTranslationStatus200>(getGetTranslationStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTranslationStatusQueryKey = () => {
+    return [
+    `/api/translation/status`
+    ] as const;
+    }
+
+
+export const getGetTranslationStatusQueryOptions = <TData = Awaited<ReturnType<typeof getTranslationStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTranslationStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTranslationStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTranslationStatus>>> = ({ signal }) => getTranslationStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTranslationStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTranslationStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getTranslationStatus>>>
+export type GetTranslationStatusQueryError = ErrorType<unknown>
+
+
+
+export function useGetTranslationStatus<TData = Awaited<ReturnType<typeof getTranslationStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTranslationStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTranslationStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getTranslateChatMessageUrl = () => {
+
+
+
+
+  return `/api/translation/messages`
+}
+
+export const translateChatMessage = async (translateChatMessageBody: TranslateChatMessageBody, options?: RequestInit): Promise<TranslateChatMessage200> => {
+
+  return customFetch<TranslateChatMessage200>(getTranslateChatMessageUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      translateChatMessageBody,)
+  }
+);}
+
+
+
+
+export const getTranslateChatMessageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof translateChatMessage>>, TError,{data: BodyType<TranslateChatMessageBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof translateChatMessage>>, TError,{data: BodyType<TranslateChatMessageBody>}, TContext> => {
+
+const mutationKey = ['translateChatMessage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof translateChatMessage>>, {data: BodyType<TranslateChatMessageBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  translateChatMessage(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TranslateChatMessageMutationResult = NonNullable<Awaited<ReturnType<typeof translateChatMessage>>>
+    export type TranslateChatMessageMutationBody = BodyType<TranslateChatMessageBody>
+    export type TranslateChatMessageMutationError = ErrorType<unknown>
+
+    export const useTranslateChatMessage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof translateChatMessage>>, TError,{data: BodyType<TranslateChatMessageBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof translateChatMessage>>,
+        TError,
+        {data: BodyType<TranslateChatMessageBody>},
+        TContext
+      > => {
+      return useMutation(getTranslateChatMessageMutationOptions(options));
     }
 
