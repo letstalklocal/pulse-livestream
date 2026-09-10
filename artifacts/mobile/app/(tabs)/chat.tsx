@@ -15,6 +15,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useRtm } from "@/context/RtmContext";
 import { useColors } from "@/hooks/useColors";
 import { Avatar } from "@/components/Avatar";
+import { AccountHeader } from "@/components/AccountHeader";
 
 export default function ChatScreen() {
   const colors = useColors();
@@ -22,15 +23,14 @@ export default function ChatScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { conversations } = useRtm();
-
   const openDm = (peerId: number, peerName: string) => {
     router.push({ pathname: "/dm/[peerId]", params: { peerId: String(peerId), peerName } });
   };
 
   if (!user) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top + 16 }]}>
-        <Text style={[styles.screenTitle, { color: colors.foreground }]}>Messages</Text>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <AccountHeader />
         <View style={styles.guestWrap}>
           <Ionicons name="chatbubbles-outline" size={52} color={colors.mutedForeground} />
           <Text style={[styles.guestTitle, { color: colors.foreground }]}>Sign in to message</Text>
@@ -52,8 +52,7 @@ export default function ChatScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Text style={[styles.screenTitle, { color: colors.foreground }]}>Messages</Text>
+      <AccountHeader>
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={styles.headerActionBtn}
@@ -61,7 +60,7 @@ export default function ChatScreen() {
             activeOpacity={0.7}
             accessibilityLabel="Search messages"
           >
-            <Ionicons name="search-outline" size={23} color="#FFFFFF" />
+            <Ionicons name="search-outline" size={22} color="#FFFFFF" style={styles.searchIcon} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerActionBtn}
@@ -72,7 +71,7 @@ export default function ChatScreen() {
             <Ionicons name="create-outline" size={24} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
-      </View>
+      </AccountHeader>
 
       <FollowingActivity />
 
@@ -150,22 +149,11 @@ function formatTime(ts: number): string {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  screenTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    fontFamily: "Inter_700Bold",
-  },
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
+    transform: [{ translateY: -3 }],
   },
   headerActionBtn: {
     width: 30,
@@ -173,6 +161,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  searchIcon: { transform: [{ translateY: 2 }] },
   empty: {
     flex: 1,
     alignItems: "center",

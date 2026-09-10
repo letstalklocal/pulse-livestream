@@ -18,11 +18,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  useGetCoinBalance,
   useGetUserFollowing,
   useListStreams,
 } from "@workspace/api-client-react";
-import { Avatar } from "@/components/Avatar";
+import { AccountHeader } from "@/components/AccountHeader";
 import { StreamCard } from "@/components/StreamCard";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
@@ -65,11 +64,6 @@ export default function DiscoveryScreen() {
   const { data: followingData } = useGetUserFollowing(user?.uid ?? 0, {
     query: { enabled: !!user?.uid, staleTime: 30_000 } as any,
   });
-  const { data: coinData } = useGetCoinBalance(
-    { uid: user?.uid ?? 0 },
-    { query: { enabled: !!user?.uid, refetchInterval: 8_000 } as any },
-  );
-
   const handleManualRefresh = React.useCallback(async () => {
     setManualRefreshing(true);
     await refetch();
@@ -87,39 +81,12 @@ export default function DiscoveryScreen() {
       ? feedStreams
       : feedStreams.filter((s) => selectedCategory === "Premium" ? !!s.requiredGift : s.category === selectedCategory);
 
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle="light-content" />
 
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topInset + 12 }]}>
-        <TouchableOpacity
-          style={styles.accountSummary}
-          onPress={() => router.push("/(tabs)/profile" as any)}
-          activeOpacity={0.75}
-          accessibilityLabel="Open profile"
-        >
-          {user ? (
-            <Avatar
-              uid={user.uid}
-              name={user.name}
-              avatarUri={user.avatarUri}
-              size={38}
-            />
-          ) : (
-            <View style={[styles.guestAvatar, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Ionicons name="person-outline" size={20} color={colors.mutedForeground} />
-            </View>
-          )}
-          <View style={styles.coinBalance}>
-            <Text style={styles.coinIcon}>🪙</Text>
-            <Text style={[styles.coinText, { color: colors.foreground }]}>
-              {(coinData?.balance ?? 0).toLocaleString()}
-            </Text>
-          </View>
-        </TouchableOpacity>
+      <AccountHeader>
         <TouchableOpacity
           style={[styles.goLiveBtn, { backgroundColor: colors.primary }]}
           onPress={() => router.push("/go-live" as any)}
@@ -128,7 +95,7 @@ export default function DiscoveryScreen() {
           <Ionicons name="radio" size={14} color="#FFF" />
           <Text style={styles.goLiveBtnText}>Go Live</Text>
         </TouchableOpacity>
-      </View>
+      </AccountHeader>
 
       {/* Category filter — fixed-height row, no layout shifts */}
       <View style={styles.categoryRow}>
@@ -240,36 +207,6 @@ export default function DiscoveryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 14,
-  },
-  accountSummary: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-  },
-  guestAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  coinBalance: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-  coinIcon: { fontSize: 16 },
-  coinText: {
-    fontSize: 16,
-    fontFamily: "Inter_700Bold",
   },
   goLiveBtn: {
     flexDirection: "row",
