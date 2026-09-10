@@ -1,3 +1,5 @@
+import { BeautySheet, DEFAULT_BEAUTY, type BeautySettings } from "@/components/BeautySheet";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ViewerManagementSheet } from "@/components/ViewerManagementSheet";
 import { useStreamSocket } from "@/hooks/useStreamSocket";
 import { Ionicons } from "@expo/vector-icons";
@@ -178,6 +180,50 @@ export default function GoLiveScreen() {
   const isLiveRef = useRef(false);
   const isStoppingRef = useRef(false);
   const engineRef = useRef<any>(null);
+  const [showBeauty, setShowBeauty] = useState(false);
+  const [beauty, setBeauty] = useState<BeautySettings>(DEFAULT_BEAUTY);
+  const [beautyError, setBeautyError] = useState<string | null>(null);
+  const [beautyLoadedKey, setBeautyLoadedKey] = useState<string | null>(null);
+  const beautyKey = user ? `pulse:beauty:${user.uid}` : null;
+  useEffect(() => {
+    let cancelled = false;
+    setBeauty(DEFAULT_BEAUTY);
+    setBeautyLoadedKey(null);
+    if (!beautyKey) return;
+    void AsyncStorage.getItem(beautyKey).then(raw => {
+      if (cancelled) return;
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (typeof saved.enabled === "boolean" && typeof saved.smoothness === "number" && Number.isFinite(saved.smoothness)) {
+          setBeauty({ enabled: saved.enabled, smoothness: Math.max(0, Math.min(1, saved.smoothness)) });
+        }
+      }
+    }).catch(() => {}).finally(() => { if (!cancelled) setBeautyLoadedKey(beautyKey); });
+    return () => { cancelled = true; };
+  }, [beautyKey]);
+  useEffect(() => {
+    if (!beautyKey || beautyLoadedKey !== beautyKey) return;
+    const timer = setTimeout(() => { void AsyncStorage.setItem(beautyKey, JSON.stringify(beauty)).catch(() => {}); }, 250);
+    return () => clearTimeout(timer);
+  }, [beauty, beautyKey, beautyLoadedKey]);
+  useEffect(() => {
+    if (!isNative || !cameraViewReady || !engineRef.current) return;
+    try {
+      const result = engineRef.current.setBeautyEffectOptions(beauty.enabled, {
+        smoothnessLevel: beauty.smoothness,
+        lighteningLevel: 0,
+        rednessLevel: 0,
+        sharpnessLevel: 0,
+        lighteningContrastLevel: 1,
+      });
+      setBeautyError(result < 0 ? "Beauty effects could not be applied on this device. Try turning them off and on." : null);
+    } catch {
+      setBeautyError("Beauty effects are unavailable in this build.");
+    }
+  }, [beauty.enabled, beauty.smoothness, cameraViewReady]);
+  const changeBeauty = useCallback((next: BeautySettings) => {
+    setBeauty(previous => previous.enabled === next.enabled && previous.smoothness === next.smoothness ? previous : next);
+  }, []);
   const durationRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Holds token+channelId until the live RtcSurfaceView is mounted
   const pendingJoinRef = useRef<{ token: string; channelId: string } | null>(null);
@@ -1101,6 +1147,17 @@ export default function GoLiveScreen() {
       >
         <Ionicons name="arrow-back" size={24} color="#FFF" />
       </TouchableOpacity>
+
+      {isNative ? <TouchableOpacity
+        style={[styles.closeBtn, { left: undefined, right: 20, top: topPad + 12 }]}
+        onPress={() => setShowBeauty(true)}
+        disabled={!cameraViewReady}
+        accessibilityLabel="Beauty effects"
+        accessibilityRole="button"
+      >
+        <Ionicons name="sparkles-outline" size={24} color={beauty.enabled && !beautyError ? "#FF1966" : "#FFF"} />
+      </TouchableOpacity> : null}
+      {showBeauty ? <BeautySheet settings={beauty} onChange={changeBeauty} error={beautyError} onClose={() => setShowBeauty(false)} /> : null}
 
       <KeyboardAvoidingView
         style={styles.setupOverlay}
