@@ -1,3 +1,4 @@
+import { formatLastSeen } from "@/utils/lastSeen";
 import { SwipeToReply } from "@/components/SwipeToReply";
 import { useAuth as useClerkAuth } from "@clerk/expo";
 import { AccountSafetyMenu } from "@/components/AccountSafetyMenu";
@@ -11,9 +12,13 @@ import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
+  AccessibilityInfo,
+  Animated,
+  Easing,
   ActivityIndicator,
   FlatList,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -42,6 +47,13 @@ const createGiftRequestKey = () =>
 export default function DmScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const [keyboardVisible, setKeyboardVisible] = useState(() => Keyboard.isVisible());
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow", () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide", () => setKeyboardVisible(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+  const composerBottomInset = keyboardVisible ? 0 : insets.bottom;
   const router = useRouter();
   const { user } = useAuth();
   const { getMessages, sendDm, markRead, conversations } = useRtm();
@@ -58,12 +70,37 @@ export default function DmScreen() {
     const res=await fetch(`${base}/api/messages/peers/${encodeURIComponent(peerIdStr)}`,{headers:{Authorization:`Bearer ${token}`}});if(!res.ok)throw new Error("Couldn’t load chat status.");return res.json();
   }});
   const needsGift=peerStatus.data?.needsGift===true;
+  const [lastSeenNow, setLastSeenNow] = useState(Date.now);
+  useFocusEffect(useCallback(() => {
+    setLastSeenNow(Date.now());
+    const timer = setInterval(() => setLastSeenNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []));
   const roseRequestKey=useRef(createGiftRequestKey());
   const [sendingRose,setSendingRose]=useState(false);
   useEffect(()=>{roseRequestKey.current=createGiftRequestKey();},[peerIdStr]);
   const myUidStr = user?.uid != null ? String(user.uid) : null;
 
   const [inputText, setInputText] = useState("");
+  const isTyping = inputText.length > 0;
+  const composerActions = useRef(new Animated.Value(1)).current;
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then(value => { if (active) setReduceMotion(value); });
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
+    return () => { active = false; subscription.remove(); };
+  }, []);
+  useEffect(() => {
+    const animation = Animated.timing(composerActions, {
+      toValue: isTyping ? 0 : 1,
+      duration: reduceMotion ? 0 : 180,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [isTyping, reduceMotion, composerActions]);
   const [replyTo, setReplyTo] = useState<DmMessage | null>(null);
   const inputRef = useRef<TextInput>(null);
   const [sendingMessage, setSendingMessage] = useState(false);
@@ -231,7 +268,7 @@ export default function DmScreen() {
     if (result.ok) setReplyTo(null);
     if (!result.ok && result.error) {
       setSendError(result.error);
-      setInputText(text);void peerStatus.refetch();
+      setInputText(current => current || text);void peerStatus.refetch();
     }
   };
 
@@ -271,9 +308,12 @@ export default function DmScreen() {
         <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="chevron-back" size={24} color={colors.foreground} />
         </TouchableOpacity>
-        <Avatar uid={parseInt(peerIdStr)} name={name} size={34} />
+        <View style={{ width: 40, height: 40 }}>
+          <Avatar uid={parseInt(peerIdStr)} name={name} size={40} />
+          {!contactBlocked && peerStatus.data?.online && <View accessibilityLabel="Online" style={{ position: "absolute", bottom: 0, right: 1, width: 11, height: 11, borderRadius: 6, backgroundColor: "#22C55E", borderWidth: 2, borderColor: colors.background }} />}
+        </View>
         <View style={{flex:1}}><Text style={[styles.headerName, { color: colors.foreground }]} numberOfLines={1}>{name}</Text>
-        {!contactBlocked&&peerStatus.data?.lastSeen!=null&&<Text style={{fontSize:11,color:colors.mutedForeground}}>{peerStatus.data.online?"Online":`Last seen ${new Date(peerStatus.data.lastSeen).toLocaleString()}`}</Text>}</View>
+        {!contactBlocked && !peerStatus.data?.online && peerStatus.data?.lastSeen != null && <Text style={{fontSize:11,color:colors.mutedForeground}}>{formatLastSeen(peerStatus.data.lastSeen, lastSeenNow)}</Text>}</View>
         <TranslationToggle peerId={peerIdStr} color={colors.foreground} />
         <TouchableOpacity onPress={() => setShowInviteComposer(true)} disabled={createInviteMutation.isPending || contactBlocked || needsGift} accessibilityLabel={`Invite ${name} to a private live stream`}>
           {createInviteMutation.isPending ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="videocam-outline" size={23} color={colors.primary} />}
@@ -389,10 +429,9 @@ export default function DmScreen() {
       )}
       {replyTo && !contactBlocked && !needsGift && <View style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 12, marginHorizontal: 16, borderLeftWidth: 3, borderLeftColor: colors.primary, backgroundColor: colors.card }}><View style={{ flex: 1 }}><Text style={{ color: colors.primary, fontWeight: "600" }}>Replying to {replyTo.senderId === myUidStr ? "yourself" : replyTo.senderName}</Text><Text numberOfLines={2} style={{ color: colors.mutedForeground, marginTop: 4 }}>{replyText(replyTo)}</Text></View><TouchableOpacity accessibilityLabel="Cancel reply" disabled={sendingMessage} onPress={() => setReplyTo(null)}><Ionicons name="close" size={22} color={colors.mutedForeground} /></TouchableOpacity></View>}
       {/* Input bar */}
-      {contactBlocked ? <Text style={{ color: colors.mutedForeground, textAlign: "center", padding: 16, paddingBottom: insets.bottom + 16 }}>{safety.data?.blockedByMe ? "You blocked this user. Use the user menu to unblock." : "Messaging is unavailable with this account."}</Text> : peerStatus.isPending ? <ActivityIndicator color={colors.primary} style={{padding:20}}/> : peerStatus.isError ? <TouchableOpacity onPress={()=>void peerStatus.refetch()} style={{padding:20}}><Text style={{color:colors.mutedForeground,textAlign:"center"}}>Couldn’t load chat settings. Tap to retry.</Text></TouchableOpacity> : needsGift ? <View style={{padding:20,paddingBottom:insets.bottom+20,gap:10}}><Text style={{color:colors.mutedForeground,textAlign:"center"}}>Send a Rose to activate your chat with {name}.</Text><TouchableOpacity disabled={sendingRose} onPress={()=>void activateChat()} style={{padding:16,borderRadius:14,backgroundColor:colors.primary,alignItems:"center"}}>{sendingRose?<ActivityIndicator color="#FFF"/>:<Text style={{color:"#FFF",fontWeight:"600"}}>🌹 Send Rose · 1 coin</Text>}</TouchableOpacity></View> : <View style={[styles.inputBar, { borderTopColor: colors.border, paddingBottom: insets.bottom + 8 }]}>
+      {contactBlocked ? <Text style={{ color: colors.mutedForeground, textAlign: "center", padding: 16, paddingBottom: composerBottomInset + 16 }}>{safety.data?.blockedByMe ? "You blocked this user. Use the user menu to unblock." : "Messaging is unavailable with this account."}</Text> : peerStatus.isPending ? <ActivityIndicator color={colors.primary} style={{padding:20}}/> : peerStatus.isError ? <TouchableOpacity onPress={()=>void peerStatus.refetch()} style={{padding:20}}><Text style={{color:colors.mutedForeground,textAlign:"center"}}>Couldn’t load chat settings. Tap to retry.</Text></TouchableOpacity> : needsGift ? <View style={{padding:20,paddingBottom:composerBottomInset+20,gap:10}}><Text style={{color:colors.mutedForeground,textAlign:"center"}}>Send a Rose to activate your chat with {name}.</Text><TouchableOpacity disabled={sendingRose} onPress={()=>void activateChat()} style={{padding:16,borderRadius:14,backgroundColor:colors.primary,alignItems:"center"}}>{sendingRose?<ActivityIndicator color="#FFF"/>:<Text style={{color:"#FFF",fontWeight:"600"}}>🌹 Send Rose · 1 coin</Text>}</TouchableOpacity></View> : <View style={[styles.inputBar, { borderTopColor: colors.border, paddingBottom: composerBottomInset + 8 }]}>
         <TextInput
           ref={inputRef}
-          editable={!sendingMessage}
           style={[styles.input, { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border }]}
           value={inputText}
           onChangeText={setInputText}
@@ -403,6 +442,13 @@ export default function DmScreen() {
           blurOnSubmit={false}
           multiline
         />
+        <Animated.View
+          pointerEvents={isTyping ? "none" : "auto"}
+          accessibilityElementsHidden={isTyping}
+          importantForAccessibility={isTyping ? "no-hide-descendants" : "auto"}
+          style={{ width: composerActions.interpolate({ inputRange: [0, 1], outputRange: [0, 92] }), opacity: composerActions, overflow: "hidden" }}
+        >
+        <View style={{ width: 84, marginLeft: 8, flexDirection: "row", gap: 8 }}>
         <TouchableOpacity
           style={styles.giftBtn}
           onPress={() => setShowMediaChooser(true)}
@@ -427,6 +473,8 @@ export default function DmScreen() {
         >
           <Ionicons name="gift-outline" size={22} color="#FFD700" />
         </TouchableOpacity>
+        </View>
+        </Animated.View>
         <TouchableOpacity
           style={[styles.sendBtn, { backgroundColor: inputText.trim() ? "#FF1966" : "rgba(255,25,102,0.2)" }]}
           onPress={send}
@@ -598,7 +646,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
-    gap: 8,
   },
   input: {
     flex: 1,
@@ -637,6 +684,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   sendBtn: {
+    marginLeft: 8,
     width: 38,
     height: 38,
     borderRadius: 19,

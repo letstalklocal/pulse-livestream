@@ -7,6 +7,10 @@
  */
 
 export interface UserProfile {
+  /** Country name; omitted when location is hidden. */
+  country?: string | null;
+  /** Approximate IP-derived country; omitted when location is hidden. */
+  countryCode?: string | null;
   uid: number;
   name: string;
   bio: string;

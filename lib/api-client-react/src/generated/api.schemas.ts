@@ -329,6 +329,10 @@ export interface ErrorResponse {
 }
 
 export interface UserProfile {
+  /** Country name; omitted when location is hidden. */
+  country?: string | null;
+  /** Approximate IP-derived country; omitted when location is hidden. */
+  countryCode?: string | null;
   uid: number;
   name: string;
   bio: string;
@@ -649,6 +653,11 @@ export interface UnlockMediaDmResponse {
   unlocked: boolean;
   mediaUrl?: string;
 }
+
+export type RefreshCountryLocation200 = {
+  countryCode: string | null;
+  country: string | null;
+};
 
 export type GetStreamModeration200UsersItem = {
   uid: number;

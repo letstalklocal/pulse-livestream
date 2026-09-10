@@ -1,3 +1,4 @@
+import countryLocationRouter from "./country-location";
 import messageSettingsRouter from "./message-settings";
 import privacyRouter from "./privacy";
 import notificationsRouter from "./notifications";
@@ -21,6 +22,7 @@ import privateStreamInvitationsRouter from "./private-stream-invitations";
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(countryLocationRouter);
 router.use(privacyRouter);
 router.use(messageSettingsRouter);
 router.use(notificationsRouter);

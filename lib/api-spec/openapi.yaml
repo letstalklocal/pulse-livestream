@@ -19,6 +19,27 @@ tags:
   - name: coins
     description: Coin balance and transactions
 paths:
+  /location/country:
+    post:
+      operationId: refreshCountryLocation
+      summary: Refresh the signed-in account country from its connection IP
+      responses:
+        '200':
+          description: Last detected country for the signed-in account
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [countryCode, country]
+                properties:
+                  countryCode:
+                    type: string
+                    nullable: true
+                  country:
+                    type: string
+                    nullable: true
+        '401':
+          description: Authentication required
   /healthz:
     get:
       operationId: healthCheck
@@ -1482,6 +1503,14 @@ components:
     UserProfile:
       type: object
       properties:
+        country:
+          type: string
+          nullable: true
+          description: Country name; omitted when location is hidden.
+        countryCode:
+          type: string
+          nullable: true
+          description: Approximate IP-derived country; omitted when location is hidden.
         uid:
           type: integer
         name:

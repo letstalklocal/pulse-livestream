@@ -1,3 +1,5 @@
+import { AppState } from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth as useClerkAuth, useUser } from "@clerk/expo";
 import React, {
@@ -13,6 +15,8 @@ export interface User {
   clerkId?: string;
   name: string;
   bio: string;
+  countryCode?: string | null;
+  country?: string | null;
   avatarUri?: string;
   avatarImagePath?: string | null;
   avatarImageUrl?: string | null;
@@ -83,7 +87,8 @@ async function syncProfile(
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { isSignedIn, isLoaded: clerkLoaded } = useClerkAuth();
+  const { isSignedIn, isLoaded: clerkLoaded, getToken } = useClerkAuth();
+  const queryClient = useQueryClient();
   const { user: clerkUser } = useUser();
   const [user, setUser] = useState<User | null>(null);
   const [localLoaded, setLocalLoaded] = useState(false);
@@ -133,6 +138,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
   }, [clerkLoaded, isSignedIn, clerkUser?.id]);
+
+  useEffect(() => {
+    if (!isSignedIn || !user?.uid) return;
+    let active = true;
+    let busy = false;
+    const uid = user.uid;
+    const refreshCountry = async () => {
+      if (busy) return;
+      busy = true;
+      try {
+        const token = await getToken();
+        if (!token || !active) return;
+        const base = process.env.EXPO_PUBLIC_DOMAIN ? `https://${process.env.EXPO_PUBLIC_DOMAIN}` : "";
+        const response = await fetch(`${base}/api/location/country`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+        if (!response.ok || !active) return;
+        const country = await response.json() as { countryCode: string | null; country: string | null };
+        if (!active) return;
+        setUser(previous => previous?.uid === uid ? { ...previous, ...country } : previous);
+        void queryClient.invalidateQueries({ queryKey: [`/api/users/${uid}`] });
+      } catch { /* Country is optional; app access is unaffected. */ }
+      finally { busy = false; }
+    };
+    void refreshCountry();
+    const subscription = AppState.addEventListener("change", state => { if (state === "active") void refreshCountry(); });
+    return () => { active = false; subscription.remove(); };
+  }, [isSignedIn, user?.uid, getToken, queryClient]);
 
   const updateUser = useCallback(
     (fields: Partial<Omit<User, "uid" | "clerkId">>) => {

@@ -9,6 +9,15 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Refresh the signed-in account country from its connection IP
+ */
+export const RefreshCountryLocationResponse = zod.object({
+  "countryCode": zod.string().nullable(),
+  "country": zod.string().nullable()
+})
+
+
+/**
  * Returns server health status
  * @summary Health check
  */
@@ -271,6 +280,8 @@ export const GetUserParams = zod.object({
 
 export const GetUserResponse = zod.object({
   "user": zod.object({
+  "country": zod.string().nullish().describe('Country name; omitted when location is hidden.'),
+  "countryCode": zod.string().nullish().describe('Approximate IP-derived country; omitted when location is hidden.'),
   "uid": zod.number(),
   "name": zod.string(),
   "bio": zod.string(),
@@ -302,6 +313,8 @@ export const UpsertUserBody = zod.object({
 
 export const UpsertUserResponse = zod.object({
   "user": zod.object({
+  "country": zod.string().nullish().describe('Country name; omitted when location is hidden.'),
+  "countryCode": zod.string().nullish().describe('Approximate IP-derived country; omitted when location is hidden.'),
   "uid": zod.number(),
   "name": zod.string(),
   "bio": zod.string(),

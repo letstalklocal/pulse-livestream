@@ -1,3 +1,4 @@
+import { usePrivacyPreferences } from "@/hooks/usePrivacyPreferences";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
@@ -65,6 +66,7 @@ function formatDate(iso: string) {
 }
 
 export default function ProfileScreen() {
+  const locationPrivacy = usePrivacyPreferences();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -378,6 +380,7 @@ export default function ProfileScreen() {
           ) : (
             <>
               <Text style={[styles.displayName, { color: colors.foreground }]}>{user.name}</Text>
+              {user.country && locationPrivacy.isSuccess && !locationPrivacy.preferences.hideLocation ? <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>{user.country}</Text> : null}
               {user.bio ? (
                 <Text style={[styles.bio, { color: colors.mutedForeground }]}>{user.bio}</Text>
               ) : null}

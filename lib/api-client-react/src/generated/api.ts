@@ -63,6 +63,7 @@ import type {
   PostListResponse,
   PostResponse,
   PrivateStreamInvitationResponse,
+  RefreshCountryLocation200,
   ReportPost201,
   ReportPostBody,
   ReportStreamBody,
@@ -104,6 +105,76 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
+
+export const getRefreshCountryLocationUrl = () => {
+
+
+
+
+  return `/api/location/country`
+}
+
+/**
+ * @summary Refresh the signed-in account country from its connection IP
+ */
+export const refreshCountryLocation = async ( options?: RequestInit): Promise<RefreshCountryLocation200> => {
+
+  return customFetch<RefreshCountryLocation200>(getRefreshCountryLocationUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRefreshCountryLocationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshCountryLocation>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof refreshCountryLocation>>, TError,void, TContext> => {
+
+const mutationKey = ['refreshCountryLocation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshCountryLocation>>, void> = () => {
+
+
+          return  refreshCountryLocation(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefreshCountryLocationMutationResult = NonNullable<Awaited<ReturnType<typeof refreshCountryLocation>>>
+
+    export type RefreshCountryLocationMutationError = ErrorType<void>
+
+    /**
+ * @summary Refresh the signed-in account country from its connection IP
+ */
+export const useRefreshCountryLocation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshCountryLocation>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof refreshCountryLocation>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRefreshCountryLocationMutationOptions(options));
+    }
 
 export const getHealthCheckUrl = () => {
 

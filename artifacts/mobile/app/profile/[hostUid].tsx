@@ -164,6 +164,7 @@ export default function PublicProfileScreen() {
               <Text style={[styles.displayName, { color: colors.foreground }]}>
                 {displayName}
               </Text>
+              {profile?.country ? <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>{profile.country}</Text> : null}
               {bio ? (
                 <Text style={[styles.bio, { color: colors.mutedForeground }]}>{bio}</Text>
               ) : null}

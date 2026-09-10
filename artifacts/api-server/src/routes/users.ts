@@ -1,3 +1,4 @@
+import { countryName } from "../lib/countryLocation";
 import { canViewPosts, privacyPreferences, redactProfileLocation } from "../lib/privacy";
 import { authenticatedUser } from "../lib/streamModeration";
 import { contactBlocked } from "../lib/userSafety";
@@ -17,7 +18,7 @@ router.use("/users/:uid", async (req, res, next) => {
 
 async function withUserImageUrls(user: typeof usersTable.$inferSelect) {
   return {
-    ...redactProfileLocation(user, (await privacyPreferences(user.uid)).hideLocation),
+    ...redactProfileLocation({ ...user, country: countryName(user.countryCode) }, (await privacyPreferences(user.uid)).hideLocation),
     avatarImageUrl: user.avatarImagePath
       ? await createPrivateGetUrl(user.avatarImagePath)
       : null,
