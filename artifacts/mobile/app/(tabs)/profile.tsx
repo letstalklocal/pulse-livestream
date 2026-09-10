@@ -8,6 +8,7 @@ import {
   Alert,
   Dimensions,
   Image,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -23,6 +24,7 @@ import {
   getGetCoinBalanceQueryKey,
   getGetUserQueryKey,
   getGetUserPostsQueryKey,
+  getSavedPosts,
   useCreatePost,
   useDeletePost,
   useGetCoinBalance,
@@ -34,10 +36,12 @@ import {
   useRequestPostUpload,
   useUpsertUser,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { PostFooter } from "@/components/PostFooter";
 import { Avatar } from "@/components/Avatar";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { POST_ASPECT_RATIO } from "@/utils/postLayout";
 
 const { width } = Dimensions.get("window");
 const GRID_CELL = (width - 4) / 3;
@@ -67,7 +71,7 @@ export default function ProfileScreen() {
   const { user, updateUser } = useAuth();
 
   const [editing, setEditing] = useState(false);
-  const [historyView, setHistoryView] = useState<"grid" | "feed">("grid");
+  const [historyView, setHistoryView] = useState<"grid" | "feed" | "saved">("grid");
   const [editName, setEditName] = useState(user?.name ?? "");
   const [editBio, setEditBio] = useState(user?.bio ?? "");
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -93,7 +97,8 @@ export default function ProfileScreen() {
   const { data: postsData } = useGetUserPosts(user?.uid ?? 0, {
     query: { enabled: !!user?.uid, refetchOnWindowFocus: false } as any,
   });
-  const posts = postsData?.posts ?? [];
+  const savedPosts = useQuery({ queryKey: ["saved-posts", user?.uid], queryFn: () => getSavedPosts(), enabled: !!user && historyView === "saved" });
+  const posts = (historyView === "saved" ? savedPosts.data?.posts : postsData?.posts) ?? [];
 
   const { data: coinData, refetch: refetchCoins } = useGetCoinBalance(
     { uid: user?.uid ?? 0 },
@@ -121,8 +126,7 @@ export default function ProfileScreen() {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
+      allowsEditing: false,
       quality: 0.9,
     });
     if (!result.canceled && result.assets[0]) {
@@ -469,28 +473,31 @@ export default function ProfileScreen() {
               color={historyView === "feed" ? colors.primary : colors.mutedForeground}
             />
           </TouchableOpacity>
+          <TouchableOpacity style={[styles.viewOption, historyView === "saved" && { borderBottomColor: colors.primary }]} onPress={() => setHistoryView("saved")} accessibilityLabel="Saved posts" accessibilityRole="tab" accessibilityState={{ selected: historyView === "saved" }}>
+            <Ionicons name={historyView === "saved" ? "bookmark" : "bookmark-outline"} size={22} color={historyView === "saved" ? colors.primary : colors.mutedForeground} />
+          </TouchableOpacity>
         </View>
 
         {/* Past streams grid */}
-        {posts.length === 0 ? (
+        {historyView === "saved" && (savedPosts.isPending || savedPosts.isError) ? <TouchableOpacity style={styles.emptyGrid} disabled={savedPosts.isPending} onPress={() => void savedPosts.refetch()}><Text style={{ color: colors.mutedForeground }}>{savedPosts.isPending ? "Loading saved posts..." : "Couldn't load saved posts. Retry"}</Text></TouchableOpacity> : posts.length === 0 ? (
           <View style={styles.emptyGrid}>
             <Ionicons name="images-outline" size={36} color={colors.mutedForeground} />
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-              No posts yet
+              {historyView === "saved" ? "No saved posts yet" : "No posts yet"}
             </Text>
-            <Text style={[styles.emptySubText, { color: colors.mutedForeground }]}>
+            {historyView !== "saved" ? <Text style={[styles.emptySubText, { color: colors.mutedForeground }]}>
               Tap + to share your first photo
-            </Text>
+            </Text> : null}
           </View>
-        ) : historyView === "grid" ? (
+        ) : historyView !== "feed" ? (
           <View style={styles.grid}>
             {posts.map((post) => (
               <TouchableOpacity
                 key={post.id}
                 style={styles.gridCell}
-                onPress={() => router.push({ pathname: "/posts/[uid]", params: { uid: String(user.uid), name: user.name, postId: String(post.id) } })}
+                onPress={() => router.push({ pathname: "/posts/[uid]", params: { uid: String(user.uid), name: user.name, postId: String(post.id), saved: historyView === "saved" ? "1" : "0" } })}
                 accessibilityLabel="Open photo"
-                onLongPress={() => confirmDeletePost(post.id)}
+                onLongPress={post.ownerUserId === user.uid ? () => confirmDeletePost(post.id) : undefined}
                 activeOpacity={0.85}
               >
                 <Image source={{ uri: post.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
@@ -528,26 +535,10 @@ export default function ProfileScreen() {
                   </View>
 
                   <View style={styles.feedMedia}>
-                    <Image source={{ uri: post.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                    <Image source={{ uri: post.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="contain" />
                   </View>
 
-                  <View style={styles.feedActions}>
-                    <View style={styles.feedPrimaryActions}>
-                      <Ionicons name="heart-outline" size={25} color={colors.foreground} />
-                      <Ionicons name="chatbubble-outline" size={23} color={colors.foreground} />
-                      <Ionicons name="paper-plane-outline" size={24} color={colors.foreground} />
-                    </View>
-                    <Ionicons name="bookmark-outline" size={25} color={colors.foreground} />
-                  </View>
-
-                  <View style={styles.feedCaption}>
-                    {post.caption ? (
-                      <Text style={[styles.feedCategory, { color: colors.foreground }]}>
-                        <Text style={styles.feedCaptionName}>{user.name} </Text>
-                        {post.caption}
-                      </Text>
-                    ) : null}
-                  </View>
+                  <PostFooter postId={post.id} ownerUid={post.ownerUserId} caption={post.caption} />
                 </View>
             ))}
           </View>
@@ -572,36 +563,42 @@ export default function ProfileScreen() {
         <Ionicons name="add" size={30} color="#FFF" />
       </TouchableOpacity>
 
-      <Modal visible={!!postImage} transparent animationType="slide" onRequestClose={() => setPostImage(null)}>
-        <View style={styles.postModalBackdrop}>
+      <Modal visible={!!postImage} transparent animationType="slide" onRequestClose={() => { if (!isPublishingPost) setPostImage(null); }}>
+        <KeyboardAvoidingView style={styles.postModalBackdrop} behavior={Platform.OS === "ios" ? "padding" : "height"}>
           <View style={[styles.postModal, { backgroundColor: colors.card, paddingBottom: Math.max(insets.bottom, 16) }]}>
             <View style={[styles.postModalHeader, { borderBottomColor: colors.border }]}>
-              <TouchableOpacity onPress={() => setPostImage(null)} disabled={isPublishingPost}>
+              <Text style={[styles.postModalTitle, { color: colors.foreground }]}>New Post</Text>
+            </View>
+            <View style={styles.postPreviewArea}>
+              {postImage ? <Image source={{ uri: postImage.uri }} style={StyleSheet.absoluteFill} resizeMode="contain" /> : null}
+            </View>
+            <View style={[styles.postComposerControls, { borderTopColor: colors.border }]}>
+              <TextInput
+                value={postCaption}
+                onChangeText={setPostCaption}
+                placeholder="Write a caption…"
+                placeholderTextColor={colors.mutedForeground}
+                maxLength={2200}
+                multiline
+                style={[styles.postCaptionInput, { color: colors.foreground, borderColor: colors.border }]}
+                editable={!isPublishingPost}
+              />
+              <Text style={[styles.postCaptionCount, { color: colors.mutedForeground }]}>
+                {postCaption.length}/2200
+              </Text>
+            <View style={styles.postModalFooter}>
+              <TouchableOpacity style={styles.postModalButton} onPress={() => setPostImage(null)} disabled={isPublishingPost} accessibilityRole="button">
                 <Text style={[styles.postModalAction, { color: colors.mutedForeground }]}>Cancel</Text>
               </TouchableOpacity>
-              <Text style={[styles.postModalTitle, { color: colors.foreground }]}>New Post</Text>
-              <TouchableOpacity onPress={publishPost} disabled={isPublishingPost}>
-                <Text style={[styles.postModalAction, { color: colors.primary }]}>
-                  {isPublishingPost ? "Sharing…" : "Share"}
+              <TouchableOpacity style={[styles.postModalButton, { backgroundColor: colors.primary, opacity: isPublishingPost ? 0.6 : 1 }]} onPress={publishPost} disabled={isPublishingPost} accessibilityRole="button" accessibilityState={{ disabled: isPublishingPost, busy: isPublishingPost }}>
+                <Text style={[styles.postModalAction, { color: "#FFF" }]}>
+                  {isPublishingPost ? "Posting…" : "Post"}
                 </Text>
               </TouchableOpacity>
             </View>
-            {postImage ? <Image source={{ uri: postImage.uri }} style={styles.postPreview} resizeMode="cover" /> : null}
-            <TextInput
-              value={postCaption}
-              onChangeText={setPostCaption}
-              placeholder="Write a caption…"
-              placeholderTextColor={colors.mutedForeground}
-              maxLength={2200}
-              multiline
-              style={[styles.postCaptionInput, { color: colors.foreground, borderColor: colors.border }]}
-              editable={!isPublishingPost}
-            />
-            <Text style={[styles.postCaptionCount, { color: colors.mutedForeground }]}>
-              {postCaption.length}/2200
-            </Text>
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -746,7 +743,8 @@ const styles = StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap" },
   gridCell: {
     width: GRID_CELL,
-    height: GRID_CELL,
+    height: GRID_CELL / POST_ASPECT_RATIO,
+    flexShrink: 0,
     margin: 0.5,
     alignItems: "center",
     justifyContent: "center",
@@ -807,7 +805,7 @@ const styles = StyleSheet.create({
   },
   feedMedia: {
     width: "100%",
-    aspectRatio: 1,
+    aspectRatio: POST_ASPECT_RATIO,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
@@ -848,15 +846,17 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.65)",
   },
   postModal: {
+    height: "90%",
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     overflow: "hidden",
   },
   postModalHeader: {
     height: 58,
+    flexShrink: 0,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     paddingHorizontal: 18,
     borderBottomWidth: 1,
   },
@@ -865,16 +865,34 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
   },
   postModalAction: {
-    minWidth: 58,
     fontSize: 14,
     fontFamily: "Inter_600SemiBold",
   },
-  postPreview: {
-    width: "100%",
-    aspectRatio: 1,
+  postModalFooter: {
+    flexDirection: "row",
+    flexShrink: 0,
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  postModalButton: {
+    flex: 1,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+  },
+  postPreviewArea: {
+    flex: 1,
+    minHeight: 0,
+    overflow: "hidden",
+  },
+  postComposerControls: {
+    flexShrink: 0,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   postCaptionInput: {
-    minHeight: 92,
+    height: 80,
     marginHorizontal: 16,
     marginTop: 14,
     padding: 12,

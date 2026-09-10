@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './addPostCommentBody';
 export * from './agoraRtmTokenRequest';
 export * from './agoraRtmTokenResponse';
 export * from './agoraTokenRequest';
@@ -36,6 +37,7 @@ export * from './followRequest';
 export * from './followStatusResponse';
 export * from './getCoinBalanceParams';
 export * from './getFollowStatusParams';
+export * from './getPostCommentsParams';
 export * from './getStreamChatParams';
 export * from './getStreamModeration200';
 export * from './getStreamModeration200UsersItem';
@@ -66,6 +68,9 @@ export * from './partyCandidates';
 export * from './partyParticipant';
 export * from './partyState';
 export * from './post';
+export * from './postActivity';
+export * from './postComment';
+export * from './postComments';
 export * from './postListResponse';
 export * from './postResponse';
 export * from './privateStreamInvitation';
@@ -85,6 +90,8 @@ export * from './sendChatMessageRequest';
 export * from './sendMediaDmRequest';
 export * from './sendMediaDmRequestMediaType';
 export * from './sendMediaPackRequest';
+export * from './setPostReactionBody';
+export * from './setPostReactionBodyKind';
 export * from './setUserBlock200';
 export * from './setUserBlockBody';
 export * from './stream';

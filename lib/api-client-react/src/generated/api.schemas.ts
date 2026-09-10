@@ -5,6 +5,26 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface PostActivity {
+  likeCount: number;
+  commentCount: number;
+  liked: boolean;
+  saved: boolean;
+}
+
+export interface PostComment {
+  id: number;
+  uid: number;
+  name: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface PostComments {
+  comments: PostComment[];
+  nextCursor: number | null;
+}
+
 export interface PartyParticipant {
   channelId: string;
   rtcChannelName: string;
@@ -803,5 +823,35 @@ export type ReportUserBody = {
 
 export type ReportUser201 = {
   success: boolean;
+};
+
+export type SetPostReactionBodyKind = typeof SetPostReactionBodyKind[keyof typeof SetPostReactionBodyKind];
+
+
+export const SetPostReactionBodyKind = {
+  like: 'like',
+  save: 'save',
+} as const;
+
+export type SetPostReactionBody = {
+  kind: SetPostReactionBodyKind;
+  active: boolean;
+};
+
+export type GetPostCommentsParams = {
+before?: number;
+};
+
+export type AddPostCommentBody = {
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  text: string;
+  /**
+     * @minLength 16
+     * @maxLength 80
+     */
+  requestId: string;
 };
 

@@ -1112,3 +1112,91 @@ export const DeleteStreamChatMessageResponse = zod.object({
 })
 
 
+export const GetSavedPostsResponse = zod.object({
+  "posts": zod.array(zod.object({
+  "id": zod.number(),
+  "ownerUserId": zod.number(),
+  "imageUrl": zod.string(),
+  "caption": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+export const GetPostActivityParams = zod.object({
+  "postId": zod.coerce.number()
+})
+
+export const GetPostActivityResponse = zod.object({
+  "likeCount": zod.number(),
+  "commentCount": zod.number(),
+  "liked": zod.boolean(),
+  "saved": zod.boolean()
+})
+
+
+export const SetPostReactionParams = zod.object({
+  "postId": zod.coerce.number()
+})
+
+export const SetPostReactionBody = zod.object({
+  "kind": zod.enum(['like', 'save']),
+  "active": zod.boolean()
+})
+
+export const SetPostReactionResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+export const GetPostCommentsParams = zod.object({
+  "postId": zod.coerce.number()
+})
+
+export const GetPostCommentsQueryParams = zod.object({
+  "before": zod.coerce.number().optional()
+})
+
+export const GetPostCommentsResponse = zod.object({
+  "comments": zod.array(zod.object({
+  "id": zod.number(),
+  "uid": zod.number(),
+  "name": zod.string(),
+  "text": zod.string(),
+  "createdAt": zod.coerce.date()
+})),
+  "nextCursor": zod.number().nullable()
+})
+
+
+export const AddPostCommentParams = zod.object({
+  "postId": zod.coerce.number()
+})
+
+export const addPostCommentBodyTextMax = 1000;
+
+export const addPostCommentBodyRequestIdMin = 16;
+export const addPostCommentBodyRequestIdMax = 80;
+
+
+
+export const AddPostCommentBody = zod.object({
+  "text": zod.string().min(1).max(addPostCommentBodyTextMax),
+  "requestId": zod.string().min(addPostCommentBodyRequestIdMin).max(addPostCommentBodyRequestIdMax)
+})
+
+export const AddPostCommentResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+export const DeletePostCommentParams = zod.object({
+  "postId": zod.coerce.number(),
+  "commentId": zod.coerce.number()
+})
+
+export const DeletePostCommentResponse = zod.object({
+  "success": zod.boolean()
+})
+
+

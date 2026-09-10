@@ -1155,8 +1155,82 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SuccessResponse" }
+  /posts/saved:
+    get:
+      operationId: getSavedPosts
+      responses:
+        "200":
+          description: The signed-in user's saved posts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostListResponse" }
+  /posts/{postId}/activity:
+    parameters:
+      - { name: postId, in: path, required: true, schema: { type: integer } }
+    get:
+      operationId: getPostActivity
+      responses:
+        "200":
+          description: Post activity and the signed-in user's selections
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostActivity" }
+    put:
+      operationId: setPostReaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [kind, active], properties: { kind: { type: string, enum: [like, save] }, active: { type: boolean } } }
+      responses:
+        "200":
+          description: Reaction saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SuccessResponse" }
+  /posts/{postId}/comments:
+    parameters:
+      - { name: postId, in: path, required: true, schema: { type: integer } }
+    get:
+      operationId: getPostComments
+      parameters:
+        - { name: before, in: query, schema: { type: integer } }
+      responses:
+        "200":
+          description: Latest comments, newest first
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostComments" }
+    post:
+      operationId: addPostComment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [text, requestId], properties: { text: { type: string, minLength: 1, maxLength: 1000 }, requestId: { type: string, minLength: 16, maxLength: 80 } } }
+      responses:
+        "200":
+          description: Comment added
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SuccessResponse" }
+  /posts/{postId}/comments/{commentId}:
+    delete:
+      operationId: deletePostComment
+      parameters:
+        - { name: postId, in: path, required: true, schema: { type: integer } }
+        - { name: commentId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Comment deleted by its author or the post owner
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SuccessResponse" }
 components:
   schemas:
+    PostActivity: { type: object, required: [likeCount, commentCount, liked, saved], properties: { likeCount: { type: integer }, commentCount: { type: integer }, liked: { type: boolean }, saved: { type: boolean } } }
+    PostComment: { type: object, required: [id, uid, name, text, createdAt], properties: { id: { type: integer }, uid: { type: integer }, name: { type: string }, text: { type: string }, createdAt: { type: string, format: date-time } } }
+    PostComments: { type: object, required: [comments, nextCursor], properties: { comments: { type: array, items: { $ref: "#/components/schemas/PostComment" } }, nextCursor: { type: integer, nullable: true } } }
     PartyParticipant: {"type":"object","required":["channelId","rtcChannelName","uid","name","avatarUrl"],"properties":{"channelId":{"type":"string"},"rtcChannelName":{"type":"string"},"uid":{"type":"integer"},"name":{"type":"string"},"avatarUrl":{"type":"string","nullable":true}}}
     PartyBattle: {"type":"object","required":["id","status","requesterUid","expiresAt","startsAt","endsAt","firstScore","secondScore","winnerUid"],"properties":{"id":{"type":"string"},"status":{"type":"string","enum":["pending","active","finished","cancelled"]},"requesterUid":{"type":"integer"},"expiresAt":{"type":"integer"},"startsAt":{"type":"integer","nullable":true},"endsAt":{"type":"integer","nullable":true},"firstScore":{"type":"integer"},"secondScore":{"type":"integer"},"winnerUid":{"type":"integer","nullable":true}}}
     LiveParty: {"type":"object","required":["id","status","expiresAt","startedAt","ready","viewerCount","participants","battle"],"properties":{"id":{"type":"string"},"status":{"type":"string","enum":["pending","active"]},"expiresAt":{"type":"integer"},"startedAt":{"type":"integer","nullable":true},"ready":{"type":"boolean"},"viewerCount":{"type":"integer"},"participants":{"type":"array","items":{"$ref":"#/components/schemas/PartyParticipant"}},"battle":{"$ref":"#/components/schemas/PartyBattle","nullable":true}}}

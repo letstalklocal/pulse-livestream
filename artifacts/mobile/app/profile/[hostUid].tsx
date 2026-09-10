@@ -33,6 +33,8 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar } from "@/components/Avatar";
 import { useColors } from "@/hooks/useColors";
+import { POST_ASPECT_RATIO } from "@/utils/postLayout";
+import { PostFooter } from "@/components/PostFooter";
 import { useAuth } from "@/context/AuthContext";
 
 const { width } = Dimensions.get("window");
@@ -318,26 +320,10 @@ export default function PublicProfileScreen() {
                   </View>
 
                   <View style={styles.feedMedia}>
-                    <Image source={{ uri: post.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                    <Image source={{ uri: post.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="contain" />
                   </View>
 
-                  <View style={styles.feedActions}>
-                    <View style={styles.feedPrimaryActions}>
-                      <Ionicons name="heart-outline" size={25} color={colors.foreground} />
-                      <Ionicons name="chatbubble-outline" size={23} color={colors.foreground} />
-                      <Ionicons name="paper-plane-outline" size={24} color={colors.foreground} />
-                    </View>
-                    <Ionicons name="bookmark-outline" size={25} color={colors.foreground} />
-                  </View>
-
-                  <View style={styles.feedCaption}>
-                    {post.caption ? (
-                      <Text style={[styles.feedCategory, { color: colors.foreground }]}>
-                        <Text style={styles.feedCaptionName}>{displayName} </Text>
-                        {post.caption}
-                      </Text>
-                    ) : null}
-                  </View>
+                  <PostFooter postId={post.id} ownerUid={post.ownerUserId} caption={post.caption} />
                 </View>
             ))}
           </View>
@@ -435,7 +421,8 @@ const styles = StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap" },
   gridCell: {
     width: GRID_CELL,
-    height: GRID_CELL,
+    height: GRID_CELL / POST_ASPECT_RATIO,
+    flexShrink: 0,
     margin: 0.5,
     alignItems: "center",
     justifyContent: "center",
@@ -496,7 +483,7 @@ const styles = StyleSheet.create({
   },
   feedMedia: {
     width: "100%",
-    aspectRatio: 1,
+    aspectRatio: POST_ASPECT_RATIO,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
