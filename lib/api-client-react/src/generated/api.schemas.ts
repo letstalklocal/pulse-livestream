@@ -5,6 +5,86 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface PartyParticipant {
+  channelId: string;
+  rtcChannelName: string;
+  uid: number;
+  name: string;
+  avatarUrl: string | null;
+}
+
+export type PartyBattleStatus = typeof PartyBattleStatus[keyof typeof PartyBattleStatus];
+
+
+export const PartyBattleStatus = {
+  pending: 'pending',
+  active: 'active',
+  finished: 'finished',
+  cancelled: 'cancelled',
+} as const;
+
+export interface PartyBattle {
+  id: string;
+  status: PartyBattleStatus;
+  requesterUid: number;
+  expiresAt: number;
+  startsAt: number | null;
+  endsAt: number | null;
+  firstScore: number;
+  secondScore: number;
+  winnerUid: number | null;
+}
+
+export type LivePartyStatus = typeof LivePartyStatus[keyof typeof LivePartyStatus];
+
+
+export const LivePartyStatus = {
+  pending: 'pending',
+  active: 'active',
+} as const;
+
+export interface LiveParty {
+  id: string;
+  status: LivePartyStatus;
+  expiresAt: number;
+  startedAt: number | null;
+  ready: boolean;
+  viewerCount: number;
+  participants: PartyParticipant[];
+  battle: PartyBattle | null;
+}
+
+export interface PartyState {
+  party: LiveParty | null;
+  serverTime: number;
+}
+
+export interface PartyCandidates {
+  users: PartyParticipant[];
+}
+
+export type PartyActionAction = typeof PartyActionAction[keyof typeof PartyActionAction];
+
+
+export const PartyActionAction = {
+  invite: 'invite',
+  accept: 'accept',
+  decline: 'decline',
+  cancel: 'cancel',
+  leave: 'leave',
+  ready: 'ready',
+  battle_request: 'battle_request',
+  battle_accept: 'battle_accept',
+  battle_decline: 'battle_decline',
+} as const;
+
+export interface PartyAction {
+  action: PartyActionAction;
+  targetChannelId?: string;
+  partyId?: string;
+  battleId?: string;
+}
+
 export type CreatePrivateStreamInvitationRequestRequiredGiftId = typeof CreatePrivateStreamInvitationRequestRequiredGiftId[keyof typeof CreatePrivateStreamInvitationRequestRequiredGiftId] | null;
 
 
@@ -322,6 +402,7 @@ export interface ChatMessage {
 }
 
 export interface ChatMessagesResponse {
+  deletedIds?: string[];
   messages: ChatMessage[];
 }
 

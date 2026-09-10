@@ -1,4 +1,5 @@
 import { requireContactAllowed } from "../lib/userSafety";
+import { lockParty, scorePartyGift, findParty, partyStreams } from "../lib/liveParty";
 import { Router } from "express";
 import { getAuth } from "@clerk/express";
 import { eq, sql, and, inArray } from "drizzle-orm";
@@ -123,7 +124,7 @@ router.post("/coins/spend", async (req, res) => {
     res.status(403).json({ error: "You can only spend your own coins" });
     return;
   }
-  if (!amount || typeof amount !== "number" || amount <= 0) {
+  if (!amount || !Number.isSafeInteger(amount) || amount <= 0 || amount > 2147483647) {
     res.status(400).json({ error: "amount must be a positive number" });
     return;
   }
@@ -140,6 +141,7 @@ router.post("/coins/spend", async (req, res) => {
   let transfer: { balance: number; duplicate: boolean } | null;
   try {
     transfer = await db.transaction(async (tx) => {
+      await lockParty(tx);
       // Serialize retries for the same key, including the race where both
       // requests arrive before either one inserts its ledger row.
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${idempotencyKey}))`);
@@ -203,6 +205,7 @@ router.post("/coins/spend", async (req, res) => {
       }
 
       // The ledger row commits or rolls back with both balance changes.
+      const battleId = await scorePartyGift(tx, channelId, uid, effectiveRecipientUid, amount);
       await tx.insert(coinTransactionsTable).values({
         fromUserId:  uid,
         toUserId:    effectiveRecipientUid,
@@ -210,6 +213,7 @@ router.post("/coins/spend", async (req, res) => {
         type:        "gift",
         giftName:    giftName ?? null,
         channelId:   channelId ?? null,
+        battleId,
         description: description ?? "",
         idempotencyKey,
         balanceAfter: updated[0].balance,
@@ -247,7 +251,15 @@ router.post("/coins/spend", async (req, res) => {
         );
       const total = Number(rows[0]?.total ?? 0);
       wsHub.pushEarnings(channelId, total);
-      wsHub.pushGift(channelId, giftName ?? "", senderName ?? "Viewer", total);
+      const party = await findParty(channelId);
+      const participants = party ? await partyStreams(party) : [];
+      const recipient = participants.find(s => s?.hostUserId === effectiveRecipientUid);
+      const displaySender = recipient ? `${senderName ?? "Viewer"} to ${recipient.hostName}` : senderName ?? "Viewer";
+      wsHub.pushGift(channelId, giftName ?? "", displaySender, total);
+      if (party) {
+        const other = party.firstChannelId === channelId ? party.secondChannelId : party.firstChannelId;
+        wsHub.pushPartyGift(other, giftName ?? "", displaySender);
+      }
     } catch (error) {
       // The transfer is already committed. A notification failure must not
       // cause the client to retry and charge the sender a second time.

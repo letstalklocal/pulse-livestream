@@ -2,14 +2,17 @@
 // old current channel must not receive frames from the new Premium broadcast.
 export async function switchBroadcastChannel(
   engine: any, token: string, channelName: string, uid: number, muted: boolean,
-  stillActive: () => boolean,
+  stillActive: () => boolean, currentChannelName?: string,
 ) {
   if (engine.getConnectionState() !== 1) {
     const publish = engine.updateChannelMediaOptions({ publishCameraTrack: false, publishMicrophoneTrack: false });
     if (publish < 0) throw new Error(`Could not pause the current broadcast (${publish}).`);
     await new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => { cleanup(); reject(new Error("Leaving the current stream timed out.")); }, 10000);
-      const handler = { onLeaveChannel: () => { cleanup(); resolve(); } };
+      const handler = { onLeaveChannel: (connection?: { channelId?: string }) => {
+        if (currentChannelName && connection?.channelId !== currentChannelName) return;
+        cleanup(); resolve();
+      } };
       const cleanup = () => { clearTimeout(timer); engine.unregisterEventHandler(handler); };
       engine.registerEventHandler(handler);
       const result = engine.leaveChannel();

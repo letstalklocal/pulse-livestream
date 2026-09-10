@@ -1,4 +1,5 @@
 import { contactBlocked } from "./userSafety";
+import { findParty, partyViewerAllowed } from "./liveParty";
 import { viewerModeration } from "./streamModeration";
 import { and, eq } from "drizzle-orm";
 import { db, creatorBlocksTable, liveStreamSessionsTable, privateStreamInvitationsTable, usersTable } from "@workspace/db";
@@ -13,6 +14,8 @@ export async function canAccessChannel(channelId: string, clerkId: string | null
     const user = (await db.select().from(usersTable).where(eq(usersTable.clerkId, clerkId)).limit(1))[0];
     if (!user) return false;
     const moderation = await viewerModeration(session.id, session.hostUserId, user.uid);
+    const party = await findParty(channelId);
+    if (party && !(await partyViewerAllowed(party, user.uid)).allowed) return false;
     return !moderation.removed && !moderation.blocked;
   }
   if (!clerkId) return false;

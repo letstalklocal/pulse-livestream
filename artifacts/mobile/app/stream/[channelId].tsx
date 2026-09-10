@@ -3,6 +3,10 @@ import { TranslatedMessage } from "@/components/TranslatedMessage";
 import { TranslationToggle } from "@/components/TranslationToggle";
 import { ReportStreamSheet } from "@/components/ReportStreamSheet";
 import { useStreamSocket } from "@/hooks/useStreamSocket";
+import { useLiveParty } from "@/hooks/useLiveParty";
+import { usePartyMedia } from "@/hooks/usePartyMedia";
+import { PartyStage } from "@/components/PartyStage";
+import { partyLayout } from "@/utils/partyLayout";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth as useClerkAuth } from "@clerk/expo";
 import * as Crypto from "expo-crypto";
@@ -193,6 +197,8 @@ export default function StreamScreen() {
   const admitToStream = useAdmitToStream();
   const sendChatMutation = useSendChatMessage();
   const engineRef = useRef<any>(null);
+  const primaryRtcChannelRef = useRef("");
+  const partyDragRef = useRef(false);
   const admissionKeyRef = useRef(Crypto.randomUUID());
   const streamEndedRef = useRef(false);
   const listRef = useRef<FlatList>(null);
@@ -286,12 +292,14 @@ export default function StreamScreen() {
   useEffect(() => {
     if (!chatPollData?.messages) return;
     setMessages((prev) => {
-      const existingIds = new Set(prev.map((m) => m.id));
+      const deleted = new Set(chatPollData.deletedIds ?? []);
+      const retained = prev.filter(m => !deleted.has(m.id));
+      const existingIds = new Set(retained.map((m) => m.id));
       const next = chatPollData.messages
         .filter((m) => !existingIds.has(m.id))
         .map((m) => ({ id: m.id, sender: m.senderName, senderUid: m.senderUid, text: m.text, color: m.color }));
-      if (next.length === 0) return prev;
-      return [...prev, ...next].slice(-100);
+      if (next.length === 0 && retained.length === prev.length) return prev;
+      return [...retained, ...next].slice(-100);
     });
   }, [chatPollData]);
 
@@ -306,6 +314,15 @@ export default function StreamScreen() {
 
   const hostUid = stream?.hostUid ?? hostUidFromChannel;
   const isOwnStream = !!user?.uid && user.uid === hostUid;
+  const partyState = useLiveParty(channelId ?? "", isNative && !isPrivateStream && !isDemo && canEnterStream && !streamEnded);
+  const party = partyState.party;
+  const vsActive = party?.battle?.status === "active" && (party.battle.endsAt ?? 0) > partyState.now;
+  const vsChatHeight = partyLayout(SCREEN_W, SCREEN_H, insets.top, insets.bottom).chatHeight;
+  const partyMedia = usePartyMedia(engineRef, channelId ?? "", party, isNative && joined && canEnterStream && !streamEnded, false);
+  const partyViewerCount = party?.status === "active" ? party.viewerCount : stream?.viewerCount;
+  const [giftRecipientUid, setGiftRecipientUid] = useState<number | undefined>(undefined);
+  useEffect(() => { setGiftRecipientUid(hostUid ?? undefined); }, [hostUid, party?.id]);
+  const giftRecipient = party?.status === "active" ? party.participants.find(p => p.uid === giftRecipientUid) : undefined;
 
   const AVATAR_COLORS = ["#FF1966","#7B2FFF","#FF6B35","#00C2A8","#FFB800","#0095FF"];
   const hostInitials = (stream?.hostName ?? "?")
@@ -567,6 +584,7 @@ export default function StreamScreen() {
             if (!didUnmount) setAgoraError(`Live video error ${err}: ${msg || "Unknown Agora error"}`);
           },
           onJoinChannelSuccess: (connection: any, elapsed: number) => {
+            if (connection?.channelId !== primaryRtcChannelRef.current) return;
             console.log("[Agora viewer] joined:", connection?.channelId, elapsed);
             if (!didUnmount) {
               setJoined(true);
@@ -574,6 +592,7 @@ export default function StreamScreen() {
             }
           },
           onConnectionStateChanged: (connection: any, state: number, reason: number) => {
+            if (connection?.channelId !== primaryRtcChannelRef.current) return;
             console.log(
               "[Agora viewer] connectionState channel:",
               connection?.channelId,
@@ -587,6 +606,7 @@ export default function StreamScreen() {
             }
           },
           onUserJoined: (_connection: any, uid: number, elapsed: number) => {
+            if (_connection?.channelId !== primaryRtcChannelRef.current) return;
             console.log("[Agora viewer] onUserJoined uid:", uid, "elapsed:", elapsed);
             if (!didUnmount) setRemoteUid(uid);
           },
@@ -597,6 +617,7 @@ export default function StreamScreen() {
             reason: number,
             elapsed: number,
           ) => {
+            if (_connection?.channelId !== primaryRtcChannelRef.current) return;
             console.log(
               "[Agora viewer] remoteVideoState uid:",
               uid,
@@ -626,6 +647,7 @@ export default function StreamScreen() {
             height: number,
             elapsed: number,
           ) => {
+            if (_connection?.channelId !== primaryRtcChannelRef.current) return;
             console.log(
               "[Agora viewer] firstRemoteVideoFrame uid:",
               uid,
@@ -641,6 +663,7 @@ export default function StreamScreen() {
             }
           },
           onUserOffline: (_conn: any, uid: number, reason: number) => {
+            if (_conn?.channelId !== primaryRtcChannelRef.current) return;
             console.log("[Agora viewer] onUserOffline uid:", uid, "reason:", reason);
             if (!didUnmount) {
               setRemoteUid(null);
@@ -655,6 +678,7 @@ export default function StreamScreen() {
           releaseSetupEngine();
           return;
         }
+        primaryRtcChannelRef.current = tokenData.channelName;
         const joinResult = engine.joinChannel(tokenData.token, tokenData.channelName, user?.uid ?? 0, {
           clientRoleType: ClientRoleType.ClientRoleAudience,
           autoSubscribeAudio: true,
@@ -737,9 +761,9 @@ export default function StreamScreen() {
       onStartShouldSetPanResponder: () => false,
       // Capture horizontal swipes even over chat, without taking its vertical scrolling.
       onMoveShouldSetPanResponderCapture: (_evt, gs) =>
-        Math.abs(gs.dx) > 15 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.2,
+        !partyDragRef.current && Math.abs(gs.dx) > 15 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.2,
       onMoveShouldSetPanResponder: (_evt, gs) =>
-        Math.max(Math.abs(gs.dx), Math.abs(gs.dy)) > 15,
+        !partyDragRef.current && Math.max(Math.abs(gs.dx), Math.abs(gs.dy)) > 15,
       onPanResponderRelease: (_evt, gs) => {
         if (Math.abs(gs.dx) > Math.abs(gs.dy)) {
           if (Math.abs(gs.dx) > 60) horizontalSwipeRef.current(gs.dx > 0);
@@ -790,7 +814,7 @@ export default function StreamScreen() {
         channelId,
         data: { senderName, text, color: "#FF1966" },
       }).then((data) => {
-        setMessages((prev) => {
+    setMessages((prev) => {
           if (prev.some((message) => message.id === data.message.id)) return prev;
           return [
             ...prev,
@@ -853,9 +877,7 @@ export default function StreamScreen() {
       automaticOffset
     >
       {/* Full-screen video area */}
-      <View
-        style={StyleSheet.absoluteFill}
-      >
+      <PartyStage channelId={channelId ?? ""} mainName={stream?.hostName ?? "Host"} party={party} now={partyState.now} media={partyMedia} onDragActive={active => { partyDragRef.current = active; }} main={<>
         {!canEnterStream ? (
           <View style={styles.admissionBlocked}>
             <StreamBackdrop imageUrl={backgroundImageUrl} />
@@ -895,7 +917,7 @@ export default function StreamScreen() {
         ) : (
           <StreamBackdrop imageUrl={backgroundImageUrl} />
         )}
-      </View>
+      </>} />
 
       {/* Overlay UI */}
       <Animated.View
@@ -933,10 +955,10 @@ export default function StreamScreen() {
             <View style={styles.statsDivider} />
             <Ionicons name="eye" size={12} color="#FFF" />
             <Text style={styles.statsText}>
-              {stream?.viewerCount != null
-                ? stream.viewerCount >= 1000
-                  ? `${(stream.viewerCount / 1000).toFixed(1)}K`
-                  : stream.viewerCount
+              {partyViewerCount != null
+                ? partyViewerCount >= 1000
+                  ? `${(partyViewerCount / 1000).toFixed(1)}K`
+                  : partyViewerCount
                 : "—"}
             </Text>
           </TouchableOpacity>
@@ -957,7 +979,7 @@ export default function StreamScreen() {
         </View>
 
         {/* Live chat */}
-        <View style={styles.chatArea} pointerEvents="box-none">
+        <View style={[styles.chatArea, vsActive && { maxHeight: keyboardVisible ? 0 : vsChatHeight, overflow: "hidden" }]} pointerEvents="box-none">
           <FlatList
             ref={listRef}
             data={messages}
@@ -1046,12 +1068,15 @@ export default function StreamScreen() {
     <GiftPicker
       visible={showGiftPicker}
       coins={viewerCoins}
+      recipients={party?.status === "active" ? party.participants : undefined}
+      recipientUid={giftRecipient?.uid ?? hostUid ?? undefined}
+      onRecipientChange={setGiftRecipientUid}
       onClose={() => setShowGiftPicker(false)}
       onSend={(gift) => {
         if (!user?.uid) return;
         setShowGiftPicker(false);
         spendMutation.mutate(
-           { data: { uid: user.uid, recipientUid: hostUid ?? undefined, amount: gift.coins, giftName: gift.name, senderName: user.name ?? "Viewer", channelId: channelId ?? undefined, description: gift.name, idempotencyKey: createGiftRequestKey() } },
+           { data: { uid: user.uid, recipientUid: giftRecipient?.uid ?? hostUid ?? undefined, amount: gift.coins, giftName: gift.name, senderName: user.name ?? "Viewer", channelId: giftRecipient?.channelId ?? channelId ?? undefined, description: gift.name, idempotencyKey: createGiftRequestKey() } },
           {
             onSuccess: (data) => {
               // Update viewer's own balance in cache
@@ -1061,13 +1086,13 @@ export default function StreamScreen() {
               );
               // Invalidate host balance so the stats row reflects the credit
               queryClient.invalidateQueries({
-                queryKey: getGetCoinBalanceQueryKey({ uid: hostUid ?? 0 }),
+                queryKey: getGetCoinBalanceQueryKey({ uid: giftRecipient?.uid ?? hostUid ?? 0 }),
               });
-              spawnGift(gift, user.name ?? "You");
+              spawnGift(gift, giftRecipient ? `${user.name ?? "You"} to ${giftRecipient.name}` : user.name ?? "You");
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             },
             onError: () => {
-              Alert.alert("Not enough coins", "Add more coins from your profile.");
+              Alert.alert("Gift not sent", "Check your coin balance and that the selected host is still live.");
             },
           },
         );

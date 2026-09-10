@@ -484,6 +484,7 @@ export const GetStreamChatQueryParams = zod.object({
 })
 
 export const GetStreamChatResponse = zod.object({
+  "deletedIds": zod.array(zod.string()).optional(),
   "messages": zod.array(zod.object({
   "id": zod.string(),
   "senderUid": zod.number().optional(),
@@ -1019,6 +1020,95 @@ export const ReportUserBody = zod.object({
   "messageId": zod.number().optional(),
   "reason": zod.enum(['harassment', 'spam', 'sexual_content', 'violence', 'child_safety', 'other']),
   "details": zod.string().max(reportUserBodyDetailsMax).optional()
+})
+
+
+export const GetStreamPartyParams = zod.object({
+  "channelId": zod.coerce.string()
+})
+
+export const GetStreamPartyResponse = zod.object({
+  "party": zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['pending', 'active']),
+  "expiresAt": zod.number(),
+  "startedAt": zod.number().nullable(),
+  "ready": zod.boolean(),
+  "viewerCount": zod.number(),
+  "participants": zod.array(zod.object({
+  "channelId": zod.string(),
+  "rtcChannelName": zod.string(),
+  "uid": zod.number(),
+  "name": zod.string(),
+  "avatarUrl": zod.string().nullable()
+})),
+  "battle": zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['pending', 'active', 'finished', 'cancelled']),
+  "requesterUid": zod.number(),
+  "expiresAt": zod.number(),
+  "startsAt": zod.number().nullable(),
+  "endsAt": zod.number().nullable(),
+  "firstScore": zod.number(),
+  "secondScore": zod.number(),
+  "winnerUid": zod.number().nullable()
+}).nullable()
+}).nullable(),
+  "serverTime": zod.number()
+})
+
+
+export const ActOnStreamPartyParams = zod.object({
+  "channelId": zod.coerce.string()
+})
+
+export const ActOnStreamPartyBody = zod.object({
+  "action": zod.enum(['invite', 'accept', 'decline', 'cancel', 'leave', 'ready', 'battle_request', 'battle_accept', 'battle_decline']),
+  "targetChannelId": zod.string().optional(),
+  "partyId": zod.string().optional(),
+  "battleId": zod.string().optional()
+})
+
+export const ActOnStreamPartyResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+export const GetPartyCandidatesParams = zod.object({
+  "channelId": zod.coerce.string()
+})
+
+export const GetPartyCandidatesResponse = zod.object({
+  "users": zod.array(zod.object({
+  "channelId": zod.string(),
+  "rtcChannelName": zod.string(),
+  "uid": zod.number(),
+  "name": zod.string(),
+  "avatarUrl": zod.string().nullable()
+}))
+})
+
+
+export const GetPartyMediaParams = zod.object({
+  "channelId": zod.coerce.string()
+})
+
+export const GetPartyMediaResponse = zod.object({
+  "token": zod.string().describe('The RTC token'),
+  "appId": zod.string().describe('The Agora App ID'),
+  "channelName": zod.string(),
+  "uid": zod.number(),
+  "expiresAt": zod.number().describe('Token expiry timestamp (Unix seconds)')
+})
+
+
+export const DeleteStreamChatMessageParams = zod.object({
+  "channelId": zod.coerce.string(),
+  "messageId": zod.coerce.string()
+})
+
+export const DeleteStreamChatMessageResponse = zod.object({
+  "success": zod.boolean()
 })
 
 

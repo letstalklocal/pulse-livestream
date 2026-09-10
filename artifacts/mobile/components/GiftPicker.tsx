@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Avatar } from "./Avatar";
 
 export interface Gift {
   id: string;
@@ -33,9 +34,12 @@ interface Props {
   onSend: (gift: Gift) => void;
   coins: number;
   hintText?: string;
+  recipients?: Array<{ uid: number; name: string; avatarUrl?: string | null }>;
+  recipientUid?: number;
+  onRecipientChange?: (uid: number) => void;
 }
 
-export function GiftPicker({ visible, onClose, onSend, coins, hintText = "Tap a gift to send it live" }: Props) {
+export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipientUid, onRecipientChange, hintText = "Tap a gift to send it live" }: Props) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -61,6 +65,12 @@ export function GiftPicker({ visible, onClose, onSend, coins, hintText = "Tap a 
           </View>
         </View>
 
+        {recipients ? <View style={styles.recipients}>
+          {recipients.map(person => <TouchableOpacity key={person.uid} style={[styles.recipient, person.uid === recipientUid && styles.selectedRecipient]} onPress={() => onRecipientChange?.(person.uid)} accessibilityRole="radio" accessibilityState={{ checked: person.uid === recipientUid }} accessibilityLabel={`Send gifts to ${person.name}`}>
+            <Avatar uid={person.uid} name={person.name} avatarUri={person.avatarUrl ?? undefined} size={28} />
+            <Text style={styles.recipientName} numberOfLines={1}>{person.name}</Text>
+          </TouchableOpacity>)}
+        </View> : null}
         {/* Gift row */}
         <ScrollView
           horizontal
@@ -99,6 +109,10 @@ export function GiftPicker({ visible, onClose, onSend, coins, hintText = "Tap a 
 }
 
 const styles = StyleSheet.create({
+  recipients: { flexDirection: "row", gap: 8, marginBottom: 16 },
+  recipient: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, padding: 8, borderRadius: 8, borderWidth: 1, borderColor: "#444" },
+  selectedRecipient: { borderColor: "#FF1966", backgroundColor: "rgba(255,25,102,0.12)" },
+  recipientName: { flex: 1, color: "#FFF", fontSize: 13, fontFamily: "Inter_500Medium" },
   backdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",

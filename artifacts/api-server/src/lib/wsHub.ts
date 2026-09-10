@@ -44,6 +44,10 @@ export function pushStreamEnded(channelId: string): void {
   broadcast(channelId, { type: "stream_ended", channelId });
 }
 
+export function pushPartyGift(channelId: string, giftName: string, senderName: string): void {
+  broadcast(channelId, { type: "gift", channelId, giftName, senderName });
+}
+
 export function pushStreamUpdated(channelId: string): void {
   broadcast(channelId, { type: "stream_updated", channelId });
 }

@@ -26,6 +26,7 @@ function fixture(clerkId, senderUid) {
   new Function("require", "module", "exports", code)((id) => {
     if (id === "@workspace/db") return dbModule;
     if (id === "../lib/wsHub") return {};
+    if (id === "../lib/liveParty") return {};
     if (id === "../lib/userSafety") return { requireContactAllowed: async () => true };
     if (id === "../lib/privateChannelAccess") return { requireChannelAccess: async () => true };
     return require(id);

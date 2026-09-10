@@ -8,5 +8,6 @@
 import type { ChatMessage } from './chatMessage';
 
 export interface ChatMessagesResponse {
+  deletedIds?: string[];
   messages: ChatMessage[];
 }

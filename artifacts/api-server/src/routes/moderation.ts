@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { partyChannels, findParty, partyStreams } from "../lib/liveParty";
 import { randomUUID } from "node:crypto";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db, usersTable, liveStreamSessionsTable, streamModerationTable, creatorBlocksTable, streamReportsTable } from "@workspace/db";
@@ -18,7 +19,7 @@ router.get("/streams/:channelId/moderation", async (req, res) => {
     db.select().from(streamModerationTable).where(eq(streamModerationTable.sessionId, stream.sessionId)),
     db.select().from(creatorBlocksTable).where(eq(creatorBlocksTable.hostUserId, host.uid)),
   ]);
-  const present = new Set(activeViewerIds(stream.channelId));
+  const present = new Set((await partyChannels(stream.channelId)).flatMap(activeViewerIds));
   const ids = [...new Set([...present, ...restrictions.filter(item => item.muted || item.removed).map(item => item.viewerUserId), ...blocks.map(item => item.viewerUserId)])];
   const people = ids.length ? await db.select().from(usersTable).where(inArray(usersTable.uid, ids)).orderBy(usersTable.name) : [];
   res.json({ users: await Promise.all(people.map(async person => {
@@ -38,6 +39,8 @@ router.post("/streams/:channelId/moderation", async (req, res) => {
   if (!Number.isInteger(viewerUid) || viewerUid <= 0 || !["mute", "unmute", "remove", "allow", "block", "unblock"].includes(action)) return void res.status(400).json({ error: "Invalid moderation action" });
   if (viewerUid === host.uid) return void res.status(400).json({ error: "You cannot moderate yourself" });
   const channelId = req.params.channelId;
+  const party = await findParty(channelId);
+  if (party && (await partyStreams(party)).some(s => s?.hostUserId === viewerUid)) return void res.status(400).json({ error: "Leave Party to disconnect the other host" });
   const result = await db.transaction(async tx => {
     const session = (await tx.select().from(liveStreamSessionsTable).where(and(eq(liveStreamSessionsTable.channelId, channelId), isNull(liveStreamSessionsTable.endedAt))).for("update"))[0];
     if (!session || session.lastHeartbeatAt.getTime() < Date.now() - 60000) return { status: 404, error: "Active stream not found" };

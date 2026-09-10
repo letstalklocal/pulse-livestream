@@ -43,3 +43,19 @@ test('pause failure prevents leaving or publishing elsewhere', async () => {
   await assert.rejects(switchBroadcastChannel(f.engine, 'token', 'protected', 10, false, () => true), /pause/);
   assert.equal(f.events.length, 0);
 });
+
+test('partner leave event cannot complete a primary media-channel switch', async () => {
+  const f = fixture();
+  f.engine.leaveChannel = () => {
+    f.events.push(['leave']);
+    setImmediate(() => {
+      for (const h of f.handlers) h.onLeaveChannel?.({ channelId: 'partner' });
+      assert.equal(f.events.some(event => event[0] === 'join'), false);
+      for (const h of f.handlers) h.onLeaveChannel?.({ channelId: 'primary' });
+    });
+    return 0;
+  };
+  await switchBroadcastChannel(f.engine, 'token', 'protected', 10, false, () => true, 'primary');
+  assert.equal(f.events.filter(event => event[0] === 'join').length, 1);
+  assert.equal(f.handlers.size, 0);
+});

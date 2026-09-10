@@ -53,6 +53,9 @@ import type {
   MediaPackUploadResponse,
   MediaPacksResponse,
   ModerateStreamViewerBody,
+  PartyAction,
+  PartyCandidates,
+  PartyState,
   PostListResponse,
   PostResponse,
   PrivateStreamInvitationResponse,
@@ -4115,5 +4118,350 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getReportUserMutationOptions(options));
+    }
+
+export const getGetStreamPartyUrl = (channelId: string,) => {
+
+
+
+
+  return `/api/streams/${channelId}/party`
+}
+
+export const getStreamParty = async (channelId: string, options?: RequestInit): Promise<PartyState> => {
+
+  return customFetch<PartyState>(getGetStreamPartyUrl(channelId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStreamPartyQueryKey = (channelId: string,) => {
+    return [
+    `/api/streams/${channelId}/party`
+    ] as const;
+    }
+
+
+export const getGetStreamPartyQueryOptions = <TData = Awaited<ReturnType<typeof getStreamParty>>, TError = ErrorType<unknown>>(channelId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStreamParty>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStreamPartyQueryKey(channelId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStreamParty>>> = ({ signal }) => getStreamParty(channelId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(channelId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStreamParty>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStreamPartyQueryResult = NonNullable<Awaited<ReturnType<typeof getStreamParty>>>
+export type GetStreamPartyQueryError = ErrorType<unknown>
+
+
+
+export function useGetStreamParty<TData = Awaited<ReturnType<typeof getStreamParty>>, TError = ErrorType<unknown>>(
+ channelId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStreamParty>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStreamPartyQueryOptions(channelId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getActOnStreamPartyUrl = (channelId: string,) => {
+
+
+
+
+  return `/api/streams/${channelId}/party`
+}
+
+export const actOnStreamParty = async (channelId: string,
+    partyAction: PartyAction, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getActOnStreamPartyUrl(channelId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      partyAction,)
+  }
+);}
+
+
+
+
+export const getActOnStreamPartyMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof actOnStreamParty>>, TError,{channelId: string;data: BodyType<PartyAction>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof actOnStreamParty>>, TError,{channelId: string;data: BodyType<PartyAction>}, TContext> => {
+
+const mutationKey = ['actOnStreamParty'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof actOnStreamParty>>, {channelId: string;data: BodyType<PartyAction>}> = (props) => {
+          const {channelId,data} = props ?? {};
+
+          return  actOnStreamParty(channelId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ActOnStreamPartyMutationResult = NonNullable<Awaited<ReturnType<typeof actOnStreamParty>>>
+    export type ActOnStreamPartyMutationBody = BodyType<PartyAction>
+    export type ActOnStreamPartyMutationError = ErrorType<unknown>
+
+    export const useActOnStreamParty = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof actOnStreamParty>>, TError,{channelId: string;data: BodyType<PartyAction>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof actOnStreamParty>>,
+        TError,
+        {channelId: string;data: BodyType<PartyAction>},
+        TContext
+      > => {
+      return useMutation(getActOnStreamPartyMutationOptions(options));
+    }
+
+export const getGetPartyCandidatesUrl = (channelId: string,) => {
+
+
+
+
+  return `/api/streams/${channelId}/party/candidates`
+}
+
+export const getPartyCandidates = async (channelId: string, options?: RequestInit): Promise<PartyCandidates> => {
+
+  return customFetch<PartyCandidates>(getGetPartyCandidatesUrl(channelId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPartyCandidatesQueryKey = (channelId: string,) => {
+    return [
+    `/api/streams/${channelId}/party/candidates`
+    ] as const;
+    }
+
+
+export const getGetPartyCandidatesQueryOptions = <TData = Awaited<ReturnType<typeof getPartyCandidates>>, TError = ErrorType<unknown>>(channelId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartyCandidates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPartyCandidatesQueryKey(channelId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPartyCandidates>>> = ({ signal }) => getPartyCandidates(channelId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(channelId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPartyCandidates>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPartyCandidatesQueryResult = NonNullable<Awaited<ReturnType<typeof getPartyCandidates>>>
+export type GetPartyCandidatesQueryError = ErrorType<unknown>
+
+
+
+export function useGetPartyCandidates<TData = Awaited<ReturnType<typeof getPartyCandidates>>, TError = ErrorType<unknown>>(
+ channelId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartyCandidates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPartyCandidatesQueryOptions(channelId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetPartyMediaUrl = (channelId: string,) => {
+
+
+
+
+  return `/api/streams/${channelId}/party/media`
+}
+
+export const getPartyMedia = async (channelId: string, options?: RequestInit): Promise<AgoraTokenResponse> => {
+
+  return customFetch<AgoraTokenResponse>(getGetPartyMediaUrl(channelId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPartyMediaQueryKey = (channelId: string,) => {
+    return [
+    `/api/streams/${channelId}/party/media`
+    ] as const;
+    }
+
+
+export const getGetPartyMediaQueryOptions = <TData = Awaited<ReturnType<typeof getPartyMedia>>, TError = ErrorType<unknown>>(channelId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartyMedia>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPartyMediaQueryKey(channelId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPartyMedia>>> = ({ signal }) => getPartyMedia(channelId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(channelId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPartyMedia>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPartyMediaQueryResult = NonNullable<Awaited<ReturnType<typeof getPartyMedia>>>
+export type GetPartyMediaQueryError = ErrorType<unknown>
+
+
+
+export function useGetPartyMedia<TData = Awaited<ReturnType<typeof getPartyMedia>>, TError = ErrorType<unknown>>(
+ channelId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartyMedia>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPartyMediaQueryOptions(channelId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getDeleteStreamChatMessageUrl = (channelId: string,
+    messageId: string,) => {
+
+
+
+
+  return `/api/streams/${channelId}/chat/${messageId}`
+}
+
+export const deleteStreamChatMessage = async (channelId: string,
+    messageId: string, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getDeleteStreamChatMessageUrl(channelId,messageId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteStreamChatMessageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteStreamChatMessage>>, TError,{channelId: string;messageId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteStreamChatMessage>>, TError,{channelId: string;messageId: string}, TContext> => {
+
+const mutationKey = ['deleteStreamChatMessage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteStreamChatMessage>>, {channelId: string;messageId: string}> = (props) => {
+          const {channelId,messageId} = props ?? {};
+
+          return  deleteStreamChatMessage(channelId,messageId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteStreamChatMessageMutationResult = NonNullable<Awaited<ReturnType<typeof deleteStreamChatMessage>>>
+
+    export type DeleteStreamChatMessageMutationError = ErrorType<unknown>
+
+    export const useDeleteStreamChatMessage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteStreamChatMessage>>, TError,{channelId: string;messageId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteStreamChatMessage>>,
+        TError,
+        {channelId: string;messageId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteStreamChatMessageMutationOptions(options));
     }
 

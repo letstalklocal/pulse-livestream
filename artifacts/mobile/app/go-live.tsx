@@ -5,6 +5,11 @@ import { BeautySheet, DEFAULT_BEAUTY, type BeautySettings } from "@/components/B
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ViewerManagementSheet } from "@/components/ViewerManagementSheet";
 import { useStreamSocket } from "@/hooks/useStreamSocket";
+import { useLiveParty } from "@/hooks/useLiveParty";
+import { usePartyMedia } from "@/hooks/usePartyMedia";
+import { PartyStage } from "@/components/PartyStage";
+import { PartySheet } from "@/components/PartySheet";
+import { partyLayout } from "@/utils/partyLayout";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth as useClerkAuth } from "@clerk/expo";
 import * as ImagePicker from "expo-image-picker";
@@ -31,6 +36,7 @@ import {
   TouchableOpacity,
   Pressable,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -39,6 +45,7 @@ import {
   getGetStreamQueryKey,
   convertStreamToPremium,
   getStream,
+  deleteStreamChatMessage,
   getGetStreamChatQueryKey,
   useCreateStream,
   useActOnPrivateStreamInvitation,
@@ -140,6 +147,7 @@ async function requestPermissions(): Promise<MediaPermissionResult> {
 export default function GoLiveScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const liveDimensions = useWindowDimensions();
   const keyboardVisible = useKeyboardState(state => state.isVisible);
   const router = useRouter();
   const navigation = useNavigation();
@@ -248,7 +256,19 @@ export default function GoLiveScreen() {
   const { data: liveStreamData } = useGetStream(activeChannelId, {
     query: { enabled: isLive && !!activeChannelId, refetchInterval: 5000 } as any,
   });
-  const viewerCount = liveStreamData?.stream?.viewerCount ?? 0;
+  const partyState = useLiveParty(activeChannelId, isLive && !isPrivateInvite && isNative);
+  const party = partyState.party;
+  const vsActive = party?.battle?.status === "active" && (party.battle.endsAt ?? 0) > partyState.now;
+  const vsChatHeight = partyLayout(liveDimensions.width, liveDimensions.height, insets.top, insets.bottom).chatHeight;
+  const [showParty, setShowParty] = useState(false);
+  const [hostJoined, setHostJoined] = useState(false);
+  const partyMedia = usePartyMedia(engineRef, activeChannelId, party, isNative && isLive && hostJoined && !premiumConnecting, true);
+  const partyPeerRtcRef = useRef<string | undefined>(undefined);
+  partyPeerRtcRef.current = partyMedia.peer?.rtcChannelName;
+  const viewerCount = party?.status === "active" ? party.viewerCount : liveStreamData?.stream?.viewerCount ?? 0;
+  const incomingPartyId = party?.status === "pending" && party.participants[1]?.uid === user?.uid ? party.id : null;
+  const incomingBattleId = party?.battle?.status === "pending" && party.battle.requesterUid !== user?.uid ? party.battle.id : null;
+  useEffect(() => { if (incomingPartyId || incomingBattleId) setShowParty(true); }, [incomingPartyId, incomingBattleId]);
 
   // A converted stream keeps its logical ID, but moves publishing to protected media.
   useEffect(() => {
@@ -256,6 +276,7 @@ export default function GoLiveScreen() {
     if (!isLive || !target || target === activeChannelId || target === mediaChannelRef.current || mediaSwitchBusyRef.current) return;
     const engine = engineRef.current;
     mediaSwitchBusyRef.current = true;
+    setHostJoined(false);
     setPremiumConnecting(true);
     void (async () => {
       try {
@@ -263,7 +284,7 @@ export default function GoLiveScreen() {
         const token = await generateToken.mutateAsync({ data: { channelName: activeChannelId, uid: user!.uid, role: "broadcaster" } });
         const stillActive = () => isLiveRef.current && !isStoppingRef.current && engineRef.current === engine;
         if (!stillActive()) return;
-        if (isNative) await switchBroadcastChannel(engine, token.token, token.channelName, user!.uid, isMuted, stillActive);
+        if (isNative) await switchBroadcastChannel(engine, token.token, token.channelName, user!.uid, isMuted, stillActive, mediaChannelRef.current || activeChannelId);
         if (!stillActive()) return;
         mediaChannelRef.current = token.channelName;
         setIsPremium(!!liveStreamData?.stream.requiredGift);
@@ -381,10 +402,12 @@ export default function GoLiveScreen() {
   useEffect(() => {
     if (!chatPollData?.messages) return;
     setChatMessages((prev) => {
-      const existingIds = new Set(prev.map((m) => m.id));
+      const deleted = new Set(chatPollData.deletedIds ?? []);
+      const retained = prev.filter(m => !deleted.has(m.id));
+      const existingIds = new Set(retained.map((m) => m.id));
       const next = chatPollData.messages.filter((m) => !existingIds.has(m.id));
-      if (next.length === 0) return prev;
-      return [...prev, ...next].slice(-100);
+      if (next.length === 0 && retained.length === prev.length) return prev;
+      return [...retained, ...next].slice(-100);
     });
   }, [chatPollData]);
 
@@ -439,11 +462,16 @@ export default function GoLiveScreen() {
             mounted && setCameraError(`Live video error ${err}: ${msg || "Unknown Agora error"}`);
           },
           onJoinChannelSuccess: (connection: any, elapsed: number) => {
+            if (connection?.channelId === partyPeerRtcRef.current) return;
+            mounted && setHostJoined(true);
             console.log("[Agora] joined channel:", connection?.channelId, "elapsed:", elapsed);
             mounted && setCameraDiagnostic(`Live channel joined in ${elapsed} ms`);
             mounted && setCameraError(null);
           },
           onConnectionStateChanged: (connection: any, state: number, reason: number) => {
+            if (connection?.channelId === partyPeerRtcRef.current) return;
+            if (mounted && (state === 1 || state === 4 || state === 5)) setHostJoined(false);
+            if (mounted && state === 3) setHostJoined(true);
             console.log(
               "[Agora] connectionState channel:",
               connection?.channelId,
@@ -859,42 +887,60 @@ export default function GoLiveScreen() {
   const privateHeartbeatRef = useRef(invitationAction.mutate);
   useEffect(() => { privateHeartbeatRef.current = invitationAction.mutate; });
   const privateHeartbeatFailuresRef = useRef(0);
+  const stopLiveRef = useRef(stopLive);
+  useEffect(() => { stopLiveRef.current = stopLive; }, [stopLive]);
 
   // Send a heartbeat every 20 s while live (TTL is 60 s, so 3 chances before expiry).
-  // Depends only on isLive — not on the mutation object — so the interval is stable.
+  // Mutation results and stopLive change on renders; keep them out of timer dependencies.
   useEffect(() => {
     if (!isLive || !channelIdRef.current) return;
+    const channelId = activeChannelId;
+    let cancelled = false;
+    const stillLive = () => !cancelled && isLiveRef.current && channelIdRef.current === channelId;
+    const sendPublicHeartbeat = () => heartbeatMutateRef.current({ channelId }, {
+      onError: (error) => {
+        const status = typeof error === "object" && error !== null && "status" in error ? error.status : undefined;
+        if (status !== 404 || !stillLive()) return;
+        serverEndedShutdownRef.current?.();
+        setShowParty(false);
+        Alert.alert("Live stream ended", "This live session is no longer active. Start a new live to continue.");
+      },
+    });
+    privateHeartbeatFailuresRef.current = 0;
     const sendHeartbeat = () => {
+      if (!stillLive()) return;
       if (isPrivateInvite) {
         privateHeartbeatRef.current(
           { id: privateInvitationId, action: "heartbeat" },
           {
             onSuccess: () => {
+              if (!stillLive()) return;
               privateHeartbeatFailuresRef.current = 0;
-              heartbeatMutateRef.current({ channelId: channelIdRef.current });
+              sendPublicHeartbeat();
             },
             onError: (error) => {
+              if (!stillLive()) return;
               const status = typeof error === "object" && error !== null && "status" in error
                 ? (error as { status?: unknown }).status
                 : undefined;
               const invitationIsTerminal = status === 404 || status === 409;
               privateHeartbeatFailuresRef.current += 1;
               if (invitationIsTerminal || privateHeartbeatFailuresRef.current >= 3) {
-                void stopLive();
+                void stopLiveRef.current();
               }
             },
           },
         );
         return;
       }
-      heartbeatMutateRef.current({ channelId: channelIdRef.current });
+      sendPublicHeartbeat();
     };
     sendHeartbeat();
     const id = setInterval(() => {
       sendHeartbeat();
     }, 20_000);
-    return () => clearInterval(id);
-  }, [isLive, isPrivateInvite, privateInvitationId, stopLive]);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [isLive, activeChannelId, isPrivateInvite, privateInvitationId]);
 
   const formatDuration = (secs: number) => {
     const h = Math.floor(secs / 3600);
@@ -945,14 +991,14 @@ export default function GoLiveScreen() {
   if (isLive) {
     return (
       <View style={[styles.container, { backgroundColor: "#000" }]}>
-        {showNativeVideo && VideoView ? (
+        <PartyStage channelId={activeChannelId} mainName={user.name} party={party} now={partyState.now} media={partyMedia} main={showNativeVideo && VideoView ? (
           <VideoView
             canvas={{ uid: 0, sourceType: VideoSourceType.VideoSourceCamera }}
             style={StyleSheet.absoluteFill}
           />
         ) : (
           <DemoCamera color={catColor} />
-        )}
+        )} />
         {cameraError ? (
           <View style={[styles.liveErrorBanner, { top: topPad + 66 }]}>
             <Ionicons name="warning" size={16} color="#FFF" />
@@ -997,13 +1043,16 @@ export default function GoLiveScreen() {
 
           <View style={[styles.liveBottomDock, { bottom: keyboardVisible ? 8 : bottomPad + 12 }]}>
             {/* Chat messages grow upward above the fixed action bar. */}
-            <View style={styles.liveChatArea} pointerEvents="box-none">
+            <View style={[styles.liveChatArea, vsActive && { maxHeight: keyboardVisible ? 0 : vsChatHeight, overflow: "hidden" }]} pointerEvents="box-none">
               <View style={styles.liveChatList}>
                 {chatMessages.slice(-6).map((item) => (
-                  <View key={item.id} style={styles.liveChatBubble}>
+                  <Pressable key={item.id} style={styles.liveChatBubble} onLongPress={() => Alert.alert("Remove message?", item.text, [
+                    { text: "Cancel", style: "cancel" },
+                    { text: "Remove", style: "destructive", onPress: () => void deleteStreamChatMessage(activeChannelId, item.id).then(() => queryClient.invalidateQueries({ queryKey: getGetStreamChatQueryKey(activeChannelId) })).catch(() => Alert.alert("Could not remove message", "Please try again.")) },
+                  ])}>
                     <Text style={[styles.liveChatSender, { color: item.color }]}>{item.senderName}: </Text>
                     <TranslatedMessage text={item.text} messageId={item.id} kind="live" channelId={activeChannelId} incoming={item.senderUid !== undefined && item.senderUid !== user?.uid} style={styles.liveChatText} />
-                  </View>
+                  </Pressable>
                 ))}
               </View>
             </View>
@@ -1057,7 +1106,7 @@ export default function GoLiveScreen() {
                 <Ionicons name="chatbubble-ellipses" size={26} color="#FFF" />
               </TouchableOpacity>
 
-              {!isPrivateInvite && !isPremium && !liveStreamData?.stream.requiredGift ? (
+              {!isPrivateInvite && !isPremium && !liveStreamData?.stream.requiredGift && !party ? (
                 <TouchableOpacity style={styles.liveIconBtn} onPress={() => setShowLivePremium(true)} accessibilityRole="button" accessibilityLabel="Convert to Premium" activeOpacity={0.7}>
                   <Ionicons name="lock-closed-outline" size={26} color="#FFF" />
                 </TouchableOpacity>
@@ -1084,6 +1133,13 @@ export default function GoLiveScreen() {
           <View style={{ position: "absolute", left: 16, right: 16, bottom: bottomPad + 12 + liveBarHeight + 8,
             backgroundColor: "#1A1A2E", borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" }}>
             <TranslationToggle menu />
+            {isNative && !isPrivateInvite && !isPremium && !liveStreamData?.stream.requiredGift ? (
+              <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 }} onPress={() => { setShowLiveMenu(false); setShowParty(true); }} accessibilityLabel="Party">
+                <Ionicons name="people-outline" size={21} color={party ? "#FF1966" : "#FFF"} />
+                <Text style={{ color: "#FFF", fontSize: 16, fontFamily: "Inter_500Medium", flex: 1 }}>{party?.status === "active" ? "Party / VS" : "Party"}</Text>
+                <Ionicons name="chevron-forward" size={17} color="#999" />
+              </TouchableOpacity>
+            ) : null}
             {isNative ? <>
               <View style={{ height: 1, marginHorizontal: 20, backgroundColor: "rgba(255,255,255,0.08)" }} />
               <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 }}
@@ -1096,6 +1152,7 @@ export default function GoLiveScreen() {
           </View>
         </View> : null}
         {showBeauty ? <BeautySheet settings={beauty} onChange={changeBeauty} error={beautyError} onClose={() => setShowBeauty(false)} /> : null}
+        {showParty ? <PartySheet channelId={activeChannelId} party={party} uid={user.uid} onAction={partyState.act} onClose={() => setShowParty(false)} /> : null}
 
         {showViewerManagement ? <ViewerManagementSheet channelId={activeChannelId} onClose={() => setShowViewerManagement(false)} onProfile={(uid, name) => router.push({ pathname: "/profile/[hostUid]", params: { hostUid: String(uid), name } })} /> : null}
         {showLivePremium ? <LivePremiumSheet channelId={activeChannelId} onClose={() => setShowLivePremium(false)} onConfirm={convertLiveToPremium} /> : null}

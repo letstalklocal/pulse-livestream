@@ -1,5 +1,6 @@
 import { pgTable, integer, text, timestamp, serial, uniqueIndex } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
+import { liveBattlesTable } from "./live-parties";
 
 export const coinBalancesTable = pgTable("coin_balances", {
   userId:    integer("user_id").primaryKey().references(() => usersTable.uid),
@@ -16,6 +17,7 @@ export const coinTransactionsTable = pgTable("coin_transactions", {
   type:        text("type").notNull(), // "gift" | "grant"
   giftName:    text("gift_name"),
   channelId:   text("channel_id"),
+  battleId: text("battle_id").references(() => liveBattlesTable.id),
   description: text("description").notNull().default(""),
   idempotencyKey: text("idempotency_key"),
   balanceAfter: integer("balance_after"),

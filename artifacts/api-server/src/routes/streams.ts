@@ -1,4 +1,5 @@
 import { viewerModeration } from "../lib/streamModeration";
+import { closeStreamParty, findParty, expireParties } from "../lib/liveParty";
 import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
@@ -156,6 +157,7 @@ async function authorizePrivateStream(req: any, res: any, stream: StreamRecord, 
 }
 
 export async function endRuntimeStream(channelId: string) {
+  await closeStreamParty(channelId);
   const stream = streams.get(channelId);
   let endedDurably = false;
   const endedAt = new Date();
@@ -233,6 +235,7 @@ for (const s of seedStreams) {
 
 // Purge stale real streams every 5 s; write ended streams to DB history
 setInterval(async () => {
+  await expireParties().catch(error => console.warn("Party maintenance failed", error instanceof Error ? error.message : "Unknown error"));
   const now = Date.now();
   for (const [id, stream] of streams) {
     if (stream.lastHeartbeat !== Infinity && now - stream.lastHeartbeat > HEARTBEAT_TTL_MS) {
@@ -447,6 +450,7 @@ router.post("/streams/:channelId/premium", async (req, res) => {
     if (!session || session.lastHeartbeatAt.getTime() <= Date.now() - HEARTBEAT_TTL_MS) return { status: 404, error: "Active stream not found" };
     if (session.hostUserId !== host.uid) return { status: 403, error: "Only the host can convert this stream" };
     if (session.isPrivate) return { status: 400, error: "Private streams cannot be converted" };
+    if (await findParty(channelId, tx, true)) return { status: 409, error: "Leave Party before going Premium" };
     if (session.requiredGiftId) {
       // A lost response can be retried, but never change the price or invitees twice.
       if (session.requiredGiftId === gift.id && JSON.stringify(session.premiumFreeViewerIds) === JSON.stringify(ids) && session.rtcChannelName) return { session };
@@ -644,6 +648,7 @@ router.delete("/streams/:channelId", async (req, res) => {
     return;
   }
   if (!await authorizePrivateStream(req, res, stream, true)) return;
+  if (!stream.isPrivate && (await currentUser(req))?.uid !== stream.hostUid) return void res.status(403).json({ error: "Only the host can end this live" });
   await endRuntimeStream(channelId);
   res.json({ success: true });
 });
@@ -657,6 +662,7 @@ router.post("/streams/:channelId/heartbeat", async (req, res) => {
     return;
   }
   if (!await authorizePrivateStream(req, res, stream, true)) return;
+  if (!stream.isPrivate && (await currentUser(req))?.uid !== stream.hostUid) return void res.status(403).json({ error: "Only the host can refresh this live" });
   stream.lastHeartbeat = Date.now();
   if (stream.sessionId) {
     await db.update(liveStreamSessionsTable)

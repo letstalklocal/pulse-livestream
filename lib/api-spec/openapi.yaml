@@ -1139,8 +1139,30 @@ paths:
                   maxLength: 2000
       responses:
         '201': *safetySuccess
+  /streams/{channelId}/party: {"get":{"operationId":"getStreamParty","tags":["parties"],"parameters":[{"name":"channelId","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"Success","content":{"application/json":{"schema":{"$ref":"#/components/schemas/PartyState"}}}}}},"post":{"operationId":"actOnStreamParty","tags":["parties"],"parameters":[{"name":"channelId","in":"path","required":true,"schema":{"type":"string"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/PartyAction"}}}},"responses":{"200":{"description":"Success","content":{"application/json":{"schema":{"$ref":"#/components/schemas/SuccessResponse"}}}}}}}
+  /streams/{channelId}/party/candidates: {"get":{"operationId":"getPartyCandidates","tags":["parties"],"parameters":[{"name":"channelId","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"Success","content":{"application/json":{"schema":{"$ref":"#/components/schemas/PartyCandidates"}}}}}}}
+  /streams/{channelId}/party/media: {"get":{"operationId":"getPartyMedia","tags":["parties"],"parameters":[{"name":"channelId","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"Success","content":{"application/json":{"schema":{"$ref":"#/components/schemas/AgoraTokenResponse"}}}}}}}
+  /streams/{channelId}/chat/{messageId}:
+    delete:
+      operationId: deleteStreamChatMessage
+      tags: [streams]
+      parameters:
+        - { name: channelId, in: path, required: true, schema: { type: string } }
+        - { name: messageId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Message removed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SuccessResponse" }
 components:
   schemas:
+    PartyParticipant: {"type":"object","required":["channelId","rtcChannelName","uid","name","avatarUrl"],"properties":{"channelId":{"type":"string"},"rtcChannelName":{"type":"string"},"uid":{"type":"integer"},"name":{"type":"string"},"avatarUrl":{"type":"string","nullable":true}}}
+    PartyBattle: {"type":"object","required":["id","status","requesterUid","expiresAt","startsAt","endsAt","firstScore","secondScore","winnerUid"],"properties":{"id":{"type":"string"},"status":{"type":"string","enum":["pending","active","finished","cancelled"]},"requesterUid":{"type":"integer"},"expiresAt":{"type":"integer"},"startsAt":{"type":"integer","nullable":true},"endsAt":{"type":"integer","nullable":true},"firstScore":{"type":"integer"},"secondScore":{"type":"integer"},"winnerUid":{"type":"integer","nullable":true}}}
+    LiveParty: {"type":"object","required":["id","status","expiresAt","startedAt","ready","viewerCount","participants","battle"],"properties":{"id":{"type":"string"},"status":{"type":"string","enum":["pending","active"]},"expiresAt":{"type":"integer"},"startedAt":{"type":"integer","nullable":true},"ready":{"type":"boolean"},"viewerCount":{"type":"integer"},"participants":{"type":"array","items":{"$ref":"#/components/schemas/PartyParticipant"}},"battle":{"$ref":"#/components/schemas/PartyBattle","nullable":true}}}
+    PartyState: {"type":"object","required":["party","serverTime"],"properties":{"party":{"$ref":"#/components/schemas/LiveParty","nullable":true},"serverTime":{"type":"integer"}}}
+    PartyCandidates: {"type":"object","required":["users"],"properties":{"users":{"type":"array","items":{"$ref":"#/components/schemas/PartyParticipant"}}}}
+    PartyAction: {"type":"object","required":["action"],"properties":{"action":{"type":"string","enum":["invite","accept","decline","cancel","leave","ready","battle_request","battle_accept","battle_decline"]},"targetChannelId":{"type":"string"},"partyId":{"type":"string"},"battleId":{"type":"string"}}}
     CreatePrivateStreamInvitationRequest:
       type: object
       properties: { invitedUserId: { type: integer }, title: { type: string, maxLength: 120 }, requiredGiftId: { type: string, nullable: true, enum: [rose, heart, party, diamond, rocket, crown] } }
@@ -1594,6 +1616,10 @@ components:
     ChatMessagesResponse:
       type: object
       properties:
+        deletedIds:
+          type: array
+          items:
+            type: string
         messages:
           type: array
           items:
