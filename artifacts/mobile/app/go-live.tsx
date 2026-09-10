@@ -1,3 +1,4 @@
+import { KeyboardAvoidingView as LiveKeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
 import { TranslatedMessage } from "@/components/TranslatedMessage";
 import { TranslationToggle } from "@/components/TranslationToggle";
 import { BeautySheet, DEFAULT_BEAUTY, type BeautySettings } from "@/components/BeautySheet";
@@ -28,6 +29,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Pressable,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -138,6 +140,7 @@ async function requestPermissions(): Promise<MediaPermissionResult> {
 export default function GoLiveScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const keyboardVisible = useKeyboardState(state => state.isVisible);
   const router = useRouter();
   const navigation = useNavigation();
   const { user, isSignedIn, updateUser } = useAuth();
@@ -313,6 +316,8 @@ export default function GoLiveScreen() {
   };
 
   const [showViewerManagement, setShowViewerManagement] = useState(false);
+  const [showLiveMenu, setShowLiveMenu] = useState(false);
+  const [liveBarHeight, setLiveBarHeight] = useState(76);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   // WebSocket push — server sends earnings + gift events in real time
@@ -720,6 +725,8 @@ export default function GoLiveScreen() {
     setDraftRequiredGiftId(null);
     setShowLeaderboard(false);
     setShowViewerManagement(false);
+    setShowLiveMenu(false);
+    setShowBeauty(false);
     setShowChat(false);
     setChatText("");
     setChatMessages([]);
@@ -814,11 +821,12 @@ export default function GoLiveScreen() {
   useEffect(() => {
     if (!isLive) return;
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (showLiveMenu) { setShowLiveMenu(false); return true; }
       confirmStopLive();
       return true;
     });
     return () => subscription.remove();
-  }, [isLive, confirmStopLive]);
+  }, [isLive, confirmStopLive, showLiveMenu]);
 
   useEffect(() => {
     return navigation.addListener("beforeRemove", (event) => {
@@ -952,9 +960,10 @@ export default function GoLiveScreen() {
           </View>
         ) : null}
 
-        <KeyboardAvoidingView
+        <LiveKeyboardAvoidingView
           style={styles.liveOverlay}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior="height"
+          automaticOffset
         >
           <View style={[styles.liveTopDock, { top: topPad + 12 }]}>
             <View style={styles.liveTopBar}>
@@ -986,10 +995,9 @@ export default function GoLiveScreen() {
             </View>
           </View>
 
-          <View style={[styles.liveBottomDock, { bottom: bottomPad + 12 }]}>
+          <View style={[styles.liveBottomDock, { bottom: keyboardVisible ? 8 : bottomPad + 12 }]}>
             {/* Chat messages grow upward above the fixed action bar. */}
             <View style={styles.liveChatArea} pointerEvents="box-none">
-              <View style={{ alignItems: "flex-start" }}><TranslationToggle /></View>
               <View style={styles.liveChatList}>
                 {chatMessages.slice(-6).map((item) => (
                   <View key={item.id} style={styles.liveChatBubble}>
@@ -1037,7 +1045,7 @@ export default function GoLiveScreen() {
                 />
               </View>
             )}
-            <View style={styles.liveBottomBar}>
+            {!showChat ? <View style={styles.liveBottomBar} onLayout={event => setLiveBarHeight(event.nativeEvent.layout.height)}>
               <TouchableOpacity
                 style={styles.liveIconBtn}
                 onPress={() => {
@@ -1063,10 +1071,31 @@ export default function GoLiveScreen() {
               <TouchableOpacity style={styles.liveIconBtn} onPress={toggleMute} activeOpacity={0.7}>
                 <Ionicons name={isMuted ? "mic-off" : "mic"} size={26} color={isMuted ? "#FF4444" : "#FFF"} />
               </TouchableOpacity>
-            </View>
+              <TouchableOpacity style={styles.liveIconBtn} onPress={() => setShowLiveMenu(true)} accessibilityLabel="More live options" activeOpacity={0.7}>
+                <Ionicons name="ellipsis-vertical" size={24} color="#FFF" />
+              </TouchableOpacity>
+            </View> : null}
           </View>
           </View>
-        </KeyboardAvoidingView>
+        </LiveKeyboardAvoidingView>
+
+        {showLiveMenu ? <View style={[StyleSheet.absoluteFill, { zIndex: 50 }]} accessibilityViewIsModal>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowLiveMenu(false)} accessibilityLabel="Close live options" />
+          <View style={{ position: "absolute", left: 16, right: 16, bottom: bottomPad + 12 + liveBarHeight + 8,
+            backgroundColor: "#1A1A2E", borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" }}>
+            <TranslationToggle menu />
+            {isNative ? <>
+              <View style={{ height: 1, marginHorizontal: 20, backgroundColor: "rgba(255,255,255,0.08)" }} />
+              <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 }}
+                onPress={() => { setShowLiveMenu(false); setShowBeauty(true); }} accessibilityRole="button" accessibilityLabel="Beauty effects">
+                <Ionicons name="sparkles-outline" size={21} color={beauty.enabled && !beautyError ? "#FF1966" : "#FFF"} />
+                <Text style={{ color: "#FFF", fontSize: 16, fontFamily: "Inter_500Medium", flex: 1 }}>Beauty</Text>
+                <Ionicons name="chevron-forward" size={17} color="#999" />
+              </TouchableOpacity>
+            </> : null}
+          </View>
+        </View> : null}
+        {showBeauty ? <BeautySheet settings={beauty} onChange={changeBeauty} error={beautyError} onClose={() => setShowBeauty(false)} /> : null}
 
         {showViewerManagement ? <ViewerManagementSheet channelId={activeChannelId} onClose={() => setShowViewerManagement(false)} onProfile={(uid, name) => router.push({ pathname: "/profile/[hostUid]", params: { hostUid: String(uid), name } })} /> : null}
         {showLivePremium ? <LivePremiumSheet channelId={activeChannelId} onClose={() => setShowLivePremium(false)} onConfirm={convertLiveToPremium} /> : null}
@@ -1867,7 +1896,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     alignSelf: "flex-start",
-    maxWidth: "85%",
+    maxWidth: "60%",
   },
   liveChatSender: {
     fontSize: 12,
@@ -1925,7 +1954,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.45)",
     borderRadius: 40,
     paddingVertical: 10,
-    paddingHorizontal: 24,
+    paddingHorizontal: 12,
   },
   liveIconBtn: {
     width: 48,

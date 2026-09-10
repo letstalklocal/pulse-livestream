@@ -1,11 +1,11 @@
 import { confirmTranslation } from "@/utils/confirmTranslation";
 import React, { useState } from "react";
-import { ActivityIndicator, Alert, TouchableOpacity } from "react-native";
+import { ActivityIndicator, Alert, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { getTranslationStatus } from "@workspace/api-client-react";
 import { useTranslationPreferences } from "@/hooks/useTranslationPreferences";
 
-export function TranslationToggle({ peerId, color = "#FFF" }: { peerId?: string; color?: string }) {
+export function TranslationToggle({ peerId, color = "#FFF", menu = false }: { peerId?: string; color?: string; menu?: boolean }) {
   const { preferences, ready, update } = useTranslationPreferences();
   const enabled = peerId ? preferences.conversations[peerId] === true : preferences.live;
   const [busy, setBusy] = useState(false);
@@ -21,10 +21,14 @@ export function TranslationToggle({ peerId, color = "#FFF" }: { peerId?: string;
     } catch { Alert.alert("Couldn't update translation", "Please try again."); }
     finally { setBusy(false); }
   };
-  return <TouchableOpacity onPress={() => void toggle()} disabled={!ready || busy} hitSlop={8}
+  return <TouchableOpacity onPress={() => void toggle()} disabled={!ready || busy} hitSlop={menu ? undefined : 8}
     accessibilityRole="switch" accessibilityState={{ checked: enabled, disabled: !ready || busy }}
     accessibilityLabel={peerId ? "Auto-translate this conversation" : "Translate live chat"}
-    style={{ padding: 6 }}>
-    {busy ? <ActivityIndicator size="small" color={color} /> : <Ionicons name="language-outline" size={21} color={enabled ? "#FF1966" : color} />}
+    style={menu ? { flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 } : { padding: 6 }}>
+    {busy ? <ActivityIndicator size="small" color={color} /> : <Ionicons name="globe-outline" size={21} color={enabled ? "#FF1966" : color} />}
+    {menu ? <>
+      <Text style={{ color, fontSize: 16, fontFamily: "Inter_500Medium", flex: 1 }}>Translate chat</Text>
+      <Text style={{ color: enabled ? "#FF1966" : "#999", fontSize: 13 }}>{enabled ? "On" : "Off"}</Text>
+    </> : null}
   </TouchableOpacity>;
 }

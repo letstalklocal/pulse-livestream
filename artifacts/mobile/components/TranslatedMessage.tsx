@@ -49,7 +49,7 @@ export function TranslatedMessage({ text, messageId, kind, channelId, peerId, in
       {shown}
     </Text>
     {translation ? <TouchableOpacity onPress={() => void press()} hitSlop={8} accessibilityLabel={original ? "Show translation" : "Show original"} style={{ marginLeft: 5 }}>
-      <Ionicons name="language-outline" size={13} color={original ? "#999" : "#B9B4FF"} />
+      <Ionicons name="globe-outline" size={13} color={original ? "#999" : "#B9B4FF"} />
     </TouchableOpacity> : query.isFetching ? <ActivityIndicator size="small" color="#999" style={{ marginLeft: 4 }} /> : requested && query.isError ?
       <TouchableOpacity onPress={() => void press()} hitSlop={8} accessibilityLabel="Retry translation"><Ionicons name="refresh-outline" size={14} color="#999" /></TouchableOpacity> : null}
   </View>;

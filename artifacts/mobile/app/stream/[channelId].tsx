@@ -1,3 +1,4 @@
+import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
 import { TranslatedMessage } from "@/components/TranslatedMessage";
 import { TranslationToggle } from "@/components/TranslationToggle";
 import { ReportStreamSheet } from "@/components/ReportStreamSheet";
@@ -15,7 +16,6 @@ import {
   Dimensions,
   FlatList,
   Image,
-  KeyboardAvoidingView,
   Keyboard,
   Modal,
   PanResponder,
@@ -149,6 +149,7 @@ function StreamBackdrop({ imageUrl, demo = false, category }: {
 
 export default function StreamScreen() {
   const insets = useSafeAreaInsets();
+  const keyboardVisible = useKeyboardState(state => state.isVisible);
   const router = useRouter();
   const { channelId, privateInvitationId } = useLocalSearchParams<{
     channelId: string;
@@ -810,7 +811,7 @@ export default function StreamScreen() {
   };
 
   const topPad    = Platform.OS === "web" ? 67 : insets.top;
-  const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
+  const bottomPad = keyboardVisible ? 0 : Platform.OS === "web" ? 34 : insets.bottom;
 
   const VideoView = RtcSurfaceViewComponent;
   const showNativeVideo = isNative && joined && remoteUid !== null && VideoView;
@@ -849,6 +850,7 @@ export default function StreamScreen() {
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={0}
+      automaticOffset
     >
       {/* Full-screen video area */}
       <View
@@ -956,7 +958,6 @@ export default function StreamScreen() {
 
         {/* Live chat */}
         <View style={styles.chatArea} pointerEvents="box-none">
-          <View style={{ alignItems: "flex-start" }}><TranslationToggle /></View>
           <FlatList
             ref={listRef}
             data={messages}
@@ -1141,6 +1142,8 @@ export default function StreamScreen() {
         <View style={styles.kebabBackdrop}>
           <TouchableWithoutFeedback>
             <View style={styles.kebabMenu}>
+              <TranslationToggle menu />
+              <View style={styles.kebabDivider} />
               <TouchableOpacity
                 style={styles.kebabItem}
                 activeOpacity={0.7}
@@ -1392,7 +1395,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     alignSelf: "flex-start",
-    maxWidth: "85%",
+    maxWidth: "60%",
   },
   chatSender: {
     fontSize: 12,
