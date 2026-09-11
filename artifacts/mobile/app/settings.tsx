@@ -1,3 +1,5 @@
+import { AppLanguageSheet } from "@/components/AppLanguageSheet";
+import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { useAuth } from "@/context/AuthContext";
 import { useGrantCoins, getGetCoinBalanceQueryKey } from "@workspace/api-client-react";
 import * as Haptics from "expo-haptics";
@@ -36,6 +38,7 @@ const GENERAL_ITEMS: SettingsItem[] = [
   { label: "Notifications", icon: "notifications-outline" },
   { label: "Privacy", icon: "shield-checkmark-outline" },
   { label: "Messages", icon: "chatbubble-outline" },
+  { label: "App language", icon: "language-outline" },
   { label: "Preferred language", icon: "language-outline" },
   { label: "General", icon: "options-outline" },
 ];
@@ -50,10 +53,12 @@ const VAULT_ITEMS: SettingsItem[] = [
 ];
 
 export default function SettingsScreen() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const colors = useColors();
   const { user } = useAuth();
   const grantMutation = useGrantCoins();
   const { preferences, ready, update } = useTranslationPreferences();
+  const [showAppLanguage, setShowAppLanguage] = useState(false);
   const [showLanguage, setShowLanguage] = useState(false);
   const [savingLanguage, setSavingLanguage] = useState(false);
   const insets = useSafeAreaInsets();
@@ -77,14 +82,14 @@ export default function SettingsScreen() {
           );
           void queryClient.invalidateQueries({ queryKey: getGetCoinBalanceQueryKey({ uid: user.uid }) });
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          Alert.alert("Coins added", `+10,000 coins  •  Balance: ${data.balance.toLocaleString()} 🪙`);
+          Alert.alert(t("Coins added"), t("+10,000 coins  •  Balance: {v0} 🪙", { v0: data.balance.toLocaleString(appLocale()) }));
         },
       },
     );
   };
 
   const showPlaceholder = (label: string) => {
-    Alert.alert(label, "This setting will be available soon.");
+    Alert.alert(t(label), t("This setting will be available soon."));
   };
 
   const handleSignOut = async () => {
@@ -137,7 +142,9 @@ export default function SettingsScreen() {
                 ? router.push("/privacy")
                 : item.label === "Notifications"
                   ? router.push("/notification-settings")
-                  : item.label === "Preferred language"
+                  : item.label === "App language"
+                ? setShowAppLanguage(true)
+                : item.label === "Preferred language"
                 ? setShowLanguage(true)
                 : showPlaceholder(item.label)
           }
@@ -148,8 +155,8 @@ export default function SettingsScreen() {
           >
             <Ionicons name={item.icon} size={18} color={colors.primary} />
           </View>
-          <Text style={[styles.rowLabel, { color: colors.foreground }]}>
-            {item.label}
+          <Text style={[localizedTextStyle(), [styles.rowLabel, { color: colors.foreground }]]}>
+            {t(item.label)}
           </Text>
           <Ionicons
             name="chevron-forward"
@@ -163,6 +170,7 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {showAppLanguage ? <AppLanguageSheet onClose={() => setShowAppLanguage(false)} /> : null}
       <Modal
         visible={confirmSignOut}
         transparent
@@ -186,25 +194,21 @@ export default function SettingsScreen() {
               backgroundColor: colors.card,
             }}
           >
-            <Text style={[styles.title, { color: colors.foreground }]}>
-              Log out?
-            </Text>
+            <Text style={[localizedTextStyle(), [styles.title, { color: colors.foreground }]]}>{t("Log out?")}</Text>
             <Text
-              style={{
+              style={[localizedTextStyle(), {
                 marginTop: 12,
                 color: colors.mutedForeground,
                 fontSize: 14,
                 lineHeight: 22,
-              }}
-            >
-              You’ll need to sign in again to access your account.
-            </Text>
+              }]}
+            >{t("You’ll need to sign in again to access your account.")}</Text>
             {!!signOutError && (
               <Text
                 accessibilityRole="alert"
                 style={{ color: "#FF4D67", marginTop: 12 }}
               >
-                {signOutError}
+                {t(signOutError)}
               </Text>
             )}
             <TouchableOpacity
@@ -218,8 +222,8 @@ export default function SettingsScreen() {
                 { borderColor: colors.border, marginTop: 24 },
               ]}
             >
-              <Text style={styles.logoutText}>
-                {isSigningOut ? "Logging Out…" : "Log Out"}
+              <Text style={[localizedTextStyle(), styles.logoutText]}>
+                {isSigningOut ? t("Logging Out…") : t("Log Out")}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -228,7 +232,7 @@ export default function SettingsScreen() {
               onPress={() => setConfirmSignOut(false)}
               style={{ paddingTop: 20, alignItems: "center" }}
             >
-              <Text style={{ color: colors.foreground }}>Cancel</Text>
+              <Text style={[localizedTextStyle(), { color: colors.foreground }]}>{t("Cancel")}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -264,17 +268,15 @@ export default function SettingsScreen() {
               }}
             >
               <Text
-                style={{
+                style={[localizedTextStyle(), {
                   color: colors.foreground,
                   fontSize: 20,
                   fontWeight: "700",
-                }}
-              >
-                Preferred language
-              </Text>
+                }]}
+              >{t("Preferred language")}</Text>
               <TouchableOpacity
                 onPress={() => setShowLanguage(false)}
-                accessibilityLabel="Close"
+                accessibilityLabel={t("Close")}
               >
                 <Ionicons name="close" size={24} color={colors.foreground} />
               </TouchableOpacity>
@@ -283,7 +285,7 @@ export default function SettingsScreen() {
               {[
                 [
                   "device",
-                  `Phone language (${LANGUAGES.find(([code]) => code === deviceLanguage())?.[1] ?? "English"})`,
+                  t("Phone language ({v0})", { v0: LANGUAGES.find(([code]) => code === deviceLanguage())?.[1] ?? "English" }),
                 ],
                 ...LANGUAGES,
               ].map(([code, label]) => (
@@ -306,8 +308,8 @@ export default function SettingsScreen() {
                       setShowLanguage(false);
                     } catch {
                       Alert.alert(
-                        "Couldn't save language",
-                        "Please try again.",
+                        t("Couldn't save language"),
+                        t("Please try again."),
                       );
                     } finally {
                       setSavingLanguage(false);
@@ -344,13 +346,11 @@ export default function SettingsScreen() {
           ]}
           onPress={() => router.back()}
           activeOpacity={0.7}
-          accessibilityLabel="Back to profile"
+          accessibilityLabel={t("Back to profile")}
         >
           <Ionicons name="chevron-back" size={20} color={colors.foreground} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.foreground }]}>
-          Settings
-        </Text>
+        <Text style={[localizedTextStyle(), [styles.title, { color: colors.foreground }]]}>{t("Settings")}</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -363,14 +363,10 @@ export default function SettingsScreen() {
       >
         {renderSection(GENERAL_ITEMS)}
 
-        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
-          CREATOR
-        </Text>
+        <Text style={[localizedTextStyle(), [styles.sectionTitle, { color: colors.mutedForeground }]]}>{t("CREATOR")}</Text>
         {renderSection(VAULT_ITEMS)}
 
-        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
-          ABOUT
-        </Text>
+        <Text style={[localizedTextStyle(), [styles.sectionTitle, { color: colors.mutedForeground }]]}>{t("ABOUT")}</Text>
         <View
           style={[
             styles.section,
@@ -380,19 +376,15 @@ export default function SettingsScreen() {
           <View
             style={[styles.versionRow, { borderBottomColor: colors.border }]}
           >
-            <Text style={[styles.rowLabel, { color: colors.foreground }]}>
-              App version
-            </Text>
+            <Text style={[localizedTextStyle(), [styles.rowLabel, { color: colors.foreground }]]}>{t("App version")}</Text>
             <Text
-              style={[styles.versionValue, { color: colors.mutedForeground }]}
+              style={[localizedTextStyle(), [styles.versionValue, { color: colors.mutedForeground }]]}
             >
-              {Constants.expoConfig?.version ?? "Unknown"}
+              {Constants.expoConfig?.version ?? t("Unknown")}
             </Text>
           </View>
           <View style={styles.versionRow}>
-            <Text style={[styles.rowLabel, { color: colors.foreground }]}>
-              Bundle version
-            </Text>
+            <Text style={[localizedTextStyle(), [styles.rowLabel, { color: colors.foreground }]]}>{t("Bundle version")}</Text>
             <Text
               style={[styles.versionValue, { color: colors.mutedForeground }]}
             >
@@ -401,7 +393,7 @@ export default function SettingsScreen() {
           </View>
           <TouchableOpacity accessibilityRole="button" disabled={!user || grantMutation.isPending} onPress={addTestCoins} style={[styles.row, { borderTopWidth: 1, borderTopColor: colors.border }]}>
             <Ionicons name="add-circle-outline" size={20} color="#FFD700" />
-            <Text style={[styles.rowLabel, { color: "#FFD700" }]}>{grantMutation.isPending ? "Adding…" : "+500 coins (dev)"}</Text>
+            <Text style={[localizedTextStyle(), [styles.rowLabel, { color: "#FFD700" }]]}>{grantMutation.isPending ? t("Adding…") : t("+500 coins (dev)")}</Text>
           </TouchableOpacity>
         </View>
 
@@ -418,8 +410,8 @@ export default function SettingsScreen() {
           disabled={isSigningOut}
         >
           <Ionicons name="log-out-outline" size={19} color="#FF4D67" />
-          <Text style={styles.logoutText}>
-            {isSigningOut ? "Logging Out…" : "Log Out"}
+          <Text style={[localizedTextStyle(), styles.logoutText]}>
+            {isSigningOut ? t("Logging Out…") : t("Log Out")}
           </Text>
         </TouchableOpacity>
       </ScrollView>

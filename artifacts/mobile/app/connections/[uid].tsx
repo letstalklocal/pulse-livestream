@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useRef, useState } from "react";
@@ -16,6 +17,7 @@ import { useColors } from "@/hooks/useColors";
 type Tab = "followers" | "following";
 
 export default function ConnectionsScreen() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const params = useLocalSearchParams<{ uid: string; tab?: Tab; name?: string }>();
   const uid = Number(params.uid);
   const validUid = Number.isInteger(uid) && uid > 0;
@@ -40,7 +42,7 @@ export default function ConnectionsScreen() {
   const people = (active.data?.users ?? []).filter(person =>
     person.name.toLocaleLowerCase().includes(term) || String(person.uid).includes(term),
   );
-  const title = profile.data?.user.name ?? params.name ?? "Connections";
+  const title = profile.data?.user.name ?? params.name ?? t("Connections");
 
   useFocusEffect(useCallback(() => {
     if (!validUid) return;
@@ -66,7 +68,7 @@ export default function ConnectionsScreen() {
         queryClient.invalidateQueries({ queryKey: getGetFollowStatusQueryKey(person.uid, { followerUid: user.uid }) }),
       ]);
     } catch (error) {
-      Alert.alert("Couldn't update follow", error instanceof Error ? error.message : "Please try again.");
+      Alert.alert(t("Couldn't update follow"), error instanceof Error ? error.message : t("Please try again."));
     } finally {
       pendingRef.current = false;
       setPendingUid(null);
@@ -76,7 +78,7 @@ export default function ConnectionsScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: Platform.OS === "web" ? 67 : insets.top }]}>
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.back()} style={styles.back}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={t("Back")} onPress={() => router.back()} style={styles.back}>
           <Ionicons name="chevron-back" size={25} color={colors.foreground} />
         </TouchableOpacity>
         <Text numberOfLines={1} style={[styles.title, { color: colors.foreground }]}>{title}</Text>
@@ -90,8 +92,8 @@ export default function ConnectionsScreen() {
             <TouchableOpacity key={value} accessibilityRole="tab" accessibilityState={{ selected }}
               onPress={() => { setTab(value); setSearch(""); }}
               style={[styles.tab, { borderBottomColor: selected ? colors.primary : "transparent" }]}>
-              <Text style={[styles.tabText, { color: selected ? colors.foreground : colors.mutedForeground }]}>
-                {count !== undefined ? `${count} ` : ""}{value === "followers" ? "Followers" : "Following"}
+              <Text style={[localizedTextStyle(), [styles.tabText, { color: selected ? colors.foreground : colors.mutedForeground }]]}>
+                {count !== undefined ? `${count} ` : ""}{value === "followers" ? t("Followers") : t("Following")}
               </Text>
             </TouchableOpacity>
           );
@@ -99,10 +101,10 @@ export default function ConnectionsScreen() {
       </View>
       <View style={[styles.search, { backgroundColor: colors.card }]}>
         <Ionicons name="search" size={19} color={colors.mutedForeground} />
-        <TextInput value={search} onChangeText={setSearch} placeholder="Search" accessibilityLabel={`Search ${tab}`}
+        <TextInput value={search} onChangeText={setSearch} placeholder={t("Search")} accessibilityLabel={t("Search {v0}", { v0: tab })}
           placeholderTextColor={colors.mutedForeground} autoCapitalize="none" autoCorrect={false} returnKeyType="search"
           style={[styles.searchInput, { color: colors.foreground }]} />
-        {!!search && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => setSearch("")} hitSlop={10}>
+        {!!search && <TouchableOpacity accessibilityRole="button" accessibilityLabel={t("Clear search")} onPress={() => setSearch("")} hitSlop={10}>
           <Ionicons name="close-circle" size={19} color={colors.mutedForeground} />
         </TouchableOpacity>}
       </View>
@@ -110,31 +112,31 @@ export default function ConnectionsScreen() {
         keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: insets.bottom + 24, flexGrow: 1 }}
         refreshing={active.isRefetching} onRefresh={() => { void active.refetch(); if (user) void myFollowing.refetch(); }}
         ListEmptyComponent={<View style={styles.empty}>
-          {!validUid ? <Text style={{ color: colors.mutedForeground }}>Profile not found.</Text>
+          {!validUid ? <Text style={[localizedTextStyle(), { color: colors.mutedForeground }]}>{t("Profile not found.")}</Text>
             : active.isLoading ? <ActivityIndicator color={colors.primary} />
             : active.isError ? <>
-              <Text style={{ color: colors.mutedForeground }}>Couldn't load {tab}.</Text>
+              <Text style={[localizedTextStyle(), { color: colors.mutedForeground }]}>{t("Couldn't load {v0}.", { v0: tab })}</Text>
               <TouchableOpacity accessibilityRole="button" onPress={() => void active.refetch()} style={styles.retry}>
-                <Text style={{ color: colors.primary }}>Try again</Text>
+                <Text style={[localizedTextStyle(), { color: colors.primary }]}>{t("Try again")}</Text>
               </TouchableOpacity>
             </> : <>
               <Ionicons name={term ? "search-outline" : "people-outline"} size={36} color={colors.mutedForeground} />
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{term ? "No results" : tab === "followers" ? "No followers yet" : "Not following anyone yet"}</Text>
-              {term && <Text style={{ color: colors.mutedForeground }}>Try another name or user ID.</Text>}
+              <Text style={[localizedTextStyle(), [styles.emptyTitle, { color: colors.foreground }]]}>{term ? t("No results") : tab === "followers" ? t("No followers yet") : t("Not following anyone yet")}</Text>
+              {term && <Text style={[localizedTextStyle(), { color: colors.mutedForeground }]}>{t("Try another name or user ID.")}</Text>}
             </>}
         </View>}
         renderItem={({ item }) => {
           const isFollowing = followedIds.has(item.uid);
           return (
             <View style={styles.row}>
-              <TouchableOpacity accessibilityRole="button" accessibilityLabel={`View ${item.name}'s profile`}
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel={t("View {v0}'s profile", { v0: item.name })}
                 style={styles.person} onPress={() => router.push(item.uid === user?.uid ? "/(tabs)/profile" : {
                   pathname: "/profile/[hostUid]", params: { hostUid: String(item.uid), name: item.name, avatarUri: item.avatarImageUrl ?? "" },
                 })}>
                 <Avatar uid={item.uid} name={item.name} avatarUri={item.avatarImageUrl ?? undefined} size={50} />
                 <View style={styles.personText}>
                   <Text numberOfLines={1} style={[styles.name, { color: colors.foreground }]}>{item.name}</Text>
-                  <Text numberOfLines={1} style={[styles.bio, { color: colors.mutedForeground }]}>{item.bio || `ID: ${item.uid}`}</Text>
+                  <Text numberOfLines={1} style={[localizedTextStyle(), [styles.bio, { color: colors.mutedForeground }]]}>{item.bio || t("ID: {v0}", { v0: item.uid })}</Text>
                 </View>
               </TouchableOpacity>
               {!!user && item.uid !== user.uid && myFollowing.data && <TouchableOpacity
@@ -142,7 +144,7 @@ export default function ConnectionsScreen() {
                 disabled={pendingUid !== null} onPress={() => void toggleFollow(item)}
                 style={[styles.followButton, { backgroundColor: isFollowing ? colors.card : colors.primary, borderColor: isFollowing ? colors.border : colors.primary, opacity: pendingUid !== null && pendingUid !== item.uid ? 0.5 : 1 }]}>
                 {pendingUid === item.uid ? <ActivityIndicator size="small" color={isFollowing ? colors.foreground : "#FFF"} />
-                  : <Text style={[styles.followText, { color: isFollowing ? colors.foreground : "#FFF" }]}>{isFollowing ? "Following" : "Follow"}</Text>}
+                  : <Text style={[localizedTextStyle(), [styles.followText, { color: isFollowing ? colors.foreground : "#FFF" }]]}>{isFollowing ? t("Following") : t("Follow")}</Text>}
               </TouchableOpacity>}
             </View>
           );

@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { CrownArtwork } from "./CrownArtwork";
 import React from "react";
 import {
@@ -41,6 +42,7 @@ interface Props {
 }
 
 export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipientUid, onRecipientChange, hintText = "Tap a gift to send it live" }: Props) {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const insets = useSafeAreaInsets();
 
   return (
@@ -59,15 +61,15 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
 
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Send a Gift</Text>
+          <Text style={[localizedTextStyle(), styles.title]}>{t("Send a Gift")}</Text>
           <View style={styles.coinBadge}>
             <Text style={styles.coinIcon}>🪙</Text>
-            <Text style={styles.coinCount}>{coins.toLocaleString()}</Text>
+            <Text style={styles.coinCount}>{coins.toLocaleString(appLocale())}</Text>
           </View>
         </View>
 
         {recipients ? <View style={styles.recipients}>
-          {recipients.map(person => <TouchableOpacity key={person.uid} style={[styles.recipient, person.uid === recipientUid && styles.selectedRecipient]} onPress={() => onRecipientChange?.(person.uid)} accessibilityRole="radio" accessibilityState={{ checked: person.uid === recipientUid }} accessibilityLabel={`Send gifts to ${person.name}`}>
+          {recipients.map(person => <TouchableOpacity key={person.uid} style={[styles.recipient, person.uid === recipientUid && styles.selectedRecipient]} onPress={() => onRecipientChange?.(person.uid)} accessibilityRole="radio" accessibilityState={{ checked: person.uid === recipientUid }} accessibilityLabel={t("Send gifts to {v0}", { v0: person.name })}>
             <Avatar uid={person.uid} name={person.name} avatarUri={person.avatarUrl ?? undefined} size={28} />
             <Text style={styles.recipientName} numberOfLines={1}>{person.name}</Text>
           </TouchableOpacity>)}
@@ -101,9 +103,9 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
         </ScrollView>
 
         {coins === 0 && (
-          <Text style={styles.hintEmpty}>You're out of coins — top up from your profile</Text>
+          <Text style={[localizedTextStyle(), styles.hintEmpty]}>{t("You're out of coins — top up from your profile")}</Text>
         )}
-        <Text style={styles.hint}>{hintText}</Text>
+        <Text style={styles.hint}>{t(hintText)}</Text>
       </View>
     </Modal>
   );

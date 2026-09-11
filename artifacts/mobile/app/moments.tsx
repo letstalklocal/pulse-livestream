@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
@@ -40,6 +41,7 @@ type SavedMoment = {
   status: "ready" | "uploading";
 };
 export default function MomentsScreen() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const colors = useColors(),
     insets = useSafeAreaInsets(),
     router = useRouter();
@@ -104,24 +106,24 @@ export default function MomentsScreen() {
         setPlaying((await momentsRequest(`/${row.id}/play`, getToken)).url);
       } else {
         Alert.alert(
-          "Moment is not ready",
-          "Retry uploading this clip to finish saving your Moment.",
+          t("Moment is not ready"),
+          t("Retry uploading this clip to finish saving your Moment."),
         );
       }
     } catch (e) {
       Alert.alert(
-        "Playback unavailable",
-        e instanceof Error ? e.message : "Please try again.",
+        t("Playback unavailable"),
+        e instanceof Error ? e.message : t("Please try again."),
       );
     } finally {
       setBusy(null);
     }
   };
   const remove = (row: SavedMoment | LocalMoment) =>
-    Alert.alert("Delete Moment?", "This removes the clip from your Moments.", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert(t("Delete Moment?"), t("This removes the clip from your Moments."), [
+      { text: t("Cancel"), style: "cancel" },
       {
-        text: "Delete",
+        text: t("Delete"),
         style: "destructive",
         onPress: () => {
           void (async () => {
@@ -132,8 +134,8 @@ export default function MomentsScreen() {
               await refetch();
             } catch (e) {
               Alert.alert(
-                "Could not delete",
-                e instanceof Error ? e.message : "Try again.",
+                t("Could not delete"),
+                e instanceof Error ? e.message : t("Try again."),
               );
             }
           })();
@@ -154,20 +156,20 @@ export default function MomentsScreen() {
         <TouchableOpacity
           style={styles.button}
           accessibilityRole="button"
-          accessibilityLabel="Back to settings"
+          accessibilityLabel={t("Back to settings")}
           onPress={() => router.back()}
         >
           <Ionicons name="chevron-back" size={24} color={colors.foreground} />
         </TouchableOpacity>
-        <Text style={[styles.title, fg]}>Moments</Text>
+        <Text style={[localizedTextStyle(), [styles.title, fg]]}>{t("Moments")}</Text>
         <TouchableOpacity
           style={styles.button}
           accessibilityRole="button"
-          accessibilityLabel="About Moments"
+          accessibilityLabel={t("About Moments")}
           onPress={() =>
             Alert.alert(
-              "Moments",
-              "Gifts of 500+ coins capture up to 7 seconds of your camera and microphone. Clips are private to you. The crown is captured in the live video as it happens.\n\nIf gifts overlap, the first reaction finishes and the next is marked as not recorded. Failed uploads can be retried here.",
+              t("Moments"),
+              t("Gifts of 500+ coins capture up to 7 seconds of your camera and microphone. Clips are private to you. The crown is captured in the live video as it happens.\n\nIf gifts overlap, the first reaction finishes and the next is marked as not recorded. Failed uploads can be retried here."),
             )
           }
         >
@@ -195,9 +197,7 @@ export default function MomentsScreen() {
         }
       >
         {__DEV__ && user ? <MomentProofCard uid={user.uid} /> : null}
-        <Text style={[styles.caption, muted]}>
-          Your reactions · 500+ coin gifts
-        </Text>
+        <Text style={[localizedTextStyle(), [styles.caption, muted]]}>{t("Your reactions · 500+ coin gifts")}</Text>
         {!!query.data?.error && (
           <Text accessibilityRole="alert" style={{ color: "#FF8CA7" }}>
             {query.data.error}
@@ -223,12 +223,8 @@ export default function MomentsScreen() {
               size={32}
               color={colors.primary}
             />
-            <Text style={[styles.medium, fg]}>
-              Your next big gift becomes a Moment
-            </Text>
-            <Text style={[styles.caption, muted, { textAlign: "center" }]}>
-              Go live on Android to test recording.
-            </Text>
+            <Text style={[localizedTextStyle(), [styles.medium, fg]]}>{t("Your next big gift becomes a Moment")}</Text>
+            <Text style={[localizedTextStyle(), [styles.caption, muted, { textAlign: "center" }]]}>{t("Go live on Android to test recording.")}</Text>
           </View>
         ) : (
           rows.map((row) => {
@@ -256,18 +252,13 @@ export default function MomentsScreen() {
               >
                 <View style={styles.row}>
                   <View style={{ flex: 1, gap: 4 }}>
-                    <Text style={[styles.medium, fg]}>
-                      {row.giftName || "Gift"} · {row.amount.toLocaleString()}{" "}
-                      coins
-                    </Text>
-                    <Text style={[styles.caption, muted]}>
-                      From {row.senderName || "a supporter"}
-                    </Text>
+                    <Text style={[localizedTextStyle(), [styles.medium, fg]]}>{t("{v0} · {v1}{v2}coins", { v0: row.giftName || "Gift", v1: row.amount.toLocaleString(appLocale()), v2: " " })}</Text>
+                    <Text style={[localizedTextStyle(), [styles.caption, muted]]}>{t("From {v0}", { v0: row.senderName || "a supporter" })}</Text>
                   </View>
                   <TouchableOpacity
                     style={styles.button}
                     accessibilityRole="button"
-                    accessibilityLabel="Delete Moment"
+                    accessibilityLabel={t("Delete Moment")}
                     disabled={
                       (row.status === "recording" && !interrupted) ||
                       (row.status === "uploading" &&
@@ -283,10 +274,10 @@ export default function MomentsScreen() {
                   </TouchableOpacity>
                 </View>
                 <Text style={[styles.caption, muted]}>
-                  {new Date(row.createdAt).toLocaleString()}
+                  {new Date(row.createdAt).toLocaleString(appLocale())}
                 </Text>
                 <Text
-                  style={[
+                  style={[localizedTextStyle(), [
                     styles.caption,
                     {
                       color:
@@ -294,17 +285,17 @@ export default function MomentsScreen() {
                           ? "#FF8CA7"
                           : colors.mutedForeground,
                     },
-                  ]}
+                  ]]}
                 >
                   {interrupted
-                    ? "Recording was interrupted. Try another qualifying gift."
+                    ? t("Recording was interrupted. Try another qualifying gift.")
                     : row.status === "failed"
                       ? local?.error
                       : row.status === "ready"
-                        ? `${((row.durationMs ?? 7000) / 1000).toFixed(1)}s · Private`
+                        ? t("{v0}s · Private", { v0: ((row.durationMs ?? 7000) / 1000).toFixed(1) })
                         : row.status === "recording"
-                          ? "Recording reaction…"
-                          : "Saving clip…"}
+                          ? t("Recording reaction…")
+                          : t("Saving clip…")}
                 </Text>
                 <View style={styles.row}>
                   {playable && (
@@ -320,8 +311,8 @@ export default function MomentsScreen() {
                       ]}
                     >
                       <Ionicons name="play" size={16} color="white" />
-                      <Text style={[styles.medium, { color: "white" }]}>
-                        {busy === row.giftId ? "Opening…" : "Play"}
+                      <Text style={[localizedTextStyle(), [styles.medium, { color: "white" }]]}>
+                        {busy === row.giftId ? t("Opening…") : t("Play")}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -338,7 +329,7 @@ export default function MomentsScreen() {
                         }}
                         style={styles.action}
                       >
-                        <Text style={[styles.medium, fg]}>Retry upload</Text>
+                        <Text style={[localizedTextStyle(), [styles.medium, fg]]}>{t("Retry upload")}</Text>
                       </TouchableOpacity>
                     )}
                 </View>
@@ -362,7 +353,7 @@ export default function MomentsScreen() {
         >
           <TouchableOpacity
             accessibilityRole="button"
-            accessibilityLabel="Close playback"
+            accessibilityLabel={t("Close playback")}
             onPress={() => setPlaying(null)}
             style={[styles.button, { alignSelf: "flex-end", marginRight: 16 }]}
           >

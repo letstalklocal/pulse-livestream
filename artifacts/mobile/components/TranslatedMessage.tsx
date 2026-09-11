@@ -1,3 +1,4 @@
+import { t, useAppLanguage } from "@/i18n";
 import { queueTranslation } from "@/utils/translationQueue";
 import { useFocusEffect } from "expo-router";
 import { confirmTranslation } from "@/utils/confirmTranslation";
@@ -12,6 +13,7 @@ import { useAuth } from "@/context/AuthContext";
 export function TranslatedMessage({ text, messageId, kind, channelId, peerId, incoming, style, trailing }: {
   text: string; messageId: string; kind: "live" | "dm"; channelId?: string; peerId?: string; incoming: boolean; style?: StyleProp<TextStyle>; trailing?: React.ReactNode;
 }) {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const { user } = useAuth();
   const [focused, setFocused] = useState(false);
   useFocusEffect(useCallback(() => { setFocused(true); return () => setFocused(false); }, []));
@@ -31,26 +33,26 @@ export function TranslatedMessage({ text, messageId, kind, channelId, peerId, in
   const shown = translation && !original ? translation.text : text;
   const press = async () => {
     if (translation) { setOriginalLanguage(value => value === language ? null : language); return; }
-    if (query.data && !query.data.translated) { Alert.alert("Already in your language"); return; }
+    if (query.data && !query.data.translated) { Alert.alert(t("Already in your language")); return; }
     if (!preferences.consent) {
       if (!await confirmTranslation(false)) return;
       try { await update({ consent: true }); }
-      catch { Alert.alert("Couldn't translate", "Please try again."); return; }
+      catch { Alert.alert(t("Couldn't translate"), t("Please try again.")); return; }
     }
     setRequested(true);
     if (query.isError) {
       const result = await query.refetch();
-      if (result.isError) Alert.alert("Couldn't translate", "Please try again later.");
+      if (result.isError) Alert.alert(t("Couldn't translate"), t("Please try again later."));
     }
   };
   // Manual translation is available via long press; the icon only appears after translation.
   return <View style={{ flexShrink: 1, flexDirection: "row", alignItems: "center" }}>
-    <Text style={[style, { flexShrink: 1 }]} accessibilityHint={eligible ? "Long press to translate" : undefined} onLongPress={eligible ? () => { void press(); } : undefined}>
+    <Text style={[style, { flexShrink: 1 }]} accessibilityHint={eligible ? t("Long press to translate") : undefined} onLongPress={eligible ? () => { void press(); } : undefined}>
       {shown}{trailing ? <> {trailing}</> : null}
     </Text>
-    {translation ? <TouchableOpacity onPress={() => void press()} hitSlop={8} accessibilityLabel={original ? "Show translation" : "Show original"} style={{ marginLeft: 5 }}>
+    {translation ? <TouchableOpacity onPress={() => void press()} hitSlop={8} accessibilityLabel={original ? t("Show translation") : t("Show original")} style={{ marginLeft: 5 }}>
       <Ionicons name="globe-outline" size={13} color={original ? "#999" : "#B9B4FF"} />
     </TouchableOpacity> : query.isFetching ? <ActivityIndicator size="small" color="#999" style={{ marginLeft: 4 }} /> : requested && query.isError ?
-      <TouchableOpacity onPress={() => void press()} hitSlop={8} accessibilityLabel="Retry translation"><Ionicons name="refresh-outline" size={14} color="#999" /></TouchableOpacity> : null}
+      <TouchableOpacity onPress={() => void press()} hitSlop={8} accessibilityLabel={t("Retry translation")}><Ionicons name="refresh-outline" size={14} color="#999" /></TouchableOpacity> : null}
   </View>;
 }

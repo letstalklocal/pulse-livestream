@@ -1,3 +1,4 @@
+import { i18nMock } from "./i18n-mock.mjs";
 import assert from "node:assert/strict";
 import { build } from "esbuild";
 import { createRequire } from "node:module";
@@ -19,6 +20,8 @@ await build({
     {
       name: "native-player-test",
       setup(b) {
+        b.onResolve({filter: /^@\/i18n$/}, args => ({path: args.path, namespace: "i18n"}));
+        b.onLoad({filter: /.*/, namespace: "i18n"}, () => ({contents: i18nMock}));
         b.onResolve(
           {
             filter:

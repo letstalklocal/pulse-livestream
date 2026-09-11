@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import { CrownArtwork } from "./CrownArtwork";
 import React, { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, Text, View } from "react-native";
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function GiftFloater({ gift, onDone }: Props) {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const translateY = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.4)).current;
@@ -75,7 +77,7 @@ export function GiftFloater({ gift, onDone }: Props) {
       ) : <Text style={[styles.emoji, gift.inVideo && { opacity: 0 }]}>{gift.emoji}</Text>}
       <View style={styles.label}>
         <Text style={styles.sender} numberOfLines={1}>{gift.senderName}</Text>
-        <Text style={styles.name}>sent a {gift.name}!</Text>
+        <Text style={[localizedTextStyle(), styles.name]}>{t("sent a {v0}!", { v0: gift.name })}</Text>
       </View>
     </Animated.View>
   );

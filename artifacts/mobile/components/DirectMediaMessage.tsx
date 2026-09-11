@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, SafeAreaView, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import type { DmMessage } from "@/context/RtmContext";
 
 export function DirectMediaMessage({ message, mine }: { message: DmMessage; mine: boolean }) {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const colors = useColors();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -24,12 +26,12 @@ export function DirectMediaMessage({ message, mine }: { message: DmMessage; mine
 
   const handleUnlock = () => {
     Alert.alert(
-      "Unlock Media?",
-      `Pay ${price} coins to unlock this ${message.mediaType || "media"}?`,
+      t("Unlock Media?"),
+      t("Pay {v0} coins to unlock this {v1}?", { v0: price, v1: message.mediaType || "media" }),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t("Cancel"), style: "cancel" },
         {
-          text: "Unlock",
+          text: t("Unlock"),
           style: "default",
           onPress: async () => {
             try {
@@ -50,7 +52,7 @@ export function DirectMediaMessage({ message, mine }: { message: DmMessage; mine
                 );
               }
             } catch (err) {
-              Alert.alert("Unlock failed", "You may not have enough coins.");
+              Alert.alert(t("Unlock failed"), t("You may not have enough coins."));
             }
           }
         }
@@ -70,8 +72,8 @@ export function DirectMediaMessage({ message, mine }: { message: DmMessage; mine
 
   return (
     <View style={[styles.wrapper, mine ? styles.wrapperMe : styles.wrapperThem, { borderColor: colors.border }]}>
-      {mine ? <View pointerEvents="none" style={{ position: "absolute", right: 8, bottom: 8, zIndex: 1, backgroundColor: "rgba(0,0,0,0.5)", borderRadius: 8, paddingHorizontal: 4 }}><Ionicons name="checkmark-done" size={16} color={message.readAt != null ? "#FFF" : "rgba(255,255,255,0.45)"} accessibilityLabel={message.readAt != null ? "Read" : "Sent"} /></View> : null}
-      <TouchableOpacity activeOpacity={0.8} onPress={handlePress} accessibilityLabel={canView ? "View media" : `Unlock media for ${price} coins`} testID={`media-msg-${message.messageId}`}>
+      {mine ? <View pointerEvents="none" style={{ position: "absolute", right: 8, bottom: 8, zIndex: 1, backgroundColor: "rgba(0,0,0,0.5)", borderRadius: 8, paddingHorizontal: 4 }}><Ionicons name="checkmark-done" size={16} color={message.readAt != null ? "#FFF" : "rgba(255,255,255,0.45)"} accessibilityLabel={message.readAt != null ? t("Read") : t("Sent")} /></View> : null}
+      <TouchableOpacity activeOpacity={0.8} onPress={handlePress} accessibilityLabel={canView ? t("View media") : t("Unlock media for {v0} coins", { v0: price })} testID={`media-msg-${message.messageId}`}>
         {canView ? (
           <>
             {localMediaUrl ? (
@@ -102,7 +104,7 @@ export function DirectMediaMessage({ message, mine }: { message: DmMessage; mine
               <Ionicons name="lock-closed" size={32} color="#FFF" />
               <View style={[styles.unlockButton, { backgroundColor: colors.primary }]}>
                 <Ionicons name="logo-bitcoin" size={15} color="#FFF" />
-                <Text style={styles.unlockButtonText}>Unlock for {price}</Text>
+                <Text style={[localizedTextStyle(), styles.unlockButtonText]}>{t("Unlock for {v0}", { v0: price })}</Text>
               </View>
             </View>
           </View>
@@ -111,7 +113,7 @@ export function DirectMediaMessage({ message, mine }: { message: DmMessage; mine
 
       <Modal visible={fullScreen} transparent animationType="fade" onRequestClose={() => setFullScreen(false)}>
         <SafeAreaView style={styles.fullScreenContainer}>
-          <TouchableOpacity style={styles.closeButton} onPress={() => setFullScreen(false)} accessibilityLabel="Close full screen">
+          <TouchableOpacity style={styles.closeButton} onPress={() => setFullScreen(false)} accessibilityLabel={t("Close full screen")}>
             <Ionicons name="close" size={30} color="#FFF" />
           </TouchableOpacity>
           {localMediaUrl && (

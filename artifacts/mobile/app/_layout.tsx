@@ -1,3 +1,4 @@
+import { t, useAppLanguage, initializeAppLanguage, refreshPhoneAppLanguage, localizedTextStyle } from "@/i18n";
 import { InAppNotifications } from "@/components/InAppNotifications";
 import {
   Inter_400Regular,
@@ -15,7 +16,7 @@ import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { StyleSheet, Text, View } from "react-native";
+import { AppState, StyleSheet, Text, View } from "react-native";
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/context/AuthContext";
@@ -40,17 +41,17 @@ const publishableKey = process.env["EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY"] ?? "";
 const proxyUrl = process.env["EXPO_PUBLIC_CLERK_PROXY_URL"] || undefined;
 
 function BuildConfigurationError() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   return (
     <View style={styles.configurationError}>
-      <Text style={styles.configurationErrorTitle}>Pulse could not start</Text>
-      <Text style={styles.configurationErrorMessage}>
-        This build is missing its authentication configuration. Please install a newer build.
-      </Text>
+      <Text style={[localizedTextStyle(), styles.configurationErrorTitle]}>{t("Pulse could not start")}</Text>
+      <Text style={[localizedTextStyle(), styles.configurationErrorMessage]}>{t("This build is missing its authentication configuration. Please install a newer build.")}</Text>
     </View>
   );
 }
 
 function RootLayoutNav() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   return (
     <Stack screenOptions={{ contentStyle: { backgroundColor: '#08080F' } }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -83,6 +84,7 @@ function RootLayoutNav() {
 }
 
 function ApiAuthBridge({ children }: { children: React.ReactNode }) {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const { getToken } = useClerkAuth();
   useEffect(() => {
     setAuthTokenGetter(() => getToken());
@@ -91,6 +93,12 @@ function ApiAuthBridge({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
+  useEffect(() => {
+    void initializeAppLanguage();
+    const listener = AppState.addEventListener("change", state => { if (state === "active") refreshPhoneAppLanguage(); });
+    return () => listener.remove();
+  }, []);
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
     Inter_500Medium,

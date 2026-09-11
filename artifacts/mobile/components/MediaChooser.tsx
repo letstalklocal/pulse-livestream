@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Platform, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +21,7 @@ interface MediaChooserProps {
 }
 
 export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMediaSent }: MediaChooserProps) {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -35,12 +37,12 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
 
   const handlePickMedia = async () => {
     if (Platform.OS === "web") {
-      Alert.alert("Native app required", "Selecting and uploading media is available in the iOS or Android app.");
+      Alert.alert(t("Native app required"), t("Selecting and uploading media is available in the iOS or Android app."));
       return;
     }
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("Permission needed", "Allow photo library access to add media.");
+      Alert.alert(t("Permission needed"), t("Allow photo library access to add media."));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -66,11 +68,11 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
     
     if (coinPrice > 0) {
       Alert.alert(
-        "Send Paid Media?",
-        `Users will need to pay ${coinPrice} coins to view this media.`,
+        t("Send Paid Media?"),
+        t("Users will need to pay {v0} coins to view this media.", { v0: coinPrice }),
         [
-          { text: "Cancel", style: "cancel" },
-          { text: "Send", style: "default", onPress: () => void performUpload(coinPrice) }
+          { text: t("Cancel"), style: "cancel" },
+          { text: t("Send"), style: "default", onPress: () => void performUpload(coinPrice) }
         ]
       );
     } else {
@@ -134,8 +136,8 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
       <View style={[styles.overlay, { paddingBottom: insets.bottom + (Platform.OS === "android" ? 28 : 0) }]}>
         <View style={[styles.content, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.header}>
-            <Text style={[styles.title, { color: colors.foreground }]}>
-              {asset ? "Send Media" : "Share Media"}
+            <Text style={[localizedTextStyle(), [styles.title, { color: colors.foreground }]]}>
+              {asset ? t("Send Media") : t("Share Media")}
             </Text>
             <TouchableOpacity onPress={handleClose} disabled={uploading}>
               <Ionicons name="close" size={24} color={colors.foreground} />
@@ -143,7 +145,7 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
           </View>
           
           {error && (
-            <Text style={styles.error}>{error}</Text>
+            <Text style={styles.error}>{t(error)}</Text>
           )}
 
           {asset ? (
@@ -162,14 +164,14 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
                     onPress={() => setIsPaid(false)}
                     disabled={uploading}
                   >
-                    <Text style={[styles.toggleText, !isPaid && { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>Free</Text>
+                    <Text style={[localizedTextStyle(), [styles.toggleText, !isPaid && { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]]}>{t("Free")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.toggleBtn, isPaid && [styles.toggleBtnActive, { backgroundColor: colors.card, borderColor: colors.border }]]}
                     onPress={() => setIsPaid(true)}
                     disabled={uploading}
                   >
-                    <Text style={[styles.toggleText, isPaid && { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>Paid</Text>
+                    <Text style={[localizedTextStyle(), [styles.toggleText, isPaid && { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]]}>{t("Paid")}</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -178,7 +180,7 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
                     <Ionicons name="cash-outline" size={20} color={colors.primary} />
                     <TextInput
                       style={[styles.input, { color: colors.foreground, borderColor: colors.border }]}
-                      placeholder="Amount of coins"
+                      placeholder={t("Amount of coins")}
                       placeholderTextColor={colors.mutedForeground}
                       value={price}
                       onChangeText={setPrice}
@@ -199,7 +201,7 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
                 {uploading ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (
-                  <Text style={styles.sendButtonText}>Send</Text>
+                  <Text style={[localizedTextStyle(), styles.sendButtonText]}>{t("Send")}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -214,8 +216,8 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
                   <Ionicons name="image" size={22} color={colors.primary} />
                 </View>
                 <View style={styles.optionTextContainer}>
-                  <Text style={[styles.optionTitle, { color: colors.foreground }]}>Send photo or video</Text>
-                  <Text style={[styles.optionSubtitle, { color: colors.mutedForeground }]}>Upload directly from your device</Text>
+                  <Text style={[localizedTextStyle(), [styles.optionTitle, { color: colors.foreground }]]}>{t("Send photo or video")}</Text>
+                  <Text style={[localizedTextStyle(), [styles.optionSubtitle, { color: colors.mutedForeground }]]}>{t("Upload directly from your device")}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
               </TouchableOpacity>
@@ -232,8 +234,8 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
                   <Ionicons name="images" size={22} color={colors.primary} />
                 </View>
                 <View style={styles.optionTextContainer}>
-                  <Text style={[styles.optionTitle, { color: colors.foreground }]}>Send a media pack</Text>
-                  <Text style={[styles.optionSubtitle, { color: colors.mutedForeground }]}>Choose from your existing packs</Text>
+                  <Text style={[localizedTextStyle(), [styles.optionTitle, { color: colors.foreground }]]}>{t("Send a media pack")}</Text>
+                  <Text style={[localizedTextStyle(), [styles.optionSubtitle, { color: colors.mutedForeground }]]}>{t("Choose from your existing packs")}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
               </TouchableOpacity>
@@ -250,8 +252,8 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
                   <Ionicons name="add-circle" size={22} color={colors.primary} />
                 </View>
                 <View style={styles.optionTextContainer}>
-                  <Text style={[styles.optionTitle, { color: colors.foreground }]}>Create new pack</Text>
-                  <Text style={[styles.optionSubtitle, { color: colors.mutedForeground }]}>Upload a collection to sell</Text>
+                  <Text style={[localizedTextStyle(), [styles.optionTitle, { color: colors.foreground }]]}>{t("Create new pack")}</Text>
+                  <Text style={[localizedTextStyle(), [styles.optionSubtitle, { color: colors.mutedForeground }]]}>{t("Upload a collection to sell")}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
               </TouchableOpacity>

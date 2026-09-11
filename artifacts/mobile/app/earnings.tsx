@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
@@ -37,6 +38,7 @@ const base = process.env.EXPO_PUBLIC_DOMAIN
   : "";
 
 export default function EarningsScreen() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -79,15 +81,15 @@ export default function EarningsScreen() {
   const lastDay = new Date(end.getTime() - 1);
   const rangeLabel =
     period === "day"
-      ? start.toLocaleDateString(undefined, dateFormat)
+      ? start.toLocaleDateString(appLocale(), dateFormat)
       : period === "month"
-        ? start.toLocaleDateString(undefined, {
+        ? start.toLocaleDateString(appLocale(), {
             month: "long",
             year: "numeric",
           })
         : period === "year"
           ? String(start.getFullYear())
-          : `${start.toLocaleDateString(undefined, dateFormat)} – ${lastDay.toLocaleDateString(undefined, dateFormat)}`;
+          : `${start.toLocaleDateString(appLocale(), dateFormat)} – ${lastDay.toLocaleDateString(appLocale(), dateFormat)}`;
   const card = { backgroundColor: colors.card, borderColor: colors.border };
   const label = { color: colors.mutedForeground };
   const foreground = { color: colors.foreground };
@@ -105,21 +107,21 @@ export default function EarningsScreen() {
       >
         <TouchableOpacity
           accessibilityRole="button"
-          accessibilityLabel="Back to settings"
+          accessibilityLabel={t("Back to settings")}
           onPress={() => router.back()}
           style={styles.iconButton}
         >
           <Ionicons name="chevron-back" size={24} color={colors.foreground} />
         </TouchableOpacity>
-        <Text style={[styles.title, foreground]}>Earnings</Text>
+        <Text style={[localizedTextStyle(), [styles.title, foreground]]}>{t("Earnings")}</Text>
         <TouchableOpacity
           style={styles.iconButton}
           accessibilityRole="button"
-          accessibilityLabel="About earnings"
+          accessibilityLabel={t("About earnings")}
           onPress={() =>
             Alert.alert(
-              "About earnings",
-              "Includes gifts and media pack sales, in coins. Coin purchases and test grants are excluded.\n\nDates follow your phone’s local time. Weeks start Monday.\n\nTop supporters ranks up to 20 people by coins received during the selected period.",
+              t("About earnings"),
+              t("Includes gifts and media pack sales, in coins. Coin purchases and test grants are excluded.\n\nDates follow your phone’s local time. Weeks start Monday.\n\nTop supporters ranks up to 20 people by coins received during the selected period."),
             )
           }
         >
@@ -163,12 +165,12 @@ export default function EarningsScreen() {
               ]}
             >
               <Text
-                style={[
+                style={[localizedTextStyle(), [
                   styles.medium,
                   { color: period === value ? "#FFFFFF" : colors.foreground },
-                ]}
+                ]]}
               >
-                {value[0].toUpperCase() + value.slice(1)}
+                {t(value[0].toUpperCase() + value.slice(1))}
               </Text>
             </TouchableOpacity>
           ))}
@@ -177,20 +179,20 @@ export default function EarningsScreen() {
           <TouchableOpacity
             style={styles.iconButton}
             accessibilityRole="button"
-            accessibilityLabel={`Previous ${period}`}
+            accessibilityLabel={t("Previous {v0}", { v0: period })}
             onPress={() => setOffset((value) => value - 1)}
           >
             <Ionicons name="chevron-back" size={20} color={colors.foreground} />
           </TouchableOpacity>
           <View style={{ flex: 1, alignItems: "center", gap: 4 }}>
-            <Text style={[styles.medium, foreground, { textAlign: "center" }]}>
-              {offset === 0 && period === "day" ? "Today" : rangeLabel}
+            <Text style={[localizedTextStyle(), [styles.medium, foreground, { textAlign: "center" }]]}>
+              {offset === 0 && period === "day" ? t("Today") : rangeLabel}
             </Text>
           </View>
           <TouchableOpacity
             style={styles.iconButton}
             accessibilityRole="button"
-            accessibilityLabel={`Next ${period}`}
+            accessibilityLabel={t("Next {v0}", { v0: period })}
             accessibilityState={{ disabled: offset === 0 }}
             disabled={offset === 0}
             onPress={() => setOffset((value) => Math.min(0, value + 1))}
@@ -208,23 +210,21 @@ export default function EarningsScreen() {
             onPress={() => setOffset(0)}
             style={{ alignSelf: "center", padding: 12 }}
           >
-            <Text style={{ color: colors.primary }}>
-              Back to {period === "day" ? "today" : `this ${period}`}
-            </Text>
+            <Text style={[localizedTextStyle(), { color: colors.primary }]}>{t("Back to {v0}", { v0: period === "day" ? "today" : `this ${period}` })}</Text>
           </TouchableOpacity>
         )}
         {!userId ? (
-          <Text style={foreground}>Sign in to view your earnings.</Text>
+          <Text style={[localizedTextStyle(), foreground]}>{t("Sign in to view your earnings.")}</Text>
         ) : query.isPending ? (
           <ActivityIndicator
             style={{ padding: 40 }}
             color={colors.primary}
-            accessibilityLabel="Loading earnings"
+            accessibilityLabel={t("Loading earnings")}
           />
         ) : query.isError ? (
           <View style={[styles.card, card]}>
             <Text accessibilityRole="alert" style={foreground}>
-              {query.error.message}
+              {t(query.error.message)}
             </Text>
             <TouchableOpacity
               accessibilityRole="button"
@@ -233,7 +233,7 @@ export default function EarningsScreen() {
               }}
               style={{ paddingVertical: 16 }}
             >
-              <Text style={{ color: colors.primary }}>Try again</Text>
+              <Text style={[localizedTextStyle(), { color: colors.primary }]}>{t("Try again")}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -248,12 +248,10 @@ export default function EarningsScreen() {
                 <View style={styles.summaryRow}>
                   <View style={styles.heroHeading}>
                     <Ionicons name="wallet-outline" size={18} color="#FFD68A" />
-                    <Text style={[styles.medium, { color: "#C7C0D4" }]}>
-                      Coins earned
-                    </Text>
+                    <Text style={[localizedTextStyle(), [styles.medium, { color: "#C7C0D4" }]]}>{t("Coins earned")}</Text>
                   </View>
                   <Text style={[styles.total, foreground]}>
-                    {query.data.coins.toLocaleString()}
+                    {query.data.coins.toLocaleString(appLocale())}
                   </Text>
                 </View>
                 <View style={[styles.stats, { borderTopColor: colors.border }]}>
@@ -263,17 +261,15 @@ export default function EarningsScreen() {
                   ].map((stat) => (
                     <View key={stat.name} style={styles.stat}>
                       <Text style={[styles.statValue, foreground]}>
-                        {stat.value.toLocaleString()}
+                        {stat.value.toLocaleString(appLocale())}
                       </Text>
-                      <Text style={[styles.caption, label]}>{stat.name}</Text>
+                      <Text style={[localizedTextStyle(), [styles.caption, label]]}>{t(stat.name)}</Text>
                     </View>
                   ))}
                 </View>
               </LinearGradient>
               <View style={styles.supporterHeading}>
-                <Text style={[styles.subtitle, foreground]}>
-                  Top supporters
-                </Text>
+                <Text style={[localizedTextStyle(), [styles.subtitle, foreground]]}>{t("Top supporters")}</Text>
                 <Ionicons name="trophy-outline" size={19} color="#FFD68A" />
               </View>
               {query.data.entries.length === 0 ? (
@@ -290,9 +286,7 @@ export default function EarningsScreen() {
                       color={colors.mutedForeground}
                     />
                   </View>
-                  <Text style={[styles.medium, foreground]}>
-                    No earnings yet
-                  </Text>
+                  <Text style={[localizedTextStyle(), [styles.medium, foreground]]}>{t("No earnings yet")}</Text>
                 </View>
               ) : (
                 <View style={[styles.card, card, { paddingVertical: 0 }]}>
@@ -336,16 +330,16 @@ export default function EarningsScreen() {
                             <Text style={[styles.medium, foreground]}>
                               {entry.name}
                             </Text>
-                            <Text style={[styles.caption, label]}>
-                              {entry.transactions.toLocaleString()}{" "}
+                            <Text style={[localizedTextStyle(), [styles.caption, label]]}>
+                              {entry.transactions.toLocaleString(appLocale())}{" "}
                               {entry.transactions === 1
-                                ? "transaction"
-                                : "transactions"}
+                                ? t("transaction")
+                                : t("transactions")}
                             </Text>
                           </View>
-                          <Text style={[styles.medium, { color: "#FFD68A" }]}>
-                            {entry.coins.toLocaleString()}{" "}
-                            <Text style={[styles.caption, label]}>coins</Text>
+                          <Text style={[localizedTextStyle(), [styles.medium, { color: "#FFD68A" }]]}>
+                            {entry.coins.toLocaleString(appLocale())}{" "}
+                            <Text style={[localizedTextStyle(), [styles.caption, label]]}>{t("coins")}</Text>
                           </Text>
                         </View>
                         <View

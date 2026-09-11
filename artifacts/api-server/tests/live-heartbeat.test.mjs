@@ -11,6 +11,7 @@ function fixture() {
   let cleanup, tick;
   const requests = [], alerts = [], stopped = [];
   const state = {
+    t: source => source,
     isLive: true, activeChannelId: 'live-a', isPrivateInvite: false, privateInvitationId: '',
     channelIdRef: { current: 'live-a' }, isLiveRef: { current: true },
     heartbeatMutateRef: { current: (body, callbacks) => requests.push({ body, callbacks }) },

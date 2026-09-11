@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { FollowingActivity } from "@/components/FollowingActivity";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -18,6 +19,7 @@ import { Avatar } from "@/components/Avatar";
 import { AccountHeader } from "@/components/AccountHeader";
 
 export default function ChatScreen() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -33,16 +35,14 @@ export default function ChatScreen() {
         <AccountHeader />
         <View style={styles.guestWrap}>
           <Ionicons name="chatbubbles-outline" size={52} color={colors.mutedForeground} />
-          <Text style={[styles.guestTitle, { color: colors.foreground }]}>Sign in to message</Text>
-          <Text style={[styles.guestSub, { color: colors.mutedForeground }]}>
-            Connect with the streamers you follow
-          </Text>
+          <Text style={[localizedTextStyle(), [styles.guestTitle, { color: colors.foreground }]]}>{t("Sign in to message")}</Text>
+          <Text style={[localizedTextStyle(), [styles.guestSub, { color: colors.mutedForeground }]]}>{t("Connect with the streamers you follow")}</Text>
           <TouchableOpacity
             style={[styles.signInBtn, { backgroundColor: colors.primary }]}
             onPress={() => router.push("/(auth)/sign-in")}
             activeOpacity={0.8}
           >
-            <Text style={styles.signInBtnText}>Sign In</Text>
+            <Text style={[localizedTextStyle(), styles.signInBtnText]}>{t("Sign In")}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -56,9 +56,9 @@ export default function ChatScreen() {
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={styles.headerActionBtn}
-            onPress={() => Alert.alert("Search", "Message search will be available soon.")}
+            onPress={() => Alert.alert(t("Search"), t("Message search will be available soon."))}
             activeOpacity={0.7}
-            accessibilityLabel="Search messages"
+            accessibilityLabel={t("Search messages")}
           >
             <Ionicons name="search-outline" size={22} color="#FFFFFF" style={styles.searchIcon} />
           </TouchableOpacity>
@@ -66,7 +66,7 @@ export default function ChatScreen() {
             style={styles.headerActionBtn}
             onPress={() => router.push("/new-chat")}
             activeOpacity={0.7}
-            accessibilityLabel="Start a new chat"
+            accessibilityLabel={t("Start a new chat")}
           >
             <Ionicons name="create-outline" size={24} color="#FFFFFF" />
           </TouchableOpacity>
@@ -78,10 +78,8 @@ export default function ChatScreen() {
       {conversations.length === 0 ? (
         <View style={styles.empty}>
           <Ionicons name="chatbubbles-outline" size={52} color={colors.mutedForeground} />
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No messages yet</Text>
-          <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-            Tap the pencil icon to start a conversation
-          </Text>
+          <Text style={[localizedTextStyle(), [styles.emptyTitle, { color: colors.foreground }]]}>{t("No messages yet")}</Text>
+          <Text style={[localizedTextStyle(), [styles.emptySub, { color: colors.mutedForeground }]]}>{t("Tap the pencil icon to start a conversation")}</Text>
         </View>
       ) : (
         <FlatList
@@ -93,7 +91,7 @@ export default function ChatScreen() {
               <TouchableOpacity
                 style={styles.avatarButton}
                 accessibilityRole="button"
-                accessibilityLabel={`View ${item.peerName}'s profile`}
+                accessibilityLabel={t("View {v0}'s profile", { v0: item.peerName })}
                 onPress={() => router.push({
                   pathname: "/profile/[hostUid]",
                   params: { hostUid: item.peerId, name: item.peerName },
@@ -105,7 +103,7 @@ export default function ChatScreen() {
               <TouchableOpacity
                 style={styles.convoInfo}
                 accessibilityRole="button"
-                accessibilityLabel={`Open conversation with ${item.peerName}`}
+                accessibilityLabel={t("Open conversation with {v0}", { v0: item.peerName })}
                 onPress={() => openDm(parseInt(item.peerId), item.peerName)}
                 activeOpacity={0.75}
               >
@@ -114,7 +112,7 @@ export default function ChatScreen() {
                     {item.peerName}
                   </Text>
                   <Text style={[styles.convoTime, { color: colors.mutedForeground }]}>
-                    {formatTime(item.lastTs)}
+                    {formatTime(item.lastTs, appLocale(), t)}
                   </Text>
                 </View>
                 <View style={styles.convoBottomRow}>
@@ -137,14 +135,14 @@ export default function ChatScreen() {
   );
 }
 
-function formatTime(ts: number): string {
+function formatTime(ts: number, locale: string, translate: typeof t): string {
   const d = new Date(ts);
   const now = new Date();
   const diffDays = Math.floor((now.getTime() - ts) / 86400000);
-  if (diffDays === 0) return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) return d.toLocaleDateString([], { weekday: "short" });
-  return d.toLocaleDateString([], { month: "short", day: "numeric" });
+  if (diffDays === 0) return d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+  if (diffDays === 1) return translate("Yesterday");
+  if (diffDays < 7) return d.toLocaleDateString(locale, { weekday: "short" });
+  return d.toLocaleDateString(locale, { month: "short", day: "numeric" });
 }
 
 const styles = StyleSheet.create({

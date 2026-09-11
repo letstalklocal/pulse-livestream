@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import { Ionicons } from "@expo/vector-icons";
 import { useSignIn } from "@clerk/expo";
 import { useRouter } from "expo-router";
@@ -20,6 +21,7 @@ import { useColors } from "@/hooks/useColors";
 type Step = "email" | "code" | "password";
 
 export default function ForgotPasswordScreen() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -80,12 +82,8 @@ export default function ForgotPasswordScreen() {
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <StatusBar barStyle="light-content" />
         <Ionicons name="checkmark-circle" size={64} color={colors.primary} />
-        <Text style={[styles.title, { color: colors.foreground, marginTop: 20, textAlign: "center" }]}>
-          Password reset!
-        </Text>
-        <Text style={[styles.subtitle, { color: colors.mutedForeground, textAlign: "center" }]}>
-          Redirecting you to sign in…
-        </Text>
+        <Text style={[localizedTextStyle(), [styles.title, { color: colors.foreground, marginTop: 20, textAlign: "center" }]]}>{t("Password reset!")}</Text>
+        <Text style={[localizedTextStyle(), [styles.subtitle, { color: colors.mutedForeground, textAlign: "center" }]]}>{t("Redirecting you to sign in…")}</Text>
       </View>
     );
   }
@@ -111,10 +109,8 @@ export default function ForgotPasswordScreen() {
 
         {step === "email" && (
           <>
-            <Text style={[styles.title, { color: colors.foreground }]}>Forgot password?</Text>
-            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-              Enter your email and we'll send you a reset code.
-            </Text>
+            <Text style={[localizedTextStyle(), [styles.title, { color: colors.foreground }]]}>{t("Forgot password?")}</Text>
+            <Text style={[localizedTextStyle(), [styles.subtitle, { color: colors.mutedForeground }]]}>{t("Enter your email and we'll send you a reset code.")}</Text>
             <View style={styles.form}>
               <View style={[styles.inputBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Ionicons name="mail-outline" size={18} color={colors.mutedForeground} />
@@ -122,7 +118,7 @@ export default function ForgotPasswordScreen() {
                   style={[styles.input, { color: colors.foreground }]}
                   value={email}
                   onChangeText={setEmail}
-                  placeholder="Email address"
+                  placeholder={t("Email address")}
                   placeholderTextColor={colors.mutedForeground}
                   autoCapitalize="none"
                   keyboardType="email-address"
@@ -130,14 +126,14 @@ export default function ForgotPasswordScreen() {
                   autoFocus
                 />
               </View>
-              {error && <Text style={styles.errorText}>{error}</Text>}
+              {error && <Text style={styles.errorText}>{t(error)}</Text>}
               <TouchableOpacity
                 style={[styles.primaryBtn, { backgroundColor: colors.primary, opacity: !email.trim() || fetchStatus === "fetching" ? 0.5 : 1 }]}
                 onPress={handleSendCode}
                 disabled={!email.trim() || fetchStatus === "fetching"}
                 activeOpacity={0.85}
               >
-                {fetchStatus === "fetching" ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryBtnText}>Send reset code</Text>}
+                {fetchStatus === "fetching" ? <ActivityIndicator color="#FFF" /> : <Text style={[localizedTextStyle(), styles.primaryBtnText]}>{t("Send reset code")}</Text>}
               </TouchableOpacity>
             </View>
           </>
@@ -145,10 +141,8 @@ export default function ForgotPasswordScreen() {
 
         {step === "code" && (
           <>
-            <Text style={[styles.title, { color: colors.foreground }]}>Check your email</Text>
-            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-              We sent a code to {email}. Enter it below.
-            </Text>
+            <Text style={[localizedTextStyle(), [styles.title, { color: colors.foreground }]]}>{t("Check your email")}</Text>
+            <Text style={[localizedTextStyle(), [styles.subtitle, { color: colors.mutedForeground }]]}>{t("We sent a code to {v0}. Enter it below.", { v0: email })}</Text>
             <View style={styles.form}>
               <View style={[styles.inputBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Ionicons name="key-outline" size={18} color={colors.mutedForeground} />
@@ -156,23 +150,23 @@ export default function ForgotPasswordScreen() {
                   style={[styles.input, { color: colors.foreground }]}
                   value={code}
                   onChangeText={setCode}
-                  placeholder="Reset code"
+                  placeholder={t("Reset code")}
                   placeholderTextColor={colors.mutedForeground}
                   keyboardType="numeric"
                   autoFocus
                 />
               </View>
-              {error && <Text style={styles.errorText}>{error}</Text>}
+              {error && <Text style={styles.errorText}>{t(error)}</Text>}
               <TouchableOpacity
                 style={[styles.primaryBtn, { backgroundColor: colors.primary, opacity: !code.trim() || fetchStatus === "fetching" ? 0.5 : 1 }]}
                 onPress={handleVerifyCode}
                 disabled={!code.trim() || fetchStatus === "fetching"}
                 activeOpacity={0.85}
               >
-                {fetchStatus === "fetching" ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryBtnText}>Verify code</Text>}
+                {fetchStatus === "fetching" ? <ActivityIndicator color="#FFF" /> : <Text style={[localizedTextStyle(), styles.primaryBtnText]}>{t("Verify code")}</Text>}
               </TouchableOpacity>
               <TouchableOpacity onPress={handleSendCode} style={styles.linkRow}>
-                <Text style={[styles.linkText, { color: colors.primary }]}>Resend code</Text>
+                <Text style={[localizedTextStyle(), [styles.linkText, { color: colors.primary }]]}>{t("Resend code")}</Text>
               </TouchableOpacity>
             </View>
           </>
@@ -180,10 +174,8 @@ export default function ForgotPasswordScreen() {
 
         {step === "password" && (
           <>
-            <Text style={[styles.title, { color: colors.foreground }]}>New password</Text>
-            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-              Choose a strong password for your account.
-            </Text>
+            <Text style={[localizedTextStyle(), [styles.title, { color: colors.foreground }]]}>{t("New password")}</Text>
+            <Text style={[localizedTextStyle(), [styles.subtitle, { color: colors.mutedForeground }]]}>{t("Choose a strong password for your account.")}</Text>
             <View style={styles.form}>
               <View style={[styles.inputBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Ionicons name="lock-closed-outline" size={18} color={colors.mutedForeground} />
@@ -191,7 +183,7 @@ export default function ForgotPasswordScreen() {
                   style={[styles.input, { color: colors.foreground }]}
                   value={newPassword}
                   onChangeText={setNewPassword}
-                  placeholder="New password"
+                  placeholder={t("New password")}
                   placeholderTextColor={colors.mutedForeground}
                   secureTextEntry={!showPassword}
                   autoFocus
@@ -200,14 +192,14 @@ export default function ForgotPasswordScreen() {
                   <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={18} color={colors.mutedForeground} />
                 </TouchableOpacity>
               </View>
-              {error && <Text style={styles.errorText}>{error}</Text>}
+              {error && <Text style={styles.errorText}>{t(error)}</Text>}
               <TouchableOpacity
                 style={[styles.primaryBtn, { backgroundColor: colors.primary, opacity: !newPassword || fetchStatus === "fetching" ? 0.5 : 1 }]}
                 onPress={handleSubmitPassword}
                 disabled={!newPassword || fetchStatus === "fetching"}
                 activeOpacity={0.85}
               >
-                {fetchStatus === "fetching" ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryBtnText}>Reset password</Text>}
+                {fetchStatus === "fetching" ? <ActivityIndicator color="#FFF" /> : <Text style={[localizedTextStyle(), styles.primaryBtnText]}>{t("Reset password")}</Text>}
               </TouchableOpacity>
             </View>
           </>

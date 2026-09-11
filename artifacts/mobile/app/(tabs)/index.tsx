@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import { FollowingActivity } from "@/components/FollowingActivity";
 import { Ionicons } from "@expo/vector-icons";
 import { usePathname, useRouter } from "expo-router";
@@ -29,6 +30,7 @@ import { useColors } from "@/hooks/useColors";
 const CATEGORIES = ["All", "Premium", "Gaming", "Music", "Talk", "Art"];
 
 export default function DiscoveryScreen() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -93,7 +95,7 @@ export default function DiscoveryScreen() {
           activeOpacity={0.8}
         >
           <Ionicons name="radio" size={14} color="#FFF" />
-          <Text style={styles.goLiveBtnText}>Go Live</Text>
+          <Text style={[localizedTextStyle(), styles.goLiveBtnText]}>{t("Go Live")}</Text>
         </TouchableOpacity>
       </AccountHeader>
 
@@ -122,12 +124,12 @@ export default function DiscoveryScreen() {
                 activeOpacity={0.8}
               >
                 <Text
-                  style={[
+                  style={[localizedTextStyle(), [
                     styles.categoryChipText,
                     { color: active ? "#FFF" : colors.mutedForeground },
-                  ]}
+                  ]]}
                 >
-                  {item}
+                  {t(item === "All" ? "All categories" : item)}
                 </Text>
               </TouchableOpacity>
             );
@@ -169,15 +171,15 @@ export default function DiscoveryScreen() {
                 size={48}
                 color={colors.mutedForeground}
               />
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                {selectedFeed === "following" ? "No followed creators are live" : "No live streams"}
+              <Text style={[localizedTextStyle(), [styles.emptyTitle, { color: colors.foreground }]]}>
+                {selectedFeed === "following" ? t("No followed creators are live") : t("No live streams")}
               </Text>
               <Text
-                style={[styles.emptyText, { color: colors.mutedForeground }]}
+                style={[localizedTextStyle(), [styles.emptyText, { color: colors.mutedForeground }]]}
               >
                 {selectedFeed === "following"
-                  ? "Live streams from people you follow will appear here"
-                  : "Be the first to go live"}
+                  ? t("Live streams from people you follow will appear here")
+                  : t("Be the first to go live")}
               </Text>
               {selectedFeed === "discover" ? (
                 <TouchableOpacity
@@ -185,7 +187,7 @@ export default function DiscoveryScreen() {
                   onPress={() => router.push("/go-live" as any)}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.emptyBtnText}>Go Live Now</Text>
+                  <Text style={[localizedTextStyle(), styles.emptyBtnText]}>{t("Go Live Now")}</Text>
                 </TouchableOpacity>
               ) : null}
             </View>

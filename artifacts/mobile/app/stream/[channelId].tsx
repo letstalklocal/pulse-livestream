@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { createGiftPresentation, expectsNativeCrown } from "@/utils/giftPresentation";
 import { CrownArtwork } from "@/components/CrownArtwork";
 import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
@@ -110,6 +111,7 @@ const CATEGORY_COLORS: Record<string, [string, string]> = {
 };
 
 function DemoVideo({ category }: { category?: string }) {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const [bg1, bg2] = CATEGORY_COLORS[category ?? ""] ?? CATEGORY_COLORS["Other"]!;
   const shift = useRef(new Animated.Value(0)).current;
 
@@ -144,6 +146,7 @@ function StreamBackdrop({ imageUrl, demo = false, category }: {
   demo?: boolean;
   category?: string;
 }) {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   if (demo) return <DemoVideo category={category} />;
   return (
     <View style={[StyleSheet.absoluteFill, { backgroundColor: "#000" }]} pointerEvents="none">
@@ -154,6 +157,7 @@ function StreamBackdrop({ imageUrl, demo = false, category }: {
 }
 
 export default function StreamScreen() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const insets = useSafeAreaInsets();
   const keyboardVisible = useKeyboardState(state => state.isVisible);
   const router = useRouter();
@@ -842,7 +846,7 @@ export default function StreamScreen() {
         });
         void queryClient.invalidateQueries({ queryKey: getGetStreamChatQueryKey(channelId) });
       }).catch(error => {
-        Alert.alert("Message not sent", error instanceof Error ? error.message : "Check your connection and try again.");
+        Alert.alert(t("Message not sent"), error instanceof Error ? error.message : t("Check your connection and try again."));
       });
     }
   };
@@ -856,9 +860,9 @@ export default function StreamScreen() {
   if (accessRestricted) {
     return <View style={[styles.endedScreen, { padding: 24 }]}>
       <Ionicons name="lock-closed-outline" size={40} color="#FFF" />
-      <Text style={styles.endedTitle}>{stream?.viewerBlocked ? "Blocked from this creator's streams" : "Removed from this stream"}</Text>
-      <TouchableOpacity onPress={() => router.back()} style={{ padding: 16 }}><Text style={{ color: "#FF1966", fontSize: 16 }}>Back to streams</Text></TouchableOpacity>
-      <TouchableOpacity onPress={() => setShowReport(true)} style={{ padding: 12 }}><Text style={{ color: "#AAA" }}>Report stream</Text></TouchableOpacity>
+      <Text style={[localizedTextStyle(), styles.endedTitle]}>{stream?.viewerBlocked ? t("Blocked from this creator's streams") : t("Removed from this stream")}</Text>
+      <TouchableOpacity onPress={() => router.back()} style={{ padding: 16 }}><Text style={[localizedTextStyle(), { color: "#FF1966", fontSize: 16 }]}>{t("Back to streams")}</Text></TouchableOpacity>
+      <TouchableOpacity onPress={() => setShowReport(true)} style={{ padding: 12 }}><Text style={[localizedTextStyle(), { color: "#AAA" }]}>{t("Report stream")}</Text></TouchableOpacity>
       {showReport ? <ReportStreamSheet channelId={channelId ?? ""} onClose={() => setShowReport(false)} /> : null}
     </View>;
   }
@@ -867,10 +871,10 @@ export default function StreamScreen() {
     return (
       <View style={styles.endedScreen}>
         <View style={styles.endedCard}>
-          <Text style={styles.endedTitle}>Stream has ended</Text>
+          <Text style={[localizedTextStyle(), styles.endedTitle]}>{t("Stream has ended")}</Text>
           <Text style={styles.endedCountdown}>{countdown}</Text>
-          <Text style={styles.endedSub}>
-            {isPrivateStream ? "Returning to chat…" : "Returning to streams…"}
+          <Text style={[localizedTextStyle(), styles.endedSub]}>
+            {isPrivateStream ? t("Returning to chat…") : t("Returning to streams…")}
           </Text>
         </View>
       </View>
@@ -895,7 +899,7 @@ export default function StreamScreen() {
           <View style={styles.admissionBlocked}>
             <StreamBackdrop imageUrl={backgroundImageUrl} />
             <ActivityIndicator color="#FFF" />
-            <Text style={styles.nativeVideoStatusText}>Loading stream details…</Text>
+            <Text style={[localizedTextStyle(), styles.nativeVideoStatusText]}>{t("Loading stream details…")}</Text>
           </View>
         ) : streamEnded ? (
           <View style={[StyleSheet.absoluteFill, { backgroundColor: "#000" }]} />
@@ -911,7 +915,7 @@ export default function StreamScreen() {
               <View style={styles.nativeVideoStatus}>
                 <StreamBackdrop imageUrl={backgroundImageUrl} />
                 <ActivityIndicator color="#FFF" />
-                <Text style={styles.nativeVideoStatusText}>Waiting for host video…</Text>
+                <Text style={[localizedTextStyle(), styles.nativeVideoStatusText]}>{t("Waiting for host video…")}</Text>
               </View>
             ) : null}
           </>
@@ -923,8 +927,8 @@ export default function StreamScreen() {
             ) : (
               <ActivityIndicator color="#FFF" />
             )}
-            <Text style={styles.nativeVideoStatusText}>
-              {agoraError ?? (joined ? "Waiting for host video…" : "Connecting to live video…")}
+            <Text style={[localizedTextStyle(), styles.nativeVideoStatusText]}>
+              {agoraError ?? (joined ? t("Waiting for host video…") : t("Connecting to live video…"))}
             </Text>
           </View>
         ) : (
@@ -964,7 +968,7 @@ export default function StreamScreen() {
 
           <TouchableOpacity style={styles.statsRow} onPress={() => setShowLeaderboard(true)} activeOpacity={0.75}>
             <Text style={styles.coinEmoji}>🪙</Text>
-            <Text style={styles.statsText}>{hostCoins.toLocaleString()}</Text>
+            <Text style={styles.statsText}>{hostCoins.toLocaleString(appLocale())}</Text>
             <View style={styles.statsDivider} />
             <Ionicons name="eye" size={12} color="#FFF" />
             <Text style={styles.statsText}>
@@ -1018,7 +1022,7 @@ export default function StreamScreen() {
             value={inputText}
             onChangeText={setInputText}
             editable={!stream?.viewerMuted}
-            placeholder={stream?.viewerMuted ? "Chat muted by host" : "Say something…"}
+            placeholder={stream?.viewerMuted ? t("Chat muted by host") : t("Say something…")}
             placeholderTextColor="rgba(255,255,255,0.45)"
             onSubmitEditing={sendMessage}
             returnKeyType="send"
@@ -1106,7 +1110,7 @@ export default function StreamScreen() {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             },
             onError: () => {
-              Alert.alert("Gift not sent", "Check your coin balance and that the selected host is still live.");
+              Alert.alert(t("Gift not sent"), t("Check your coin balance and that the selected host is still live."));
             },
           },
         );
@@ -1127,17 +1131,17 @@ export default function StreamScreen() {
           <View style={styles.admissionIcon}>
             <Ionicons name="lock-closed" size={20} color="#FFD700" />
           </View>
-          <Text style={styles.admissionTitle}>Premium live</Text>
-          <Text style={styles.admissionHost}>{stream?.hostName ?? "Host"} · {stream?.title ?? "Live stream"}</Text>
+          <Text style={[localizedTextStyle(), styles.admissionTitle]}>{t("Premium live")}</Text>
+          <Text style={[localizedTextStyle(), styles.admissionHost]}>{stream?.hostName ?? t("Host")} · {stream?.title ?? t("Live stream")}</Text>
           <View style={styles.admissionGift}>
             {stream?.requiredGift?.name === "Crown" ? <CrownArtwork size={30} /> : <Text style={styles.admissionGiftEmoji}>{stream?.requiredGift?.emoji}</Text>}
             <View>
               <Text style={styles.admissionGiftName}>{stream?.requiredGift?.name}</Text>
-              <Text style={styles.admissionGiftCost}>Entry gift · 🪙 {stream?.requiredGift?.coinCost}</Text>
+              <Text style={[localizedTextStyle(), styles.admissionGiftCost]}>{t("Entry gift · 🪙 {v0}", { v0: stream?.requiredGift?.coinCost })}</Text>
             </View>
           </View>
-          <Text style={styles.admissionBalance}>Your balance: 🪙 {viewerCoins.toLocaleString()}</Text>
-          {admissionError ? <Text style={styles.admissionError}>{admissionError}</Text> : null}
+          <Text style={[localizedTextStyle(), styles.admissionBalance]}>{t("Your balance: 🪙 {v0}", { v0: viewerCoins.toLocaleString(appLocale()) })}</Text>
+          {admissionError ? <Text style={styles.admissionError}>{t(admissionError)}</Text> : null}
           <TouchableOpacity
             testID="premium-admission-confirm"
             style={[styles.admissionConfirm, admitToStream.isPending && styles.admissionConfirmDisabled]}
@@ -1145,7 +1149,7 @@ export default function StreamScreen() {
             disabled={admitToStream.isPending}
             activeOpacity={0.85}
           >
-            {admitToStream.isPending ? <ActivityIndicator color="#111118" /> : <Text style={styles.admissionConfirmText}>Send gift & enter</Text>}
+            {admitToStream.isPending ? <ActivityIndicator color="#111118" /> : <Text style={[localizedTextStyle(), styles.admissionConfirmText]}>{t("Send gift & enter")}</Text>}
           </TouchableOpacity>
           <TouchableOpacity
             testID="premium-admission-cancel"
@@ -1154,7 +1158,7 @@ export default function StreamScreen() {
             disabled={admitToStream.isPending}
             activeOpacity={0.75}
           >
-            <Text style={styles.admissionCancelText}>Not now</Text>
+            <Text style={[localizedTextStyle(), styles.admissionCancelText]}>{t("Not now")}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -1198,7 +1202,7 @@ export default function StreamScreen() {
                 }}
               >
                 <Ionicons name="share-outline" size={20} color="#FFF" />
-                <Text style={styles.kebabItemText}>Share</Text>
+                <Text style={[localizedTextStyle(), styles.kebabItemText]}>{t("Share")}</Text>
               </TouchableOpacity>
               <View style={styles.kebabDivider} />
               <TouchableOpacity
@@ -1206,12 +1210,12 @@ export default function StreamScreen() {
                 activeOpacity={0.7}
                 onPress={() => {
                   setShowKebabMenu(false);
-                  if (isDemo) { Alert.alert("Demo stream", "This is a demo, not a live creator stream."); return; }
+                  if (isDemo) { Alert.alert(t("Demo stream"), t("This is a demo, not a live creator stream.")); return; }
                   setShowReport(true);
                 }}
               >
                 <Ionicons name="flag-outline" size={20} color="#FF453A" />
-                <Text style={[styles.kebabItemText, { color: "#FF453A" }]}>Report</Text>
+                <Text style={[localizedTextStyle(), [styles.kebabItemText, { color: "#FF453A" }]]}>{t("Report")}</Text>
               </TouchableOpacity>
               <View style={styles.kebabDivider} />
               <TouchableOpacity
@@ -1223,7 +1227,7 @@ export default function StreamScreen() {
                 }}
               >
                 <Ionicons name="exit-outline" size={20} color="#FFF" />
-                <Text style={styles.kebabItemText}>Exit Live</Text>
+                <Text style={[localizedTextStyle(), styles.kebabItemText]}>{t("Exit Live")}</Text>
               </TouchableOpacity>
             </View>
           </TouchableWithoutFeedback>

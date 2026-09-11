@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Image, Text, TouchableOpacity, View } from "react-native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
@@ -15,6 +16,7 @@ type Photo = { id: number; imageUrl: string; caption: string; ownerUserId: numbe
 
 // Mount only after data arrives, so initialScrollIndex opens the chosen photo without a visible jump.
 function PhotoGallery({ posts, initialIndex, onIndexChange }: { posts: Photo[]; initialIndex: number; onIndexChange: (index: number) => void }) {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const { ready, markSeen } = useSeenPosts();
   const [activeIndex, setActiveIndex] = useState<number | null>(initialIndex);
   const [visibleIndex, setVisibleIndex] = useState(initialIndex);
@@ -51,6 +53,7 @@ function PhotoGallery({ posts, initialIndex, onIndexChange }: { posts: Photo[]; 
 }
 
 export default function PostsScreen() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const { uid, name, postId, saved } = useLocalSearchParams<{ uid: string; name: string; postId?: string; saved?: string }>();
   const { user } = useAuth();
   const ownerUid = Number(uid);
@@ -72,15 +75,15 @@ export default function PostsScreen() {
   const visibleIndex = position?.route === route ? position.index : Math.max(0, initialIndex);
   return <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top, paddingBottom: insets.bottom }}>
     <View style={{ flexDirection: "row", alignItems: "center", padding: 16, gap: 12 }}>
-      <TouchableOpacity onPress={() => router.back()} accessibilityLabel="Back" hitSlop={12}><Ionicons name="chevron-back" size={26} color={colors.foreground} /></TouchableOpacity>
-      <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: "600", flex: 1 }} numberOfLines={1}>{saved === "1" ? "Saved posts" : name || "Posts"}</Text>
-      {posts.length ? <Text style={{ color: colors.mutedForeground, fontSize: 13, minWidth: 64, textAlign: "right" }}>{Math.min(visibleIndex + 1, posts.length)} of {posts.length}</Text> : null}
+      <TouchableOpacity onPress={() => router.back()} accessibilityLabel={t("Back")} hitSlop={12}><Ionicons name="chevron-back" size={26} color={colors.foreground} /></TouchableOpacity>
+      <Text style={[localizedTextStyle(), { color: colors.foreground, fontSize: 18, fontWeight: "600", flex: 1 }]} numberOfLines={1}>{saved === "1" ? t("Saved posts") : name || t("Posts")}</Text>
+      {posts.length ? <Text style={[localizedTextStyle(), { color: colors.mutedForeground, fontSize: 13, minWidth: 64, textAlign: "right" }]}>{t("{v0} of {v1}", { v0: Math.min(visibleIndex + 1, posts.length), v1: posts.length })}</Text> : null}
       {posts[visibleIndex] && initialIndex >= 0 && !query.isError ? <PhotoOptions key={posts[visibleIndex].id} postId={posts[visibleIndex].id} ownerUid={posts[visibleIndex].ownerUserId} color={colors.foreground} /> : null}
     </View>
-    {!validOwner ? <Text style={{ color: colors.foreground, padding: 24 }}>Profile not found.</Text> : query.isLoading ? <ActivityIndicator color={colors.primary} /> : query.isError ?
-      (query.error as { status?: number } | null)?.status === 403 ? <Text style={{ color: colors.foreground, padding: 24 }}>Posts are shared with friends. Follow each other to view.</Text> : <TouchableOpacity onPress={() => void query.refetch()}><Text style={{ color: colors.foreground, padding: 24 }}>Could not load posts. Tap to retry.</Text></TouchableOpacity> : initialIndex < 0 ?
-      <Text style={{ color: colors.mutedForeground, padding: 24 }}>This photo is no longer available.</Text> : posts.length ?
+    {!validOwner ? <Text style={[localizedTextStyle(), { color: colors.foreground, padding: 24 }]}>{t("Profile not found.")}</Text> : query.isLoading ? <ActivityIndicator color={colors.primary} /> : query.isError ?
+      (query.error as { status?: number } | null)?.status === 403 ? <Text style={[localizedTextStyle(), { color: colors.foreground, padding: 24 }]}>{t("Posts are shared with friends. Follow each other to view.")}</Text> : <TouchableOpacity onPress={() => void query.refetch()}><Text style={[localizedTextStyle(), { color: colors.foreground, padding: 24 }]}>{t("Could not load posts. Tap to retry.")}</Text></TouchableOpacity> : initialIndex < 0 ?
+      <Text style={[localizedTextStyle(), { color: colors.mutedForeground, padding: 24 }]}>{t("This photo is no longer available.")}</Text> : posts.length ?
       <PhotoGallery key={route} posts={posts} initialIndex={initialIndex} onIndexChange={index => setPosition({ route, index })} /> :
-      <Text style={{ color: colors.mutedForeground, padding: 24 }}>No posts available.</Text>}
+      <Text style={[localizedTextStyle(), { color: colors.mutedForeground, padding: 24 }]}>{t("No posts available.")}</Text>}
   </View>;
 }

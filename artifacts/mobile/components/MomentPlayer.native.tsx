@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 import {
@@ -11,6 +12,7 @@ import {
 } from "react-native-agora";
 import { isBroadcasting } from "@/utils/agoraState";
 export default function MomentPlayer({ uri }: { uri: string }) {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const [playerId, setPlayerId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
@@ -103,7 +105,7 @@ export default function MomentPlayer({ uri }: { uri: string }) {
     >
       {error ? (
         <Text style={{ color: "white", textAlign: "center", padding: 24 }}>
-          {error}
+          {t(error)}
         </Text>
       ) : (
         <>
@@ -145,7 +147,7 @@ export default function MomentPlayer({ uri }: { uri: string }) {
             }}
             style={{ padding: 18, alignItems: "center" }}
           >
-            <Text style={{ color: "white" }}>Replay</Text>
+            <Text style={[localizedTextStyle(), { color: "white" }]}>{t("Replay")}</Text>
           </TouchableOpacity>
         </>
       )}

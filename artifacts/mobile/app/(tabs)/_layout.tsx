@@ -1,3 +1,4 @@
+import { t, useAppLanguage } from "@/i18n";
 import { BlurView } from "expo-blur";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
@@ -9,29 +10,31 @@ import { Platform, StyleSheet, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
 
 function NativeTabLayout() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Icon sf={{ default: "play.circle", selected: "play.circle.fill" }} />
-        <NativeTabs.Trigger.Label>Discover</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>{t("Discover")}</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="following">
         <NativeTabs.Trigger.Icon sf={{ default: "person.2", selected: "person.2.fill" }} />
-        <NativeTabs.Trigger.Label>Following</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>{t("Following")}</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="chat">
         <NativeTabs.Trigger.Icon sf={{ default: "message", selected: "message.fill" }} />
-        <NativeTabs.Trigger.Label>Messages</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>{t("Messages")}</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <NativeTabs.Trigger.Icon sf={{ default: "person.circle", selected: "person.circle.fill" }} />
-        <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>{t("Profile")}</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
 
 function ClassicTabLayout() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const colors = useColors();
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
@@ -67,7 +70,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Discover",
+          title: t("Discover"),
           tabBarIcon: ({ color, focused }) =>
             isIOS ? (
               <SymbolView
@@ -87,7 +90,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="following"
         options={{
-          title: "Following",
+          title: t("Following"),
           tabBarIcon: ({ color, focused }) =>
             isIOS ? (
               <SymbolView
@@ -107,7 +110,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="chat"
         options={{
-          title: "Messages",
+          title: t("Messages"),
           tabBarIcon: ({ color, focused }) =>
             isIOS ? (
               <SymbolView
@@ -127,7 +130,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
+          title: t("Profile"),
           tabBarIcon: ({ color, focused }) =>
             isIOS ? (
               <SymbolView
@@ -149,6 +152,7 @@ function ClassicTabLayout() {
 }
 
 export default function TabLayout() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   if (isLiquidGlassAvailable()) {
     return <NativeTabLayout />;
   }

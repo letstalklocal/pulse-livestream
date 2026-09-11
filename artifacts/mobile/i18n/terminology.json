@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "protectedTerms": [
+    "Pulse",
+    "LIVE",
+    "VS",
+    "Party",
+    "Rose",
+    "Heart",
+    "Party Popper",
+    "Diamond",
+    "Rocket",
+    "Crown",
+    "Premium",
+    "PREMIUM",
+    "Gamer",
+    "Live",
+    "live"
+  ],
+  "translateTerms": [
+    "Moments",
+    "My Vault"
+  ],
+  "giftNames": "Always render gift names from the catalog as provided, including future gifts. Never look up a gift name as interface copy."
+}

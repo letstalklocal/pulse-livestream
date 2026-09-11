@@ -1,3 +1,4 @@
+import { t, useAppLanguage } from "@/i18n";
 import { useAuth } from "@clerk/expo";
 import { Ionicons } from "@expo/vector-icons";
 import { usePathname, useRouter } from "expo-router";
@@ -24,6 +25,7 @@ import {
 } from "@/utils/inAppNotifications";
 
 export function InAppNotifications() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const { userId, getToken } = useAuth();
   const { preferences, isSuccess } = useNotificationPreferences();
   const pathname = usePathname();
@@ -185,7 +187,7 @@ export function InAppNotifications() {
         </TouchableOpacity>
         <TouchableOpacity
           accessibilityRole="button"
-          accessibilityLabel="Dismiss notification"
+          accessibilityLabel={t("Dismiss notification")}
           onPress={dismiss}
           style={styles.close}
         >

@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import { CrownArtwork } from "./CrownArtwork";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
@@ -11,6 +12,7 @@ export function LivePremiumSheet({ channelId, onClose, onConfirm }: {
   channelId: string; onClose: () => void;
   onConfirm: (giftId: string, freeViewerIds: number[]) => Promise<void>;
 }) {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState<"gift" | "viewers">("gift");
   const [giftId, setGiftId] = useState<string | null>(null);
@@ -31,15 +33,15 @@ export function LivePremiumSheet({ channelId, onClose, onConfirm }: {
   return (
     <Modal visible transparent animationType="slide" statusBarTranslucent onRequestClose={close}>
       <View style={styles.backdrop}>
-        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={close} disabled={busy} accessibilityLabel="Close Premium setup" />
+        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={close} disabled={busy} accessibilityLabel={t("Close Premium setup")} />
         <View style={[styles.sheet, { paddingBottom: insets.bottom + 18 }]}>
           <View style={styles.grabber} />
           <View style={styles.header}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.title}>{!showViewers ? "Choose an entry gift" : "Free entry · optional"}</Text>
-              <Text style={styles.subtitle}>{!showViewers ? "Viewers send this gift to enter your Premium live." : `${gift?.id === "crown" ? "" : `${gift?.emoji} `}${gift?.name} · ${gift?.coins} coins to enter. Choose anyone you'd like to let in free, or continue without selecting.`}</Text>
+              <Text style={[localizedTextStyle(), styles.title]}>{!showViewers ? t("Choose an entry gift") : t("Free entry · optional")}</Text>
+              <Text style={[localizedTextStyle(), styles.subtitle]}>{!showViewers ? t("Viewers send this gift to enter your Premium live.") : t("{v0}{v1} · {v2} coins to enter. Choose anyone you'd like to let in free, or continue without selecting.", { v0: gift?.id === "crown" ? "" : `${gift?.emoji} `, v1: gift?.name, v2: gift?.coins })}</Text>
             </View>
-            <TouchableOpacity onPress={close} disabled={busy} accessibilityLabel="Close" style={styles.close}><Ionicons name="close" size={20} color="#FFF" /></TouchableOpacity>
+            <TouchableOpacity onPress={close} disabled={busy} accessibilityLabel={t("Close")} style={styles.close}><Ionicons name="close" size={20} color="#FFF" /></TouchableOpacity>
           </View>
           {!showViewers ? (
             <ScrollView contentContainerStyle={styles.grid}>
@@ -49,26 +51,26 @@ export function LivePremiumSheet({ channelId, onClose, onConfirm }: {
               </TouchableOpacity>)}
             </ScrollView>
           ) : <>
-            <TextInput value={search} onChangeText={setSearch} placeholder="Search viewers" placeholderTextColor="#888" style={styles.search} editable={!busy} />
-            <Text style={styles.subtitle}>{selected.length ? `${selected.length} selected for free entry` : "Nobody selected — all viewers will need the entry gift"}</Text>
+            <TextInput value={search} onChangeText={setSearch} placeholder={t("Search viewers")} placeholderTextColor="#888" style={styles.search} editable={!busy} />
+            <Text style={[localizedTextStyle(), styles.subtitle]}>{selected.length ? t("{v0} selected for free entry", { v0: selected.length }) : t("Nobody selected — all viewers will need the entry gift")}</Text>
             <ScrollView style={{ minHeight: 80 }}>
-              {viewers.isLoading ? <ActivityIndicator color="#FF1966" /> : viewers.isError ? <TouchableOpacity onPress={() => void viewers.refetch()}><Text style={styles.subtitle}>Couldn't load viewers. Tap to retry, or continue without free entry.</Text></TouchableOpacity> : (viewers.data?.users ?? []).filter(viewer => viewer.name.toLowerCase().includes(search.toLowerCase())).map(viewer => (
+              {viewers.isLoading ? <ActivityIndicator color="#FF1966" /> : viewers.isError ? <TouchableOpacity onPress={() => void viewers.refetch()}><Text style={[localizedTextStyle(), styles.subtitle]}>{t("Couldn't load viewers. Tap to retry, or continue without free entry.")}</Text></TouchableOpacity> : (viewers.data?.users ?? []).filter(viewer => viewer.name.toLowerCase().includes(search.toLowerCase())).map(viewer => (
                 <TouchableOpacity key={viewer.uid} disabled={busy} style={styles.viewer} accessibilityRole="checkbox" accessibilityState={{ checked: selected.includes(viewer.uid) }} onPress={() => setSelected(current => current.includes(viewer.uid) ? current.filter(uid => uid !== viewer.uid) : [...current, viewer.uid])}>
                   <Avatar uid={viewer.uid} name={viewer.name} avatarUri={viewer.avatarImageUrl ?? undefined} size={36} /><Text style={[styles.giftName, { flex: 1 }]}>{viewer.name}</Text><Ionicons name={selected.includes(viewer.uid) ? "checkbox" : "square-outline"} size={24} color={selected.includes(viewer.uid) ? "#FF1966" : "#888"} />
                 </TouchableOpacity>
               ))}
-              {viewers.data?.users.length === 0 ? <Text style={styles.subtitle}>No current viewers. You can still go Premium.</Text> : null}
+              {viewers.data?.users.length === 0 ? <Text style={[localizedTextStyle(), styles.subtitle]}>{t("No current viewers. You can still go Premium.")}</Text> : null}
             </ScrollView>
           </>}
-          {error ? <Text style={{ color: "#FF879E", marginTop: 10 }}>{error}</Text> : null}
+          {error ? <Text style={{ color: "#FF879E", marginTop: 10 }}>{t(error)}</Text> : null}
           <TouchableOpacity style={[styles.submit, (!giftId || busy || checkingViewers) && { opacity: 0.5 }]} disabled={!giftId || busy || checkingViewers} onPress={() => {
             if (nextIsViewers) { setStep("viewers"); return; }
             setBusy(true); setError(null);
             void onConfirm(giftId!, noViewers ? [] : selected).catch(err => setError(err instanceof Error ? err.message : "Couldn't go Premium. Try again.")).finally(() => setBusy(false));
           }}>
-            {busy || checkingViewers ? <ActivityIndicator color="#FFF" /> : <><Ionicons name={nextIsViewers ? "arrow-forward" : "lock-closed"} size={18} color="#FFF" /><Text style={styles.submitText}>{!giftId ? "Choose a gift" : nextIsViewers ? "Next" : "Go Premium"}</Text></>}
+            {busy || checkingViewers ? <ActivityIndicator color="#FFF" /> : <><Ionicons name={nextIsViewers ? "arrow-forward" : "lock-closed"} size={18} color="#FFF" /><Text style={[localizedTextStyle(), styles.submitText]}>{!giftId ? t("Choose a gift") : nextIsViewers ? t("Next") : t("Go Premium")}</Text></>}
           </TouchableOpacity>
-          {showViewers ? <TouchableOpacity disabled={busy} onPress={() => setStep("gift")} style={{ padding: 12, alignItems: "center" }}><Text style={styles.giftName}>Change gift</Text></TouchableOpacity> : null}
+          {showViewers ? <TouchableOpacity disabled={busy} onPress={() => setStep("gift")} style={{ padding: 12, alignItems: "center" }}><Text style={[localizedTextStyle(), styles.giftName]}>{t("Change gift")}</Text></TouchableOpacity> : null}
         </View>
       </View>
     </Modal>

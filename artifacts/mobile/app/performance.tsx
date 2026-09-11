@@ -1,3 +1,4 @@
+import { t, useAppLanguage, appNumber, localizedTextStyle, appLocale } from "@/i18n";
 import React, { useCallback } from "react";
 import {
   ActivityIndicator,
@@ -43,16 +44,19 @@ const base = process.env.EXPO_PUBLIC_DOMAIN
   : "";
 function duration(seconds: number) {
   const minutes = Math.floor(seconds / 60);
+  if (!/^en(?:-|$)/i.test(appLocale())) return `${appNumber(Math.floor(minutes / 60), { style: "unit", unit: "hour", unitDisplay: "short" })} ${appNumber(minutes % 60, { style: "unit", unit: "minute", unitDisplay: "short" })}`;
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 function remaining(seconds: number) {
   const minutes = Math.ceil(Math.max(0, seconds) / 60);
+  if (!/^en(?:-|$)/i.test(appLocale())) return minutes >= 60 ? duration(minutes * 60) : appNumber(minutes, { style: "unit", unit: "minute", unitDisplay: "short" });
   return minutes >= 60
     ? `${Math.floor(minutes / 60)}h ${minutes % 60}m`
     : `${minutes}m`;
 }
 
 export default function PerformanceScreen() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const colors = useColors(),
     insets = useSafeAreaInsets(),
     router = useRouter();
@@ -103,7 +107,7 @@ export default function PerformanceScreen() {
     </View>
   );
   const monthName = data
-    ? new Date(`${data.month}-01T12:00:00`).toLocaleDateString(undefined, {
+    ? new Date(`${data.month}-01T12:00:00`).toLocaleDateString(appLocale(), {
         month: "long",
         year: "numeric",
       })
@@ -123,20 +127,20 @@ export default function PerformanceScreen() {
         <TouchableOpacity
           style={styles.button}
           accessibilityRole="button"
-          accessibilityLabel="Back to settings"
+          accessibilityLabel={t("Back to settings")}
           onPress={() => router.back()}
         >
           <Ionicons name="chevron-back" size={24} color={colors.foreground} />
         </TouchableOpacity>
-        <Text style={[styles.title, fg]}>Performance</Text>
+        <Text style={[localizedTextStyle(), [styles.title, fg]]}>{t("Performance")}</Text>
         <TouchableOpacity
           style={styles.button}
           accessibilityRole="button"
-          accessibilityLabel="About performance goals"
+          accessibilityLabel={t("About performance goals")}
           onPress={() =>
             Alert.alert(
-              "Performance goals",
-              `Stream on ${data?.level.days ?? 10} days and reach ${data?.level.hours ?? 20} total hours in a calendar month to meet the ${data?.level.bonusPercent ?? 5}% bonus goal.\n\nA day counts once you stream at least ${data?.level.dailyMinutes ?? 60} minutes in one stream within that day. Separate streams do not combine to qualify a day. All streaming time adds to monthly hours.\n\nDates use ${timezone}. Live time updates with stream heartbeats. The bonus is 5% of this month’s live gift earnings only, rounded down to whole coins. This is a running estimate; coins are not credited automatically.`,
+              t("Performance goals"),
+              t("Stream on {v0} days and reach {v1} total hours in a calendar month to meet the {v2}% bonus goal.\n\nA day counts once you stream at least {v3} minutes in one stream within that day. Separate streams do not combine to qualify a day. All streaming time adds to monthly hours.\n\nDates use {v4}. Live time updates with stream heartbeats. The bonus is 5% of this month’s live gift earnings only, rounded down to whole coins. This is a running estimate; coins are not credited automatically.", { v0: data?.level.days ?? 10, v1: data?.level.hours ?? 20, v2: data?.level.bonusPercent ?? 5, v3: data?.level.dailyMinutes ?? 60, v4: timezone }),
             )
           }
         >
@@ -163,13 +167,13 @@ export default function PerformanceScreen() {
         }
       >
         {!userId ? (
-          <Text style={fg}>Sign in to view performance.</Text>
+          <Text style={[localizedTextStyle(), fg]}>{t("Sign in to view performance.")}</Text>
         ) : query.isPending ? (
           <ActivityIndicator color={colors.primary} style={{ padding: 32 }} />
         ) : query.isError ? (
           <View style={[styles.card, card]}>
             <Text style={fg} accessibilityRole="alert">
-              {query.error.message}
+              {t(query.error.message)}
             </Text>
             <TouchableOpacity
               accessibilityRole="button"
@@ -178,7 +182,7 @@ export default function PerformanceScreen() {
                 void refetch();
               }}
             >
-              <Text style={{ color: colors.primary }}>Try again</Text>
+              <Text style={[localizedTextStyle(), { color: colors.primary }]}>{t("Try again")}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -198,26 +202,24 @@ export default function PerformanceScreen() {
                     }}
                   >
                     <Ionicons name="trophy-outline" size={22} color="#FFD68A" />
-                    <Text style={[styles.bonus, { color: "#FFD68A" }]}>
-                      {data.level.bonusPercent}% bonus
-                    </Text>
+                    <Text style={[localizedTextStyle(), [styles.bonus, { color: "#FFD68A" }]]}>{t("{v0}% bonus", { v0: data.level.bonusPercent })}</Text>
                   </View>
                   <Text
-                    style={[
+                    style={[localizedTextStyle(), [
                       styles.caption,
                       {
                         color: data.goalMet
                           ? "#61DBB6"
                           : colors.mutedForeground,
                       },
-                    ]}
+                    ]]}
                   >
-                    {data.goalMet ? "Goals met" : "In progress"}
+                    {data.goalMet ? t("Goals met") : t("In progress")}
                   </Text>
                 </View>
                 <View style={{ gap: 8 }}>
                   <View style={styles.row}>
-                    <Text style={[styles.medium, fg]}>Qualifying days</Text>
+                    <Text style={[localizedTextStyle(), [styles.medium, fg]]}>{t("Qualifying days")}</Text>
                     <Text style={[styles.medium, fg]}>
                       {data.qualifyingDays} / {data.level.days}
                     </Text>
@@ -226,47 +228,43 @@ export default function PerformanceScreen() {
                 </View>
                 <View style={{ gap: 8 }}>
                   <View style={styles.row}>
-                    <Text style={[styles.medium, fg]}>Monthly hours</Text>
+                    <Text style={[localizedTextStyle(), [styles.medium, fg]]}>{t("Monthly hours")}</Text>
                     <Text style={[styles.medium, fg]}>
                       {duration(data.seconds)} / {data.level.hours}h
                     </Text>
                   </View>
                   {progress(data.seconds, data.level.hours * 3600, "#FFD68A")}
                 </View>
-                <Text style={[styles.caption, muted]}>
+                <Text style={[localizedTextStyle(), [styles.caption, muted]]}>
                   {data.goalMet
-                    ? "Both monthly targets reached"
-                    : `${Math.max(0, data.level.days - data.qualifyingDays)} days · ${remaining(data.level.hours * 3600 - data.seconds)} left`}
+                    ? t("Both monthly targets reached")
+                    : t("{v0} days · {v1} left", { v0: Math.max(0, data.level.days - data.qualifyingDays), v1: remaining(data.level.hours * 3600 - data.seconds) })}
                 </Text>
               </View>
               <View style={[styles.card, card, { gap: 10 }]}>
                 <View style={styles.row}>
-                  <Text style={[styles.medium, fg]}>Live earnings</Text>
-                  <Text style={[styles.medium, fg]}>
-                    {data.liveCoins.toLocaleString()} coins
-                  </Text>
+                  <Text style={[localizedTextStyle(), [styles.medium, fg]]}>{t("Live earnings")}</Text>
+                  <Text style={[localizedTextStyle(), [styles.medium, fg]]}>{t("{v0} coins", { v0: data.liveCoins.toLocaleString(appLocale()) })}</Text>
                 </View>
                 <View style={styles.row}>
-                  <Text style={[styles.medium, fg]}>Estimated bonus</Text>
-                  <Text style={[styles.medium, { color: "#FFD68A" }]}>
-                    +{data.bonusCoins.toLocaleString()} coins
-                  </Text>
+                  <Text style={[localizedTextStyle(), [styles.medium, fg]]}>{t("Estimated bonus")}</Text>
+                  <Text style={[localizedTextStyle(), [styles.medium, { color: "#FFD68A" }]]}>{t("+{v0} coins", { v0: data.bonusCoins.toLocaleString(appLocale()) })}</Text>
                 </View>
-                <Text style={[styles.caption, muted]}>
+                <Text style={[localizedTextStyle(), [styles.caption, muted]]}>
                   {data.goalMet
-                    ? "Goals met · not yet credited"
-                    : "Unlock by meeting both goals"}
+                    ? t("Goals met · not yet credited")
+                    : t("Unlock by meeting both goals")}
                 </Text>
               </View>
               <View style={[styles.card, card, { gap: 10 }]}>
                 <View style={styles.row}>
-                  <Text style={[styles.medium, fg]}>Today</Text>
+                  <Text style={[localizedTextStyle(), [styles.medium, fg]]}>{t("Today")}</Text>
                   <Text style={[styles.medium, fg]}>
                     {duration(data.todaySeconds)}
                   </Text>
                 </View>
                 <View style={styles.row}>
-                  <Text style={[styles.caption, muted]}>Longest stream</Text>
+                  <Text style={[localizedTextStyle(), [styles.caption, muted]]}>{t("Longest stream")}</Text>
                   <Text style={[styles.caption, muted]}>
                     {duration(data.todayLongestSeconds)} /{" "}
                     {data.level.dailyMinutes / 60}h
@@ -278,7 +276,7 @@ export default function PerformanceScreen() {
                   "#61DBB6",
                 )}
                 <Text
-                  style={[
+                  style={[localizedTextStyle(), [
                     styles.caption,
                     {
                       color:
@@ -286,17 +284,17 @@ export default function PerformanceScreen() {
                           ? "#61DBB6"
                           : colors.mutedForeground,
                     },
-                  ]}
+                  ]]}
                 >
                   {data.todayLongestSeconds >= data.level.dailyMinutes * 60
-                    ? "Day qualified ✓"
-                    : `One ${data.level.dailyMinutes / 60}h stream needed`}
+                    ? t("Day qualified ✓")
+                    : t("One {v0}h stream needed", { v0: data.level.dailyMinutes / 60 })}
                 </Text>
               </View>
               <View style={{ gap: 12 }}>
                 <View style={styles.row}>
-                  <Text style={[styles.subtitle, fg]}>Streaming days</Text>
-                  <Text style={[styles.caption, muted]}>1h in one stream</Text>
+                  <Text style={[localizedTextStyle(), [styles.subtitle, fg]]}>{t("Streaming days")}</Text>
+                  <Text style={[localizedTextStyle(), [styles.caption, muted]]}>{t("1h in one stream")}</Text>
                 </View>
                 <View style={[styles.card, card]}>
                   <View style={styles.calendar}>
@@ -308,7 +306,7 @@ export default function PerformanceScreen() {
                         onPress={() =>
                           Alert.alert(
                             day.date,
-                            `${duration(day.seconds)} total\nLongest stream: ${duration(day.longestSeconds)}${day.qualified ? "\nDay qualified" : ""}`,
+                            t("{v0} total\nLongest stream: {v1}{v2}", { v0: duration(day.seconds), v1: duration(day.longestSeconds), v2: day.qualified ? "\nDay qualified" : "" }),
                           )
                         }
                         style={[

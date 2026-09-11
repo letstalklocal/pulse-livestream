@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { usePrivacyPreferences } from "@/hooks/usePrivacyPreferences";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -58,12 +59,13 @@ function catColors(cat: string): [string, string] {
   return CATEGORY_COLORS[cat] ?? ["#4FC3F7", "#1565C0"];
 }
 
-function formatDate(iso: string) {
+function formatDate(iso: string, locale: string) {
   const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return d.toLocaleDateString(locale, { month: "short", day: "numeric" });
 }
 
 export default function ProfileScreen() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const locationPrivacy = usePrivacyPreferences();
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -115,12 +117,12 @@ export default function ProfileScreen() {
   const choosePostImage = async () => {
     if (!user || isPublishingPost) return;
     if (Platform.OS === "web") {
-      Alert.alert("Not available", "Creating posts requires the native app.");
+      Alert.alert(t("Not available"), t("Creating posts requires the native app."));
       return;
     }
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("Permission needed", "Allow photo access to create a post.");
+      Alert.alert(t("Permission needed"), t("Allow photo access to create a post."));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -155,7 +157,7 @@ export default function ProfileScreen() {
       setPostCaption("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
-      Alert.alert("Post not shared", error instanceof Error ? error.message : "Try again.");
+      Alert.alert(t("Post not shared"), error instanceof Error ? error.message : t("Try again."));
     } finally {
       setIsPublishingPost(false);
     }
@@ -163,10 +165,10 @@ export default function ProfileScreen() {
 
   const confirmDeletePost = (postId: number) => {
     if (!user) return;
-    Alert.alert("Delete post?", "This post will be permanently removed.", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert(t("Delete post?"), t("This post will be permanently removed."), [
+      { text: t("Cancel"), style: "cancel" },
       {
-        text: "Delete",
+        text: t("Delete"),
         style: "destructive",
         onPress: async () => {
           try {
@@ -174,7 +176,7 @@ export default function ProfileScreen() {
             await queryClient.invalidateQueries({ queryKey: getGetUserPostsQueryKey(user.uid) });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           } catch (error) {
-            Alert.alert("Post not deleted", error instanceof Error ? error.message : "Try again.");
+            Alert.alert(t("Post not deleted"), error instanceof Error ? error.message : t("Try again."));
           }
         },
       },
@@ -184,12 +186,12 @@ export default function ProfileScreen() {
   const pickAvatar = async () => {
     if (!user || isUploadingAvatar) return;
     if (Platform.OS === "web") {
-      Alert.alert("Not available", "Avatar upload requires the native app.");
+      Alert.alert(t("Not available"), t("Avatar upload requires the native app."));
       return;
     }
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission needed", "Allow photo access to upload an avatar.");
+      Alert.alert(t("Permission needed"), t("Allow photo access to upload an avatar."));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -232,8 +234,8 @@ export default function ProfileScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch (error) {
         Alert.alert(
-          "Avatar not saved",
-          error instanceof Error ? error.message : "Choose another image and try again.",
+          t("Avatar not saved"),
+          error instanceof Error ? error.message : t("Choose another image and try again."),
         );
       } finally {
         setIsUploadingAvatar(false);
@@ -243,7 +245,7 @@ export default function ProfileScreen() {
 
   const saveProfile = () => {
     if (!editName.trim()) {
-      Alert.alert("Name required", "Please enter a display name.");
+      Alert.alert(t("Name required"), t("Please enter a display name."));
       return;
     }
     updateUser({ name: editName.trim(), bio: editBio.trim() });
@@ -263,21 +265,18 @@ export default function ProfileScreen() {
       <View style={[styles.container, { backgroundColor: colors.background, justifyContent: "center", alignItems: "center", paddingHorizontal: 32 }]}>
         <StatusBar barStyle="light-content" />
         <Ionicons name="person-circle-outline" size={64} color={colors.mutedForeground} />
-        <Text style={[styles.headerTitle, { color: colors.foreground, marginTop: 16, marginBottom: 8 }]}>Your Profile</Text>
-        <Text style={[styles.bio, { color: colors.mutedForeground, textAlign: "center", marginBottom: 32 }]}>
-          Sign in to build your profile, go live, and grow your audience on Pulse.
-        </Text>
+        <Text style={[localizedTextStyle(), [styles.headerTitle, { color: colors.foreground, marginTop: 16, marginBottom: 8 }]]}>{t("Your Profile")}</Text>
+        <Text style={[localizedTextStyle(), [styles.bio, { color: colors.mutedForeground, textAlign: "center", marginBottom: 32 }]]}>{t("Sign in to build your profile, go live, and grow your audience on Pulse.")}</Text>
         <TouchableOpacity
           style={[styles.goLiveBtn, { backgroundColor: colors.primary, paddingHorizontal: 48 }]}
           onPress={() => router.push("/(auth)/sign-in" as any)}
           activeOpacity={0.85}
         >
           <Ionicons name="log-in-outline" size={16} color="#FFF" />
-          <Text style={styles.goLiveBtnText}>Sign in</Text>
+          <Text style={[localizedTextStyle(), styles.goLiveBtnText]}>{t("Sign in")}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => router.push("/(auth)/sign-up" as any)} style={{ marginTop: 14 }}>
-          <Text style={[styles.bio, { color: colors.mutedForeground }]}>
-            No account? <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold" }}>Sign up</Text>
+          <Text style={[localizedTextStyle(), [styles.bio, { color: colors.mutedForeground }]]}>{t("No account? ")}<Text style={[localizedTextStyle(), { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>{t("Sign up")}</Text>
           </Text>
         </TouchableOpacity>
       </View>
@@ -294,7 +293,7 @@ export default function ProfileScreen() {
           <View style={styles.headerCoinBalance}>
             <Text style={styles.coinEmoji}>🪙</Text>
             <Text style={[styles.headerCoinAmount, { color: colors.foreground }]}>
-              {coinBalance.toLocaleString()}
+              {coinBalance.toLocaleString(appLocale())}
             </Text>
           </View>
           {editing ? (
@@ -319,7 +318,7 @@ export default function ProfileScreen() {
               style={styles.headerMenuBtn}
               onPress={() => router.push("/settings" as any)}
               accessibilityRole="button"
-              accessibilityLabel="Open settings"
+              accessibilityLabel={t("Open settings")}
               activeOpacity={0.8}
             >
               <Ionicons name="menu-outline" size={28} color={colors.foreground} />
@@ -342,7 +341,7 @@ export default function ProfileScreen() {
                 style={[styles.nameInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
                 value={editName}
                 onChangeText={setEditName}
-                placeholder="Display name"
+                placeholder={t("Display name")}
                 placeholderTextColor={colors.mutedForeground}
                 maxLength={32}
               />
@@ -350,7 +349,7 @@ export default function ProfileScreen() {
                 style={[styles.bioInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
                 value={editBio}
                 onChangeText={setEditBio}
-                placeholder="Bio"
+                placeholder={t("Bio")}
                 placeholderTextColor={colors.mutedForeground}
                 multiline
                 maxLength={120}
@@ -374,7 +373,7 @@ export default function ProfileScreen() {
                   activeOpacity={0.75}
                 >
                   <Ionicons name="pencil-outline" size={15} color={colors.foreground} />
-                  <Text style={[styles.editProfileText, { color: colors.foreground }]}>Edit Profile</Text>
+                  <Text style={[localizedTextStyle(), [styles.editProfileText, { color: colors.foreground }]]}>{t("Edit Profile")}</Text>
                 </TouchableOpacity>
               </View>
             </>
@@ -382,21 +381,21 @@ export default function ProfileScreen() {
 
           {/* Stats */}
           <View style={styles.statsRow}>
-            <TouchableOpacity style={styles.stat} accessibilityRole="button" accessibilityLabel="View followers"
+            <TouchableOpacity style={styles.stat} accessibilityRole="button" accessibilityLabel={t("View followers")}
               onPress={() => router.push({ pathname: "/connections/[uid]", params: { uid: String(user.uid), tab: "followers", name: user.name } })}>
               <Text style={[styles.statValue, { color: colors.foreground }]}>{profileData?.user.followersCount ?? user.followersCount}</Text>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Followers</Text>
+              <Text style={[localizedTextStyle(), [styles.statLabel, { color: colors.mutedForeground }]]}>{t("Followers")}</Text>
             </TouchableOpacity>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-            <TouchableOpacity style={styles.stat} accessibilityRole="button" accessibilityLabel="View following"
+            <TouchableOpacity style={styles.stat} accessibilityRole="button" accessibilityLabel={t("View following")}
               onPress={() => router.push({ pathname: "/connections/[uid]", params: { uid: String(user.uid), tab: "following", name: user.name } })}>
               <Text style={[styles.statValue, { color: colors.foreground }]}>{profileData?.user.followingCount ?? user.followingCount}</Text>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Following</Text>
+              <Text style={[localizedTextStyle(), [styles.statLabel, { color: colors.mutedForeground }]]}>{t("Following")}</Text>
             </TouchableOpacity>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.stat}>
               <Text style={[styles.statValue, { color: colors.foreground }]}>{streamHistory.length}</Text>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Streams</Text>
+              <Text style={[localizedTextStyle(), [styles.statLabel, { color: colors.mutedForeground }]]}>{t("Streams")}</Text>
             </View>
           </View>
 
@@ -411,7 +410,7 @@ export default function ProfileScreen() {
             ]}
             onPress={() => setHistoryView("grid")}
             activeOpacity={0.7}
-            accessibilityLabel="Grid view"
+            accessibilityLabel={t("Grid view")}
           >
             <Ionicons
               name={historyView === "grid" ? "grid" : "grid-outline"}
@@ -426,7 +425,7 @@ export default function ProfileScreen() {
             ]}
             onPress={() => setHistoryView("feed")}
             activeOpacity={0.7}
-            accessibilityLabel="Feed view"
+            accessibilityLabel={t("Feed view")}
           >
             <Ionicons
               name={historyView === "feed" ? "list" : "list-outline"}
@@ -434,21 +433,19 @@ export default function ProfileScreen() {
               color={historyView === "feed" ? colors.primary : colors.mutedForeground}
             />
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.viewOption, historyView === "saved" && { borderBottomColor: colors.primary }]} onPress={() => setHistoryView("saved")} accessibilityLabel="Saved posts" accessibilityRole="tab" accessibilityState={{ selected: historyView === "saved" }}>
+          <TouchableOpacity style={[styles.viewOption, historyView === "saved" && { borderBottomColor: colors.primary }]} onPress={() => setHistoryView("saved")} accessibilityLabel={t("Saved posts")} accessibilityRole="tab" accessibilityState={{ selected: historyView === "saved" }}>
             <Ionicons name={historyView === "saved" ? "bookmark" : "bookmark-outline"} size={22} color={historyView === "saved" ? colors.primary : colors.mutedForeground} />
           </TouchableOpacity>
         </View>
 
         {/* Past streams grid */}
-        {historyView === "saved" && (savedPosts.isPending || savedPosts.isError) ? <TouchableOpacity style={styles.emptyGrid} disabled={savedPosts.isPending} onPress={() => void savedPosts.refetch()}><Text style={{ color: colors.mutedForeground }}>{savedPosts.isPending ? "Loading saved posts..." : "Couldn't load saved posts. Retry"}</Text></TouchableOpacity> : posts.length === 0 ? (
+        {historyView === "saved" && (savedPosts.isPending || savedPosts.isError) ? <TouchableOpacity style={styles.emptyGrid} disabled={savedPosts.isPending} onPress={() => void savedPosts.refetch()}><Text style={[localizedTextStyle(), { color: colors.mutedForeground }]}>{savedPosts.isPending ? t("Loading saved posts...") : t("Couldn't load saved posts. Retry")}</Text></TouchableOpacity> : posts.length === 0 ? (
           <View style={styles.emptyGrid}>
             <Ionicons name="images-outline" size={36} color={colors.mutedForeground} />
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-              {historyView === "saved" ? "No saved posts yet" : "No posts yet"}
+            <Text style={[localizedTextStyle(), [styles.emptyText, { color: colors.mutedForeground }]]}>
+              {historyView === "saved" ? t("No saved posts yet") : t("No posts yet")}
             </Text>
-            {historyView !== "saved" ? <Text style={[styles.emptySubText, { color: colors.mutedForeground }]}>
-              Tap + to share your first photo
-            </Text> : null}
+            {historyView !== "saved" ? <Text style={[localizedTextStyle(), [styles.emptySubText, { color: colors.mutedForeground }]]}>{t("Tap + to share your first photo")}</Text> : null}
           </View>
         ) : historyView !== "feed" ? (
           <View style={styles.grid}>
@@ -457,7 +454,7 @@ export default function ProfileScreen() {
                 key={post.id}
                 style={styles.gridCell}
                 onPress={() => router.push({ pathname: "/posts/[uid]", params: { uid: String(user.uid), name: user.name, postId: String(post.id), saved: historyView === "saved" ? "1" : "0" } })}
-                accessibilityLabel="Open photo"
+                accessibilityLabel={t("Open photo")}
                 onLongPress={post.ownerUserId === user.uid ? () => confirmDeletePost(post.id) : undefined}
                 activeOpacity={0.85}
               >
@@ -484,12 +481,12 @@ export default function ProfileScreen() {
                       <Text style={[styles.feedUserName, { color: colors.foreground }]}>
                         {user.name}
                       </Text>
-                      <Text style={[styles.feedDate, { color: colors.mutedForeground }]}>{formatDate(post.createdAt)}</Text>
+                      <Text style={[styles.feedDate, { color: colors.mutedForeground }]}>{formatDate(post.createdAt, appLocale())}</Text>
                     </View>
                     <TouchableOpacity
                       onPress={() => confirmDeletePost(post.id)}
                       hitSlop={10}
-                      accessibilityLabel="Post options"
+                      accessibilityLabel={t("Post options")}
                     >
                       <Ionicons name="ellipsis-horizontal" size={20} color={colors.mutedForeground} />
                     </TouchableOpacity>
@@ -519,7 +516,7 @@ export default function ProfileScreen() {
         onPress={choosePostImage}
         activeOpacity={0.82}
         accessibilityRole="button"
-        accessibilityLabel="Create a new post"
+        accessibilityLabel={t("Create a new post")}
       >
         <Ionicons name="add" size={30} color="#FFF" />
       </TouchableOpacity>
@@ -528,7 +525,7 @@ export default function ProfileScreen() {
         <KeyboardAvoidingView style={styles.postModalBackdrop} behavior={Platform.OS === "ios" ? "padding" : "height"}>
           <View style={[styles.postModal, { backgroundColor: colors.card, paddingBottom: Math.max(insets.bottom, 16) }]}>
             <View style={[styles.postModalHeader, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.postModalTitle, { color: colors.foreground }]}>New Post</Text>
+              <Text style={[localizedTextStyle(), [styles.postModalTitle, { color: colors.foreground }]]}>{t("New Post")}</Text>
             </View>
             <View style={styles.postPreviewArea}>
               {postImage ? <Image source={{ uri: postImage.uri }} style={StyleSheet.absoluteFill} resizeMode="contain" /> : null}
@@ -537,7 +534,7 @@ export default function ProfileScreen() {
               <TextInput
                 value={postCaption}
                 onChangeText={setPostCaption}
-                placeholder="Write a caption…"
+                placeholder={t("Write a caption…")}
                 placeholderTextColor={colors.mutedForeground}
                 maxLength={2200}
                 multiline
@@ -549,11 +546,11 @@ export default function ProfileScreen() {
               </Text>
             <View style={styles.postModalFooter}>
               <TouchableOpacity style={styles.postModalButton} onPress={() => setPostImage(null)} disabled={isPublishingPost} accessibilityRole="button">
-                <Text style={[styles.postModalAction, { color: colors.mutedForeground }]}>Cancel</Text>
+                <Text style={[localizedTextStyle(), [styles.postModalAction, { color: colors.mutedForeground }]]}>{t("Cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.postModalButton, { backgroundColor: colors.primary, opacity: isPublishingPost ? 0.6 : 1 }]} onPress={publishPost} disabled={isPublishingPost} accessibilityRole="button" accessibilityState={{ disabled: isPublishingPost, busy: isPublishingPost }}>
-                <Text style={[styles.postModalAction, { color: "#FFF" }]}>
-                  {isPublishingPost ? "Posting…" : "Post"}
+                <Text style={[localizedTextStyle(), [styles.postModalAction, { color: "#FFF" }]]}>
+                  {isPublishingPost ? t("Posting…") : t("Post")}
                 </Text>
               </TouchableOpacity>
             </View>

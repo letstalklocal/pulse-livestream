@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { createGiftPresentation, expectsNativeCrown } from "@/utils/giftPresentation";
 import { CrownArtwork } from "@/components/CrownArtwork";
 import { momentsRequest } from "@/utils/moments";
@@ -106,6 +107,7 @@ function releaseAgoraEngine(engine: any) {
 }
 
 function DemoCamera({ color }: { color: string }) {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const pulse = useRef(new Animated.Value(0.7)).current;
   useEffect(() => {
     Animated.loop(
@@ -121,8 +123,8 @@ function DemoCamera({ color }: { color: string }) {
       <Animated.View style={[styles.demoCameraInner, { backgroundColor: color + "44", opacity: pulse }]} />
       <View style={styles.demoCameraIcon}>
         <Ionicons name="videocam" size={48} color={color} />
-        <Text style={[styles.demoCameraLabel, { color }]}>Live Preview</Text>
-        <Text style={styles.demoCameraNote}>Camera requires native build</Text>
+        <Text style={[localizedTextStyle(), [styles.demoCameraLabel, { color }]]}>{t("Live Preview")}</Text>
+        <Text style={[localizedTextStyle(), styles.demoCameraNote]}>{t("Camera requires native build")}</Text>
       </View>
     </View>
   );
@@ -156,6 +158,7 @@ async function requestPermissions(): Promise<MediaPermissionResult> {
 }
 
 export default function GoLiveScreen() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const liveDimensions = useWindowDimensions();
@@ -311,9 +314,9 @@ export default function GoLiveScreen() {
       const result = await startMomentProof(engine, channel, user!.uid,
         () => proofAllowedRef.current && engineRef.current === engine && isLiveRef.current && !isStoppingRef.current && (mediaChannelRef.current || activeChannelId) === channel,
         () => { const size = proofVideoSizeRef.current; return size && size.engine === engine && size.channel === channel ? { width: size.width, height: size.height } : null; });
-      Alert.alert(result.status === "captured" ? "Raw test clip captured" : "Test did not pass", result.error ?? "Ask the viewer whether they saw the animated crown. End this live, then open Settings → Moments → Live capture test and play/export the raw MP4. A captured file alone is not proof that the gift was recorded.");
+      Alert.alert(result.status === "captured" ? t("Raw test clip captured") : t("Test did not pass"), result.error ?? t("Ask the viewer whether they saw the animated crown. End this live, then open Settings → Moments → Live capture test and play/export the raw MP4. A captured file alone is not proof that the gift was recorded."));
     } catch (e) {
-      Alert.alert("Test unavailable", e instanceof Error ? e.message : "Please try again.");
+      Alert.alert(t("Test unavailable"), e instanceof Error ? e.message : t("Please try again."));
     } finally { setProofBusy(false); }
   };
   const incomingBattleId = party?.battle?.status === "pending" && party.battle.requesterUid !== user?.uid ? party.battle.id : null;
@@ -683,8 +686,8 @@ export default function GoLiveScreen() {
     if (!title.trim()) return;
     if (!user?.streamBackgroundImagePath) {
       Alert.alert(
-        "Background image required",
-        "Add a stream background image before going live.",
+        t("Background image required"),
+        t("Add a stream background image before going live."),
       );
       return;
     }
@@ -769,8 +772,8 @@ export default function GoLiveScreen() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert(
-        "Photo access required",
-        "Allow photo access to choose your stream background image.",
+        t("Photo access required"),
+        t("Allow photo access to choose your stream background image."),
       );
       return;
     }
@@ -816,8 +819,8 @@ export default function GoLiveScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       Alert.alert(
-        "Background not saved",
-        error instanceof Error ? error.message : "Choose another image and try again.",
+        t("Background not saved"),
+        error instanceof Error ? error.message : t("Choose another image and try again."),
       );
     } finally {
       setIsUploadingBackground(false);
@@ -931,11 +934,11 @@ export default function GoLiveScreen() {
 
   const confirmStopLive = useCallback(() => {
     Alert.alert(
-      "End live stream?",
-      "Your viewers will be disconnected and this live stream will end.",
+      t("End live stream?"),
+      t("Your viewers will be disconnected and this live stream will end."),
       [
-        { text: "Keep Streaming", style: "cancel" },
-        { text: "End Live", style: "destructive", onPress: () => void stopLive() },
+        { text: t("Keep Streaming"), style: "cancel" },
+        { text: t("End Live"), style: "destructive", onPress: () => void stopLive() },
       ],
     );
   }, [stopLive]);
@@ -997,7 +1000,7 @@ export default function GoLiveScreen() {
         if (status !== 404 || !stillLive()) return;
         serverEndedShutdownRef.current?.();
         setShowParty(false);
-        Alert.alert("Live stream ended", "This live session is no longer active. Start a new live to continue.");
+        Alert.alert(t("Live stream ended"), t("This live session is no longer active. Start a new live to continue."));
       },
     });
     privateHeartbeatFailuresRef.current = 0;
@@ -1060,18 +1063,17 @@ export default function GoLiveScreen() {
           <Ionicons name="chevron-back" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <Ionicons name="radio-outline" size={52} color={colors.primary} />
-        <Text style={[styles.gateTitle, { color: colors.foreground }]}>Sign in to go live</Text>
-        <Text style={[styles.gateSub, { color: colors.mutedForeground }]}>Create an account to start streaming to your audience</Text>
+        <Text style={[localizedTextStyle(), [styles.gateTitle, { color: colors.foreground }]]}>{t("Sign in to go live")}</Text>
+        <Text style={[localizedTextStyle(), [styles.gateSub, { color: colors.mutedForeground }]]}>{t("Create an account to start streaming to your audience")}</Text>
         <TouchableOpacity
           style={[styles.gateBtn, { backgroundColor: colors.primary }]}
           onPress={() => router.push("/(auth)/sign-in" as any)}
           activeOpacity={0.85}
         >
-          <Text style={styles.gateBtnText}>Sign in</Text>
+          <Text style={[localizedTextStyle(), styles.gateBtnText]}>{t("Sign in")}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => router.push("/(auth)/sign-up" as any)} style={{ marginTop: 12 }}>
-          <Text style={[styles.gateLink, { color: colors.mutedForeground }]}>
-            No account? <Text style={{ color: colors.primary }}>Sign up</Text>
+          <Text style={[localizedTextStyle(), [styles.gateLink, { color: colors.mutedForeground }]]}>{t("No account? ")}<Text style={[localizedTextStyle(), { color: colors.primary }]}>{t("Sign up")}</Text>
           </Text>
         </TouchableOpacity>
       </View>
@@ -1096,7 +1098,7 @@ export default function GoLiveScreen() {
         {cameraError ? (
           <View style={[styles.liveErrorBanner, { top: topPad + 66 }]}>
             <Ionicons name="warning" size={16} color="#FFF" />
-            <Text style={styles.liveErrorText}>{cameraError}</Text>
+            <Text style={styles.liveErrorText}>{t(cameraError)}</Text>
           </View>
         ) : null}
 
@@ -1110,14 +1112,14 @@ export default function GoLiveScreen() {
               <View style={styles.liveBadgeRow}>
                 <View style={styles.liveBadge}>
                   <View style={styles.liveDot} />
-                  <Text style={styles.liveBadgeText}>{liveStreamData?.stream.requiredGift || isPremium ? "PREMIUM" : "LIVE"}</Text>
+                  <Text style={[localizedTextStyle(), styles.liveBadgeText]}>{liveStreamData?.stream.requiredGift || isPremium ? t("PREMIUM") : t("LIVE")}</Text>
                 </View>
                 <Text style={styles.liveDuration}>{formatDuration(duration)}</Text>
               </View>
               <View style={styles.liveTopRight}>
                 {!isNative && (
                   <View style={styles.demoBadge}>
-                    <Text style={styles.demoBadgeText}>DEMO</Text>
+                    <Text style={[localizedTextStyle(), styles.demoBadgeText]}>{t("DEMO")}</Text>
                   </View>
                 )}
                 <TouchableOpacity
@@ -1125,9 +1127,9 @@ export default function GoLiveScreen() {
                   onPress={() => setShowLeaderboard(true)}
                   activeOpacity={0.75}
                 >
-                  <Text style={styles.viewerPillText}>🪙 {streamCoins.toLocaleString()}</Text>
+                  <Text style={styles.viewerPillText}>🪙 {streamCoins.toLocaleString(appLocale())}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.viewerPill} disabled={isPrivateInvite} onPress={() => setShowViewerManagement(true)} accessibilityLabel="Manage viewers">
+                <TouchableOpacity style={styles.viewerPill} disabled={isPrivateInvite} onPress={() => setShowViewerManagement(true)} accessibilityLabel={t("Manage viewers")}>
                   <Ionicons name="eye" size={13} color="#FFF" />
                   <Text style={styles.viewerPillText}>{viewerCount}</Text>
                 </TouchableOpacity>
@@ -1140,9 +1142,9 @@ export default function GoLiveScreen() {
             <View style={[styles.liveChatArea, vsActive && { maxHeight: keyboardVisible ? 0 : vsChatHeight, overflow: "hidden" }]} pointerEvents="box-none">
               <View style={styles.liveChatList}>
                 {chatMessages.slice(-6).map((item) => (
-                  <Pressable key={item.id} style={styles.liveChatBubble} onLongPress={() => Alert.alert("Remove message?", item.text, [
-                    { text: "Cancel", style: "cancel" },
-                    { text: "Remove", style: "destructive", onPress: () => void deleteStreamChatMessage(activeChannelId, item.id).then(() => queryClient.invalidateQueries({ queryKey: getGetStreamChatQueryKey(activeChannelId) })).catch(() => Alert.alert("Could not remove message", "Please try again.")) },
+                  <Pressable key={item.id} style={styles.liveChatBubble} onLongPress={() => Alert.alert(t("Remove message?"), item.text, [
+                    { text: t("Cancel"), style: "cancel" },
+                    { text: t("Remove"), style: "destructive", onPress: () => void deleteStreamChatMessage(activeChannelId, item.id).then(() => queryClient.invalidateQueries({ queryKey: getGetStreamChatQueryKey(activeChannelId) })).catch(() => Alert.alert(t("Could not remove message"), t("Please try again."))) },
                   ])}>
                     <Text style={[styles.liveChatSender, { color: item.color }]}>{item.senderName}: </Text>
                     <TranslatedMessage text={item.text} messageId={item.id} kind="live" channelId={activeChannelId} incoming={item.senderUid !== undefined && item.senderUid !== user?.uid} style={styles.liveChatText} />
@@ -1159,7 +1161,7 @@ export default function GoLiveScreen() {
                   style={styles.chatInput}
                   value={chatText}
                   onChangeText={setChatText}
-                  placeholder="Say something..."
+                  placeholder={t("Say something...")}
                   placeholderTextColor="rgba(255,255,255,0.4)"
                   returnKeyType="send"
                   onSubmitEditing={() => {
@@ -1179,7 +1181,7 @@ export default function GoLiveScreen() {
                           queryKey: getGetStreamChatQueryKey(channelIdRef.current),
                         });
                       }).catch(() => {
-                        Alert.alert("Message not sent", "Check your connection and try again.");
+                        Alert.alert(t("Message not sent"), t("Check your connection and try again."));
                       });
                     }
                   }}
@@ -1201,7 +1203,7 @@ export default function GoLiveScreen() {
               </TouchableOpacity>
 
               {!isPrivateInvite && !isPremium && !liveStreamData?.stream.requiredGift && !party ? (
-                <TouchableOpacity style={styles.liveIconBtn} onPress={() => setShowLivePremium(true)} accessibilityRole="button" accessibilityLabel="Convert to Premium" activeOpacity={0.7}>
+                <TouchableOpacity style={styles.liveIconBtn} onPress={() => setShowLivePremium(true)} accessibilityRole="button" accessibilityLabel={t("Convert to Premium")} activeOpacity={0.7}>
                   <Ionicons name="lock-closed-outline" size={26} color="#FFF" />
                 </TouchableOpacity>
               ) : null}
@@ -1214,7 +1216,7 @@ export default function GoLiveScreen() {
               <TouchableOpacity style={styles.liveIconBtn} onPress={toggleMute} activeOpacity={0.7}>
                 <Ionicons name={isMuted ? "mic-off" : "mic"} size={26} color={isMuted ? "#FF4444" : "#FFF"} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.liveIconBtn} onPress={() => setShowLiveMenu(true)} accessibilityLabel="More live options" activeOpacity={0.7}>
+              <TouchableOpacity style={styles.liveIconBtn} onPress={() => setShowLiveMenu(true)} accessibilityLabel={t("More live options")} activeOpacity={0.7}>
                 <Ionicons name="ellipsis-vertical" size={24} color="#FFF" />
               </TouchableOpacity>
             </View> : null}
@@ -1223,33 +1225,33 @@ export default function GoLiveScreen() {
         </LiveKeyboardAvoidingView>
 
         {showLiveMenu ? <View style={[StyleSheet.absoluteFill, { zIndex: 50 }]} accessibilityViewIsModal>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowLiveMenu(false)} accessibilityLabel="Close live options" />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowLiveMenu(false)} accessibilityLabel={t("Close live options")} />
           <View style={{ position: "absolute", left: 16, right: 16, bottom: bottomPad + 12 + liveBarHeight + 8,
             backgroundColor: "#1A1A2E", borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" }}>
             <TranslationToggle menu />
             {proofAllowed ? (
-              <TouchableOpacity disabled={proofBusy} accessibilityRole="button" accessibilityLabel="Test live gift capture"
+              <TouchableOpacity disabled={proofBusy} accessibilityRole="button" accessibilityLabel={t("Test live gift capture")}
                 style={{ paddingVertical: 18, paddingHorizontal: 20 }}
-                onPress={() => Alert.alert("Live gift capture test", "Double crown test v6: one second of camera only, two seconds with a still crown, then a moving crown. Use a fresh test live with a second phone watching. No coins are charged. Stay live until the seven-second raw clip is captured. Continue?", [
-                  { text: "Cancel", style: "cancel" },
-                  { text: "Run test", onPress: () => { void runMomentProof(); } },
+                onPress={() => Alert.alert(t("Live gift capture test"), t("Double crown test v6: one second of camera only, two seconds with a still crown, then a moving crown. Use a fresh test live with a second phone watching. No coins are charged. Stay live until the seven-second raw clip is captured. Continue?"), [
+                  { text: t("Cancel"), style: "cancel" },
+                  { text: t("Run test"), onPress: () => { void runMomentProof(); } },
                 ])}>
-                <Text style={{ color: "#FFF", fontSize: 16 }}>{proofBusy ? "Recording test…" : "Test live gift capture"}</Text>
+                <Text style={[localizedTextStyle(), { color: "#FFF", fontSize: 16 }]}>{proofBusy ? t("Recording test…") : t("Test live gift capture")}</Text>
               </TouchableOpacity>
             ) : null}
             {isNative && !isPrivateInvite && !isPremium && !liveStreamData?.stream.requiredGift ? (
-              <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 }} onPress={() => { setShowLiveMenu(false); setShowParty(true); }} accessibilityLabel="Party">
+              <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 }} onPress={() => { setShowLiveMenu(false); setShowParty(true); }} accessibilityLabel={t("Party")}>
                 <Ionicons name="people-outline" size={21} color={party ? "#FF1966" : "#FFF"} />
-                <Text style={{ color: "#FFF", fontSize: 16, fontFamily: "Inter_500Medium", flex: 1 }}>{party?.status === "active" ? "Party / VS" : "Party"}</Text>
+                <Text style={[localizedTextStyle(), { color: "#FFF", fontSize: 16, fontFamily: "Inter_500Medium", flex: 1 }]}>{party?.status === "active" ? t("Party / VS") : t("Party")}</Text>
                 <Ionicons name="chevron-forward" size={17} color="#999" />
               </TouchableOpacity>
             ) : null}
             {isNative ? <>
               <View style={{ height: 1, marginHorizontal: 20, backgroundColor: "rgba(255,255,255,0.08)" }} />
               <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 }}
-                onPress={() => { setShowLiveMenu(false); setShowBeauty(true); }} accessibilityRole="button" accessibilityLabel="Beauty effects">
+                onPress={() => { setShowLiveMenu(false); setShowBeauty(true); }} accessibilityRole="button" accessibilityLabel={t("Beauty effects")}>
                 <Ionicons name="sparkles-outline" size={21} color={beauty.enabled && !beautyError ? "#FF1966" : "#FFF"} />
-                <Text style={{ color: "#FFF", fontSize: 16, fontFamily: "Inter_500Medium", flex: 1 }}>Beauty</Text>
+                <Text style={[localizedTextStyle(), { color: "#FFF", fontSize: 16, fontFamily: "Inter_500Medium", flex: 1 }]}>{t("Beauty")}</Text>
                 <Ionicons name="chevron-forward" size={17} color="#999" />
               </TouchableOpacity>
             </> : null}
@@ -1304,8 +1306,8 @@ export default function GoLiveScreen() {
             ) : (
               <Ionicons name="videocam-off" size={40} color={catColor} />
             )}
-            <Text style={styles.fullScreenCameraStatusText}>
-              {cameraError ?? "Preparing camera…"}
+            <Text style={[localizedTextStyle(), styles.fullScreenCameraStatusText]}>
+              {cameraError ?? t("Preparing camera…")}
             </Text>
             {cameraError ? (
               <TouchableOpacity
@@ -1321,8 +1323,8 @@ export default function GoLiveScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                <Text style={styles.cameraRetryText}>
-                  {permissionCanAskAgain ? "Try Again" : "Open Settings"}
+                <Text style={[localizedTextStyle(), styles.cameraRetryText]}>
+                  {permissionCanAskAgain ? t("Try Again") : t("Open Settings")}
                 </Text>
               </TouchableOpacity>
             ) : null}
@@ -1362,7 +1364,7 @@ export default function GoLiveScreen() {
         style={[styles.closeBtn, { left: undefined, right: 20, top: topPad + 12 }]}
         onPress={() => setShowBeauty(true)}
         disabled={!cameraViewReady}
-        accessibilityLabel="Beauty effects"
+        accessibilityLabel={t("Beauty effects")}
         accessibilityRole="button"
       >
         <Ionicons name="sparkles-outline" size={24} color={beauty.enabled && !beautyError ? "#FF1966" : "#FFF"} />
@@ -1389,7 +1391,7 @@ export default function GoLiveScreen() {
                   onPress={() => { setCategory(cat); Haptics.selectionAsync(); }}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.compactCategoryText, selected ? styles.compactCategoryTextSelected : null]}>{cat}</Text>
+                  <Text style={[localizedTextStyle(), [styles.compactCategoryText, selected ? styles.compactCategoryTextSelected : null]]}>{t(cat)}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -1420,12 +1422,12 @@ export default function GoLiveScreen() {
               </View>
             </TouchableOpacity>
             <View style={styles.titleGlassCard}>
-              <Text style={styles.titleGlassLabel}>LIVE TITLE</Text>
+              <Text style={[localizedTextStyle(), styles.titleGlassLabel]}>{t("LIVE TITLE")}</Text>
               <TextInput
                 style={styles.titleGlassInput}
                 value={title}
                 onChangeText={setTitle}
-                placeholder="What are you streaming today?"
+                placeholder={t("What are you streaming today?")}
                 placeholderTextColor="rgba(255,255,255,0.55)"
                 maxLength={80}
                 returnKeyType="done"
@@ -1450,7 +1452,7 @@ export default function GoLiveScreen() {
                     Haptics.selectionAsync();
                   }}
                 >
-                  <Text style={styles.modeSecondaryText}>Go Live</Text>
+                  <Text style={[localizedTextStyle(), styles.modeSecondaryText]}>{t("Go Live")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   testID="go-live-submit"
@@ -1459,7 +1461,7 @@ export default function GoLiveScreen() {
                   disabled={!canStart}
                   activeOpacity={0.85}
                 >
-                  {isStarting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.modePrimaryText}>Go Premium</Text>}
+                  {isStarting ? <ActivityIndicator color="#FFF" /> : <Text style={[localizedTextStyle(), styles.modePrimaryText]}>{t("Go Premium")}</Text>}
                 </TouchableOpacity>
               </>
             ) : (
@@ -1471,7 +1473,7 @@ export default function GoLiveScreen() {
                   disabled={!canStart}
                   activeOpacity={0.85}
                 >
-                  {isStarting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.modePrimaryText}>Go Live</Text>}
+                  {isStarting ? <ActivityIndicator color="#FFF" /> : <Text style={[localizedTextStyle(), styles.modePrimaryText]}>{t("Go Live")}</Text>}
                 </TouchableOpacity>
                 {!isPrivateInvite ? (
                   <TouchableOpacity
@@ -1486,14 +1488,14 @@ export default function GoLiveScreen() {
                     activeOpacity={0.8}
                   >
                     <Ionicons name="key" size={17} color="#FFF" />
-                    <Text style={styles.modeSecondaryText}>Premium</Text>
+                    <Text style={[localizedTextStyle(), styles.modeSecondaryText]}>{t("Premium")}</Text>
                   </TouchableOpacity>
                 ) : null}
               </>
             )}
           </View>
           {!user.streamBackgroundImagePath ? (
-            <Text style={styles.setupRequirementText}>Add a background image before going live</Text>
+            <Text style={[localizedTextStyle(), styles.setupRequirementText]}>{t("Add a background image before going live")}</Text>
           ) : null}
         </View>
       </KeyboardAvoidingView>
@@ -1523,8 +1525,8 @@ export default function GoLiveScreen() {
             <View style={styles.giftSheetGrabber} />
             <View style={styles.giftSheetHeader}>
               <View>
-                <Text style={styles.giftSheetTitle}>Choose an entry gift</Text>
-                <Text style={styles.giftSheetSubtitle}>Viewers send this gift to enter your Premium live.</Text>
+                <Text style={[localizedTextStyle(), styles.giftSheetTitle]}>{t("Choose an entry gift")}</Text>
+                <Text style={[localizedTextStyle(), styles.giftSheetSubtitle]}>{t("Viewers send this gift to enter your Premium live.")}</Text>
               </View>
               <TouchableOpacity
                 style={styles.giftSheetClose}
@@ -1585,8 +1587,8 @@ export default function GoLiveScreen() {
               ) : (
                 <>
                   <Ionicons name="key" size={18} color="#FFF" />
-                  <Text style={styles.giftSheetSubmitText}>
-                    {draftRequiredGiftId ? "Go Premium" : "Choose a gift"}
+                  <Text style={[localizedTextStyle(), styles.giftSheetSubmitText]}>
+                    {draftRequiredGiftId ? t("Go Premium") : t("Choose a gift")}
                   </Text>
                 </>
               )}

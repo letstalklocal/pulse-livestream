@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
@@ -18,6 +19,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
 export default function NewChatScreen() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -49,11 +51,11 @@ export default function NewChatScreen() {
             onPress={() => router.back()}
             style={styles.backButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            accessibilityLabel="Back to messages"
+            accessibilityLabel={t("Back to messages")}
           >
             <Ionicons name="chevron-back" size={26} color={colors.foreground} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: colors.foreground }]}>New Message</Text>
+          <Text style={[localizedTextStyle(), [styles.title, { color: colors.foreground }]]}>{t("New Message")}</Text>
           <View style={styles.headerSpacer} />
         </View>
 
@@ -61,7 +63,7 @@ export default function NewChatScreen() {
           <Ionicons name="search" size={19} color={colors.mutedForeground} />
           <TextInput
             style={[styles.searchInput, { color: colors.foreground }]}
-            placeholder="Search contacts"
+            placeholder={t("Search contacts")}
             placeholderTextColor={colors.mutedForeground}
             value={search}
             onChangeText={setSearch}
@@ -72,7 +74,7 @@ export default function NewChatScreen() {
             clearButtonMode="while-editing"
           />
           {search.length > 0 ? (
-            <TouchableOpacity onPress={() => setSearch("")} accessibilityLabel="Clear search">
+            <TouchableOpacity onPress={() => setSearch("")} accessibilityLabel={t("Clear search")}>
               <Ionicons name="close-circle" size={19} color={colors.mutedForeground} />
             </TouchableOpacity>
           ) : null}
@@ -112,13 +114,13 @@ export default function NewChatScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Ionicons name="people-outline" size={44} color={colors.mutedForeground} />
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                {following.length === 0 ? "No contacts yet" : "No contacts found"}
+              <Text style={[localizedTextStyle(), [styles.emptyTitle, { color: colors.foreground }]]}>
+                {following.length === 0 ? t("No contacts yet") : t("No contacts found")}
               </Text>
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+              <Text style={[localizedTextStyle(), [styles.emptyText, { color: colors.mutedForeground }]]}>
                 {following.length === 0
-                  ? "Follow someone to start a conversation."
-                  : "Try searching for a different name."}
+                  ? t("Follow someone to start a conversation.")
+                  : t("Try searching for a different name.")}
               </Text>
             </View>
           }

@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { accountBalance } from "@/utils/accountBalance";
 import {
   getGetCoinBalanceQueryKey,
@@ -43,6 +44,7 @@ const base = process.env.EXPO_PUBLIC_DOMAIN
   : "";
 
 export default function AccountScreen() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -376,7 +378,7 @@ export default function AccountScreen() {
       {busy ? (
         <ActivityIndicator color="#FFF" />
       ) : (
-        <Text style={styles.buttonText}>{label}</Text>
+        <Text style={[localizedTextStyle(), styles.buttonText]}>{t(label)}</Text>
       )}
     </TouchableOpacity>
   );
@@ -388,9 +390,9 @@ export default function AccountScreen() {
     emailInput = false,
   ) => (
     <View style={styles.field}>
-      <Text style={[styles.label, { color: colors.foreground }]}>{label}</Text>
+      <Text style={[localizedTextStyle(), [styles.label, { color: colors.foreground }]]}>{t(label)}</Text>
       <TextInput
-        accessibilityLabel={label}
+        accessibilityLabel={t(label)}
         value={value}
         onChangeText={onChangeText}
         editable={!busy}
@@ -433,12 +435,12 @@ export default function AccountScreen() {
       </View>
       <View style={{ flex: 1 }}>
         <Text
-          style={[
+          style={[localizedTextStyle(), [
             styles.label,
             { color: danger ? "#FF4D67" : colors.foreground },
-          ]}
+          ]]}
         >
-          {label}
+          {t(label)}
         </Text>
         <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
           {subtitle}
@@ -467,7 +469,7 @@ export default function AccountScreen() {
         ]}
       >
         <TouchableOpacity
-          accessibilityLabel="Back"
+          accessibilityLabel={t("Back")}
           disabled={busy}
           style={[
             styles.back,
@@ -477,8 +479,8 @@ export default function AccountScreen() {
         >
           <Ionicons name="chevron-back" size={20} color={colors.foreground} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.foreground }]}>
-          {title}
+        <Text style={[localizedTextStyle(), [styles.title, { color: colors.foreground }]]}>
+          {t(title)}
         </Text>
         <View style={{ width: 38 }} />
       </View>
@@ -491,7 +493,7 @@ export default function AccountScreen() {
       >
         {!!error && (
           <Text accessibilityRole="alert" style={styles.error}>
-            {error}
+            {t(error)}
           </Text>
         )}
         {!!notice && (
@@ -499,30 +501,28 @@ export default function AccountScreen() {
             accessibilityLiveRegion="polite"
             style={[styles.description, { color: colors.primary }]}
           >
-            {notice}
+            {t(notice)}
           </Text>
         )}
         <>
           {page === "account" && (
             <>
               <Text
-                style={[styles.description, { color: colors.mutedForeground }]}
-              >
-                Manage your sign-in details and account.
-              </Text>
+                style={[localizedTextStyle(), [styles.description, { color: colors.mutedForeground }]]}
+              >{t("Manage your sign-in details and account.")}</Text>
               <View style={{ gap: 12 }}>
                 {row(
                   "Email address",
                   user!.primaryEmailAddress?.emailAddress ??
-                    "Add an email address",
+                    t("Add an email address"),
                   "mail-outline",
                   "email",
                 )}
                 {row(
                   "Password",
                   user!.passwordEnabled
-                    ? "Change your password"
-                    : "Set a password",
+                    ? t("Change your password")
+                    : t("Set a password"),
                   "lock-closed-outline",
                   "password",
                 )}
@@ -542,8 +542,8 @@ export default function AccountScreen() {
                 {row(
                   "Delete account",
                   deletion.data?.request?.status === "pending"
-                    ? "Removal request pending review"
-                    : "Request removal for manual review",
+                    ? t("Removal request pending review")
+                    : t("Request removal for manual review"),
                   "trash-outline",
                   "delete",
                   true,
@@ -554,13 +554,8 @@ export default function AccountScreen() {
           {page === "email" && (
             <>
               <Text
-                style={[styles.description, { color: colors.mutedForeground }]}
-              >
-                Current email:{" "}
-                {user!.primaryEmailAddress?.emailAddress ?? "None"}. Verify your
-                new email before making it primary. Your previous email will
-                still work for sign-in.
-              </Text>
+                style={[localizedTextStyle(), [styles.description, { color: colors.mutedForeground }]]}
+              >{t("Current email:{v0}{v1}. Verify your new email before making it primary. Your previous email will still work for sign-in.", { v0: " ", v1: user!.primaryEmailAddress?.emailAddress ?? "None" })}</Text>
               {pendingEmail ? (
                 <>
                   <Text
@@ -584,9 +579,7 @@ export default function AccountScreen() {
                       setNotice("");
                     }}
                   >
-                    <Text style={[styles.link, { color: colors.primary }]}>
-                      Use a different email
-                    </Text>
+                    <Text style={[localizedTextStyle(), [styles.link, { color: colors.primary }]]}>{t("Use a different email")}</Text>
                   </TouchableOpacity>
                 </>
               ) : (
@@ -600,11 +593,8 @@ export default function AccountScreen() {
           {page === "password" && (
             <>
               <Text
-                style={[styles.description, { color: colors.mutedForeground }]}
-              >
-                Choose a strong password. Changing it will sign you out of other
-                devices.
-              </Text>
+                style={[localizedTextStyle(), [styles.description, { color: colors.mutedForeground }]]}
+              >{t("Choose a strong password. Changing it will sign you out of other devices.")}</Text>
               {user!.passwordEnabled &&
                 field(
                   "Current password",
@@ -631,10 +621,8 @@ export default function AccountScreen() {
           {page === "connected" && (
             <>
               <Text
-                style={[styles.description, { color: colors.mutedForeground }]}
-              >
-                These accounts are connected to your Pulse sign-in.
-              </Text>
+                style={[localizedTextStyle(), [styles.description, { color: colors.mutedForeground }]]}
+              >{t("These accounts are connected to your Pulse sign-in.")}</Text>
               {user!.externalAccounts.map((account) => (
                 <View
                   key={account.id}
@@ -667,7 +655,7 @@ export default function AccountScreen() {
                       {account.emailAddress}
                     </Text>
                   </View>
-                  <Text style={{ color: colors.primary }}>Connected</Text>
+                  <Text style={[localizedTextStyle(), { color: colors.primary }]}>{t("Connected")}</Text>
                 </View>
               ))}
             </>
@@ -675,19 +663,14 @@ export default function AccountScreen() {
           {page === "delete" && (
             <>
               <Text
-                style={[
+                style={[localizedTextStyle(), [
                   styles.title,
                   { color: colors.foreground, marginBottom: 16 },
-                ]}
-              >
-                Request account deletion
-              </Text>
+                ]]}
+              >{t("Request account deletion")}</Text>
               <Text
-                style={[styles.description, { color: colors.mutedForeground }]}
-              >
-                Submit a request for the Pulse team to review. Your account
-                stays active until the review is complete.
-              </Text>
+                style={[localizedTextStyle(), [styles.description, { color: colors.mutedForeground }]]}
+              >{t("Submit a request for the Pulse team to review. Your account stays active until the review is complete.")}</Text>
               <View
                 style={[
                   styles.warning,
@@ -701,16 +684,16 @@ export default function AccountScreen() {
                 />
                 <Text
                   accessibilityLiveRegion="polite"
-                  style={[
+                  style={[localizedTextStyle(), [
                     styles.description,
                     { color: colors.foreground, marginBottom: 0, flex: 1 },
-                  ]}
+                  ]]}
                 >
                   {displayedBalance !== undefined
-                    ? `You have ${displayedBalance.toLocaleString()} ${displayedBalance === 1 ? "coin" : "coins"}.`
+                    ? t("You have {v0} {v1}.", { v0: displayedBalance.toLocaleString(appLocale()), v1: displayedBalance === 1 ? "coin" : "coins" })
                     : coins.isFetching || deletion.isFetching
-                      ? "Loading your balance…"
-                      : "Coin balance unavailable."}
+                      ? t("Loading your balance…")
+                      : t("Coin balance unavailable.")}
                 </Text>
               </View>
               {displayedBalance === undefined &&
@@ -719,38 +702,27 @@ export default function AccountScreen() {
                 button("Refresh balance", refreshAccount)}
               {displayedBalance !== undefined && displayedBalance > 0 && (
                 <Text
-                  style={[
+                  style={[localizedTextStyle(), [
                     styles.description,
                     { color: colors.mutedForeground },
-                  ]}
-                >
-                  You can request a review with coins remaining. The team must
-                  resolve your balance with you before removing your account.
-                  Your coins won’t be deducted by submitting this request.
-                </Text>
+                  ]]}
+                >{t("You can request a review with coins remaining. The team must resolve your balance with you before removing your account. Your coins won’t be deducted by submitting this request.")}</Text>
               )}
               {deletion.data?.request?.status === "pending" ? (
                 <>
                   <Text
-                    style={[styles.description, { color: colors.foreground }]}
-                  >
-                    Request #{deletion.data.request.id} is pending review.
-                    Submitted{" "}
-                    {new Date(
+                    style={[localizedTextStyle(), [styles.description, { color: colors.foreground }]]}
+                  >{t("Request #{v0} is pending review. Submitted{v1}{v2}.", { v0: deletion.data.request.id, v1: " ", v2: new Date(
                       deletion.data.request.requestedAt,
-                    ).toLocaleDateString()}
-                    .
-                  </Text>
+                    ).toLocaleDateString(appLocale()) })}</Text>
                   {button("Cancel deletion request", cancelDeletion)}
                 </>
               ) : (
                 <>
                   <View style={styles.field}>
-                    <Text style={[styles.label, { color: colors.foreground }]}>
-                      Reason (optional)
-                    </Text>
+                    <Text style={[localizedTextStyle(), [styles.label, { color: colors.foreground }]]}>{t("Reason (optional)")}</Text>
                     <TextInput
-                      accessibilityLabel="Reason (optional)"
+                      accessibilityLabel={t("Reason (optional)")}
                       multiline
                       maxLength={2000}
                       value={reason}
@@ -791,13 +763,11 @@ export default function AccountScreen() {
                   style={{ paddingVertical: 16 }}
                 >
                   <Text
-                    style={[
+                    style={[localizedTextStyle(), [
                       styles.subtitle,
                       { color: colors.mutedForeground, textAlign: "center" },
-                    ]}
-                  >
-                    Request status unavailable. Tap to retry.
-                  </Text>
+                    ]]}
+                  >{t("Request status unavailable. Tap to retry.")}</Text>
                 </TouchableOpacity>
               ) : null}
             </>
@@ -819,28 +789,26 @@ export default function AccountScreen() {
           style={styles.scrim}
         >
           <View style={[styles.modal, { backgroundColor: colors.card }]}>
-            <Text style={[styles.title, { color: colors.foreground }]}>
-              Verify it’s you
-            </Text>
+            <Text style={[localizedTextStyle(), [styles.title, { color: colors.foreground }]]}>{t("Verify it’s you")}</Text>
             <Text
-              style={[
+              style={[localizedTextStyle(), [
                 styles.description,
                 { color: colors.mutedForeground, marginTop: 16 },
-              ]}
+              ]]}
             >
-              {verifyLabel || "Preparing verification…"}
+              {verifyLabel || t("Preparing verification…")}
             </Text>
             {!!verifyError && (
               <Text accessibilityRole="alert" style={styles.error}>
-                {verifyError}
+                {t(verifyError)}
               </Text>
             )}
             {verifyMethod && (
               <TextInput
                 accessibilityLabel={
                   verifyMethod === "password"
-                    ? "Current password"
-                    : "Verification code"
+                    ? t("Current password")
+                    : t("Verification code")
                 }
                 value={verifyValue}
                 onChangeText={setVerifyValue}
@@ -905,7 +873,7 @@ export default function AccountScreen() {
               {verifyBusy ? (
                 <ActivityIndicator color="#FFF" />
               ) : (
-                <Text style={styles.buttonText}>Continue</Text>
+                <Text style={[localizedTextStyle(), styles.buttonText]}>{t("Continue")}</Text>
               )}
             </TouchableOpacity>
             <TouchableOpacity
@@ -917,9 +885,7 @@ export default function AccountScreen() {
                 setVerifyValue("");
               }}
             >
-              <Text style={[styles.link, { color: colors.mutedForeground }]}>
-                Cancel
-              </Text>
+              <Text style={[localizedTextStyle(), [styles.link, { color: colors.mutedForeground }]]}>{t("Cancel")}</Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>

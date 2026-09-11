@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import React from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { Redirect, useRouter } from "expo-router";
@@ -54,6 +55,7 @@ const categories: {
   },
 ];
 export default function NotificationSettings() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -76,15 +78,15 @@ export default function NotificationSettings() {
       ]}
     >
       <View style={{ flex: 1, gap: 5 }}>
-        <Text style={[styles.label, { color: colors.foreground }]}>
-          {title}
+        <Text style={[localizedTextStyle(), [styles.label, { color: colors.foreground }]]}>
+          {t(title)}
         </Text>
-        <Text style={[styles.detail, { color: colors.mutedForeground }]}>
-          {detail}
+        <Text style={[localizedTextStyle(), [styles.detail, { color: colors.mutedForeground }]]}>
+          {t(detail)}
         </Text>
       </View>
       <Switch
-        accessibilityLabel={title}
+        accessibilityLabel={t(title)}
         value={preferences[key]}
         disabled={
           !isSuccess || save.isPending || (!master && !preferences.enabled)
@@ -108,7 +110,7 @@ export default function NotificationSettings() {
         ]}
       >
         <TouchableOpacity
-          accessibilityLabel="Back to Settings"
+          accessibilityLabel={t("Back to Settings")}
           onPress={() => router.back()}
           style={[
             styles.back,
@@ -117,9 +119,7 @@ export default function NotificationSettings() {
         >
           <Ionicons name="chevron-back" size={20} color={colors.foreground} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.foreground }]}>
-          Notifications
-        </Text>
+        <Text style={[localizedTextStyle(), [styles.title, { color: colors.foreground }]]}>{t("Notifications")}</Text>
         <View style={{ width: 38 }} />
       </View>
       <ScrollView
@@ -128,10 +128,7 @@ export default function NotificationSettings() {
           paddingBottom: insets.bottom + 32,
         }}
       >
-        <Text style={[styles.intro, { color: colors.mutedForeground }]}>
-          Choose the alerts you see while using Pulse. Notifications outside the
-          app will be added later.
-        </Text>
+        <Text style={[localizedTextStyle(), [styles.intro, { color: colors.mutedForeground }]]}>{t("Choose the alerts you see while using Pulse. Notifications outside the app will be added later.")}</Text>
         {isPending && (
           <ActivityIndicator
             color={colors.primary}
@@ -145,26 +142,22 @@ export default function NotificationSettings() {
               void refetch();
             }}
           >
-            <Text style={styles.error}>
-              Couldn’t load settings. Tap to retry.
-            </Text>
+            <Text style={[localizedTextStyle(), styles.error]}>{t("Couldn’t load settings. Tap to retry.")}</Text>
           </TouchableOpacity>
         )}
         {save.isError && (
           <Text accessibilityRole="alert" style={styles.error}>
-            {save.error.message}
+            {t(save.error.message)}
           </Text>
         )}
         {save.isPending && (
           <Text
             accessibilityLiveRegion="polite"
-            style={[
+            style={[localizedTextStyle(), [
               styles.detail,
               { color: colors.mutedForeground, marginBottom: 12 },
-            ]}
-          >
-            Saving…
-          </Text>
+            ]]}
+          >{t("Saving…")}</Text>
         )}
         <View
           style={[
@@ -179,9 +172,7 @@ export default function NotificationSettings() {
             true,
           )}
         </View>
-        <Text style={[styles.heading, { color: colors.mutedForeground }]}>
-          NOTIFY ME ABOUT
-        </Text>
+        <Text style={[localizedTextStyle(), [styles.heading, { color: colors.mutedForeground }]]}>{t("NOTIFY ME ABOUT")}</Text>
         <View
           style={[
             styles.section,
@@ -190,9 +181,7 @@ export default function NotificationSettings() {
         >
           {categories.map((item) => row(item.key, item.title, item.detail))}
         </View>
-        <Text style={[styles.heading, { color: colors.mutedForeground }]}>
-          PREVIEWS
-        </Text>
+        <Text style={[localizedTextStyle(), [styles.heading, { color: colors.mutedForeground }]]}>{t("PREVIEWS")}</Text>
         <View
           style={[
             styles.section,
@@ -206,14 +195,11 @@ export default function NotificationSettings() {
           )}
         </View>
         <Text
-          style={[
+          style={[localizedTextStyle(), [
             styles.intro,
             { color: colors.mutedForeground, marginTop: 20 },
-          ]}
-        >
-          Turning off alerts won’t stop messages, gifts, or invitations from
-          arriving.
-        </Text>
+          ]]}
+        >{t("Turning off alerts won’t stop messages, gifts, or invitations from arriving.")}</Text>
       </ScrollView>
     </View>
   );

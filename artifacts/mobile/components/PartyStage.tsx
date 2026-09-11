@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Modal, PanResponder, Pressable, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,6 +16,7 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onWin
   onWindowInteraction?: (active: boolean) => void;
   onPartnerDoubleTap?: (channelId: string) => void;
 }) {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const peer = party?.status === "active" ? party.participants.find(p => p.channelId !== channelId) : undefined;
@@ -111,7 +113,7 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onWin
           pointerEvents={hidden && !vs ? "none" : "auto"}
           accessibilityElementsHidden={hidden && !vs}
           importantForAccessibility={hidden && !vs ? "no-hide-descendants" : "auto"}
-          accessibilityLabel={`Party partner: ${peer.name}`}
+          accessibilityLabel={t("Party partner: {v0}", { v0: peer.name })}
         >
           <Pressable style={StyleSheet.absoluteFill} disabled={vs || hidden}
             onPressIn={() => {
@@ -123,8 +125,8 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onWin
             onLongPress={() => { cancelTap(); longPressed.current = true; setShowPartnerInfo(true); interactionCallback.current?.(false); }}
             delayLongPress={450}
             accessibilityRole={!vs ? "button" : undefined}
-            accessibilityLabel={`${compact ? "Enlarge" : "Shrink"} ${peer.name}'s party window`}
-            accessibilityHint={`${onPartnerDoubleTap ? "Double tap to switch streams. " : ""}Tap to change size. Swipe right to hide. Long press for user information and audio controls.`}
+            accessibilityLabel={t("{v0} {v1}'s party window", { v0: compact ? "Enlarge" : "Shrink", v1: peer.name })}
+            accessibilityHint={t("{v0}Tap to change size. Swipe right to hide. Long press for user information and audio controls.", { v0: onPartnerDoubleTap ? "Double tap to switch streams. " : "" })}
             accessibilityActions={onPartnerDoubleTap ? [{ name: "switchStream", label: `Watch ${peer.name}'s stream` }] : undefined}
             onAccessibilityAction={event => { if (event.nativeEvent.actionName === "switchStream" && !vs && !hidden) { cancelTap(); onPartnerDoubleTap?.(peer.channelId); } }}>
           {Video && media.connection ? <Video
@@ -135,7 +137,7 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onWin
           /> : null}
           {!media.ready ? <View style={styles.waiting}>
             <Avatar uid={peer.uid} name={peer.name} avatarUri={peer.avatarUrl ?? undefined} size={40} />
-            {media.error ? <TouchableOpacity onPress={media.retry} accessibilityLabel="Retry partner video"><Text style={styles.retry}>Reconnect</Text></TouchableOpacity> : <ActivityIndicator color="#FFF" />}
+            {media.error ? <TouchableOpacity onPress={media.retry} accessibilityLabel={t("Retry partner video")}><Text style={[localizedTextStyle(), styles.retry]}>{t("Reconnect")}</Text></TouchableOpacity> : <ActivityIndicator color="#FFF" />}
           </View> : null}
           {vs ? <Text style={styles.name} numberOfLines={1}>{peer.name}</Text> : null}
           </Pressable>
@@ -144,45 +146,45 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onWin
       {peer && hidden && !vs ? (
         <Pressable style={[styles.restorePartner, { top: windowTop + 10 }]}
           onPress={() => setHidden(false)} accessibilityRole="button"
-          accessibilityLabel={`Show ${peer.name}'s party window`}>
+          accessibilityLabel={t("Show {v0}'s party window", { v0: peer.name })}>
           <Ionicons name="chevron-back" size={22} color="#FFF" />
         </Pressable>
       ) : null}
       {peer && showPartnerInfo ? (
         <Modal transparent visible animationType="slide" statusBarTranslucent onRequestClose={() => setShowPartnerInfo(false)}>
           <View style={styles.infoBackdrop}>
-            <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowPartnerInfo(false)} accessibilityLabel="Close partner information" />
+            <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowPartnerInfo(false)} accessibilityLabel={t("Close partner information")} />
             <View style={[styles.infoSheet, { paddingBottom: insets.bottom + 20 }]}>
               <View style={styles.infoHeading}>
-                <Text style={styles.infoTitle}>Party partner</Text>
-                <Pressable onPress={() => setShowPartnerInfo(false)} style={styles.infoClose} accessibilityLabel="Close partner information"><Ionicons name="close" size={24} color="#FFF" /></Pressable>
+                <Text style={[localizedTextStyle(), styles.infoTitle]}>{t("Party partner")}</Text>
+                <Pressable onPress={() => setShowPartnerInfo(false)} style={styles.infoClose} accessibilityLabel={t("Close partner information")}><Ionicons name="close" size={24} color="#FFF" /></Pressable>
               </View>
               <View style={styles.infoPerson}>
                 <Avatar uid={peer.uid} name={peer.name} avatarUri={peer.avatarUrl ?? undefined} size={56} />
-                <View style={{ flex: 1 }}><Text style={styles.infoName}>{peer.name}</Text><Text style={styles.infoDetail}>ID: {peer.uid}</Text></View>
+                <View style={{ flex: 1 }}><Text style={styles.infoName}>{peer.name}</Text><Text style={[localizedTextStyle(), styles.infoDetail]}>{t("ID: {v0}", { v0: peer.uid })}</Text></View>
               </View>
               <Pressable style={styles.audioAction} onPress={() => media.setAudioMuted(!media.audioMuted)}
-                accessibilityRole="button" accessibilityLabel={media.audioMuted ? "Unmute partner audio" : "Mute partner audio"}>
+                accessibilityRole="button" accessibilityLabel={media.audioMuted ? t("Unmute partner audio") : t("Mute partner audio")}>
                 <Ionicons name={media.audioMuted ? "volume-mute-outline" : "volume-high-outline"} size={23} color="#FFF" />
-                <Text style={styles.audioActionText}>{media.audioMuted ? "Unmute audio" : "Mute audio"}</Text>
+                <Text style={[localizedTextStyle(), styles.audioActionText]}>{media.audioMuted ? t("Unmute audio") : t("Mute audio")}</Text>
               </Pressable>
-              <Text style={styles.infoDetail}>Only changes what you hear.</Text>
-              {media.audioError ? <Text style={styles.audioError} accessibilityRole="alert">{media.audioError}</Text> : null}
+              <Text style={[localizedTextStyle(), styles.infoDetail]}>{t("Only changes what you hear.")}</Text>
+              {media.audioError ? <Text style={styles.audioError} accessibilityRole="alert">{t(media.audioError)}</Text> : null}
             </View>
           </View>
         </Modal>
       ) : null}
       {battleActive && !vs && mine && peer ? (
         <View style={[styles.partyBattleBar, { top: insets.top + 54 }]} pointerEvents="none"
-          accessible accessibilityLabel={`${mine.name}: ${myScore.toLocaleString()} coins. ${peer.name}: ${peerScore.toLocaleString()} coins. ${countdown ? `Starts in ${countdown}` : `${remaining} seconds remaining`}`}>
+          accessible accessibilityLabel={t("{v0}: {v1} coins. {v2}: {v3} coins. {v4}", { v0: mine.name, v1: myScore.toLocaleString(appLocale()), v2: peer.name, v3: peerScore.toLocaleString(appLocale()), v4: countdown ? `Starts in ${countdown}` : `${remaining} seconds remaining` })}>
           <View style={styles.partyBattleTrack} />
           <View style={styles.partyBattleAvatarRing}>
             <Avatar uid={mine.uid} name={mine.name} avatarUri={mine.avatarUrl ?? undefined} size={32} />
           </View>
           <View style={styles.partyBattleLabels}>
-            <Text style={styles.partyBattleCoins} numberOfLines={1} adjustsFontSizeToFit><Text style={styles.partyBattleCoinIcon}>🪙 </Text>{myScore.toLocaleString()}</Text>
-            <Text style={styles.partyBattleClock}>{countdown ? `Starts ${countdown}` : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`}</Text>
-            <Text style={[styles.partyBattleCoins, { textAlign: "right" }]} numberOfLines={1} adjustsFontSizeToFit><Text style={styles.partyBattleCoinIcon}>🪙 </Text>{peerScore.toLocaleString()}</Text>
+            <Text style={styles.partyBattleCoins} numberOfLines={1} adjustsFontSizeToFit><Text style={styles.partyBattleCoinIcon}>🪙 </Text>{myScore.toLocaleString(appLocale())}</Text>
+            <Text style={[localizedTextStyle(), styles.partyBattleClock]}>{countdown ? t("Starts {v0}", { v0: countdown }) : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`}</Text>
+            <Text style={[styles.partyBattleCoins, { textAlign: "right" }]} numberOfLines={1} adjustsFontSizeToFit><Text style={styles.partyBattleCoinIcon}>🪙 </Text>{peerScore.toLocaleString(appLocale())}</Text>
           </View>
           <View style={styles.partyBattleAvatarRing}>
             <Avatar uid={peer.uid} name={peer.name} avatarUri={peer.avatarUrl ?? undefined} size={32} />
@@ -191,9 +193,9 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onWin
       ) : null}
       {vs ? <View style={[styles.scoreboard, { top: top + panelHeight }]} pointerEvents="none">
         <View style={styles.scores}>
-          <Text style={[styles.score, { color: "#FF4E86" }]}>{myScore.toLocaleString()}</Text>
-          <Text style={styles.timer}>{countdown ? `Starts in ${countdown}` : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`}</Text>
-          <Text style={[styles.score, { color: "#44D7CD" }]}>{peerScore.toLocaleString()}</Text>
+          <Text style={[styles.score, { color: "#FF4E86" }]}>{myScore.toLocaleString(appLocale())}</Text>
+          <Text style={[localizedTextStyle(), styles.timer]}>{countdown ? t("Starts in {v0}", { v0: countdown }) : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`}</Text>
+          <Text style={[styles.score, { color: "#44D7CD" }]}>{peerScore.toLocaleString(appLocale())}</Text>
         </View>
         <View style={styles.scoreTrack}>
           <View style={{ flex: myScore + peerScore ? myScore : 1, backgroundColor: "#FF4E86" }} />
@@ -201,7 +203,7 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onWin
         </View>
       </View> : null}
       {peer && battle?.status === "finished" && battle.endsAt && now < battle.endsAt + 10000 ? (
-        <View style={[styles.result, { top: insets.top + 54 }]} pointerEvents="none"><Text style={styles.resultText}>{winner ? `${winner.name} wins VS` : "VS ends in a draw"}</Text></View>
+        <View style={[styles.result, { top: insets.top + 54 }]} pointerEvents="none"><Text style={[localizedTextStyle(), styles.resultText]}>{winner ? t("{v0} wins VS", { v0: winner.name }) : t("VS ends in a draw")}</Text></View>
       ) : null}
     </View>
   );

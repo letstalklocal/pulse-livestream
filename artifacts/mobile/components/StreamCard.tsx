@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
@@ -56,6 +57,7 @@ function formatViewers(count: number): string {
 }
 
 export function StreamCard({ stream, isVisible = false }: Props) {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const colors = useColors();
   const router = useRouter();
   const [bg1, bg2] = CATEGORY_COLORS[stream.category] ?? CATEGORY_COLORS["Other"]!;
@@ -78,7 +80,7 @@ export function StreamCard({ stream, isVisible = false }: Props) {
       activeOpacity={0.85}
       accessibilityLabel={
         stream.requiredGift
-          ? `${stream.title}, Premium live, requires ${stream.requiredGift.coinCost.toLocaleString()} coins`
+          ? t("{v0}, Premium live, requires {v1} coins", { v0: stream.title, v1: stream.requiredGift.coinCost.toLocaleString(appLocale()) })
           : stream.title
       }
     >
@@ -99,15 +101,13 @@ export function StreamCard({ stream, isVisible = false }: Props) {
 
         {/* Top-left: category */}
         <View style={[styles.categoryBadge, { backgroundColor: bg1 }]}>
-          <Text style={styles.categoryText}>{stream.category.toUpperCase()}</Text>
+          <Text style={[localizedTextStyle(), styles.categoryText]}>{t(stream.category.toUpperCase())}</Text>
         </View>
 
         {stream.requiredGift ? (
           <View style={[styles.premiumBadge, { backgroundColor: colors.accent }]}>
             <Ionicons name="lock-closed" size={9} color={colors.accentForeground} />
-            <Text style={[styles.premiumText, { color: colors.accentForeground }]}>
-              PREMIUM · {stream.requiredGift.coinCost.toLocaleString()}
-            </Text>
+            <Text style={[localizedTextStyle(), [styles.premiumText, { color: colors.accentForeground }]]}>{t("PREMIUM · {v0}", { v0: stream.requiredGift.coinCost.toLocaleString(appLocale()) })}</Text>
             <Ionicons name="logo-bitcoin" size={10} color={colors.accentForeground} />
           </View>
         ) : null}

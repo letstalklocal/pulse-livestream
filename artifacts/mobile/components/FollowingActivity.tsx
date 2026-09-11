@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import React, { useCallback } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -8,6 +9,7 @@ import { useSeenPosts } from "@/hooks/useSeenPosts";
 import { Avatar } from "./Avatar";
 
 export function FollowingActivity() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const { user } = useAuth();
   const colors = useColors();
   const router = useRouter();
@@ -43,7 +45,7 @@ export function FollowingActivity() {
               <View style={[styles.ring, { borderColor: ringColor }]}>
                 <Avatar uid={person.uid} name={person.name} avatarUri={person.avatarImageUrl ?? undefined} size={44} />
               </View>
-              {label ? <View style={[styles.badge, { backgroundColor: ringColor }]}><Text style={[styles.badgeText, { color: label === "PREMIUM" ? "#111" : "#FFF" }]}>{label}</Text></View> : null}
+              {label ? <View style={[styles.badge, { backgroundColor: ringColor }]}><Text style={[localizedTextStyle(), [styles.badgeText, { color: label === "PREMIUM" ? "#111" : "#FFF" }]]}>{t(label)}</Text></View> : null}
               <Text numberOfLines={1} style={[styles.name, { color: colors.foreground }]}>{person.name}</Text>
             </TouchableOpacity>
           );

@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import { Ionicons } from "@expo/vector-icons";
 import { useSignIn, useAuth } from "@clerk/expo";
 import { Link, useRouter } from "expo-router";
@@ -19,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 
 export default function SignInScreen() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -70,10 +72,8 @@ export default function SignInScreen() {
             <View style={[styles.logoDot, { backgroundColor: colors.primary }]} />
             <Text style={[styles.logoText, { color: colors.foreground }]}>Pulse</Text>
           </View>
-          <Text style={[styles.title, { color: colors.foreground }]}>Verify your identity</Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            We sent a code to your email
-          </Text>
+          <Text style={[localizedTextStyle(), [styles.title, { color: colors.foreground }]]}>{t("Verify your identity")}</Text>
+          <Text style={[localizedTextStyle(), [styles.subtitle, { color: colors.mutedForeground }]]}>{t("We sent a code to your email")}</Text>
 
           <View style={[styles.inputBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Ionicons name="key-outline" size={18} color={colors.mutedForeground} />
@@ -81,7 +81,7 @@ export default function SignInScreen() {
               style={[styles.input, { color: colors.foreground }]}
               value={verifyCode}
               onChangeText={setVerifyCode}
-              placeholder="Verification code"
+              placeholder={t("Verification code")}
               placeholderTextColor={colors.mutedForeground}
               keyboardType="numeric"
               autoFocus
@@ -100,15 +100,15 @@ export default function SignInScreen() {
             {fetchStatus === "fetching" ? (
               <ActivityIndicator color="#FFF" />
             ) : (
-              <Text style={styles.primaryBtnText}>Verify</Text>
+              <Text style={[localizedTextStyle(), styles.primaryBtnText]}>{t("Verify")}</Text>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => signIn.mfa.sendEmailCode()} style={styles.linkRow}>
-            <Text style={[styles.linkText, { color: colors.primary }]}>Resend code</Text>
+            <Text style={[localizedTextStyle(), [styles.linkText, { color: colors.primary }]]}>{t("Resend code")}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => signIn.reset()} style={styles.linkRow}>
-            <Text style={[styles.linkText, { color: colors.mutedForeground }]}>Start over</Text>
+            <Text style={[localizedTextStyle(), [styles.linkText, { color: colors.mutedForeground }]]}>{t("Start over")}</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -131,10 +131,8 @@ export default function SignInScreen() {
           <Text style={[styles.logoText, { color: colors.foreground }]}>Pulse</Text>
         </View>
 
-        <Text style={[styles.title, { color: colors.foreground }]}>Welcome back</Text>
-        <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-          Sign in to go live and build your audience
-        </Text>
+        <Text style={[localizedTextStyle(), [styles.title, { color: colors.foreground }]]}>{t("Welcome back")}</Text>
+        <Text style={[localizedTextStyle(), [styles.subtitle, { color: colors.mutedForeground }]]}>{t("Sign in to go live and build your audience")}</Text>
 
         <View style={styles.form}>
           <View style={[styles.inputBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -143,7 +141,7 @@ export default function SignInScreen() {
               style={[styles.input, { color: colors.foreground }]}
               value={email}
               onChangeText={setEmail}
-              placeholder="Email address"
+              placeholder={t("Email address")}
               placeholderTextColor={colors.mutedForeground}
               autoCapitalize="none"
               keyboardType="email-address"
@@ -160,7 +158,7 @@ export default function SignInScreen() {
               style={[styles.input, { color: colors.foreground }]}
               value={password}
               onChangeText={setPassword}
-              placeholder="Password"
+              placeholder={t("Password")}
               placeholderTextColor={colors.mutedForeground}
               secureTextEntry={!showPassword}
             />
@@ -174,7 +172,7 @@ export default function SignInScreen() {
 
           <Link href="/(auth)/forgot-password" asChild>
             <Pressable style={styles.forgotRow}>
-              <Text style={[styles.forgotText, { color: colors.primary }]}>Forgot password?</Text>
+              <Text style={[localizedTextStyle(), [styles.forgotText, { color: colors.primary }]]}>{t("Forgot password?")}</Text>
             </Pressable>
           </Link>
 
@@ -190,16 +188,16 @@ export default function SignInScreen() {
             {fetchStatus === "fetching" ? (
               <ActivityIndicator color="#FFF" />
             ) : (
-              <Text style={styles.primaryBtnText}>Sign in</Text>
+              <Text style={[localizedTextStyle(), styles.primaryBtnText]}>{t("Sign in")}</Text>
             )}
           </TouchableOpacity>
         </View>
 
         <View style={styles.footerRow}>
-          <Text style={[styles.footerText, { color: colors.mutedForeground }]}>Don't have an account? </Text>
+          <Text style={[localizedTextStyle(), [styles.footerText, { color: colors.mutedForeground }]]}>{t("Don't have an account? ")}</Text>
           <Link href="/(auth)/sign-up" asChild>
             <Pressable>
-              <Text style={[styles.footerLink, { color: colors.primary }]}>Sign up</Text>
+              <Text style={[localizedTextStyle(), [styles.footerLink, { color: colors.primary }]]}>{t("Sign up")}</Text>
             </Pressable>
           </Link>
         </View>

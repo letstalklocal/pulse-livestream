@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import React, { useState } from "react";
 import { ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,6 +10,7 @@ import { Avatar } from "./Avatar";
 export function ViewerManagementSheet({ channelId, onClose, onProfile }: {
   channelId: string; onClose: () => void; onProfile: (uid: number, name: string) => void;
 }) {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const insets = useSafeAreaInsets();
   const client = useQueryClient();
   const [tab, setTab] = useState<"viewers" | "restricted">("viewers");
@@ -37,40 +39,40 @@ export function ViewerManagementSheet({ channelId, onClose, onProfile }: {
       });
     };
     if (action === "block" || action === "remove") {
-      Alert.alert(`${action === "block" ? "Block" : "Remove"} ${selected.name}?`, action === "block" ? "This blocks contact and access to each other’s content and live streams across Pulse." : "They won't be able to rejoin this stream unless you allow them back.", [{ text: "Cancel", style: "cancel" }, { text: action === "block" ? "Block" : "Remove", style: "destructive", onPress: execute }]);
+      Alert.alert(`${action === "block" ? "Block" : "Remove"} ${selected.name}?`, action === "block" ? t("This blocks contact and access to each other’s content and live streams across Pulse.") : t("They won't be able to rejoin this stream unless you allow them back."), [{ text: t("Cancel"), style: "cancel" }, { text: action === "block" ? t("Block") : t("Remove"), style: "destructive", onPress: execute }]);
     } else execute();
   };
   return <Modal visible transparent animationType="slide" onRequestClose={close} statusBarTranslucent>
     <View style={styles.backdrop}>
-      <TouchableOpacity style={StyleSheet.absoluteFill} onPress={close} accessibilityLabel="Close viewer list" />
+      <TouchableOpacity style={StyleSheet.absoluteFill} onPress={close} accessibilityLabel={t("Close viewer list")} />
       <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
         <View style={styles.header}>
-          <Text style={styles.title}>{selected ? selected.name : "Manage viewers"}</Text>
-          <TouchableOpacity onPress={close} disabled={mutation.isPending} accessibilityLabel="Close"><Ionicons name="close" size={24} color="#FFF" /></TouchableOpacity>
+          <Text style={[localizedTextStyle(), styles.title]}>{selected ? selected.name : t("Manage viewers")}</Text>
+          <TouchableOpacity onPress={close} disabled={mutation.isPending} accessibilityLabel={t("Close")}><Ionicons name="close" size={24} color="#FFF" /></TouchableOpacity>
         </View>
         {selected ? <>
           <View style={{ alignItems: "center", marginVertical: 12 }}><Avatar uid={selected.uid} name={selected.name} avatarUri={selected.avatarImageUrl ?? undefined} size={60} /></View>
-          <TouchableOpacity disabled={mutation.isPending} style={styles.action} onPress={() => { onClose(); onProfile(selected.uid, selected.name); }}><Ionicons name="person-outline" color="#FFF" size={20} /><Text style={styles.text}>View profile</Text></TouchableOpacity>
+          <TouchableOpacity disabled={mutation.isPending} style={styles.action} onPress={() => { onClose(); onProfile(selected.uid, selected.name); }}><Ionicons name="person-outline" color="#FFF" size={20} /><Text style={[localizedTextStyle(), styles.text]}>{t("View profile")}</Text></TouchableOpacity>
           {([
             [selected.muted ? "unmute" : "mute", selected.muted ? "Unmute chat" : "Mute chat for this stream"],
             [selected.removed ? "allow" : "remove", selected.removed ? "Allow back into this stream" : "Remove from this stream"],
             [selected.blocked ? "unblock" : "block", selected.blocked ? "Unblock from my streams" : "Block from my streams"],
-          ] as [ModerateStreamViewerBodyAction, string][]).map(([action, label]) => <TouchableOpacity key={action} style={styles.action} disabled={mutation.isPending} onPress={() => act(action)}><Text style={[styles.text, (action === "remove" || action === "block") && { color: "#FF6B80" }]}>{label}</Text></TouchableOpacity>)}
-          <TouchableOpacity disabled={mutation.isPending} onPress={() => setSelectedUid(null)} style={styles.action}><Text style={styles.secondary}>Back to viewers</Text></TouchableOpacity>
+          ] as [ModerateStreamViewerBodyAction, string][]).map(([action, label]) => <TouchableOpacity key={action} style={styles.action} disabled={mutation.isPending} onPress={() => act(action)}><Text style={[localizedTextStyle(), [styles.text, (action === "remove" || action === "block") && { color: "#FF6B80" }]]}>{t(label)}</Text></TouchableOpacity>)}
+          <TouchableOpacity disabled={mutation.isPending} onPress={() => setSelectedUid(null)} style={styles.action}><Text style={[localizedTextStyle(), styles.secondary]}>{t("Back to viewers")}</Text></TouchableOpacity>
         </> : <>
-          <View style={styles.tabs}>{(["viewers", "restricted"] as const).map(value => <TouchableOpacity key={value} style={[styles.tab, tab === value && { borderBottomColor: "#FF1966" }]} onPress={() => setTab(value)}><Text style={styles.text}>{value === "viewers" ? "Viewers" : "Restricted"}</Text></TouchableOpacity>)}</View>
-          <TextInput value={search} onChangeText={setSearch} placeholder="Search viewers" placeholderTextColor="#888" style={styles.search} />
+          <View style={styles.tabs}>{(["viewers", "restricted"] as const).map(value => <TouchableOpacity key={value} style={[styles.tab, tab === value && { borderBottomColor: "#FF1966" }]} onPress={() => setTab(value)}><Text style={[localizedTextStyle(), styles.text]}>{value === "viewers" ? t("Viewers") : t("Restricted")}</Text></TouchableOpacity>)}</View>
+          <TextInput value={search} onChangeText={setSearch} placeholder={t("Search viewers")} placeholderTextColor="#888" style={styles.search} />
           <ScrollView style={{ minHeight: 120 }}>
-            {query.isLoading ? <ActivityIndicator color="#FF1966" /> : query.isError ? <TouchableOpacity onPress={() => void query.refetch()}><Text style={styles.secondary}>Couldn't load viewers. Tap to retry.</Text></TouchableOpacity> : people.map(person => <TouchableOpacity key={person.uid} style={styles.person} onPress={() => { setError(null); setSelectedUid(person.uid); }} accessibilityLabel={`Manage ${person.name}`}>
+            {query.isLoading ? <ActivityIndicator color="#FF1966" /> : query.isError ? <TouchableOpacity onPress={() => void query.refetch()}><Text style={[localizedTextStyle(), styles.secondary]}>{t("Couldn't load viewers. Tap to retry.")}</Text></TouchableOpacity> : people.map(person => <TouchableOpacity key={person.uid} style={styles.person} onPress={() => { setError(null); setSelectedUid(person.uid); }} accessibilityLabel={t("Manage {v0}", { v0: person.name })}>
               <Avatar uid={person.uid} name={person.name} avatarUri={person.avatarImageUrl ?? undefined} size={40} />
-              <View style={{ flex: 1 }}><Text style={styles.text}>{person.name}</Text><Text style={styles.secondary}>{[person.muted && "Chat muted", person.removed && "Removed", person.blocked && "Blocked"].filter(Boolean).join(" · ") || "Watching"}</Text></View>
+              <View style={{ flex: 1 }}><Text style={styles.text}>{person.name}</Text><Text style={[localizedTextStyle(), styles.secondary]}>{[person.muted && "Chat muted", person.removed && "Removed", person.blocked && "Blocked"].filter(Boolean).join(" · ") || t("Watching")}</Text></View>
               <Ionicons name="chevron-forward" color="#888" size={18} />
             </TouchableOpacity>)}
-            {!query.isLoading && !query.isError && !people.length ? <Text style={[styles.secondary, { paddingVertical: 24 }]}>{search ? "No matching viewers" : tab === "viewers" ? "No viewers right now" : "No restricted viewers"}</Text> : null}
+            {!query.isLoading && !query.isError && !people.length ? <Text style={[localizedTextStyle(), [styles.secondary, { paddingVertical: 24 }]]}>{search ? t("No matching viewers") : tab === "viewers" ? t("No viewers right now") : t("No restricted viewers")}</Text> : null}
           </ScrollView>
         </>}
         {mutation.isPending ? <ActivityIndicator color="#FF1966" /> : null}
-        {error ? <Text style={{ color: "#FF6B80", marginTop: 8 }}>{error}</Text> : null}
+        {error ? <Text style={{ color: "#FF6B80", marginTop: 8 }}>{t(error)}</Text> : null}
       </View>
     </View>
   </Modal>;

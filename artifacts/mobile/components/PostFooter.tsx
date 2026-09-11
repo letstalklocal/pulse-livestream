@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import React, { useRef, useState } from "react";
 import { Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,6 +15,7 @@ export function PostFooter({ postId, ownerUid, caption }: {
   ownerUid: number;
   caption: string;
 }) {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const [hasMore, setHasMore] = useState(false);
@@ -40,41 +42,41 @@ export function PostFooter({ postId, ownerUid, caption }: {
       client.setQueryData(key, { ...current, liked: kind === "like" ? active : current.liked, saved: kind === "save" ? active : current.saved, likeCount: current.likeCount + (kind === "like" ? active ? 1 : -1 : 0) });
       await client.invalidateQueries({ queryKey: ["post-activity", postId] });
       if (kind === "save") await client.invalidateQueries({ queryKey: ["saved-posts"] });
-    } catch (error) { Alert.alert("Post action failed", error instanceof Error ? error.message : "Please try again."); }
+    } catch (error) { Alert.alert(t("Post action failed"), error instanceof Error ? error.message : t("Please try again.")); }
     finally { busy.current = false; }
   };
   return <>
     <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.iconButton} accessibilityRole="button" accessibilityLabel={`${liked ? "Unlike post" : "Like post"}, ${activity.data?.likeCount ?? 0} likes`} accessibilityState={{ selected: liked, disabled: reaction.isPending }} disabled={reaction.isPending} onPress={() => void react("like")}>
+        <TouchableOpacity style={styles.iconButton} accessibilityRole="button" accessibilityLabel={t("{v0}, {v1} likes", { v0: liked ? "Unlike post" : "Like post", v1: activity.data?.likeCount ?? 0 })} accessibilityState={{ selected: liked, disabled: reaction.isPending }} disabled={reaction.isPending} onPress={() => void react("like")}>
           <Ionicons name={liked ? "heart" : "heart-outline"} size={26} color={liked ? colors.primary : colors.foreground} />
         </TouchableOpacity>
         <Text style={[styles.count, { color: liked ? colors.primary : colors.foreground }]}>{activity.data && activity.data.likeCount > 0 ? activity.data.likeCount >= 1000 ? `${(activity.data.likeCount / 1000).toFixed(1)}k` : activity.data.likeCount : ""}</Text>
-        <TouchableOpacity style={styles.iconButton} accessibilityRole="button" accessibilityLabel={`Comments, ${activity.data?.commentCount ?? 0}`} onPress={() => setShowComments(true)}>
+        <TouchableOpacity style={styles.iconButton} accessibilityRole="button" accessibilityLabel={t("Comments, {v0}", { v0: activity.data?.commentCount ?? 0 })} onPress={() => setShowComments(true)}>
           <Ionicons name="chatbubble-outline" size={24} color={colors.foreground} />
         </TouchableOpacity>
         <Text style={[styles.count, { color: colors.foreground }]}>{activity.data && activity.data.commentCount > 0 ? activity.data.commentCount >= 1000 ? `${(activity.data.commentCount / 1000).toFixed(1)}k` : activity.data.commentCount : ""}</Text>
         <View style={styles.spacer} />
-        <TouchableOpacity style={styles.iconButton} accessibilityRole="button" accessibilityLabel={saved ? "Unsave post" : "Save post"} accessibilityState={{ selected: saved, disabled: reaction.isPending }} disabled={reaction.isPending} onPress={() => void react("save")}>
+        <TouchableOpacity style={styles.iconButton} accessibilityRole="button" accessibilityLabel={saved ? t("Unsave post") : t("Save post")} accessibilityState={{ selected: saved, disabled: reaction.isPending }} disabled={reaction.isPending} onPress={() => void react("save")}>
           <Ionicons name={saved ? "bookmark" : "bookmark-outline"} size={25} color={colors.foreground} />
         </TouchableOpacity>
       </View>
       <View style={styles.captionArea}>
         <Text style={[styles.caption, styles.measureCaption]} accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" onTextLayout={event => setHasMore(event.nativeEvent.lines.length > 2)}>{caption}</Text>
         <Text style={[styles.caption, { color: colors.foreground }]} numberOfLines={2}>{caption}</Text>
-        {hasMore ? <TouchableOpacity style={styles.more} hitSlop={4} accessibilityRole="button" accessibilityLabel="Read full caption" onPress={() => setExpanded(true)}>
-          <Text style={[styles.moreText, { color: colors.mutedForeground }]}>More</Text>
+        {hasMore ? <TouchableOpacity style={styles.more} hitSlop={4} accessibilityRole="button" accessibilityLabel={t("Read full caption")} onPress={() => setExpanded(true)}>
+          <Text style={[localizedTextStyle(), [styles.moreText, { color: colors.mutedForeground }]]}>{t("More")}</Text>
         </TouchableOpacity> : null}
       </View>
     </View>
     {showComments ? <PostCommentsSheet postId={postId} ownerUid={ownerUid} onClose={() => setShowComments(false)} /> : null}
     <Modal visible={expanded} transparent animationType="slide" onRequestClose={() => setExpanded(false)}>
       <View style={styles.backdrop}>
-        <TouchableOpacity style={StyleSheet.absoluteFill} accessibilityLabel="Close caption" onPress={() => setExpanded(false)} />
+        <TouchableOpacity style={StyleSheet.absoluteFill} accessibilityLabel={t("Close caption")} onPress={() => setExpanded(false)} />
         <View style={[styles.sheet, { backgroundColor: colors.card, paddingBottom: Math.max(insets.bottom, 16) }]}>
           <View style={styles.sheetHeader}>
-            <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Caption</Text>
-            <TouchableOpacity style={styles.iconButton} accessibilityRole="button" accessibilityLabel="Close caption" onPress={() => setExpanded(false)}><Ionicons name="close" size={24} color={colors.foreground} /></TouchableOpacity>
+            <Text style={[localizedTextStyle(), [styles.sheetTitle, { color: colors.foreground }]]}>{t("Caption")}</Text>
+            <TouchableOpacity style={styles.iconButton} accessibilityRole="button" accessibilityLabel={t("Close caption")} onPress={() => setExpanded(false)}><Ionicons name="close" size={24} color={colors.foreground} /></TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={styles.fullCaption}><Text selectable style={[styles.caption, { color: colors.foreground }]}>{caption}</Text></ScrollView>
         </View>

@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { AccountSafetyMenu } from "@/components/AccountSafetyMenu";
 import { PhotoOptions } from "@/components/PhotoOptions";
 import { Ionicons } from "@expo/vector-icons";
@@ -40,9 +41,9 @@ import { useAuth } from "@/context/AuthContext";
 const { width } = Dimensions.get("window");
 const GRID_CELL = (width - 4) / 3;
 
-function formatDate(iso: string) {
+function formatDate(iso: string, locale: string) {
   const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return d.toLocaleDateString(locale, { month: "short", day: "numeric" });
 }
 
 function fmtCount(n: number): string {
@@ -50,6 +51,7 @@ function fmtCount(n: number): string {
 }
 
 export default function PublicProfileScreen() {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const colors = useColors();
   const [historyView, setHistoryView] = useState<"grid" | "feed">("grid");
   const insets = useSafeAreaInsets();
@@ -171,27 +173,27 @@ export default function PublicProfileScreen() {
 
               {/* Stats */}
               <View style={styles.statsRow}>
-                <TouchableOpacity style={styles.stat} accessibilityRole="button" accessibilityLabel="View followers"
+                <TouchableOpacity style={styles.stat} accessibilityRole="button" accessibilityLabel={t("View followers")}
                   onPress={() => router.push({ pathname: "/connections/[uid]", params: { uid: String(uid), tab: "followers", name: displayName } })}>
                   <Text style={[styles.statValue, { color: colors.foreground }]}>
                     {fmtCount(followersCount)}
                   </Text>
-                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Followers</Text>
+                  <Text style={[localizedTextStyle(), [styles.statLabel, { color: colors.mutedForeground }]]}>{t("Followers")}</Text>
                 </TouchableOpacity>
                 <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-                <TouchableOpacity style={styles.stat} accessibilityRole="button" accessibilityLabel="View following"
+                <TouchableOpacity style={styles.stat} accessibilityRole="button" accessibilityLabel={t("View following")}
                   onPress={() => router.push({ pathname: "/connections/[uid]", params: { uid: String(uid), tab: "following", name: displayName } })}>
                   <Text style={[styles.statValue, { color: colors.foreground }]}>
                     {fmtCount(followingCount)}
                   </Text>
-                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Following</Text>
+                  <Text style={[localizedTextStyle(), [styles.statLabel, { color: colors.mutedForeground }]]}>{t("Following")}</Text>
                 </TouchableOpacity>
                 <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
                 <View style={styles.stat}>
                   <Text style={[styles.statValue, { color: colors.foreground }]}>
                     {streamHistory.length}
                   </Text>
-                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Streams</Text>
+                  <Text style={[localizedTextStyle(), [styles.statLabel, { color: colors.mutedForeground }]]}>{t("Streams")}</Text>
                 </View>
               </View>
 
@@ -213,8 +215,8 @@ export default function PublicProfileScreen() {
                       activeOpacity={0.8}
                       disabled={followPending}
                     >
-                      <Text style={[styles.followBtnText, { color: isFollowing ? colors.foreground : "#FFF" }]}>
-                        {followPending ? "…" : isFollowing ? "Following" : "Follow"}
+                      <Text style={[localizedTextStyle(), [styles.followBtnText, { color: isFollowing ? colors.foreground : "#FFF" }]]}>
+                        {followPending ? "…" : isFollowing ? t("Following") : t("Follow")}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -233,7 +235,7 @@ export default function PublicProfileScreen() {
                     activeOpacity={0.8}
                   >
                     <Ionicons name="chatbubble-outline" size={16} color={colors.foreground} style={{ marginRight: 6 }} />
-                    <Text style={[styles.followBtnText, { color: colors.foreground }]}>Message</Text>
+                    <Text style={[localizedTextStyle(), [styles.followBtnText, { color: colors.foreground }]]}>{t("Message")}</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -248,7 +250,7 @@ export default function PublicProfileScreen() {
             ]}
             onPress={() => setHistoryView("grid")}
             activeOpacity={0.7}
-            accessibilityLabel="Grid view"
+            accessibilityLabel={t("Grid view")}
           >
             <Ionicons
               name={historyView === "grid" ? "grid" : "grid-outline"}
@@ -263,7 +265,7 @@ export default function PublicProfileScreen() {
             ]}
             onPress={() => setHistoryView("feed")}
             activeOpacity={0.7}
-            accessibilityLabel="Feed view"
+            accessibilityLabel={t("Feed view")}
           >
             <Ionicons
               name={historyView === "feed" ? "list" : "list-outline"}
@@ -277,22 +279,20 @@ export default function PublicProfileScreen() {
         {postsLoading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
         ) : postsError && (postsFailure as { status?: number } | null)?.status === 403 ? (
-          <View style={styles.emptyGrid}><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Posts are shared with friends. Follow each other to view.</Text></View>
+          <View style={styles.emptyGrid}><Text style={[localizedTextStyle(), [styles.emptyText, { color: colors.mutedForeground }]]}>{t("Posts are shared with friends. Follow each other to view.")}</Text></View>
         ) : postsError ? (
           <TouchableOpacity style={styles.emptyGrid} onPress={() => void refetchPosts()} accessibilityRole="button">
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Could not load posts. Tap to retry.</Text>
+            <Text style={[localizedTextStyle(), [styles.emptyText, { color: colors.mutedForeground }]]}>{t("Could not load posts. Tap to retry.")}</Text>
           </TouchableOpacity>
         ) : posts.length === 0 ? (
           <View style={styles.emptyGrid}>
             <Ionicons name="images-outline" size={36} color={colors.mutedForeground} />
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-              No posts yet
-            </Text>
+            <Text style={[localizedTextStyle(), [styles.emptyText, { color: colors.mutedForeground }]]}>{t("No posts yet")}</Text>
           </View>
         ) : historyView === "grid" ? (
           <View style={styles.grid}>
             {posts.map((post) => (
-              <TouchableOpacity key={post.id} style={styles.gridCell} activeOpacity={0.85} accessibilityLabel="Open photo"
+              <TouchableOpacity key={post.id} style={styles.gridCell} activeOpacity={0.85} accessibilityLabel={t("Open photo")}
                 onPress={() => router.push({ pathname: "/posts/[uid]", params: { uid: String(uid), name: displayName, postId: String(post.id) } })}>
                 <Image source={{ uri: post.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
               </TouchableOpacity>
@@ -317,7 +317,7 @@ export default function PublicProfileScreen() {
                       <Text style={[styles.feedUserName, { color: colors.foreground }]}>
                         {displayName}
                       </Text>
-                      <Text style={[styles.feedDate, { color: colors.mutedForeground }]}>{formatDate(post.createdAt)}</Text>
+                      <Text style={[styles.feedDate, { color: colors.mutedForeground }]}>{formatDate(post.createdAt, appLocale())}</Text>
                     </View>
                     <PhotoOptions postId={post.id} ownerUid={uid} color={colors.mutedForeground} />
                   </View>

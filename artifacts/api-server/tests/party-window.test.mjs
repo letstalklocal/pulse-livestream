@@ -1,3 +1,4 @@
+import { i18nMock } from './i18n-mock.mjs';
 import assert from 'node:assert/strict';
 import { mock } from 'node:test';
 import { build } from 'esbuild';
@@ -8,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 
 const out = fileURLToPath(new URL(`.party-window-${randomUUID()}.cjs`, import.meta.url));
 const mocks = {
+  '@/i18n': i18nMock,
   react: `
     let slots=[], index=0, effects=[], dirty=false;
     export const createElement=(type,props,...children)=>({type,props:{...props,children}});

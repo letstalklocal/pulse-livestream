@@ -1,3 +1,4 @@
+import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import React, { useEffect, useRef } from "react";
 import {
   Animated,
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export function GiftLeaderboard({ channelId, visible, onClose }: Props) {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const insets = useSafeAreaInsets();
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(30)).current;
@@ -50,7 +52,7 @@ export function GiftLeaderboard({ channelId, visible, onClose }: Props) {
           <TouchableWithoutFeedback>
             <Animated.View style={[styles.sheet, { opacity, transform: [{ translateY }], paddingBottom: insets.bottom + (Platform.OS === "android" ? 32 : 40) }]}>
               <View style={styles.header}>
-                <Text style={styles.title}>🏆 Top Gifters</Text>
+                <Text style={[localizedTextStyle(), styles.title]}>{t("🏆 Top Gifters")}</Text>
                 <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
                   <Ionicons name="close" size={22} color="rgba(255,255,255,0.6)" />
                 </TouchableOpacity>
@@ -59,8 +61,8 @@ export function GiftLeaderboard({ channelId, visible, onClose }: Props) {
               {entries.length === 0 ? (
                 <View style={styles.empty}>
                   <Text style={styles.emptyIcon}>🎁</Text>
-                  <Text style={styles.emptyText}>No gifts sent yet</Text>
-                  <Text style={styles.emptySub}>Be the first to send a gift!</Text>
+                  <Text style={[localizedTextStyle(), styles.emptyText]}>{t("No gifts sent yet")}</Text>
+                  <Text style={[localizedTextStyle(), styles.emptySub]}>{t("Be the first to send a gift!")}</Text>
                 </View>
               ) : (
                 entries.map((entry) => (
@@ -70,7 +72,7 @@ export function GiftLeaderboard({ channelId, visible, onClose }: Props) {
                     </Text>
                     <Text style={styles.name} numberOfLines={1}>{entry.name}</Text>
                     <View style={styles.coinPill}>
-                      <Text style={styles.coinText}>🪙 {entry.coins.toLocaleString()}</Text>
+                      <Text style={styles.coinText}>🪙 {entry.coins.toLocaleString(appLocale())}</Text>
                     </View>
                   </View>
                 ))

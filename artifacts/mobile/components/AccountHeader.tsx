@@ -1,3 +1,4 @@
+import { t, useAppLanguage, appLocale } from "@/i18n";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { type ReactNode } from "react";
@@ -9,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
 export function AccountHeader({ children }: { children?: ReactNode }) {
+  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -27,7 +29,7 @@ export function AccountHeader({ children }: { children?: ReactNode }) {
           onPress={() => router.push("/(tabs)/profile")}
           activeOpacity={0.75}
           accessibilityRole="button"
-          accessibilityLabel="Open profile"
+          accessibilityLabel={t("Open profile")}
         >
           {user ? (
             <Avatar uid={user.uid} name={user.name} avatarUri={user.avatarUri} size={38} />
@@ -39,7 +41,7 @@ export function AccountHeader({ children }: { children?: ReactNode }) {
           <View style={styles.coinBalance}>
             <Text style={styles.coinIcon}>🪙</Text>
             <Text style={[styles.coinText, { color: colors.foreground }]} numberOfLines={1}>
-              {(coinData?.balance ?? 0).toLocaleString()}
+              {(coinData?.balance ?? 0).toLocaleString(appLocale())}
             </Text>
           </View>
         </TouchableOpacity>

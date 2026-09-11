@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "catalogVersion": 1,
+  "defaultLanguage": "en",
+  "languages": [
+    "en",
+    "es",
+    "pt-BR",
+    "ar",
+    "de",
+    "fr",
+    "zh-CN",
+    "hi",
+    "id",
+    "ja"
+  ],
+  "keyPolicy": "Source keys are stable identifiers. Edit values, not keys.",
+  "terminology": "terminology.json"
+}
