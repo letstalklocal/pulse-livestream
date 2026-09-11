@@ -62,6 +62,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
+    "expo-build-properties": "~57.0.17",
     "expo-dev-client": "~57.0.18",
     "react-native-agora": "^4.5.4"
   }

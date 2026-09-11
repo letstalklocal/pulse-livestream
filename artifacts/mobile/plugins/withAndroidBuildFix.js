@@ -66,5 +66,21 @@ module.exports = function withAndroidBuildFix(config) {
     return props;
   };
 
+  const prevIosXcodeprojMod = config.mods.ios.xcodeproj;
+
+  config.mods.ios.xcodeproj = async (props) => {
+    if (prevIosXcodeprojMod) props = await prevIosXcodeprojMod(props);
+
+    const configurations =
+      props.modResults.pbxXCBuildConfigurationSection();
+    for (const configuration of Object.values(configurations)) {
+      if (configuration && typeof configuration === "object" && configuration.buildSettings) {
+        configuration.buildSettings.IPHONEOS_DEPLOYMENT_TARGET = "17.0";
+      }
+    }
+
+    return props;
+  };
+
   return config;
 };
