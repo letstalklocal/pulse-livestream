@@ -8,7 +8,7 @@ import { useStreamSocket } from "@/hooks/useStreamSocket";
 import { useLiveParty } from "@/hooks/useLiveParty";
 import { usePartyMedia } from "@/hooks/usePartyMedia";
 import { PartyStage } from "@/components/PartyStage";
-import { partyLayout } from "@/utils/partyLayout";
+import { battleUsesSplitLayout, partyLayout } from "@/utils/partyLayout";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth as useClerkAuth } from "@clerk/expo";
 import * as Crypto from "expo-crypto";
@@ -320,7 +320,7 @@ export default function StreamScreen() {
   const isOwnStream = !!user?.uid && user.uid === hostUid;
   const partyState = useLiveParty(channelId ?? "", isNative && !isPrivateStream && !isDemo && canEnterStream && !streamEnded);
   const party = partyState.party;
-  const vsActive = party?.battle?.status === "active" && (party.battle.endsAt ?? 0) > partyState.now;
+  const vsActive = battleUsesSplitLayout(party?.battle?.status === "active" && (party.battle.endsAt ?? 0) > partyState.now);
   const vsChatHeight = partyLayout(SCREEN_W, SCREEN_H, insets.top, insets.bottom).chatHeight;
   const partyMedia = usePartyMedia(engineRef, channelId ?? "", party, isNative && joined && canEnterStream && !streamEnded, false);
   const partyViewerCount = party?.status === "active" ? party.viewerCount : stream?.viewerCount;

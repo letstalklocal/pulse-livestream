@@ -4,7 +4,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { LiveParty } from "@workspace/api-client-react";
 import { RtcSurfaceViewComponent, VideoSourceType } from "@/utils/agora";
 import { Avatar } from "./Avatar";
-import { partyLayout } from "@/utils/partyLayout";
+import { battleUsesSplitLayout, partyLayout } from "@/utils/partyLayout";
+
+const PARTY_BATTLE_GOLD = "#E8BD59";
 
 export function PartyStage({ main, mainName, channelId, party, now, media, onDragActive }: {
   main: React.ReactNode; mainName: string; channelId: string; party: LiveParty | null; now: number;
@@ -15,7 +17,9 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onDra
   const { width, height } = useWindowDimensions();
   const peer = party?.status === "active" ? party.participants.find(p => p.channelId !== channelId) : undefined;
   const battle = party?.battle;
-  const vs = !!peer && battle?.status === "active" && !!battle.endsAt && now < battle.endsAt;
+  const battleActive = !!peer && battle?.status === "active" && !!battle.endsAt && now < battle.endsAt;
+  const vs = battleUsesSplitLayout(battleActive);
+  const mine = party?.participants.find(p => p.channelId === channelId);
   const pipWidth = Math.min(128, Math.max(104, width * 0.32));
   const pipHeight = pipWidth * 4 / 3;
   const { top, panelHeight } = partyLayout(width, height, insets.top, insets.bottom);
@@ -85,6 +89,23 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onDra
           <Text style={styles.name} numberOfLines={1}>{peer.name}</Text>
         </Animated.View>
       ) : null}
+      {battleActive && !vs && mine && peer ? (
+        <View style={[styles.partyBattleBar, { top: insets.top + 54 }]} pointerEvents="none"
+          accessible accessibilityLabel={`${mine.name}: ${myScore.toLocaleString()} coins. ${peer.name}: ${peerScore.toLocaleString()} coins. ${countdown ? `Starts in ${countdown}` : `${remaining} seconds remaining`}`}>
+          <View style={styles.partyBattleTrack} />
+          <View style={styles.partyBattleAvatarRing}>
+            <Avatar uid={mine.uid} name={mine.name} avatarUri={mine.avatarUrl ?? undefined} size={32} />
+          </View>
+          <View style={styles.partyBattleLabels}>
+            <Text style={styles.partyBattleCoins} numberOfLines={1} adjustsFontSizeToFit><Text style={styles.partyBattleCoinIcon}>🪙 </Text>{myScore.toLocaleString()}</Text>
+            <Text style={styles.partyBattleClock}>{countdown ? `Starts ${countdown}` : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`}</Text>
+            <Text style={[styles.partyBattleCoins, { textAlign: "right" }]} numberOfLines={1} adjustsFontSizeToFit><Text style={styles.partyBattleCoinIcon}>🪙 </Text>{peerScore.toLocaleString()}</Text>
+          </View>
+          <View style={styles.partyBattleAvatarRing}>
+            <Avatar uid={peer.uid} name={peer.name} avatarUri={peer.avatarUrl ?? undefined} size={32} />
+          </View>
+        </View>
+      ) : null}
       {vs ? <View style={[styles.scoreboard, { top: top + panelHeight }]} pointerEvents="none">
         <View style={styles.scores}>
           <Text style={[styles.score, { color: "#FF4E86" }]}>{myScore.toLocaleString()}</Text>
@@ -103,6 +124,13 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onDra
   );
 }
 const styles = StyleSheet.create({
+  partyBattleBar: { position: "absolute", left: 12, right: 12, height: 36, flexDirection: "row", alignItems: "center", justifyContent: "space-between", zIndex: 4 },
+  partyBattleTrack: { position: "absolute", left: 34, right: 34, top: 17, height: 2, backgroundColor: PARTY_BATTLE_GOLD },
+  partyBattleAvatarRing: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: PARTY_BATTLE_GOLD, alignItems: "center", justifyContent: "center" },
+  partyBattleLabels: { position: "absolute", left: 42, right: 42, top: -3, flexDirection: "row", alignItems: "center", gap: 6 },
+  partyBattleCoins: { flex: 1, color: "#FFF", fontSize: 12, lineHeight: 16, includeFontPadding: false, fontFamily: "Inter_700Bold" },
+  partyBattleCoinIcon: { fontSize: 10 },
+  partyBattleClock: { lineHeight: 16, color: "#FFF", fontSize: 12, fontFamily: "Inter_700Bold", textAlign: "center", minWidth: 56, includeFontPadding: false },
   mainVs: { position: "absolute", left: 0, overflow: "hidden", backgroundColor: "#111" },
   partner: { position: "absolute", top: 0, left: 0, borderRadius: 8, overflow: "hidden", backgroundColor: "#202026", zIndex: 3 },
   waiting: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", gap: 12, backgroundColor: "#202026" },

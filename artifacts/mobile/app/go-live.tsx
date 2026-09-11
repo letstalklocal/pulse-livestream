@@ -14,7 +14,7 @@ import { useLiveParty } from "@/hooks/useLiveParty";
 import { usePartyMedia } from "@/hooks/usePartyMedia";
 import { PartyStage } from "@/components/PartyStage";
 import { PartySheet } from "@/components/PartySheet";
-import { partyLayout } from "@/utils/partyLayout";
+import { battleUsesSplitLayout, partyLayout } from "@/utils/partyLayout";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth as useClerkAuth } from "@clerk/expo";
@@ -289,7 +289,7 @@ export default function GoLiveScreen() {
   });
   const partyState = useLiveParty(activeChannelId, isLive && !isPrivateInvite && isNative);
   const party = partyState.party;
-  const vsActive = party?.battle?.status === "active" && (party.battle.endsAt ?? 0) > partyState.now;
+  const vsActive = battleUsesSplitLayout(party?.battle?.status === "active" && (party.battle.endsAt ?? 0) > partyState.now);
   const vsChatHeight = partyLayout(liveDimensions.width, liveDimensions.height, insets.top, insets.bottom).chatHeight;
   const [showParty, setShowParty] = useState(false);
   const [hostJoined, setHostJoined] = useState(false);
