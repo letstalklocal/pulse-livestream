@@ -58,3 +58,9 @@ Category wording update: display Gamer in every language for both Gaming and GAM
 Category grammar update: the user requested that All agree with categories in each language. The filter now uses the contextual All categories key with a short display label: English All, Spanish/Portuguese Todas, French Toutes, German Alle, and appropriate equivalents in the other languages. Preserve the existing All filter identifier and approved layout. Use context-specific keys when grammatical gender or meaning differs; do not reuse a generic translation across unrelated nouns. All ten catalogs now contain 739 keys.
 
 Live terminology correction: the initial policy protected only uppercase LIVE. The user confirmed that Live must remain English too. Protect LIVE, Live and live throughout interface labels and sentences; translate only the surrounding wording. Regenerate affected phrases with the approved interface-translation service while retaining unrelated catalog edits, including Premium, Gamer and category-specific Todas/Toutes.
+
+Signup onboarding: the new signup method screen uses the existing detected/saved app language, with Sign up with Google, Sign up with Email, and Coming soon translated in all ten catalogs. There are now 742 interface keys. See `docs/onboarding.md` for routing, verification and the approved confirm-password behavior.
+
+Password confirmation: the user approved adding Confirm password to email signup. Its label, mismatch feedback and show/hide controls are translated in all ten languages. The complete catalog now contains 746 keys per language. Confirmation is checked locally and does not alter the Clerk request payload or email verification flow.
+
+Phone signup placeholder: the user requested a disabled Sign up with Phone option matching Google’s Coming soon presentation. The phone label is translated in all ten catalogs, bringing coverage to 747 keys; no phone authentication or SMS integration is enabled.

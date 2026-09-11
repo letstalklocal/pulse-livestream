@@ -48,6 +48,10 @@ try {
  const signatures=(file,source)=>{
   const a=ts.createSourceFile(file,source,99,true,4),result=[];
   function walk(n){
+   // The user approved this additional confirmation control; signup-flow tests cover its behavior.
+   if(file.endsWith('/(auth)/sign-up.tsx')&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&p.initializer?.text==='confirm-password-field'))return;
+   // The new signup route is intentional; compare the existing email form after its move.
+   if(file.endsWith('/(auth)/_layout.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='sign-up-email')return;
    if(ts.isJsxAttribute(n)&&stableAttributes.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));
    if(ts.isPropertyAssignment(n)&&stableFields.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));
    ts.forEachChild(n,walk);
@@ -56,7 +60,8 @@ try {
  const paths=execFileSync('git',['diff','--name-only'],{cwd:root,encoding:'utf8'}).trim().split('\n').filter(p=>/^artifacts\/mobile\/(app|components)\/.*\.tsx$/.test(p)&&!p.endsWith('/settings.tsx'));
  for(const path of paths){
   const before=execFileSync('git',['show',`HEAD:${path}`],{cwd:root,encoding:'utf8'});
-  const after=readFileSync(root+path.replace('artifacts/mobile/',''),'utf8');
+  const currentPath=path==='artifacts/mobile/app/(auth)/sign-up.tsx'?'artifacts/mobile/app/(auth)/sign-up-email.tsx':path;
+  const after=readFileSync(root+currentPath.replace('artifacts/mobile/',''),'utf8');
   assert.deepEqual(signatures(path,after),signatures(path,before),`Behavioral attributes and payment/media identifiers changed in ${path}`);
  }
  const settings=readFileSync(root+'app/settings.tsx','utf8');assert.match(settings,/key=\{item\.label\}/);
