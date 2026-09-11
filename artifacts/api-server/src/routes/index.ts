@@ -1,3 +1,6 @@
+import momentsRouter from "./moments";
+import performanceRouter from "./performance";
+import earningsRouter from "./earnings";
 import countryLocationRouter from "./country-location";
 import messageSettingsRouter from "./message-settings";
 import privacyRouter from "./privacy";
@@ -37,6 +40,9 @@ router.use(chatRouter);
 router.use(directMessagesRouter);
 router.use(usersRouter);
 router.use(coinsRouter);
+router.use(earningsRouter);
+router.use(performanceRouter);
+router.use(momentsRouter);
 router.use(mediaPacksRouter);
 router.use(postsRouter);
 router.use(privateStreamInvitationsRouter);

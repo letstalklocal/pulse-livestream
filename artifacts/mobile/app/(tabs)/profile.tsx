@@ -22,7 +22,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  getGetCoinBalanceQueryKey,
   getGetUserQueryKey,
   getGetUserPostsQueryKey,
   getSavedPosts,
@@ -32,7 +31,6 @@ import {
   useGetUser,
   useGetUserPosts,
   useGetUserStreams,
-  useGrantCoins,
   useRequestAvatarUpload,
   useRequestPostUpload,
   useUpsertUser,
@@ -108,7 +106,6 @@ export default function ProfileScreen() {
   );
   const coinBalance = coinData?.balance ?? 0;
 
-  const grantMutation = useGrantCoins();
   const requestAvatarUpload = useRequestAvatarUpload();
   const requestPostUpload = useRequestPostUpload();
   const createPost = useCreatePost();
@@ -182,24 +179,6 @@ export default function ProfileScreen() {
         },
       },
     ]);
-  };
-
-  const addTestCoins = () => {
-    if (!user?.uid) return;
-    grantMutation.mutate(
-      { data: { uid: user.uid, amount: 10000, note: "dev grant" } },
-      {
-        onSuccess: (data) => {
-          queryClient.setQueryData(
-            getGetCoinBalanceQueryKey({ uid: user.uid }),
-            { balance: data.balance },
-          );
-          refetchCoins();
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          Alert.alert("Coins added", `+10,000 coins  •  Balance: ${data.balance.toLocaleString()} 🪙`);
-        },
-      },
-    );
   };
 
   const pickAvatar = async () => {
@@ -421,27 +400,6 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          <TouchableOpacity
-            style={[styles.packsBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
-            onPress={() => router.push("/media-packs" as any)}
-            activeOpacity={0.8}
-            testID="media-packs-entry"
-          >
-            <Ionicons name="images-outline" size={17} color={colors.primary} />
-            <Text style={[styles.packsBtnText, { color: colors.foreground }]}>Media Packs</Text>
-          </TouchableOpacity>
-
-          {/* Dev: add test coins */}
-          <TouchableOpacity
-            style={[styles.devBtn, { borderColor: "rgba(255,215,0,0.3)" }]}
-            onPress={addTestCoins}
-            activeOpacity={0.7}
-            disabled={grantMutation.isPending}
-          >
-            <Text style={styles.devBtnText}>
-              {grantMutation.isPending ? "Adding…" : "+ 500 coins  (dev)"}
-            </Text>
-          </TouchableOpacity>
         </View>
 
         {/* Grid divider */}

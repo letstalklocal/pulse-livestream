@@ -616,7 +616,7 @@ router.post("/streams/:channelId/admission", async (req, res) => {
         .from(coinTransactionsTable)
         .where(and(eq(coinTransactionsTable.channelId, channelId), eq(coinTransactionsTable.type, "gift"))))[0]?.total ?? 0);
       wsHub.pushEarnings(channelId, total);
-      wsHub.pushGift(channelId, gift.name, viewer.name, total);
+      wsHub.pushGift(channelId, gift.name, viewer.name, total, { giftId: idempotencyKey, amount: gift.coinCost, senderUid: viewer.uid, recipientUid: stream.hostUid });
     } catch (error) {
       req.log.warn({ err: error }, "Premium admission notification failed after commit");
     }

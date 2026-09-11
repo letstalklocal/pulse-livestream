@@ -1,3 +1,5 @@
+import { createGiftPresentation, expectsNativeCrown } from "@/utils/giftPresentation";
+import { CrownArtwork } from "@/components/CrownArtwork";
 import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
 import { TranslatedMessage } from "@/components/TranslatedMessage";
 import { TranslationToggle } from "@/components/TranslationToggle";
@@ -176,6 +178,8 @@ export default function StreamScreen() {
   const [joined, setJoined] = useState(false);
   const [likeCount, setLikeCount] = useState(Math.floor(Math.random() * 500) + 50);
   const [showGiftPicker, setShowGiftPicker] = useState(false);
+  const giftPresentation = useRef(createGiftPresentation());
+  useEffect(() => { giftPresentation.current = createGiftPresentation(); setFloatingGifts([]); }, [channelId]);
   const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
   const [showReport, setShowReport] = useState(false);
   const [restrictedByEvent, setRestrictedByEvent] = useState(false);
@@ -440,11 +444,14 @@ export default function StreamScreen() {
   }, [channelId, nextStream, hintOpacity]);
 
   // Helper: spawn a floating gift on screen
-  const spawnGift = (gift: Gift, senderName: string) => {
+  const spawnGift = (gift: Gift, senderName: string, giftId?: string, amount = gift.coins) => {
+    const nativeExpected = !isDemo && expectsNativeCrown(gift.name, amount);
+    if (giftId && !giftPresentation.current.claim(giftId, nativeExpected)) return;
+    const inVideo = giftId ? giftPresentation.current.inVideo(giftId) : nativeExpected;
     const x = Math.random() * (SCREEN_W * 0.55) + 16;
-    setFloatingGifts((prev) => [
+    setFloatingGifts((prev) => giftId && prev.some(g => g.id === giftId) ? prev : [
       ...prev,
-      { id: `${Date.now()}-${Math.random()}`, emoji: gift.emoji, name: gift.name, senderName, x, size: gift.size },
+      { id: giftId ?? `${Date.now()}-${Math.random()}`, emoji: gift.emoji, name: gift.name, senderName, x, size: gift.size, inVideo },
     ]);
   };
 
@@ -495,9 +502,15 @@ export default function StreamScreen() {
             type?: string;
             coins?: number;
             giftName?: string;
+            giftId?: string;
+            amount?: number;
+            inVideo?: boolean;
             senderName?: string;
           };
-          if (msg.type === "stream_restricted") {
+          if (msg.type === "gift_in_video" && msg.giftId) {
+            const inVideo = giftPresentation.current.decide(msg.giftId, msg.inVideo !== false);
+            setFloatingGifts(prev => prev.map(g => g.id === msg.giftId ? { ...g, inVideo } : g));
+          } else if (msg.type === "stream_restricted") {
             setRestrictedByEvent(true);
             void queryClient.invalidateQueries({ queryKey: getGetStreamQueryKey(channelId ?? "") });
           } else if (msg.type === "stream_updated") {
@@ -510,7 +523,7 @@ export default function StreamScreen() {
           } else if (msg.type === "gift" && msg.giftName) {
             if (typeof msg.coins === "number") setRealtimeCoins(previous => Math.max(previous ?? 0, msg.coins!));
             const gift = GIFTS.find((g) => g.name === msg.giftName);
-            if (gift) spawnGift(gift, msg.senderName ?? "Viewer");
+            if (gift) spawnGift(gift, msg.senderName ?? "Viewer", msg.giftId, msg.amount ?? gift.coins);
           }
         } catch { /* ignore */ }
     },
@@ -1075,8 +1088,9 @@ export default function StreamScreen() {
       onSend={(gift) => {
         if (!user?.uid) return;
         setShowGiftPicker(false);
+        const giftId = createGiftRequestKey();
         spendMutation.mutate(
-           { data: { uid: user.uid, recipientUid: giftRecipient?.uid ?? hostUid ?? undefined, amount: gift.coins, giftName: gift.name, senderName: user.name ?? "Viewer", channelId: giftRecipient?.channelId ?? channelId ?? undefined, description: gift.name, idempotencyKey: createGiftRequestKey() } },
+           { data: { uid: user.uid, recipientUid: giftRecipient?.uid ?? hostUid ?? undefined, amount: gift.coins, giftName: gift.name, senderName: user.name ?? "Viewer", channelId: giftRecipient?.channelId ?? channelId ?? undefined, description: gift.name, idempotencyKey: giftId } },
           {
             onSuccess: (data) => {
               // Update viewer's own balance in cache
@@ -1088,7 +1102,7 @@ export default function StreamScreen() {
               queryClient.invalidateQueries({
                 queryKey: getGetCoinBalanceQueryKey({ uid: giftRecipient?.uid ?? hostUid ?? 0 }),
               });
-              spawnGift(gift, giftRecipient ? `${user.name ?? "You"} to ${giftRecipient.name}` : user.name ?? "You");
+              spawnGift(gift, giftRecipient ? `${user.name ?? "You"} to ${giftRecipient.name}` : user.name ?? "You", giftId);
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             },
             onError: () => {
@@ -1116,7 +1130,7 @@ export default function StreamScreen() {
           <Text style={styles.admissionTitle}>Premium live</Text>
           <Text style={styles.admissionHost}>{stream?.hostName ?? "Host"} · {stream?.title ?? "Live stream"}</Text>
           <View style={styles.admissionGift}>
-            <Text style={styles.admissionGiftEmoji}>{stream?.requiredGift?.emoji}</Text>
+            {stream?.requiredGift?.name === "Crown" ? <CrownArtwork size={30} /> : <Text style={styles.admissionGiftEmoji}>{stream?.requiredGift?.emoji}</Text>}
             <View>
               <Text style={styles.admissionGiftName}>{stream?.requiredGift?.name}</Text>
               <Text style={styles.admissionGiftCost}>Entry gift · 🪙 {stream?.requiredGift?.coinCost}</Text>

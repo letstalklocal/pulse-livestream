@@ -1,3 +1,8 @@
+import { createGiftPresentation, expectsNativeCrown } from "@/utils/giftPresentation";
+import { CrownArtwork } from "@/components/CrownArtwork";
+import { momentsRequest } from "@/utils/moments";
+import { startMomentProof, stopMomentProof } from "@/utils/momentProof";
+import { recordGiftMoment, stopMomentRecording, prepareMomentRecording } from "@/utils/momentRecorder";
 import { KeyboardAvoidingView as LiveKeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
 import { TranslatedMessage } from "@/components/TranslatedMessage";
 import { TranslationToggle } from "@/components/TranslationToggle";
@@ -93,6 +98,8 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 function releaseAgoraEngine(engine: any) {
+  stopMomentProof(engine);
+  stopMomentRecording(engine);
   try { engine?.leaveChannel?.(); } catch (error) { console.warn("[Agora] leave cleanup error:", error); }
   try { engine?.stopPreview?.(); } catch (error) { console.warn("[Agora] preview cleanup error:", error); }
   try { engine?.release?.(); } catch (error) { console.warn("[Agora] release cleanup error:", error); }
@@ -197,6 +204,10 @@ export default function GoLiveScreen() {
   const isLiveRef = useRef(false);
   const isStoppingRef = useRef(false);
   const engineRef = useRef<any>(null);
+  useEffect(() => { try { prepareMomentRecording(); } catch (error) { console.warn("[Moments] Could not prepare gift artwork", error); } }, []);
+  const [proofBusy, setProofBusy] = useState(false);
+  const proofVideoSizeRef = useRef<{ engine: any; channel: string; width: number; height: number } | null>(null);
+  const proofAllowedRef = useRef(false);
   const [showBeauty, setShowBeauty] = useState(false);
   const [beauty, setBeauty] = useState<BeautySettings>(DEFAULT_BEAUTY);
   const [beautyError, setBeautyError] = useState<string | null>(null);
@@ -285,6 +296,26 @@ export default function GoLiveScreen() {
   const partyMedia = usePartyMedia(engineRef, activeChannelId, party, isNative && isLive && hostJoined && !premiumConnecting, true);
   const viewerCount = party?.status === "active" ? party.viewerCount : liveStreamData?.stream?.viewerCount ?? 0;
   const incomingPartyId = party?.status === "pending" && party.participants[1]?.uid === user?.uid ? party.id : null;
+  const proofAllowed = __DEV__ && Platform.OS === "android" && isLive && hostJoined && !party && !isPrivateInvite && !isPremium && !liveStreamData?.stream.requiredGift && !premiumConnecting;
+  proofAllowedRef.current = proofAllowed;
+  useEffect(() => {
+    if (!proofAllowed) stopMomentProof(engineRef.current, "Test cancelled because the live mode changed.");
+  }, [proofAllowed]);
+  const runMomentProof = async () => {
+    if (!proofAllowedRef.current || proofBusy) return;
+    const engine = engineRef.current;
+    const channel = mediaChannelRef.current || activeChannelId;
+    setProofBusy(true);
+    setShowLiveMenu(false);
+    try {
+      const result = await startMomentProof(engine, channel, user!.uid,
+        () => proofAllowedRef.current && engineRef.current === engine && isLiveRef.current && !isStoppingRef.current && (mediaChannelRef.current || activeChannelId) === channel,
+        () => { const size = proofVideoSizeRef.current; return size && size.engine === engine && size.channel === channel ? { width: size.width, height: size.height } : null; });
+      Alert.alert(result.status === "captured" ? "Raw test clip captured" : "Test did not pass", result.error ?? "Ask the viewer whether they saw the animated crown. End this live, then open Settings → Moments → Live capture test and play/export the raw MP4. A captured file alone is not proof that the gift was recorded.");
+    } catch (e) {
+      Alert.alert("Test unavailable", e instanceof Error ? e.message : "Please try again.");
+    } finally { setProofBusy(false); }
+  };
   const incomingBattleId = party?.battle?.status === "pending" && party.battle.requesterUid !== user?.uid ? party.battle.id : null;
   useEffect(() => { if (incomingPartyId || incomingBattleId) setShowParty(true); }, [incomingPartyId, incomingBattleId]);
 
@@ -302,6 +333,8 @@ export default function GoLiveScreen() {
         const token = await generateToken.mutateAsync({ data: { channelName: activeChannelId, uid: user!.uid, role: "broadcaster" } });
         const stillActive = () => isLiveRef.current && !isStoppingRef.current && engineRef.current === engine;
         if (!stillActive()) return;
+        stopMomentProof(engine);
+        stopMomentRecording(engine);
         if (isNative) await switchBroadcastChannel(engine, token.token, token.channelName, user!.uid, isMuted, stillActive, mediaChannelRef.current || activeChannelId);
         if (!stillActive()) return;
         mediaChannelRef.current = token.channelName;
@@ -371,6 +404,8 @@ export default function GoLiveScreen() {
     earningsQuery.data?.coins ?? 0,
     realtimeEarnings.channelId === activeChannelId ? realtimeEarnings.coins : 0,
   );
+  const giftPresentation = useRef(createGiftPresentation());
+  useEffect(() => { giftPresentation.current = createGiftPresentation(); }, [activeChannelId]);
   const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
   const serverEndedShutdownRef = useRef<() => void>(() => {});
 
@@ -385,6 +420,8 @@ export default function GoLiveScreen() {
             coins?: number;
             giftName?: string;
             senderName?: string;
+            inVideo?: boolean;
+            giftId?: string; amount?: number; recipientUid?: number; senderUid?: number;
           };
           if (msg.type === "stream_updated") {
             void queryClient.invalidateQueries({ queryKey: getGetStreamQueryKey(activeChannelId) });
@@ -396,12 +433,41 @@ export default function GoLiveScreen() {
               coins: previous.channelId === activeChannelId ? Math.max(previous.coins, coins) : coins,
             }));
           }
+          if (msg.type === "gift_in_video" && msg.giftId) {
+            const inVideo = giftPresentation.current.decide(msg.giftId, msg.inVideo !== false);
+            setFloatingGifts(prev => prev.map(g => g.id === msg.giftId ? { ...g, inVideo } : g));
+          }
+          const nativeExpected = expectsNativeCrown(msg.giftName, msg.amount);
+          if (msg.type === "gift" && msg.giftId && !giftPresentation.current.claim(msg.giftId, nativeExpected)) return;
+          let nativeGift = nativeExpected;
+          let fallbackSent = false;
+          const fallback = () => {
+            if (!msg.giftId || fallbackSent) return;
+            fallbackSent = true;
+            const inVideo = giftPresentation.current.decide(msg.giftId, false);
+            setFloatingGifts(prev => prev.map(g => g.id === msg.giftId ? { ...g, inVideo } : g));
+            if (nativeExpected) void momentsRequest("/live-gift", getToken, "POST", { giftId: msg.giftId, inVideo: false }).catch(error => console.warn("[Moments] Gift fallback notification failed", error));
+          };
+          if (msg.type === "gift" && msg.giftId && typeof msg.amount === "number" && msg.amount >= 500 && typeof msg.recipientUid === "number" && msg.recipientUid === user?.uid && isLiveRef.current) {
+            stopMomentProof(engineRef.current, "A real gift arrived; the test yielded to normal recording.");
+            const engine = engineRef.current;
+            const channel = mediaChannelRef.current || activeChannelId;
+            nativeGift = recordGiftMoment(engine, channel, { giftId: msg.giftId, amount: msg.amount, recipientUid: msg.recipientUid, senderUid: msg.senderUid, senderName: msg.senderName, giftName: msg.giftName }, getToken, {
+              getVideoSize: () => { const size = proofVideoSizeRef.current; return size && size.engine === engine && size.channel === channel ? size : null; },
+              onGiftVisible: () => {
+                giftPresentation.current.decide(msg.giftId!, true);
+                void momentsRequest("/live-gift", getToken, "POST", { giftId: msg.giftId, inVideo: true }).catch(error => console.warn("[Moments] Gift display notification failed", error));
+              },
+              onFallback: fallback,
+            });
+            if (!nativeGift && nativeExpected) fallback();
+          }
           if (msg.type === "gift" && msg.giftName) {
             const gift = GIFTS.find((g) => g.name === msg.giftName) ?? GIFTS[0]!;
             const x = 60 + Math.random() * 200;
             setFloatingGifts((prev) => [
               ...prev,
-              { id: `${Date.now()}-${Math.random()}`, emoji: gift.emoji, name: gift.name, senderName: msg.senderName ?? "Viewer", x, size: gift.size },
+              { id: msg.giftId ?? `${Date.now()}-${Math.random()}`, emoji: gift.emoji, name: gift.name, senderName: msg.senderName ?? "Viewer", x, size: gift.size, inVideo: msg.giftId ? giftPresentation.current.inVideo(msg.giftId) : nativeGift },
             ]);
           }
           if (msg.type === "stream_ended") {
@@ -503,6 +569,12 @@ export default function GoLiveScreen() {
               setCameraDiagnostic(`Connection failed: state ${state}, reason ${reason}`);
               setCameraError(`Could not connect the live stream (reason ${reason}).`);
             }
+          },
+          onLocalVideoStats: (connection: any, stats: any) => {
+            if (engineRef.current !== engine || connection?.channelId !== mediaChannelRef.current) return;
+            const width = stats.encodedFrameWidth, height = stats.encodedFrameHeight;
+            if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0)
+              proofVideoSizeRef.current = { engine, channel: connection.channelId, width, height };
           },
           onPermissionError: (permissionType: number) => {
             console.warn("[Agora] permission error:", permissionType);
@@ -1155,6 +1227,16 @@ export default function GoLiveScreen() {
           <View style={{ position: "absolute", left: 16, right: 16, bottom: bottomPad + 12 + liveBarHeight + 8,
             backgroundColor: "#1A1A2E", borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" }}>
             <TranslationToggle menu />
+            {proofAllowed ? (
+              <TouchableOpacity disabled={proofBusy} accessibilityRole="button" accessibilityLabel="Test live gift capture"
+                style={{ paddingVertical: 18, paddingHorizontal: 20 }}
+                onPress={() => Alert.alert("Live gift capture test", "Double crown test v6: one second of camera only, two seconds with a still crown, then a moving crown. Use a fresh test live with a second phone watching. No coins are charged. Stay live until the seven-second raw clip is captured. Continue?", [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Run test", onPress: () => { void runMomentProof(); } },
+                ])}>
+                <Text style={{ color: "#FFF", fontSize: 16 }}>{proofBusy ? "Recording test…" : "Test live gift capture"}</Text>
+              </TouchableOpacity>
+            ) : null}
             {isNative && !isPrivateInvite && !isPremium && !liveStreamData?.stream.requiredGift ? (
               <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 }} onPress={() => { setShowLiveMenu(false); setShowParty(true); }} accessibilityLabel="Party">
                 <Ionicons name="people-outline" size={21} color={party ? "#FF1966" : "#FFF"} />
@@ -1350,7 +1432,7 @@ export default function GoLiveScreen() {
               />
               {selectedRequiredGift ? (
                 <Text style={styles.selectedGiftSummary}>
-                  {selectedRequiredGift.emoji} {selectedRequiredGift.name} · 🪙{selectedRequiredGift.coins}
+                  {selectedRequiredGift.id === "crown" ? "" : `${selectedRequiredGift.emoji} `}{selectedRequiredGift.name} · 🪙{selectedRequiredGift.coins}
                 </Text>
               ) : null}
             </View>
@@ -1474,7 +1556,7 @@ export default function GoLiveScreen() {
                         <Ionicons name="checkmark" size={14} color="#FFF" />
                       </View>
                     ) : null}
-                    <Text style={styles.giftSheetEmoji}>{gift.emoji}</Text>
+                    {gift.id === "crown" ? <CrownArtwork size={31} style={{ marginBottom: 6 }} /> : <Text style={styles.giftSheetEmoji}>{gift.emoji}</Text>}
                     <Text style={styles.giftSheetGiftName}>{gift.name}</Text>
                     <Text style={styles.giftSheetGiftCost}>🪙 {gift.coins}</Text>
                   </TouchableOpacity>

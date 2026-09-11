@@ -1,3 +1,4 @@
+import { CrownArtwork } from "./CrownArtwork";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -36,7 +37,7 @@ export function LivePremiumSheet({ channelId, onClose, onConfirm }: {
           <View style={styles.header}>
             <View style={{ flex: 1 }}>
               <Text style={styles.title}>{!showViewers ? "Choose an entry gift" : "Free entry · optional"}</Text>
-              <Text style={styles.subtitle}>{!showViewers ? "Viewers send this gift to enter your Premium live." : `${gift?.emoji} ${gift?.name} · ${gift?.coins} coins to enter. Choose anyone you'd like to let in free, or continue without selecting.`}</Text>
+              <Text style={styles.subtitle}>{!showViewers ? "Viewers send this gift to enter your Premium live." : `${gift?.id === "crown" ? "" : `${gift?.emoji} `}${gift?.name} · ${gift?.coins} coins to enter. Choose anyone you'd like to let in free, or continue without selecting.`}</Text>
             </View>
             <TouchableOpacity onPress={close} disabled={busy} accessibilityLabel="Close" style={styles.close}><Ionicons name="close" size={20} color="#FFF" /></TouchableOpacity>
           </View>
@@ -44,7 +45,7 @@ export function LivePremiumSheet({ channelId, onClose, onConfirm }: {
             <ScrollView contentContainerStyle={styles.grid}>
               {GIFTS.map(item => <TouchableOpacity key={item.id} style={[styles.option, giftId === item.id && styles.selected]} onPress={() => setGiftId(item.id)} accessibilityRole="radio" accessibilityState={{ selected: giftId === item.id }}>
                 {giftId === item.id ? <Ionicons name="checkmark-circle" color="#FF1966" size={20} style={{ position: "absolute", top: 6, right: 6 }} /> : null}
-                <Text style={{ fontSize: 31 }}>{item.emoji}</Text><Text style={styles.giftName}>{item.name}</Text><Text style={styles.cost}>🪙 {item.coins}</Text>
+                {item.id === "crown" ? <CrownArtwork size={31} /> : <Text style={{ fontSize: 31 }}>{item.emoji}</Text>}<Text style={styles.giftName}>{item.name}</Text><Text style={styles.cost}>🪙 {item.coins}</Text>
               </TouchableOpacity>)}
             </ScrollView>
           ) : <>

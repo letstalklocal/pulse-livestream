@@ -7,26 +7,8 @@ import { findParty, partyChannels, partyViewerAllowed } from "../lib/liveParty";
 
 const router = Router();
 
-interface ChatMessage {
-  id: string;
-  senderName: string;
-  senderUid?: number;
-  text: string;
-  color: string;
-  ts: number;
-}
-
-const chatStore = new Map<string, ChatMessage[]>();
-const deletedMessages = new Map<string, string[]>();
-const MAX_MESSAGES = 200;
-export function getChatMessage(channelId: string, messageId: string) {
-  return chatStore.get(channelId)?.find(message => message.id === messageId);
-}
-
-export function clearChat(channelId: string) {
-  chatStore.delete(channelId);
-  deletedMessages.delete(channelId);
-}
+import { chatStore, deletedMessages, MAX_MESSAGES, getChatMessage, type ChatMessage } from "../lib/liveChat";
+export { getChatMessage, clearChat } from "../lib/liveChat";
 
 router.get("/streams/:channelId/chat", async (req, res) => {
   delete req.headers["if-none-match"];

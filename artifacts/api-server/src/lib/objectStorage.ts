@@ -63,3 +63,8 @@ export async function deletePrivateObject(path: string) {
   const { bucketName, objectName: storedObjectName } = split(objectName(path));
   await objectStorageClient.bucket(bucketName).file(storedObjectName).delete({ ignoreNotFound: true });
 }
+export async function createPrivatePutUrl(path: string) { return signed(objectName(path), "PUT"); }
+export async function privateObjectMetadata(path: string) {
+  const { bucketName, objectName: name } = split(objectName(path));
+  return (await objectStorageClient.bucket(bucketName).file(name).getMetadata())[0];
+}

@@ -1,3 +1,4 @@
+import { CrownArtwork } from "./CrownArtwork";
 import React, { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 
@@ -8,6 +9,7 @@ export interface FloatingGift {
   senderName: string;
   x: number;
   size: number;
+  inVideo?: boolean;
 }
 
 interface Props {
@@ -68,7 +70,9 @@ export function GiftFloater({ gift, onDone }: Props) {
       style={[styles.wrapper, { transform: [{ translateY }, { scale }], opacity }]}
       pointerEvents="none"
     >
-      <Text style={styles.emoji}>{gift.emoji}</Text>
+      {gift.name === "Crown" ? (
+        <CrownArtwork size={90} style={{ height: 110, opacity: gift.inVideo ? 0 : 1 }} />
+      ) : <Text style={[styles.emoji, gift.inVideo && { opacity: 0 }]}>{gift.emoji}</Text>}
       <View style={styles.label}>
         <Text style={styles.sender} numberOfLines={1}>{gift.senderName}</Text>
         <Text style={styles.name}>sent a {gift.name}!</Text>

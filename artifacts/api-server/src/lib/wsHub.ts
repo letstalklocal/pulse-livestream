@@ -1,3 +1,4 @@
+import { appendGiftChat } from "./liveChat";
 import type { WebSocket } from "ws";
 
 const viewers = new Map<WebSocket, number>();
@@ -36,16 +37,20 @@ export function pushEarnings(channelId: string, coins: number): void {
   broadcast(channelId, { type: "earnings", channelId, coins });
 }
 
-export function pushGift(channelId: string, giftName: string, senderName: string, coins: number): void {
-  broadcast(channelId, { type: "gift", channelId, giftName, senderName, coins });
+export type GiftDetails = { giftId: string; amount: number; senderUid: number; recipientUid: number | null };
+
+export function pushGift(channelId: string, giftName: string, senderName: string, coins: number, details?: GiftDetails): void {
+  if (details) appendGiftChat(channelId, giftName, senderName, details);
+  broadcast(channelId, { type: "gift", channelId, giftName, senderName, coins, ...details });
 }
 
 export function pushStreamEnded(channelId: string): void {
   broadcast(channelId, { type: "stream_ended", channelId });
 }
 
-export function pushPartyGift(channelId: string, giftName: string, senderName: string): void {
-  broadcast(channelId, { type: "gift", channelId, giftName, senderName });
+export function pushPartyGift(channelId: string, giftName: string, senderName: string, details?: GiftDetails): void {
+  if (details) appendGiftChat(channelId, giftName, senderName, details);
+  broadcast(channelId, { type: "gift", channelId, giftName, senderName, ...details });
 }
 
 export function pushStreamUpdated(channelId: string): void {
@@ -59,4 +64,8 @@ export function disconnectViewer(channelId: string, viewerUid: number) {
       ws.close(1000, "Stream access changed");
     }
   }
+}
+
+export function pushGiftInVideo(channelId: string, giftId: string, inVideo = true): void {
+  broadcast(channelId, { type: "gift_in_video", channelId, giftId, inVideo });
 }

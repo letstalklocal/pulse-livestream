@@ -71,7 +71,11 @@ function RootLayoutNav() {
       <Stack.Screen name="media-packs" options={{ headerShown: false }} />
       <Stack.Screen name="notification-settings" options={{ headerShown: false }} />
       <Stack.Screen name="message-settings" options={{ headerShown: false }} />
+        <Stack.Screen name="my-vault" options={{ headerShown: false }} />
         <Stack.Screen name="privacy" options={{ headerShown: false }} />
+      <Stack.Screen name="moments" options={{ headerShown: false }} />
+      <Stack.Screen name="performance" options={{ headerShown: false }} />
+      <Stack.Screen name="earnings" options={{ headerShown: false }} />
       <Stack.Screen name="settings" options={{ headerShown: false }} />
       <Stack.Screen name="account" options={{ headerShown: false }} />
     </Stack>

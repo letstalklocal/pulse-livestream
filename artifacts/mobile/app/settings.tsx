@@ -1,3 +1,6 @@
+import { useAuth } from "@/context/AuthContext";
+import { useGrantCoins, getGetCoinBalanceQueryKey } from "@workspace/api-client-react";
+import * as Haptics from "expo-haptics";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslationPreferences } from "@/hooks/useTranslationPreferences";
 import { LANGUAGES, deviceLanguage } from "@/constants/languages";
@@ -40,7 +43,7 @@ const GENERAL_ITEMS: SettingsItem[] = [
 const VAULT_ITEMS: SettingsItem[] = [
   { label: "My Vault", icon: "lock-closed-outline" },
   { label: "Earnings", icon: "wallet-outline" },
-  { label: "Statistics", icon: "stats-chart-outline" },
+  { label: "Performance", icon: "stats-chart-outline" },
   { label: "Moments", icon: "sparkles-outline" },
   { label: "Fan Subscriptions", icon: "people-outline" },
   { label: "Managed Admins", icon: "key-outline" },
@@ -48,6 +51,8 @@ const VAULT_ITEMS: SettingsItem[] = [
 
 export default function SettingsScreen() {
   const colors = useColors();
+  const { user } = useAuth();
+  const grantMutation = useGrantCoins();
   const { preferences, ready, update } = useTranslationPreferences();
   const [showLanguage, setShowLanguage] = useState(false);
   const [savingLanguage, setSavingLanguage] = useState(false);
@@ -59,6 +64,24 @@ export default function SettingsScreen() {
   const [signOutError, setSignOutError] = useState("");
   const queryClient = useQueryClient();
   const topInset = Platform.OS === "web" ? 67 : insets.top;
+
+  const addTestCoins = () => {
+    if (!user?.uid) return;
+    grantMutation.mutate(
+      { data: { uid: user.uid, amount: 10000, note: "dev grant" } },
+      {
+        onSuccess: (data) => {
+          queryClient.setQueryData(
+            getGetCoinBalanceQueryKey({ uid: user.uid }),
+            { balance: data.balance },
+          );
+          void queryClient.invalidateQueries({ queryKey: getGetCoinBalanceQueryKey({ uid: user.uid }) });
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          Alert.alert("Coins added", `+10,000 coins  •  Balance: ${data.balance.toLocaleString()} 🪙`);
+        },
+      },
+    );
+  };
 
   const showPlaceholder = (label: string) => {
     Alert.alert(label, "This setting will be available soon.");
@@ -102,6 +125,14 @@ export default function SettingsScreen() {
               ? router.push("/account")
               : item.label === "Messages"
                 ? router.push("/message-settings")
+                : item.label === "Moments"
+                ? router.push("/moments")
+                : item.label === "Performance"
+                ? router.push("/performance")
+                : item.label === "Earnings"
+                ? router.push("/earnings")
+                : item.label === "My Vault"
+                ? router.push("/my-vault")
                 : item.label === "Privacy"
                 ? router.push("/privacy")
                 : item.label === "Notifications"
@@ -368,6 +399,10 @@ export default function SettingsScreen() {
               {BUNDLE_VERSION}
             </Text>
           </View>
+          <TouchableOpacity accessibilityRole="button" disabled={!user || grantMutation.isPending} onPress={addTestCoins} style={[styles.row, { borderTopWidth: 1, borderTopColor: colors.border }]}>
+            <Ionicons name="add-circle-outline" size={20} color="#FFD700" />
+            <Text style={[styles.rowLabel, { color: "#FFD700" }]}>{grantMutation.isPending ? "Adding…" : "+500 coins (dev)"}</Text>
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity

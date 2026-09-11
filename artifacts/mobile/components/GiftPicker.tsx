@@ -1,3 +1,4 @@
+import { CrownArtwork } from "./CrownArtwork";
 import React from "react";
 import {
   Modal,
@@ -86,7 +87,7 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
                 onPress={() => canAfford && onSend(gift)}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.giftEmoji, { fontSize: gift.size }]}>{gift.emoji}</Text>
+                {gift.id === "crown" ? <CrownArtwork size={gift.size} style={{ height: 52 }} /> : <Text style={[styles.giftEmoji, { fontSize: gift.size }]}>{gift.emoji}</Text>}
                 <Text style={styles.giftName}>{gift.name}</Text>
                 <View style={styles.giftCost}>
                   <Text style={styles.coinIconSm}>🪙</Text>

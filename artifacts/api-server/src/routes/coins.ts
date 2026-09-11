@@ -255,10 +255,11 @@ router.post("/coins/spend", async (req, res) => {
       const participants = party ? await partyStreams(party) : [];
       const recipient = participants.find(s => s?.hostUserId === effectiveRecipientUid);
       const displaySender = recipient ? `${senderName ?? "Viewer"} to ${recipient.hostName}` : senderName ?? "Viewer";
-      wsHub.pushGift(channelId, giftName ?? "", displaySender, total);
+      const giftDetails = { giftId: idempotencyKey, amount, senderUid: uid, recipientUid: effectiveRecipientUid };
+      wsHub.pushGift(channelId, giftName ?? "", displaySender, total, giftDetails);
       if (party) {
         const other = party.firstChannelId === channelId ? party.secondChannelId : party.firstChannelId;
-        wsHub.pushPartyGift(other, giftName ?? "", displaySender);
+        wsHub.pushPartyGift(other, giftName ?? "", displaySender, giftDetails);
       }
     } catch (error) {
       // The transfer is already committed. A notification failure must not
