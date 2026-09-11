@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from "react";
-import { ActivityIndicator, Animated, PanResponder, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Animated, Modal, PanResponder, Pressable, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { LiveParty } from "@workspace/api-client-react";
 import { RtcSurfaceViewComponent, VideoSourceType } from "@/utils/agora";
@@ -8,10 +9,11 @@ import { battleUsesSplitLayout, partyLayout } from "@/utils/partyLayout";
 
 const PARTY_BATTLE_GOLD = "#E8BD59";
 
-export function PartyStage({ main, mainName, channelId, party, now, media, onDragActive }: {
+export function PartyStage({ main, mainName, channelId, party, now, media, onWindowInteraction, onPartnerDoubleTap }: {
   main: React.ReactNode; mainName: string; channelId: string; party: LiveParty | null; now: number;
-  media: { connection: { channelId: string; localUid: number } | null; ready: boolean; error: string | null; retry: () => void };
-  onDragActive?: (active: boolean) => void;
+  media: { connection: { channelId: string; localUid: number } | null; ready: boolean; error: string | null; retry: () => void; audioMuted: boolean; audioError: string | null; setAudioMuted: (muted: boolean) => void };
+  onWindowInteraction?: (active: boolean) => void;
+  onPartnerDoubleTap?: (channelId: string) => void;
 }) {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -20,38 +22,70 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onDra
   const battleActive = !!peer && battle?.status === "active" && !!battle.endsAt && now < battle.endsAt;
   const vs = battleUsesSplitLayout(battleActive);
   const mine = party?.participants.find(p => p.channelId === channelId);
-  const pipWidth = Math.min(128, Math.max(104, width * 0.32));
-  const pipHeight = pipWidth * 4 / 3;
+  const [compact, setCompact] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const [showPartnerInfo, setShowPartnerInfo] = useState(false);
+  const longPressed = useRef(false);
+  const pendingTap = useRef<{ at: number; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const cancelTap = () => {
+    if (pendingTap.current) clearTimeout(pendingTap.current.timer);
+    pendingTap.current = null;
+  };
+  useEffect(() => cancelTap, [party?.id, peer?.channelId, vs, hidden, showPartnerInfo]);
+  const pressWindow = () => {
+    if (longPressed.current || hidden || vs || !peer) return;
+    if (!onPartnerDoubleTap) { setCompact(value => !value); return; }
+    const firstTap = pendingTap.current;
+    cancelTap();
+    if (firstTap && Date.now() - firstTap.at <= 300) {
+      onPartnerDoubleTap(peer.channelId);
+      return;
+    }
+    pendingTap.current = {
+      at: Date.now(),
+      timer: setTimeout(() => { pendingTap.current = null; setCompact(value => !value); }, 300),
+    };
+  };
+  const pipWidth = width / (compact ? 4 : 3);
+  const pipHeight = pipWidth * 16 / 9;
   const { top, panelHeight } = partyLayout(width, height, insets.top, insets.bottom);
-  const maxX = Math.max(12, width - pipWidth - 12);
-  const maxY = Math.max(top, height - insets.bottom - 280 - pipHeight);
-  const point = useRef(new Animated.ValueXY({ x: maxX, y: top })).current;
-  const origin = useRef({ x: maxX, y: top });
-  const bounds = useRef({ maxX, maxY, top });
-  const dragCallback = useRef(onDragActive);
-  dragCallback.current = onDragActive;
-  bounds.current = { maxX, maxY, top };
+  const windowTop = top + 14;
+  const slide = useRef(new Animated.Value(0)).current;
+  const interactionCallback = useRef(onWindowInteraction);
+  interactionCallback.current = onWindowInteraction;
   useEffect(() => {
-    origin.current = { x: maxX, y: top };
-    point.setValue(origin.current);
-  }, [party?.id, maxX, top, point]);
+    setCompact(false);
+    setHidden(false);
+    setShowPartnerInfo(false);
+    longPressed.current = false;
+    slide.setValue(0);
+  }, [party?.id, peer?.channelId, slide]);
+  useEffect(() => {
+    const transition = Animated.timing(slide, {
+      toValue: hidden && !vs ? pipWidth + 12 : 0,
+      duration: 180,
+      useNativeDriver: true,
+    });
+    transition.start();
+    return () => transition.stop();
+  }, [hidden, vs, pipWidth, slide]);
   const responder = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => false,
-    onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) + Math.abs(gesture.dy) > 5,
-    onPanResponderMove: (_, gesture) => {
-      const b = bounds.current;
-      point.setValue({ x: Math.max(12, Math.min(b.maxX, origin.current.x + gesture.dx)), y: Math.max(b.top, Math.min(b.maxY, origin.current.y + gesture.dy)) });
+    // Capture movement so a swipe cannot also trigger the resize press.
+    onMoveShouldSetPanResponderCapture: (_, gesture) => {
+      const moving = Math.abs(gesture.dx) + Math.abs(gesture.dy) > 8;
+      if (moving) cancelTap();
+      return moving;
     },
     onPanResponderRelease: (_, gesture) => {
-      const b = bounds.current;
-      origin.current = { x: Math.max(12, Math.min(b.maxX, origin.current.x + gesture.dx)), y: Math.max(b.top, Math.min(b.maxY, origin.current.y + gesture.dy)) };
-      point.setValue(origin.current);
-      dragCallback.current?.(false);
+      const rightward = gesture.dx > Math.abs(gesture.dy) * 1.2;
+      if (rightward && (gesture.dx > 40 || (gesture.dx > 15 && gesture.vx > 0.5))) setHidden(true);
+      interactionCallback.current?.(false);
     },
-    onPanResponderTerminate: () => { point.setValue(origin.current); dragCallback.current?.(false); },
+    onPanResponderTerminate: () => { cancelTap(); interactionCallback.current?.(false); },
     onPanResponderTerminationRequest: () => false,
   })).current;
-  useEffect(() => () => dragCallback.current?.(false), [party?.id, vs]);
+  useEffect(() => () => interactionCallback.current?.(false), [party?.id, vs]);
   const Video = RtcSurfaceViewComponent;
   const mineFirst = party?.participants[0]?.channelId === channelId;
   const myScore = (mineFirst ? battle?.firstScore : battle?.secondScore) ?? 0;
@@ -67,15 +101,32 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onDra
       </View>
       {peer ? (
         <Animated.View
-          onTouchStart={() => { if (!vs) dragCallback.current?.(true); }}
-          onTouchEnd={() => dragCallback.current?.(false)}
-          onTouchCancel={() => dragCallback.current?.(false)}
+          onTouchStart={() => { if (!vs) interactionCallback.current?.(true); }}
+          onTouchEnd={() => interactionCallback.current?.(false)}
+          onTouchCancel={() => { cancelTap(); interactionCallback.current?.(false); }}
           {...(!vs ? responder.panHandlers : {})}
           style={[styles.partner, vs
             ? { top, left: width / 2, width: width / 2, height: panelHeight, borderRadius: 0 }
-            : { width: pipWidth, height: pipHeight, transform: point.getTranslateTransform() }]}
+            : { top: windowTop, left: width - pipWidth - 12, width: pipWidth, height: pipHeight, transform: [{ translateX: slide }] }]}
+          pointerEvents={hidden && !vs ? "none" : "auto"}
+          accessibilityElementsHidden={hidden && !vs}
+          importantForAccessibility={hidden && !vs ? "no-hide-descendants" : "auto"}
           accessibilityLabel={`Party partner: ${peer.name}`}
         >
+          <Pressable style={StyleSheet.absoluteFill} disabled={vs || hidden}
+            onPressIn={() => {
+              longPressed.current = false;
+              // A second touch may become a long press or swipe instead of a tap.
+              if (pendingTap.current) clearTimeout(pendingTap.current.timer);
+            }}
+            onPress={pressWindow}
+            onLongPress={() => { cancelTap(); longPressed.current = true; setShowPartnerInfo(true); interactionCallback.current?.(false); }}
+            delayLongPress={450}
+            accessibilityRole={!vs ? "button" : undefined}
+            accessibilityLabel={`${compact ? "Enlarge" : "Shrink"} ${peer.name}'s party window`}
+            accessibilityHint={`${onPartnerDoubleTap ? "Double tap to switch streams. " : ""}Tap to change size. Swipe right to hide. Long press for user information and audio controls.`}
+            accessibilityActions={onPartnerDoubleTap ? [{ name: "switchStream", label: `Watch ${peer.name}'s stream` }] : undefined}
+            onAccessibilityAction={event => { if (event.nativeEvent.actionName === "switchStream" && !vs && !hidden) { cancelTap(); onPartnerDoubleTap?.(peer.channelId); } }}>
           {Video && media.connection ? <Video
             canvas={{ uid: peer.uid, sourceType: VideoSourceType.VideoSourceRemote }}
             connection={media.connection}
@@ -86,8 +137,40 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onDra
             <Avatar uid={peer.uid} name={peer.name} avatarUri={peer.avatarUrl ?? undefined} size={40} />
             {media.error ? <TouchableOpacity onPress={media.retry} accessibilityLabel="Retry partner video"><Text style={styles.retry}>Reconnect</Text></TouchableOpacity> : <ActivityIndicator color="#FFF" />}
           </View> : null}
-          <Text style={styles.name} numberOfLines={1}>{peer.name}</Text>
+          {vs ? <Text style={styles.name} numberOfLines={1}>{peer.name}</Text> : null}
+          </Pressable>
         </Animated.View>
+      ) : null}
+      {peer && hidden && !vs ? (
+        <Pressable style={[styles.restorePartner, { top: windowTop + 10 }]}
+          onPress={() => setHidden(false)} accessibilityRole="button"
+          accessibilityLabel={`Show ${peer.name}'s party window`}>
+          <Ionicons name="chevron-back" size={22} color="#FFF" />
+        </Pressable>
+      ) : null}
+      {peer && showPartnerInfo ? (
+        <Modal transparent visible animationType="slide" statusBarTranslucent onRequestClose={() => setShowPartnerInfo(false)}>
+          <View style={styles.infoBackdrop}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowPartnerInfo(false)} accessibilityLabel="Close partner information" />
+            <View style={[styles.infoSheet, { paddingBottom: insets.bottom + 20 }]}>
+              <View style={styles.infoHeading}>
+                <Text style={styles.infoTitle}>Party partner</Text>
+                <Pressable onPress={() => setShowPartnerInfo(false)} style={styles.infoClose} accessibilityLabel="Close partner information"><Ionicons name="close" size={24} color="#FFF" /></Pressable>
+              </View>
+              <View style={styles.infoPerson}>
+                <Avatar uid={peer.uid} name={peer.name} avatarUri={peer.avatarUrl ?? undefined} size={56} />
+                <View style={{ flex: 1 }}><Text style={styles.infoName}>{peer.name}</Text><Text style={styles.infoDetail}>ID: {peer.uid}</Text></View>
+              </View>
+              <Pressable style={styles.audioAction} onPress={() => media.setAudioMuted(!media.audioMuted)}
+                accessibilityRole="button" accessibilityLabel={media.audioMuted ? "Unmute partner audio" : "Mute partner audio"}>
+                <Ionicons name={media.audioMuted ? "volume-mute-outline" : "volume-high-outline"} size={23} color="#FFF" />
+                <Text style={styles.audioActionText}>{media.audioMuted ? "Unmute audio" : "Mute audio"}</Text>
+              </Pressable>
+              <Text style={styles.infoDetail}>Only changes what you hear.</Text>
+              {media.audioError ? <Text style={styles.audioError} accessibilityRole="alert">{media.audioError}</Text> : null}
+            </View>
+          </View>
+        </Modal>
       ) : null}
       {battleActive && !vs && mine && peer ? (
         <View style={[styles.partyBattleBar, { top: insets.top + 54 }]} pointerEvents="none"
@@ -131,6 +214,18 @@ const styles = StyleSheet.create({
   partyBattleCoins: { flex: 1, color: "#FFF", fontSize: 12, lineHeight: 16, includeFontPadding: false, fontFamily: "Inter_700Bold" },
   partyBattleCoinIcon: { fontSize: 10 },
   partyBattleClock: { lineHeight: 16, color: "#FFF", fontSize: 12, fontFamily: "Inter_700Bold", textAlign: "center", minWidth: 56, includeFontPadding: false },
+  restorePartner: { position: "absolute", right: 0, width: 32, height: 88, borderTopLeftRadius: 10, borderBottomLeftRadius: 10, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center", zIndex: 5 },
+  infoBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" },
+  infoSheet: { backgroundColor: "#19191F", padding: 20, borderTopLeftRadius: 12, borderTopRightRadius: 12 },
+  infoHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  infoTitle: { color: "#FFF", fontSize: 20, fontFamily: "Inter_700Bold" },
+  infoClose: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  infoPerson: { flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 16 },
+  infoName: { color: "#FFF", fontSize: 17, fontFamily: "Inter_600SemiBold" },
+  infoDetail: { color: "#B6B6BF", fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
+  audioAction: { flexDirection: "row", gap: 12, alignItems: "center", paddingVertical: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#3A3A42" },
+  audioActionText: { color: "#FFF", fontSize: 16, fontFamily: "Inter_500Medium" },
+  audioError: { color: "#FF759A", fontSize: 13, marginTop: 12 },
   mainVs: { position: "absolute", left: 0, overflow: "hidden", backgroundColor: "#111" },
   partner: { position: "absolute", top: 0, left: 0, borderRadius: 8, overflow: "hidden", backgroundColor: "#202026", zIndex: 3 },
   waiting: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", gap: 12, backgroundColor: "#202026" },

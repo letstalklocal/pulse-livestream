@@ -202,7 +202,7 @@ export default function StreamScreen() {
   const sendChatMutation = useSendChatMessage();
   const engineRef = useRef<any>(null);
   const primaryRtcChannelRef = useRef("");
-  const partyDragRef = useRef(false);
+  const partyWindowTouchRef = useRef(false);
   const admissionKeyRef = useRef(Crypto.randomUUID());
   const streamEndedRef = useRef(false);
   const listRef = useRef<FlatList>(null);
@@ -774,9 +774,9 @@ export default function StreamScreen() {
       onStartShouldSetPanResponder: () => false,
       // Capture horizontal swipes even over chat, without taking its vertical scrolling.
       onMoveShouldSetPanResponderCapture: (_evt, gs) =>
-        !partyDragRef.current && Math.abs(gs.dx) > 15 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.2,
+        !partyWindowTouchRef.current && Math.abs(gs.dx) > 15 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.2,
       onMoveShouldSetPanResponder: (_evt, gs) =>
-        !partyDragRef.current && Math.max(Math.abs(gs.dx), Math.abs(gs.dy)) > 15,
+        !partyWindowTouchRef.current && Math.max(Math.abs(gs.dx), Math.abs(gs.dy)) > 15,
       onPanResponderRelease: (_evt, gs) => {
         if (Math.abs(gs.dx) > Math.abs(gs.dy)) {
           if (Math.abs(gs.dx) > 60) horizontalSwipeRef.current(gs.dx > 0);
@@ -890,7 +890,7 @@ export default function StreamScreen() {
       automaticOffset
     >
       {/* Full-screen video area */}
-      <PartyStage channelId={channelId ?? ""} mainName={stream?.hostName ?? "Host"} party={party} now={partyState.now} media={partyMedia} onDragActive={active => { partyDragRef.current = active; }} main={<>
+      <PartyStage channelId={channelId ?? ""} mainName={stream?.hostName ?? "Host"} party={party} now={partyState.now} media={partyMedia} onWindowInteraction={active => { partyWindowTouchRef.current = active; }} onPartnerDoubleTap={target => navigateToStream(target, "up")} main={<>
         {!canEnterStream ? (
           <View style={styles.admissionBlocked}>
             <StreamBackdrop imageUrl={backgroundImageUrl} />

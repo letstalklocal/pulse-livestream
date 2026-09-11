@@ -4,7 +4,7 @@ type State = { connection: Connection | null; ready: boolean; error: string | nu
 const queues = new WeakMap<object, Promise<void>>();
 
 /** Serialize secondary joins/leaves without releasing the primary live engine. */
-export function openPartyConnection(engine: any, fetchToken: () => Promise<Token>, peerUid: number, onState: (state: State) => void) {
+export function openPartyConnection(engine: any, fetchToken: () => Promise<Token>, peerUid: number, onState: (state: State) => void, isAudioMuted: () => boolean = () => false) {
   let disposed = false;
   let connection: Connection | null = null;
   let joined = false;
@@ -60,7 +60,7 @@ export function openPartyConnection(engine: any, fetchToken: () => Promise<Token
       const result = engine.joinChannelEx(token.token, connection, {
         channelProfile: 1, clientRoleType: 2,
         publishCameraTrack: false, publishMicrophoneTrack: false,
-        autoSubscribeAudio: true, autoSubscribeVideo: true,
+        autoSubscribeAudio: !isAudioMuted(), autoSubscribeVideo: true,
         isInteractiveAudience: true,
       });
       if (result < 0) throw new Error(`Could not connect partner video (${result})`);
