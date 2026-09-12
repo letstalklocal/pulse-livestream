@@ -18,6 +18,7 @@ globalThis.fetch=async (url,opts)=>{
  if(!String(url).startsWith('https://verification.didit.me/'))return nativeFetch(url,opts);
  if(opts?.method==='POST'){
   const body=JSON.parse(opts.body),id=randomUUID();created++;
+  assert.equal(body.sandbox_scenario, "approve", "sandbox starts must explicitly require a Didit sandbox application");
   const record={session_id:id,workflow_id:body.workflow_id,vendor_data:body.vendor_data,environment:'sandbox',status:'In Progress'};
   records.set(id,record);
   return Response.json({...record,url:`https://verify.didit.me/session/${id}`},{status:201});

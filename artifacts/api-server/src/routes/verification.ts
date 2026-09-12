@@ -148,7 +148,7 @@ router.post("/verification/web/start", wrap(async (req, res) => {
     if (row!.sessionUrl && row!.status === "pending" && Date.now() - row!.updatedAt.getTime() < 86_400_000) return safeDiditUrl(row!.sessionUrl);
     const sameDay = Date.now() - row!.attemptWindowAt.getTime() < 86_400_000;
     if (sameDay && row!.attempts >= 5) throw new VerificationError(429, "You have reached today's verification limit. Please try again tomorrow.");
-    const result = await diditRequest("session/", { workflow_id: process.env.DIDIT_WORKFLOW_ID, vendor_data: row!.reference, callback: `${verificationOrigin()}${PATH}/` });
+    const result = await diditRequest("session/", { workflow_id: process.env.DIDIT_WORKFLOW_ID, vendor_data: row!.reference, ...(verificationEnvironment() === "sandbox" ? { sandbox_scenario: "approve" } : {}), callback: `${verificationOrigin()}${PATH}/` });
     if (typeof result.session_id !== "string" || !/^[a-zA-Z0-9-]{10,100}$/.test(result.session_id)) throw new VerificationError(502, "Invalid verification session.");
     const url = safeDiditUrl(result.url);
     await tx.update(identities).set({ sessionId: result.session_id, sessionUrl: url, workflowId: process.env.DIDIT_WORKFLOW_ID!, status: "pending", isVerified: false, matureContentEnabled: false, verifiedAt: null, consentAt: new Date(), consentVersion: CONSENT_VERSION, checkedAt: null, attempts: sameDay ? row!.attempts + 1 : 1, attemptWindowAt: sameDay ? row!.attemptWindowAt : new Date(), updatedAt: new Date() }).where(eq(identities.userId, uid));

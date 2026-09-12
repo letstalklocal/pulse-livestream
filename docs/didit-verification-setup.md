@@ -142,3 +142,49 @@ At the last environment check, `DIDIT_WORKFLOW_ID`, `DIDIT_WEBHOOK_SECRET`, `DID
 ## Public website — September 12, 2026
 
 The website is now built and reachable at `/api/site/` on the development HTTPS host, with verification instructions, support, draft privacy and draft terms pages. See [public website](public-website.md) for URLs, remaining business details and validation. Personal verification handoffs and callbacks remain at `/api/verification/`. The privacy notice must be completed before it is used for real-user verification.
+
+### Status refresh behavior — September 12, 2026
+
+The app status-check button shows a loading indicator during requests and confirms successful manual checks even when status is unchanged. Status requests do not automatically retry and HTTP requests time out after 15 seconds. The website also bounds requests to 15 seconds, re-enables controls after failures, and hides account actions if the browser session expires. These controls do not activate the provider or bypass required configuration. Regression coverage: `node artifacts/api-server/tests/verification-page.test.mjs` (executed page JavaScript with a simulated DOM, not a visual/device test).
+
+## Resume checkpoint — September 12, 2026
+
+The user reports adding server secrets. The latest check in the agent session could see only `DIDIT_API_KEY`; it could not see `DIDIT_WORKFLOW_ID`, `DIDIT_WEBHOOK_SECRET`, `DIDIT_ENVIRONMENT`, `DIDIT_TEST_USER_IDS`, `VERIFICATION_PUBLIC_ORIGIN`, `PULSE_PRIVACY_URL`, `PULSE_LEGAL_NAME`, or `PULSE_SUPPORT_EMAIL`. This describes session visibility, not proof that the values were not saved in the project's secrets manager. No secret values were recorded.
+
+Next steps:
+
+1. Restart the workspace if the newly saved secrets have not loaded, then check configuration presence again without printing values.
+2. Confirm the selected workflow is `98f54ad5-61dc-48e4-a056-b0a23549aeae` (Pulse 18+ verification), and re-read its status; last verified as a draft.
+3. Configure and verify the Didit webhook and callback using the existing API host.
+4. Confirm sandbox configuration and an explicitly allowed Pulse test account, publish the workflow when ready, and test provider results plus browser return on a phone.
+5. Complete business identity, public support email, retention/privacy settings and final privacy wording before real-user activation.
+
+The public website is built, and the status-button feedback/timeout fix is served by the restarted development API. Automated verification and localization checks passed; real Didit verification and physical-device testing remain pending. The user has not yet supplied the business/legal name or public support email in this conversation.
+
+## Business details and webhook destination — September 12, 2026
+
+User confirmed **Worldwide Music Makers LLC** and **info@wwmusicmakers.com**. Added to the public website and verified over HTTPS.
+
+Created Didit destination `ffecc06d-4646-42f0-8594-5682d350808f`, labeled **Pulse development age verification**, pointing to the development host's `/api/verification/webhook`. Verified v3 subscriptions `status.updated` and `data.updated`. Delivery is disabled pending server secret installation and readiness for testing. The generated signing secret was neither printed nor saved in the repository.
+
+The agent has no callable integration for this project's server-secret manager. The owner must copy this destination's signing secret from Didit Console → Webhooks to `DIDIT_WEBHOOK_SECRET` in the project's server secrets. Do not paste it into chat. After it loads, finish remaining server configuration and testing before enabling delivery. No real ID verification has been performed.
+
+## Selected verification test account — September 12, 2026
+
+The user explicitly selected `one.espana@gmail.com` for verification testing. Exact-email Clerk lookup and the linked local users row confirmed Pulse username **one.espana**, UID **61079**. Use `DIDIT_TEST_USER_IDS=61079` in the development sandbox environment. This records authorization to use that account for testing; it does not mark the account verified or prove age. The allowlist has not yet been installed through the project secret manager, which is not accessible to the agent. No identity documents or provider sessions were submitted.
+
+## Readiness check: provider environment mismatch
+
+All seven server settings became visible and both configured URLs returned HTTP 200. Published the approved Pulse 18+ workflow. An explicit `sandbox_scenario=approve` readiness request was rejected by Didit with HTTP 400: sandbox scenarios are only accepted on sandbox applications. The currently supplied API key therefore belongs to a live application. No session was created by that request and no ID was submitted. Webhook delivery remains disabled.
+
+Added `sandbox_scenario: "approve"` to Pulse session creation only when `DIDIT_ENVIRONMENT=sandbox`. This forces Didit to reject a live-key mismatch instead of silently creating a live session. The hosted sandbox scenario picker can be used for other test outcomes. API typecheck, build and mocked integration tests passed; restarted the development API preserving its environment and confirmed the start endpoint rejects unauthenticated requests.
+
+Next: use a Didit sandbox application's API key. Sandbox and live are separate applications, so the workflow and webhook must also be configured for the sandbox application. The agent can configure those once its key is available. Reference: https://docs.didit.me/integration/sandbox-testing
+
+## Sandbox application connected
+
+The replacement API key accesses a separate application with its own workflows. Configured and published **Pulse 18+ verification**, workflow ID `64fe50ae-dff0-484d-9786-c95a0652ea1b`, with documentary 18+ restriction, passive liveness, face match and IP analysis. A create-session request explicitly requiring `sandbox_scenario=approve` succeeded, confirming sandbox support. Readiness session: `39edaaea-e601-4365-b34d-e6baa1636158`; no real ID submitted, no completed verification result.
+
+The existing **Pulse Testing** webhook secret matches the server secret. Verified/enforced the correct public API destination, v3 payloads, subscriptions `status.updated` and `data.updated`, and enabled delivery. End-to-end webhook receipt remains to be tested.
+
+Required owner action: replace `DIDIT_WORKFLOW_ID` in server secrets with `64fe50ae-dff0-484d-9786-c95a0652ea1b`. The previous ID belongs to the live application and cannot be used with this sandbox key. Reload configuration afterward.

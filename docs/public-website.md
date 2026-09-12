@@ -15,8 +15,8 @@ The site uses responsive HTML/CSS with an original inline SVG pulse illustration
 
 ## Content pending from the owner
 
-- `PULSE_LEGAL_NAME`: the business operating Pulse.
-- `PULSE_SUPPORT_EMAIL`: public contact email (not inferred from the Didit account owner).
+- Confirmed operator: **Worldwide Music Makers LLC**; used as the website default, overridable with `PULSE_LEGAL_NAME`.
+- Confirmed public email: **info@wwmusicmakers.com**; used as the website default, overridable with `PULSE_SUPPORT_EMAIL`.
 - Full app data inventory, legal grounds, retention/deletion settings, transfer arrangements and final terms. The privacy and terms pages explicitly remain drafts until these are finalized; adding name/email alone does not make them final.
 
 Privacy information checklist reference: https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/individual-rights/the-right-to-be-informed/what-privacy-information-should-we-provide/
@@ -31,3 +31,5 @@ Development website:
 https://254cd483-13a8-46a7-aec3-b50e106f5db3-00-29qgy6snub3n8.kirk.replit.dev/api/site/
 
 This is a development-host website; an always-on production deployment/custom domain remains a release step.
+
+Business details supplied by the user and verified on the public privacy, support and terms pages after rebuilding/restarting the API. Privacy and terms remain drafts for the remaining data-handling and agreement details.

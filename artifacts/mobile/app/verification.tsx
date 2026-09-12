@@ -19,14 +19,19 @@ export default function VerificationScreen() {
   const [opening, setOpening] = useState(false);
   const openingRef = useRef(false);
   const [error, setError] = useState(false);
+  const [checked, setChecked] = useState(false);
   const request = async (path: string, method = "GET") => {
     const token = await getToken();
     if (!token) throw new Error("Please sign in again.");
-    const response = await fetch(`${base}/api/account/verification${path}`, { method, headers: { Authorization: `Bearer ${token}` } });
-    if (!response.ok) throw new Error("Verification request failed");
-    return response.json();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+    try {
+      const response = await fetch(`${base}/api/account/verification${path}`, { method, signal: controller.signal, headers: { Authorization: `Bearer ${token}` } });
+      if (!response.ok) throw new Error("Verification request failed");
+      return await response.json();
+    } finally { clearTimeout(timeout); }
   };
-  const status = useQuery<Status>({ queryKey: ["identity-verification", userId], enabled: !!userId, queryFn: () => request(""), refetchInterval: query => query.state.data?.status === "pending" ? 15_000 : false });
+  const status = useQuery<Status>({ queryKey: ["identity-verification", userId], enabled: !!userId, retry: false, queryFn: () => request(""), refetchInterval: query => query.state.data?.status === "pending" ? 15_000 : false });
   const { refetch } = status;
   useFocusEffect(useCallback(() => { if (userId) void refetch(); }, [userId, refetch]));
   useEffect(() => {
@@ -59,7 +64,11 @@ export default function VerificationScreen() {
       <TouchableOpacity accessibilityRole="button" disabled={opening || !status.data?.available} onPress={() => void openWebsite()} style={[styles.button, { backgroundColor: colors.primary, opacity: opening || !status.data?.available ? 0.5 : 1 }]}>
         {opening ? <ActivityIndicator color="#fff" /> : <Text style={[localizedTextStyle(), styles.buttonText]}>{status.data?.isVerified ? t("Manage verification on website") : t("Verify now")}</Text>}
       </TouchableOpacity>
-      <TouchableOpacity accessibilityRole="button" onPress={() => { setError(false); void refetch(); }}><Text style={[localizedTextStyle(), { color: colors.primary }]}>{t("Check verification status")}</Text></TouchableOpacity>
+      <TouchableOpacity accessibilityRole="button" accessibilityState={{ busy: status.isFetching, disabled: status.isFetching }} disabled={status.isFetching} onPress={async () => { setError(false); setChecked(false); const result = await refetch(); setChecked(!result.isError); }} style={[styles.button, { borderWidth: 1, borderColor: colors.primary, flexDirection: "row", justifyContent: "center", gap: 10 }]}>
+        {status.isFetching && <ActivityIndicator color={colors.primary} />}
+        <Text style={[localizedTextStyle(), { color: colors.primary }]}>{status.isFetching ? t("Loading…") : t("Check verification status")}</Text>
+      </TouchableOpacity>
+      {checked && !status.isFetching && !status.isError && <Text accessibilityLiveRegion="polite" style={[localizedTextStyle(), { color: colors.mutedForeground }]}>{t("Verification status checked.")}</Text>}
     </ScrollView>
   </View>;
 }
