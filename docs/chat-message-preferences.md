@@ -71,6 +71,12 @@ Use these labels:
 - Enforce the requirement on the server for text, media, media-pack sends, and private-live invitations; hiding the composer alone is insufficient.
 - Current implementation defaults: all three settings enabled, required gift `rose`. The conversation explicitly fixed Rose and follow direction; these defaults describe the existing implementation.
 
+## Live-stream gift notices
+
+- Latest user correction (2026-09-12): use **Alex sent 🪙 500 coins · Crown**. Order the value as coin icon, amount, then “coins”. Preserve sender and gift names.
+- Use the confirmed gift transaction amount; keep deduplication, moderation removal, and party-channel mirroring intact. Both host and viewer chat use the shared server message.
+- Device regression: send a gift in a regular/party live and check the order on host and viewer, including a four-digit amount and a long name. Device checks are still pending for this correction.
+
 ## Related notification and privacy decisions
 
 - Country location is now populated from the connection IP, and Hide Location is active. This supersedes the earlier “Location coming later” decision; see [country location](country-location.md).

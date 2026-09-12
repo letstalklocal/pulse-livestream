@@ -69,6 +69,7 @@ function RootLayoutNav() {
       <Stack.Screen name="posts/[uid]" options={{ headerShown: false }} />
       <Stack.Screen name="connections/[uid]" options={{ headerShown: false }} />
       <Stack.Screen name="new-chat" options={{ headerShown: false }} />
+      <Stack.Screen name="search-users" options={{ headerShown: false }} />
       <Stack.Screen name="media-packs" options={{ headerShown: false }} />
       <Stack.Screen name="notification-settings" options={{ headerShown: false }} />
       <Stack.Screen name="message-settings" options={{ headerShown: false }} />

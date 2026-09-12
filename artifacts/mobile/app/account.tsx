@@ -511,6 +511,11 @@ export default function AccountScreen() {
                 style={[localizedTextStyle(), [styles.description, { color: colors.mutedForeground }]]}
               >{t("Manage your sign-in details and account.")}</Text>
               <View style={{ gap: 12 }}>
+                <TouchableOpacity testID="age-verification-entry" accessibilityRole="button" onPress={() => router.push("/verification")} style={[styles.row, { borderColor: colors.border, backgroundColor: colors.card }]}>
+                  <View style={[styles.icon, { backgroundColor: colors.background }]}><Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} /></View>
+                  <Text style={[localizedTextStyle(), styles.label, { flex: 1, color: colors.foreground }]}>{t("Age verification")}</Text>
+                  <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
+                </TouchableOpacity>
                 {row(
                   "Email address",
                   user!.primaryEmailAddress?.emailAddress ??

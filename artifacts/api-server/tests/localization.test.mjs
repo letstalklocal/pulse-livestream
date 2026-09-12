@@ -50,6 +50,11 @@ try {
   function walk(n){
    // The user approved this additional confirmation control; signup-flow tests cover its behavior.
    if(file.endsWith('/(auth)/sign-up.tsx')&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&p.initializer?.text==='confirm-password-field'))return;
+   // Approved additive account entry; keep comparing every existing account control.
+   if(file.endsWith('/account.tsx')&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&p.initializer?.text==='age-verification-entry'))return;
+   // Approved Discover username-search button and route; preserve all prior controls.
+   if(file.endsWith('/(tabs)/index.tsx')&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&p.initializer?.text==='discover-user-search'))return;
+   if(file.endsWith('/app/_layout.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='search-users')return;
    // The new signup route is intentional; compare the existing email form after its move.
    if(file.endsWith('/(auth)/_layout.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='sign-up-email')return;
    if(ts.isJsxAttribute(n)&&stableAttributes.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));

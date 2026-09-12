@@ -1,3 +1,5 @@
+import publicSite from "./routes/publicSite";
+import { diditWebhook } from "./routes/verification";
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
@@ -33,9 +35,13 @@ app.use(
   }),
 );
 
+app.use("/api/site", publicSite);
+app.use(publicSite);
+
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
 app.use(cors({ credentials: true, origin: true }));
+app.post("/api/verification/webhook", express.raw({ type: "application/json", limit: "1mb" }), diditWebhook);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

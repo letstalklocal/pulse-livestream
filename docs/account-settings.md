@@ -34,3 +34,7 @@ pnpm run typecheck
 The integration test applies the migration idempotently, uses temporary accounts, and removes its fixtures. Verify email delivery, password verification, optional MFA, and layout on a signed-in device against the configured Clerk instance before release.
 
 Clerk references: [email verification](https://clerk.com/docs/guides/development/custom-flows/account-updates/add-email), [user methods](https://clerk.com/docs/expo/reference/objects/user), [custom reverification](https://clerk.com/docs/react/reference/hooks/use-reverification).
+
+## Age verification setup
+
+Account now includes an Age verification entry. It shows private verification status and opens the account-linked verification website. It does not change the existing Clerk email/password verification controls. See [Didit setup](didit-verification-setup.md). Provider activation and device checks are pending.

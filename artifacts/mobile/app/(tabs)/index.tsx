@@ -89,6 +89,18 @@ export default function DiscoveryScreen() {
 
       {/* Header */}
       <AccountHeader>
+        {selectedFeed === "discover" && (
+          <TouchableOpacity
+            testID="discover-user-search"
+            style={styles.searchButton}
+            onPress={() => router.push("/search-users")}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={t("Search usernames")}
+          >
+            <Ionicons name="search-outline" size={22} color="#FFFFFF" style={styles.searchIcon} />
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           style={[styles.goLiveBtn, { backgroundColor: colors.primary }]}
           onPress={() => router.push("/go-live" as any)}
@@ -210,6 +222,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  searchButton: { width: 30, height: 36, alignItems: "center", justifyContent: "center", marginRight: 14, transform: [{ translateY: -3 }] },
+  searchIcon: { transform: [{ translateY: 2 }] },
   goLiveBtn: {
     flexDirection: "row",
     alignItems: "center",

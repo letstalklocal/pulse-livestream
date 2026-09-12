@@ -1,3 +1,5 @@
+import userSearchRouter from "./userSearch";
+import verificationRouter from "./verification";
 import momentsRouter from "./moments";
 import performanceRouter from "./performance";
 import earningsRouter from "./earnings";
@@ -25,6 +27,7 @@ import privateStreamInvitationsRouter from "./private-stream-invitations";
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(verificationRouter);
 router.use(countryLocationRouter);
 router.use(privacyRouter);
 router.use(messageSettingsRouter);
@@ -38,6 +41,7 @@ router.use(agoraRouter);
 router.use(streamsRouter);
 router.use(chatRouter);
 router.use(directMessagesRouter);
+router.use(userSearchRouter);
 router.use(usersRouter);
 router.use(coinsRouter);
 router.use(earningsRouter);

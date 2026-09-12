@@ -36,7 +36,7 @@ export function appendGiftChat(
     id,
     senderName,
     senderUid: gift.senderUid,
-    text: `sent ${gift.amount.toLocaleString("en-US")} 🪙 · ${giftName}`,
+    text: `sent 🪙 ${gift.amount.toLocaleString("en-US")} coins · ${giftName}`,
     color: "#FFD76A",
     ts: Date.now(),
   };

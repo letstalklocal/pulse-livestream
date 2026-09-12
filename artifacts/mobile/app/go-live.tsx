@@ -20,8 +20,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth as useClerkAuth } from "@clerk/expo";
 import * as ImagePicker from "expo-image-picker";
+import { StreamBackgroundCropper, type BackgroundCropSource } from "@/components/StreamBackgroundCropper";
 import { fetch as expoFetch } from "expo/fetch";
 import * as Haptics from "expo-haptics";
+import { useKeepAwake } from "expo-keep-awake";
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -157,6 +159,13 @@ async function requestPermissions(): Promise<MediaPermissionResult> {
   }
 }
 
+// Mounted only during a broadcast; Expo releases the idle-timer lock on unmount
+// and restores it when iOS returns from the background.
+function LiveBroadcastKeepAwake() {
+  useKeepAwake(undefined, { suppressDeactivateWarnings: true });
+  return null;
+}
+
 export default function GoLiveScreen() {
   const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const colors = useColors();
@@ -192,6 +201,7 @@ export default function GoLiveScreen() {
   const chatInputRef = useRef<TextInput>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [isUploadingBackground, setIsUploadingBackground] = useState(false);
+  const [backgroundToCrop, setBackgroundToCrop] = useState<BackgroundCropSource | null>(null);
   const [cameraReady, setCameraReady] = useState(!isNative);
   const [cameraViewReady, setCameraViewReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -767,28 +777,10 @@ export default function GoLiveScreen() {
     }
   }, [title, category, user, generateToken, createStream, cameraReady, invitationAction, isPrivateInvite, invitationChannelId, privateInvitationId, requiredGiftId]);
 
-  const chooseStreamBackground = useCallback(async () => {
+  const saveStreamBackground = useCallback(async (asset: { uri: string; mimeType?: string | null }) => {
     if (!user || isUploadingBackground) return;
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert(
-        t("Photo access required"),
-        t("Allow photo access to choose your stream background image."),
-      );
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [9, 16],
-      quality: 0.85,
-    });
-    if (result.canceled || !result.assets[0]) return;
-
     setIsUploadingBackground(true);
     try {
-      const asset = result.assets[0];
       const upload = await requestBackgroundUpload.mutateAsync({ uid: user.uid });
       const sourceResponse = await expoFetch(asset.uri);
       const imageBlob = await sourceResponse.blob();
@@ -815,6 +807,7 @@ export default function GoLiveScreen() {
         streamBackgroundImagePath: updated.user.streamBackgroundImagePath,
         streamBackgroundImageUrl: updated.user.streamBackgroundImageUrl,
       });
+      setBackgroundToCrop(null);
       void refreshBackground();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
@@ -833,6 +826,38 @@ export default function GoLiveScreen() {
     upsertUser,
     user,
   ]);
+
+  const chooseStreamBackground = useCallback(async () => {
+    if (!user || isUploadingBackground || backgroundToCrop) return;
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        t("Photo access required"),
+        t("Allow photo access to choose your stream background image."),
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      // iOS ignores aspect and forces a square; use our portrait crop screen there.
+      allowsEditing: Platform.OS !== "ios",
+      aspect: [9, 16],
+      quality: Platform.OS === "ios" ? 1 : 0.85,
+    });
+    if (result.canceled || !result.assets[0]) return;
+
+    const asset = result.assets[0];
+    if (Platform.OS === "ios") {
+      if (asset.width < 9 || asset.height < 16) {
+        Alert.alert(t("Background not saved"), t("Choose another image and try again."));
+        return;
+      }
+      setBackgroundToCrop(asset);
+      return;
+    }
+    await saveStreamBackground(asset);
+  }, [user, isUploadingBackground, backgroundToCrop, saveStreamBackground]);
 
   const toggleMute = useCallback(() => {
     const next = !isMuted;
@@ -1087,6 +1112,7 @@ export default function GoLiveScreen() {
   if (isLive) {
     return (
       <View style={[styles.container, { backgroundColor: "#000" }]}>
+        <LiveBroadcastKeepAwake />
         <PartyStage channelId={activeChannelId} mainName={user.name} party={party} now={partyState.now} media={partyMedia} main={showNativeVideo && VideoView ? (
           <VideoView
             canvas={{ uid: 0, sourceType: VideoSourceType.VideoSourceCamera }}
@@ -1292,6 +1318,9 @@ export default function GoLiveScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: "#000" }]}>
+      {backgroundToCrop && (
+        <StreamBackgroundCropper source={backgroundToCrop} onCancel={() => setBackgroundToCrop(null)} onConfirm={saveStreamBackground} />
+      )}
       <View style={[styles.setupCamera, { backgroundColor: catColor + "22" }]}>
         {isNative && cameraViewReady && VideoView ? (
           <VideoView

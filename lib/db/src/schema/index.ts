@@ -20,3 +20,4 @@ export * from "./privacy-preferences";
 export * from "./message-preferences";
 
 export * from "./moments";
+export * from "./identity-verifications";

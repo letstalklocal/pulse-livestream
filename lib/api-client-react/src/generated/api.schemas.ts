@@ -460,6 +460,17 @@ export interface AgoraRtmTokenResponse {
   expiresAt: number;
 }
 
+export type UserSearchResponseUsersItem = {
+  uid: number;
+  name: string;
+  /** @nullable */
+  avatarImageUrl: string | null;
+};
+
+export interface UserSearchResponse {
+  users: UserSearchResponseUsersItem[];
+}
+
 export interface FollowingUser {
   uid: number;
   name: string;
@@ -725,6 +736,13 @@ export const UpdateStreamPresenceBodyAction = {
 
 export type UpdateStreamPresenceBody = {
   action: UpdateStreamPresenceBodyAction;
+};
+
+export type SearchUsersParams = {
+/**
+ * @maxLength 64
+ */
+q: string;
 };
 
 export type GetFollowStatusParams = {

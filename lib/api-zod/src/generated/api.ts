@@ -272,6 +272,26 @@ export const AdmitToStreamResponse = zod.object({
 
 
 /**
+ * @summary Search account names, including users who are not live
+ */
+export const searchUsersQueryQMax = 64;
+
+
+
+export const SearchUsersQueryParams = zod.object({
+  "q": zod.coerce.string().max(searchUsersQueryQMax)
+})
+
+export const SearchUsersResponse = zod.object({
+  "users": zod.array(zod.object({
+  "uid": zod.number(),
+  "name": zod.string(),
+  "avatarImageUrl": zod.string().nullable()
+}))
+})
+
+
+/**
  * @summary Get user profile
  */
 export const GetUserParams = zod.object({

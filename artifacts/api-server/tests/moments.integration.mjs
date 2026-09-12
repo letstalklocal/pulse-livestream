@@ -354,7 +354,7 @@ try {
     "test-channel",
     "gift:unique-gift",
   );
-  assert.equal(giftMessage.text, "sent 500 🪙 · Gift");
+  assert.equal(giftMessage.text, "sent 🪙 500 coins · Gift");
   assert.equal(
     liveChat.chatStore.get("test-channel").length,
     1,

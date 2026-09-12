@@ -375,6 +375,32 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /users:
+    get:
+      operationId: searchUsers
+      tags: [users]
+      summary: Search account names, including users who are not live
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 64
+      responses:
+        "200":
+          description: Up to 30 public account summaries, excluding blocked contacts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSearchResponse"
+        "400":
+          description: Invalid search query
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /users/{uid}:
     get:
       operationId: getUser
@@ -1794,6 +1820,20 @@ components:
         - appId
         - uid
         - expiresAt
+
+    UserSearchResponse:
+      type: object
+      required: [users]
+      properties:
+        users:
+          type: array
+          items:
+            type: object
+            required: [uid, name, avatarImageUrl]
+            properties:
+              uid: { type: integer }
+              name: { type: string }
+              avatarImageUrl: { type: [string, "null"] }
 
     FollowingUser:
       type: object
