@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Pulse — Admin</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <a class="brand" href="#overview"
+        ><span class="brand-mark">p</span>pulse<span class="admin-label"
+          >ADMIN</span
+        ></a
+      >
+      <div class="workspace">
+        <span class="workspace-icon">P</span>
+        <div>Pulse workspace<small>Community operations</small></div>
+        <span class="chevron">⌄</span>
+      </div>
+      <p class="nav-label">WORKSPACE</p>
+      <nav aria-label="Main navigation"></nav>
+      <div class="sidebar-bottom">
+        <div class="preview-note">
+          <span class="spark">✧</span><strong>Your community workspace</strong>
+          <p>Account lookup and verification status.</p>
+          <span class="tag">READ-ONLY ACCESS</span>
+        </div>
+        <div class="profile">
+          <span class="avatar staff">PA</span>
+          <div>Pulse admin<small>Staff workspace</small></div>
+        </div>
+      </div>
+    </aside>
+    <div class="shell">
+      <header>
+        <div class="breadcrumb">
+          Workspace <span>/</span> <strong id="breadcrumb">Overview</strong>
+        </div>
+        <div class="header-right">
+          <span class="preview-pill" id="environment">Connecting…</span
+          ><button id="sign-out" class="row-action" hidden>Sign out</button
+          ><span class="avatar mini">PA</span>
+        </div>
+      </header>
+      <main id="main"></main>
+      <footer>Pulse Admin <span>Staff access · Read-only</span></footer>
+    </div>
+    <dialog id="details">
+      <div class="dialog-top">
+        <span class="eyebrow">ACCOUNT DETAILS</span
+        ><button
+          id="close-dialog"
+          class="icon-button"
+          aria-label="Close account details"
+        >
+          ×
+        </button>
+      </div>
+      <div id="detail-content"></div>
+      <p class="detail-note">
+        Read-only account view. Financial records and account actions are not
+        connected.
+      </p>
+    </dialog>
+  </body>
+</html>

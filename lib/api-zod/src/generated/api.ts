@@ -9,6 +9,144 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Read current account and stream totals plus seven UTC dates of account growth and gifts
+ */
+export const getAdminOverviewResponseTotalUsersMin = 0;
+
+export const getAdminOverviewResponseVerifiedAccountsMin = 0;
+
+export const getAdminOverviewResponseLiveStreamsMin = 0;
+
+export const getAdminOverviewResponseNewUsersCurrentMin = 0;
+
+export const getAdminOverviewResponseNewUsersPreviousMin = 0;
+
+export const getAdminOverviewResponseCoinsGiftedCurrentMin = 0;
+
+export const getAdminOverviewResponseCoinsGiftedPreviousMin = 0;
+
+export const getAdminOverviewResponseGrowthItemCountMin = 0;
+
+export const getAdminOverviewResponseGrowthMin = 7;
+export const getAdminOverviewResponseGrowthMax = 7;
+
+
+
+export const GetAdminOverviewResponse = zod.object({
+  "asOf": zod.coerce.date(),
+  "environment": zod.string(),
+  "verificationEnvironment": zod.string(),
+  "range": zod.object({
+  "start": zod.coerce.date(),
+  "end": zod.coerce.date(),
+  "previousStart": zod.coerce.date(),
+  "previousEnd": zod.coerce.date(),
+  "timeZone": zod.enum(['UTC']),
+  "todayPartial": zod.boolean()
+}),
+  "totalUsers": zod.number().min(getAdminOverviewResponseTotalUsersMin),
+  "verifiedAccounts": zod.number().min(getAdminOverviewResponseVerifiedAccountsMin),
+  "verifiedPercent": zod.number(),
+  "liveStreams": zod.number().min(getAdminOverviewResponseLiveStreamsMin),
+  "newUsers": zod.object({
+  "current": zod.number().min(getAdminOverviewResponseNewUsersCurrentMin),
+  "previous": zod.number().min(getAdminOverviewResponseNewUsersPreviousMin),
+  "changePercent": zod.number().nullable()
+}),
+  "coinsGifted": zod.object({
+  "current": zod.number().min(getAdminOverviewResponseCoinsGiftedCurrentMin),
+  "previous": zod.number().min(getAdminOverviewResponseCoinsGiftedPreviousMin),
+  "changePercent": zod.number().nullable()
+}),
+  "growth": zod.array(zod.object({
+  "date": zod.coerce.date(),
+  "count": zod.number().min(getAdminOverviewResponseGrowthItemCountMin)
+})).min(getAdminOverviewResponseGrowthMin).max(getAdminOverviewResponseGrowthMax)
+})
+
+
+/**
+ * @summary getAdminAuthConfig
+ */
+export const GetAdminAuthConfigResponse = zod.object({
+  "publishableKey": zod.string(),
+  "frontendApi": zod.string().url()
+})
+
+
+/**
+ * @summary getAdminSession
+ */
+export const GetAdminSessionResponse = zod.object({
+  "role": zod.enum(['owner']),
+  "environment": zod.string()
+})
+
+
+/**
+ * @summary listAdminUsers
+ */
+export const listAdminUsersQueryQMax = 100;
+
+export const listAdminUsersQueryLimitDefault = 20;
+export const listAdminUsersQueryLimitMax = 50;
+
+
+
+export const ListAdminUsersQueryParams = zod.object({
+  "q": zod.coerce.string().max(listAdminUsersQueryQMax).optional(),
+  "status": zod.enum(['all', 'verified', 'pending', 'unverified']).optional(),
+  "limit": zod.coerce.number().min(1).max(listAdminUsersQueryLimitMax).default(listAdminUsersQueryLimitDefault),
+  "cursor": zod.coerce.string().optional()
+})
+
+export const ListAdminUsersResponse = zod.object({
+  "users": zod.array(zod.object({
+  "uid": zod.number(),
+  "name": zod.string(),
+  "countryCode": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "verification": zod.object({
+  "status": zod.string(),
+  "isVerified": zod.boolean(),
+  "method": zod.enum(['selfie', 'id']).nullable(),
+  "upgradeStatus": zod.string(),
+  "environment": zod.string()
+})
+})),
+  "nextCursor": zod.string().nullable(),
+  "asOf": zod.coerce.date(),
+  "environment": zod.string()
+})
+
+
+/**
+ * @summary getAdminUser
+ */
+export const getAdminUserPathUidMax = 2147483647;
+
+
+
+export const GetAdminUserParams = zod.object({
+  "uid": zod.coerce.number().min(1).max(getAdminUserPathUidMax)
+})
+
+export const GetAdminUserResponse = zod.object({
+  "uid": zod.number(),
+  "name": zod.string(),
+  "countryCode": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "verification": zod.object({
+  "status": zod.string(),
+  "isVerified": zod.boolean(),
+  "method": zod.enum(['selfie', 'id']).nullable(),
+  "upgradeStatus": zod.string(),
+  "environment": zod.string()
+})
+})
+
+
+/**
  * @summary Refresh the signed-in account country from its connection IP
  */
 export const RefreshCountryLocationResponse = zod.object({

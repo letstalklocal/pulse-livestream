@@ -15,8 +15,8 @@ Use [Policy compliance checklist](policy-compliance-checklist.md) for detailed p
 |---|---|---|---|---|---|
 | A1 | In-app purchases (IAP) | Open | TBD | TBD | — |
 | A2 | Google sign-in | Open | TBD | TBD | — |
-| A3 | Age verification | Didit preferred for testing; implementation open | TBD | TBD | — |
-| A4 | Admin website | Needs scope and access review | TBD | TBD | — |
+| A3 | Age verification | Selfie/ID upgrade implemented in sandbox; launch checks open | TBD | TBD | — |
+| A4 | Admin website | Staff access, live users, and overview metrics implemented in development; launch checks open | TBD | TBD | — |
 | A5 | Policy website and app links | Open | TBD | TBD | — |
 | A6 | Moderation process | Stream-filtering proposal received; review open | TBD | TBD | — |
 | A7 | Public feed strategy and verification access | Source document received; review open | TBD | TBD | — |
@@ -105,7 +105,9 @@ Use [Policy compliance checklist](policy-compliance-checklist.md) for detailed p
 
 ### A4. Admin website
 
-The existing policy review describes the admin application as separate. Locate it and review what already works before planning replacements.
+**Development milestone implemented:** staff login, live user directory, and read-only account details. Live overview metrics and the seven-date UTC growth chart are also implemented. Read-only operational sections are next. See the [live-data implementation plan](admin-website.md#live-data-implementation-plan--september-13-2026) for data sources, sequencing, permissions, and acceptance checks. The initial admin is `one.espana@gmail.com`; bind membership to its verified Clerk identity. Admin permissions must remain separate from ordinary mobile-app access and behavior.
+
+User clarification (September 13, 2026): no admin website existed. Build it in `artifacts/admin` in this project, sharing the API and deployment. A separate admin subdomain is intended; independent deployment is not required. The first sample-data dashboard is documented in [Admin website](admin-website.md).
 
 - [ ] Confirm its repository, deployment, domain, current features, and API integration.
 - [ ] Agree on launch roles and permissions; secure staff sign-in and sensitive actions, including MFA.
@@ -278,3 +280,17 @@ Do not promise dates until owners review scope and dependencies. A6 remains a la
 - [ ] Product owner records the go/no-go decision and launch date.
 
 For each completed workstream, record: **owner, completion date, build/environment, evidence link, reviewer, and remaining follow-up**.
+
+
+## Verification upgrade release checkpoint — September 12, 2026
+
+- [x] Implement selfie evidence acceptance and separate Selfie/ID verification type.
+- [x] Implement authenticated ID upgrade, consent, resume/retry/review and protection of existing selfie access while pending.
+- [x] Reject selfie-only evidence for an ID upgrade; remove verified access for documentary underage evidence or a revoked completed ID check.
+- [x] Create dedicated sandbox ID workflow and smoke-test actual session creation/resume/refresh on the running API.
+- [ ] Persist the new workflow configuration, complete phone capture/webhook tests and configure/test production workflows.
+- [ ] Finalize support/review, privacy/retention/deletion and action-specific ID requirements before launch.
+
+See [verification setup and release evidence](didit-verification-setup.md#selfie-verification-and-id-upgrade--september-12-2026). These completed engineering checks do not mark all of A3 or the app ready for go-live.
+
+Current verification release work and evidence are consolidated in [verification launch checklist](verification-launch-checklist.md).

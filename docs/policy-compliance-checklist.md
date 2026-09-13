@@ -27,7 +27,7 @@ Two distinctions matter for this review:
 
 ## Initial Pulse findings
 
-These observations come from a limited read of local code and project records. Store consoles, production operations, the separate admin app, and legal documents hosted elsewhere were not audited.
+These observations come from a limited read of local code and project records. Store consoles, production operations, admin operations, and legal documents hosted elsewhere were not audited.
 
 | Area | Current evidence | Review status |
 |---|---|---|
@@ -37,7 +37,7 @@ These observations come from a limited read of local code and project records. S
 | Recording | Gift-triggered Moments save camera/microphone clips. [Moments record](moments-feasibility.md) | Explicit recording disclosure/consent and capture indication need review, including Party participants. |
 | Privacy/location | Country detection and Hide Location are documented. [Country location](country-location.md) | Partial; privacy settings are not a substitute for a published privacy policy. |
 | Localization | Ten interface catalogs exist; native-speaker/device review remains open. [Localization plan](localization-plan.md) | Safety, consent and policy text need their own review; translated buttons do not prove translated policy coverage. |
-| Money/admin operations | Coins, gifts, Premium, paid media and earnings are part of Pulse. The admin application is separate. | Production billing, moderation operations and payout controls were not verified. |
+| Money/admin operations | Coins, gifts, Premium, paid media and earnings are part of Pulse. The admin website is being built in this project; its first version is a sample-data preview. | Production billing, moderation operations and payout controls were not verified. |
 
 ## 1. Audience, age and onboarding
 
@@ -71,7 +71,7 @@ Policies require effective ongoing moderation, reporting and blocking; monetizat
 - [ ] **MOD-01 — Policy:** Publish prohibited content/behavior rules covering exploitation, sexual content, harassment, threats and other prohibited material; demonstrate a working filtering/moderation process.
 - [ ] **MOD-02 — Verification:** Test reporting across Live, Party, profile, posts/comments, DMs and paid media. A gift gate, blocked relationship or ended stream must not make relevant safety reporting inaccessible. Preserve approved chat interaction designs; evaluate coverage before proposing UI changes.
 - [ ] **MOD-03 — Verification:** Test blocking across messages, invitations, gifts, profile/content access and live sessions, including reconnect and cached views.
-- [ ] **MOD-04 — Verification:** Show that reports reach an authorized responder in the separate admin/operations system. Record severity, owner, response target, decision, removal/suspension and review history. Intake tables alone are insufficient evidence.
+- [ ] **MOD-04 — Verification:** Show that reports reach an authorized responder in the admin/operations system. Record severity, owner, response target, decision, removal/suspension and review history. Intake tables alone are insufficient evidence.
 - [ ] **MOD-05 — Policy:** Review actual usage as well as written rules: apps primarily used for pornography, random/anonymous chat or bullying face Apple restrictions. [Apple §1.2](https://developer.apple.com/app-store/review/guidelines/)
 - [ ] **MOD-06 — Verification:** Test access removal for an abusive live session and associated saved/shared copies using benign fixtures; confirm unauthorized users cannot view moderation evidence.
 

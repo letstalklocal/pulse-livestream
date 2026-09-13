@@ -9,8 +9,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth, useReverification, useSession, useUser } from "@clerk/expo";
 import type { EmailAddressResource } from "@clerk/expo/types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Redirect, useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import { Redirect, useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -88,6 +88,30 @@ export default function AccountScreen() {
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [verifyLabel, setVerifyLabel] = useState("");
   const [secondFactor, setSecondFactor] = useState(false);
+
+  const ageVerification = useQuery<{ isVerified: boolean; verificationType: "selfie" | "id" | null; upgradeStatus: string; canUpgrade: boolean; status: string; available: boolean }>({
+    queryKey: ["identity-verification", user?.id],
+    enabled: !!user?.id,
+    retry: false,
+    queryFn: async () => {
+      const token = await getToken();
+      if (!token) throw new Error("Please sign in again.");
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15_000);
+      try {
+        const response = await fetch(`${base}/api/account/verification`, {
+          signal: controller.signal,
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) throw new Error("Verification request failed");
+        return await response.json();
+      } finally { clearTimeout(timeout); }
+    },
+  });
+  const { refetch: refreshAgeVerification } = ageVerification;
+  useFocusEffect(useCallback(() => {
+    if (user?.id) void refreshAgeVerification();
+  }, [user?.id, refreshAgeVerification]));
 
   const deletion = useQuery({
     queryKey: ["account-deletion-request", user?.id],
@@ -514,6 +538,7 @@ export default function AccountScreen() {
                 <TouchableOpacity testID="age-verification-entry" accessibilityRole="button" onPress={() => router.push("/verification")} style={[styles.row, { borderColor: colors.border, backgroundColor: colors.card }]}>
                   <View style={[styles.icon, { backgroundColor: colors.background }]}><Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} /></View>
                   <Text style={[localizedTextStyle(), styles.label, { flex: 1, color: colors.foreground }]}>{t("Age verification")}</Text>
+                  {ageVerification.data?.isVerified === true && !ageVerification.isError && <Text accessibilityLiveRegion="polite" style={[localizedTextStyle(), { color: "#4ADE80", fontWeight: "600", flexShrink: 1 }]}>{t("Verified")}</Text>}
                   <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
                 </TouchableOpacity>
                 {row(

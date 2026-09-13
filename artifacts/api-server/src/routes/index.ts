@@ -1,3 +1,4 @@
+import adminRouter from "./admin";
 import userSearchRouter from "./userSearch";
 import verificationRouter from "./verification";
 import momentsRouter from "./moments";
@@ -26,6 +27,7 @@ import privateStreamInvitationsRouter from "./private-stream-invitations";
 
 const router: IRouter = Router();
 
+router.use("/admin-data", adminRouter);
 router.use(healthRouter);
 router.use(verificationRouter);
 router.use(countryLocationRouter);

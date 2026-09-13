@@ -7,6 +7,19 @@
  */
 
 export * from './addPostCommentBody';
+export * from './adminAuthConfig';
+export * from './adminOverview';
+export * from './adminOverviewCoinsGifted';
+export * from './adminOverviewGrowthItem';
+export * from './adminOverviewNewUsers';
+export * from './adminOverviewRange';
+export * from './adminOverviewRangeTimeZone';
+export * from './adminSession';
+export * from './adminSessionRole';
+export * from './adminUser';
+export * from './adminUserList';
+export * from './adminVerification';
+export * from './adminVerificationMethod';
 export * from './agoraRtmTokenRequest';
 export * from './agoraRtmTokenResponse';
 export * from './agoraTokenRequest';
@@ -45,6 +58,8 @@ export * from './getTranslationStatus200';
 export * from './getUserSafety200';
 export * from './healthStatus';
 export * from './leaderboardEntry';
+export * from './listAdminUsersParams';
+export * from './listAdminUsersStatus';
 export * from './liveParty';
 export * from './livePartyStatus';
 export * from './mediaPack';

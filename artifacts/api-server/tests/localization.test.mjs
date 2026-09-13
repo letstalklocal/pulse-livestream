@@ -55,6 +55,9 @@ try {
    // Approved Discover username-search button and route; preserve all prior controls.
    if(file.endsWith('/(tabs)/index.tsx')&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&p.initializer?.text==='discover-user-search'))return;
    if(file.endsWith('/app/_layout.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='search-users')return;
+   // The explicitly registered verification route removes Expo's default header, as approved.
+   if(file.endsWith('/app/_layout.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='verification')return;
+   if(file.endsWith('/app/verification.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='chevron-back')return;
    // The new signup route is intentional; compare the existing email form after its move.
    if(file.endsWith('/(auth)/_layout.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='sign-up-email')return;
    if(ts.isJsxAttribute(n)&&stableAttributes.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));

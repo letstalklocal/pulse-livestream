@@ -5,6 +5,113 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type AdminOverviewRangeTimeZone = typeof AdminOverviewRangeTimeZone[keyof typeof AdminOverviewRangeTimeZone];
+
+
+export const AdminOverviewRangeTimeZone = {
+  UTC: 'UTC',
+} as const;
+
+export type AdminOverviewRange = {
+  start: string;
+  end: string;
+  previousStart: string;
+  previousEnd: string;
+  timeZone: AdminOverviewRangeTimeZone;
+  todayPartial: boolean;
+};
+
+export type AdminOverviewNewUsers = {
+  /** @minimum 0 */
+  current: number;
+  /** @minimum 0 */
+  previous: number;
+  changePercent: number | null;
+};
+
+export type AdminOverviewCoinsGifted = {
+  /** @minimum 0 */
+  current: number;
+  /** @minimum 0 */
+  previous: number;
+  changePercent: number | null;
+};
+
+export type AdminOverviewGrowthItem = {
+  date: string;
+  /** @minimum 0 */
+  count: number;
+};
+
+export interface AdminOverview {
+  asOf: string;
+  environment: string;
+  verificationEnvironment: string;
+  range: AdminOverviewRange;
+  /** @minimum 0 */
+  totalUsers: number;
+  /** @minimum 0 */
+  verifiedAccounts: number;
+  verifiedPercent: number;
+  /** @minimum 0 */
+  liveStreams: number;
+  newUsers: AdminOverviewNewUsers;
+  coinsGifted: AdminOverviewCoinsGifted;
+  /**
+     * @minItems 7
+     * @maxItems 7
+     */
+  growth: AdminOverviewGrowthItem[];
+}
+
+export type AdminVerificationMethod = typeof AdminVerificationMethod[keyof typeof AdminVerificationMethod] | null;
+
+
+export const AdminVerificationMethod = {
+  selfie: 'selfie',
+  id: 'id',
+} as const;
+
+export interface AdminVerification {
+  status: string;
+  isVerified: boolean;
+  method: AdminVerificationMethod;
+  upgradeStatus: string;
+  environment: string;
+}
+
+export interface AdminUser {
+  uid: number;
+  name: string;
+  countryCode: string | null;
+  createdAt: string;
+  verification: AdminVerification;
+}
+
+export type AdminSessionRole = typeof AdminSessionRole[keyof typeof AdminSessionRole];
+
+
+export const AdminSessionRole = {
+  owner: 'owner',
+} as const;
+
+export interface AdminSession {
+  role: AdminSessionRole;
+  environment: string;
+}
+
+export interface AdminUserList {
+  users: AdminUser[];
+  nextCursor: string | null;
+  asOf: string;
+  environment: string;
+}
+
+export interface AdminAuthConfig {
+  publishableKey: string;
+  frontendApi: string;
+}
+
 export interface PostActivity {
   likeCount: number;
   commentCount: number;
@@ -664,6 +771,30 @@ export interface UnlockMediaDmResponse {
   unlocked: boolean;
   mediaUrl?: string;
 }
+
+export type ListAdminUsersParams = {
+/**
+ * @maxLength 100
+ */
+q?: string;
+status?: ListAdminUsersStatus;
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: number;
+cursor?: string;
+};
+
+export type ListAdminUsersStatus = typeof ListAdminUsersStatus[keyof typeof ListAdminUsersStatus];
+
+
+export const ListAdminUsersStatus = {
+  all: 'all',
+  verified: 'verified',
+  pending: 'pending',
+  unverified: 'unverified',
+} as const;
 
 export type RefreshCountryLocation200 = {
   countryCode: string | null;

@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import sandboxAccounts from "./verificationSandboxAccounts.json";
 
 export class VerificationError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -23,7 +24,11 @@ export function verificationConfigured() {
 }
 export function requireVerificationConfiguration(uid: number) {
   if (!verificationConfigured()) throw new VerificationError(503, "Verification is not available yet. Please try again later.");
-  if (verificationEnvironment() === "sandbox" && !(process.env.DIDIT_TEST_USER_IDS ?? "").split(",").map(s => s.trim()).includes(String(uid)))
+  const configuredAccounts = (process.env.DIDIT_TEST_USER_IDS ?? "").split(",").map(s => s.trim());
+  // Explicitly approved development testers survive host restarts. Never used in production.
+  const approvedDevelopmentAccount = process.env.NODE_ENV === "development"
+    && sandboxAccounts.userIds.includes(uid);
+  if (verificationEnvironment() === "sandbox" && !configuredAccounts.includes(String(uid)) && !approvedDevelopmentAccount)
     throw new VerificationError(503, "Verification is not available yet. Please try again later.");
 }
 export async function diditRequest(path: string, body?: Record<string, unknown>): Promise<Record<string, any>> {
@@ -55,7 +60,8 @@ export function isAdultDate(value: unknown, now = new Date()): boolean {
   return now >= eighteenth;
 }
 const approved = (value: unknown) => typeof value === "string" && value.toLowerCase() === "approved";
-export function decisionStatus(decision: Record<string, any>, now = new Date()) {
+export const SELFIE_CLEAR_PASS_AGE = 25;
+export function decisionStatus(decision: Record<string, any>, now = new Date(), requireId = false) {
   const status = String(decision.status ?? "").toLowerCase().replaceAll("_", " ");
   if (["declined", "rejected", "expired", "abandoned", "cancelled"].includes(status)) return "failed";
   if (status === "in review") return "review_needed";
@@ -63,10 +69,35 @@ export function decisionStatus(decision: Record<string, any>, now = new Date()) 
   const ids = decision.id_verifications;
   const lives = decision.liveness_checks;
   const faces = decision.face_matches;
+  // Hosted age-estimation reports are embedded in liveness_checks (Didit V3).
+  // Borderline estimates require document fallback, regardless of the overall flag.
+  if (!requireId && (ids == null || (Array.isArray(ids) && ids.length === 0))) {
+    if (!Array.isArray(decision.features) || !decision.features.includes("AGE_ESTIMATION")) return "review_needed";
+    if (!Array.isArray(lives) || !lives.length || !lives.every(v => v && approved(v.status)
+      && typeof v.age_estimation === "number" && Number.isFinite(v.age_estimation)
+      && v.age_estimation > SELFIE_CLEAR_PASS_AGE && v.age_estimation <= 120
+      && typeof v.score === "number" && v.score > 30 && v.score <= 100
+      && Array.isArray(v.warnings) && v.warnings.length === 0)) return "review_needed";
+    return "verified";
+  }
   // Require documentary identity + liveness + face match, not a bare overall Approved flag.
   if (![ids, lives, faces].every(a => Array.isArray(a) && a.length > 0 && a.every(v => v && approved(v.status)))) return "review_needed";
   if (!ids.every((v: any) => (!v.verification_method || v.verification_method === "document") && isAdultDate(v.date_of_birth, now))) return "failed";
   return "verified";
+}
+export function decisionType(decision: Record<string, any>): "id" | "selfie" {
+  // Only call after decisionStatus returns verified.
+  return Array.isArray(decision.id_verifications) && decision.id_verifications.length > 0 ? "id" : "selfie";
+}
+export function documentShowsMinor(decision: Record<string, any>, now = new Date()) {
+  // Missing/malformed DOB is not affirmative evidence of being under 18.
+  return Array.isArray(decision.id_verifications) && decision.id_verifications.some((v: any) => {
+    const dob = v?.date_of_birth;
+    if (typeof dob !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(dob)) return false;
+    const date = new Date(`${dob}T00:00:00Z`);
+    return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === dob
+      && date <= now && date.getUTCFullYear() >= 1900 && !isAdultDate(dob, now);
+  });
 }
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;

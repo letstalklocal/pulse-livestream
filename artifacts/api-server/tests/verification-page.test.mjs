@@ -8,7 +8,7 @@ const module={exports:{}};vm.runInNewContext(bundle.outputFiles[0].text,{module,
 const html=module.exports.verificationPage('test');
 const script=html.match(/<script[^>]*>([\s\S]*?)<\/script>/)[1];
 const elements=new Map([...html.matchAll(/id="([^"]+)"/g)].map(m=>[m[1],{hidden:true,disabled:false,textContent:'',checked:false}]));
-const buttons=['start','save','refresh'].map(id=>elements.get(id));
+const buttons=['start','save','refresh','upgrade'].map(id=>elements.get(id));
 let mode='normal';let calls=0;
 const state={status:'pending',isVerified:false,matureContentEnabled:false,csrf:'test-csrf',accountId:1,environment:'sandbox'};
 const ctx=vm.createContext({document:{getElementById:id=>elements.get(id),querySelectorAll:()=>buttons,hidden:false},location:{hash:'',search:'',pathname:'/api/verification/'},history:{replaceState(){}},URLSearchParams,AbortController,setInterval(){},setTimeout:(fn)=>setTimeout(fn,25),clearTimeout,fetch:async(url,opts)=>{calls++;if(mode==='timeout')return new Promise((_,reject)=>opts.signal.addEventListener('abort',()=>reject(Object.assign(new Error('abort'),{name:'AbortError'}))));return {ok:mode!=='expired',status:mode==='expired'?401:200,json:async()=>state};}});
@@ -33,4 +33,17 @@ for(const id of ['refresh','start-panel','mature-panel'])assert.equal(elements.g
 assert.match(elements.get('error').textContent,/Account → Age verification/);
 assert.equal(elements.get('refresh').disabled,false);
 assert.equal(calls,4);
+mode='normal';Object.assign(state,{status:'verified',isVerified:true,verificationType:'selfie',upgradeStatus:'not_started',canUpgrade:true});
+await elements.get('refresh').onclick();
+assert.equal(elements.get('upgrade-panel').hidden,false);assert.equal(elements.get('refresh').hidden,true);
+assert.equal(elements.get('status').textContent.startsWith('You’re Verified'),true);
+assert.equal(elements.get('verification-method').textContent,'Your age was verified with a selfie.');
+await elements.get('upgrade').onclick();assert.match(elements.get('error').textContent,/accept the ID verification notice/);
+state.upgradeStatus='pending';await elements.get('refresh').onclick();assert.equal(elements.get('refresh').hidden,false);assert.equal(elements.get('upgrade').textContent,'Continue ID verification');
+state.upgradeStatus='review_needed';await elements.get('refresh').onclick();assert.equal(elements.get('upgrade-actions').hidden,true);
+Object.assign(state,{verificationType:'id',upgradeStatus:'verified',canUpgrade:false});await elements.get('refresh').onclick();assert.equal(elements.get('upgrade-panel').hidden,true);assert.equal(elements.get('verification-method').textContent,'Verified with ID');assert.equal(elements.get('refresh').hidden,true);
+Object.assign(state,{isVerified:false,verificationType:null,status:'review_needed',upgradeStatus:'not_started'});
+await elements.get('refresh').onclick();assert.equal(elements.get('start-panel').hidden,true);assert.equal(elements.get('refresh').hidden,false);
+assert.equal(elements.has('continue-id'),false);
+console.log('PASS: upgrade visibility, consent, pending resume, review, and completed ID states. Simulated DOM.');
 console.log('PASS: page script shows refresh progress, recovers after timeout, confirms success, and hides account actions on expiry. Simulated DOM; no visual/device check.');

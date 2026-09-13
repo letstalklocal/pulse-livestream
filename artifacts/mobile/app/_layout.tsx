@@ -80,6 +80,7 @@ function RootLayoutNav() {
       <Stack.Screen name="earnings" options={{ headerShown: false }} />
       <Stack.Screen name="settings" options={{ headerShown: false }} />
       <Stack.Screen name="account" options={{ headerShown: false }} />
+      <Stack.Screen name="verification" options={{ headerShown: false }} />
     </Stack>
   );
 }
