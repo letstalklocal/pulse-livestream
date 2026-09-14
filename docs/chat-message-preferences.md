@@ -73,11 +73,14 @@ Use these labels:
 
 ## Host live-stream composer
 
+Build timing and per-fix verification are tracked in [Apple / TestFlight fixes](apple-testflight-fixes.md). The next build is on hold while other fixes are collected.
+
 - Confirmed 2026-09-14 after TestFlight build 4: on **iOS**, the bottom bar and messages must return to the bottom after the keyboard closes, matching Android. Preserve Android's existing keyboard layout behavior.
 - On **both iOS and Android**, the first typed character expands the live input and reveals an on-screen Send button, like Messages chat. Clearing/sending restores the compact width. Use the existing 180 ms cubic ease-out animation and respect reduced motion.
 - Keep the input focused and editable when sending; retain a failed draft without overwriting newer typing. Use `Type...` as the placeholder.
-- Live keyboard dismissal must remain available independently of sending: tap the video background or the composer down-arrow to close it, preserve the draft, and restore the live controls. Native keyboard dismissal (including Android Back) also restores the controls. Sending still keeps the keyboard open.
-- Device regression pending: check background tap, down-arrow, and Android Back with empty/unsent/sent drafts; reopen and confirm draft preservation. On iPhone, repeatedly open/type/dismiss the keyboard and confirm the bar/messages return to the bottom; compare Android. On both platforms check first-character expansion, Send visibility, send without keyboard dismissal, clearing, rapid repeat sends, and failure with/without a newer draft. Check regular and party lives and restored safe-area spacing after dismissal.
+- Live keyboard dismissal must remain available independently of sending: tap the video background (including message bubbles and the gaps around them) or the composer down-arrow to close it, preserve the draft, and restore the live controls. Native keyboard dismissal (including Android Back) also restores the controls. Sending still keeps the keyboard open.
+- User device check: keyboard dismissal and bottom-bar restoration now work when tapping above the messages. Message-area dismissal is the remaining correction; preserve message removal and translation gestures.
+- Device regression pending: check taps on message text, bubble backgrounds, gaps between/beside messages, and above the list; check long-press removal/translation. Check background tap, down-arrow, and Android Back with empty/unsent/sent drafts; reopen and confirm draft preservation. On iPhone, repeatedly open/type/dismiss the keyboard and confirm the bar/messages return to the bottom; compare Android. On both platforms check first-character expansion, Send visibility, send without keyboard dismissal, clearing, rapid repeat sends, and failure with/without a newer draft. Check regular and party lives and restored safe-area spacing after dismissal.
 
 ## Live-stream gift notices
 
