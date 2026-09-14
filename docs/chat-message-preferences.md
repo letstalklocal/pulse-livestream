@@ -71,6 +71,13 @@ Use these labels:
 - Enforce the requirement on the server for text, media, media-pack sends, and private-live invitations; hiding the composer alone is insufficient.
 - Current implementation defaults: all three settings enabled, required gift `rose`. The conversation explicitly fixed Rose and follow direction; these defaults describe the existing implementation.
 
+## Host live-stream composer
+
+- Confirmed 2026-09-14 after TestFlight build 4: on **iOS**, the bottom bar and messages must return to the bottom after the keyboard closes, matching Android. Preserve Android's existing keyboard layout behavior.
+- On **both iOS and Android**, the first typed character expands the live input and reveals an on-screen Send button, like Messages chat. Clearing/sending restores the compact width. Use the existing 180 ms cubic ease-out animation and respect reduced motion.
+- Keep the input focused and editable when sending; retain a failed draft without overwriting newer typing. Use `Type...` as the placeholder.
+- Device regression pending: on iPhone, repeatedly open/type/dismiss the keyboard and confirm the bar/messages return to the bottom; compare Android. On both platforms check first-character expansion, Send visibility, send without keyboard dismissal, clearing, rapid repeat sends, and failure with/without a newer draft. Check regular and party lives and restored safe-area spacing after dismissal.
+
 ## Live-stream gift notices
 
 - Latest user correction (2026-09-12): use **Alex sent 🪙 500 coins · Crown**. Order the value as coin icon, amount, then “coins”. Preserve sender and gift names.

@@ -4,7 +4,7 @@ import { CrownArtwork } from "@/components/CrownArtwork";
 import { momentsRequest } from "@/utils/moments";
 import { startMomentProof, stopMomentProof } from "@/utils/momentProof";
 import { recordGiftMoment, stopMomentRecording, prepareMomentRecording } from "@/utils/momentRecorder";
-import { KeyboardAvoidingView as LiveKeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
+import { KeyboardAvoidingView as LiveKeyboardAvoidingView, KeyboardStickyView, useKeyboardState } from "react-native-keyboard-controller";
 import { TranslatedMessage } from "@/components/TranslatedMessage";
 import { TranslationToggle } from "@/components/TranslationToggle";
 import { BeautySheet, DEFAULT_BEAUTY, type BeautySettings } from "@/components/BeautySheet";
@@ -27,11 +27,13 @@ import { useKeepAwake } from "expo-keep-awake";
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Alert,
   Animated,
   AppState,
   BackHandler,
+  Easing,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -199,6 +201,28 @@ export default function GoLiveScreen() {
   const [showChat, setShowChat] = useState(false);
   const [chatText, setChatText] = useState("");
   const chatInputRef = useRef<TextInput>(null);
+  const chatDraftVersion = useRef(0);
+  const chatSending = useRef(false);
+  const [sendingChat, setSendingChat] = useState(false);
+  const chatExpanded = chatText.length > 0;
+  const chatExpansion = useRef(new Animated.Value(0)).current;
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then(value => { if (active) setReduceMotion(value); });
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
+    return () => { active = false; subscription.remove(); };
+  }, []);
+  useEffect(() => {
+    const animation = Animated.timing(chatExpansion, {
+      toValue: chatExpanded ? 1 : 0,
+      duration: reduceMotion ? 0 : 180,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [chatExpanded, reduceMotion, chatExpansion]);
   const [isStarting, setIsStarting] = useState(false);
   const [isUploadingBackground, setIsUploadingBackground] = useState(false);
   const [backgroundToCrop, setBackgroundToCrop] = useState<BackgroundCropSource | null>(null);
@@ -1073,6 +1097,36 @@ export default function GoLiveScreen() {
   };
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
+  const sendLiveChat = async () => {
+    const text = chatText.trim();
+    if (!text || chatSending.current || !user) return;
+    const draft = chatText;
+    const sentChannelId = channelIdRef.current;
+    const version = ++chatDraftVersion.current;
+    chatSending.current = true;
+    setSendingChat(true);
+    setChatText("");
+    try {
+      const data = await sendChatMutation.mutateAsync({
+        channelId: sentChannelId,
+        data: { senderName: user.name, text, color: "#FF1966" },
+      });
+      if (channelIdRef.current === sentChannelId) {
+        setChatMessages(prev => prev.some(message => message.id === data.message.id)
+          ? prev : [...prev, data.message].slice(-100));
+      }
+      void queryClient.invalidateQueries({ queryKey: getGetStreamChatQueryKey(sentChannelId) });
+    } catch {
+      if (chatDraftVersion.current === version && channelIdRef.current === sentChannelId) {
+        setChatText(draft);
+      }
+      Alert.alert(t("Message not sent"), t("Check your connection and try again."));
+    } finally {
+      chatSending.current = false;
+      setSendingChat(false);
+    }
+  };
+
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const catColor = CATEGORY_COLORS[category] ?? colors.primary;
 
@@ -1131,6 +1185,7 @@ export default function GoLiveScreen() {
         <LiveKeyboardAvoidingView
           style={styles.liveOverlay}
           behavior="height"
+          enabled={Platform.OS !== "ios"}
           automaticOffset
         >
           <View style={[styles.liveTopDock, { top: topPad + 12 }]}>
@@ -1163,7 +1218,12 @@ export default function GoLiveScreen() {
             </View>
           </View>
 
-          <View style={[styles.liveBottomDock, { bottom: keyboardVisible ? 8 : bottomPad + 12 }]}>
+          {/* iOS follows keyboard translation without resizing/caching the overlay height. */}
+          <KeyboardStickyView
+            enabled={Platform.OS === "ios"}
+            offset={{ opened: bottomPad + 4 }}
+            style={[styles.liveBottomDock, { bottom: Platform.OS === "ios" ? bottomPad + 12 : keyboardVisible ? 8 : bottomPad + 12 }]}
+          >
             {/* Chat messages grow upward above the fixed action bar. */}
             <View style={[styles.liveChatArea, vsActive && { maxHeight: keyboardVisible ? 0 : vsChatHeight, overflow: "hidden" }]} pointerEvents="box-none">
               <View style={styles.liveChatList}>
@@ -1181,40 +1241,40 @@ export default function GoLiveScreen() {
 
           <View style={[styles.liveBottom, { paddingHorizontal: 16 }]}>
             {showChat && (
-              <View style={styles.chatInputRow}>
+              <Animated.View style={[styles.chatInputRow, {
+                marginRight: chatExpansion.interpolate({ inputRange: [0, 1], outputRange: [92, 0] }),
+              }]}>
+
                 <TextInput
                   ref={chatInputRef}
                   style={styles.chatInput}
                   value={chatText}
-                  onChangeText={setChatText}
-                  placeholder={t("Say something...")}
+                  onChangeText={text => { chatDraftVersion.current += 1; setChatText(text); }}
+                  placeholder={t("Type...")}
                   placeholderTextColor="rgba(255,255,255,0.4)"
                   returnKeyType="send"
-                  onSubmitEditing={() => {
-                    const text = chatText.trim();
-                    setChatText("");
-                    setShowChat(false);
-                    if (text) {
-                      sendChatMutation.mutateAsync({
-                        channelId: channelIdRef.current,
-                        data: { senderName: user!.name, text, color: "#FF1966" },
-                      }).then((data) => {
-                        setChatMessages((prev) => {
-                          if (prev.some((message) => message.id === data.message.id)) return prev;
-                          return [...prev, data.message].slice(-100);
-                        });
-                        void queryClient.invalidateQueries({
-                          queryKey: getGetStreamChatQueryKey(channelIdRef.current),
-                        });
-                      }).catch(() => {
-                        Alert.alert(t("Message not sent"), t("Check your connection and try again."));
-                      });
-                    }
-                  }}
+                  onSubmitEditing={() => void sendLiveChat()}
+                  submitBehavior="submit"
                   onBlur={() => setShowChat(false)}
                   autoFocus
                 />
-              </View>
+                <Animated.View
+                  pointerEvents={chatExpanded ? "auto" : "none"}
+                  accessibilityElementsHidden={!chatExpanded}
+                  importantForAccessibility={chatExpanded ? "auto" : "no-hide-descendants"}
+                  style={{ width: chatExpansion.interpolate({ inputRange: [0, 1], outputRange: [0, 44] }), opacity: chatExpansion, overflow: "hidden" }}
+                >
+                  <TouchableOpacity
+                    style={[styles.chatSendButton, { opacity: chatText.trim() && !sendingChat ? 1 : 0.4 }]}
+                    onPress={() => void sendLiveChat()}
+                    disabled={!chatText.trim() || sendingChat}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("Send")}
+                  >
+                    {sendingChat ? <ActivityIndicator color="#FFF" /> : <Ionicons name="send" size={20} color="#FFF" />}
+                  </TouchableOpacity>
+                </Animated.View>
+              </Animated.View>
             )}
             {!showChat ? <View style={styles.liveBottomBar} onLayout={event => setLiveBarHeight(event.nativeEvent.layout.height)}>
               <TouchableOpacity
@@ -1247,7 +1307,7 @@ export default function GoLiveScreen() {
               </TouchableOpacity>
             </View> : null}
           </View>
-          </View>
+          </KeyboardStickyView>
         </LiveKeyboardAvoidingView>
 
         {showLiveMenu ? <View style={[StyleSheet.absoluteFill, { zIndex: 50 }]} accessibilityViewIsModal>
@@ -2186,12 +2246,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   chatInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.55)",
     borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: 4,
   },
+  chatSendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#FF1966",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 4,
+  },
   chatInput: {
+    flex: 1,
+    minWidth: 0,
     color: "#FFF",
     fontSize: 15,
     fontFamily: "Inter_400Regular",
