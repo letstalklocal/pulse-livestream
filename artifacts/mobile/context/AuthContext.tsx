@@ -122,7 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Always sync with server (updates name if changed)
+      // Load the saved Pulse profile; Clerk supplies a name only for new accounts.
       const synced = await clerkSync(clerkId, clerkName);
       if (synced) {
         const merged: User = {

@@ -130,13 +130,9 @@ router.post("/users/clerk-sync", async (req, res) => {
     .limit(1);
 
   if (existing[0]) {
-    // Update name in case they changed it in Clerk
-    const updated = await db
-      .update(usersTable)
-      .set({ name: name.trim(), updatedAt: new Date() })
-      .where(eq(usersTable.clerkId, clerkId))
-      .returning();
-    res.json({ user: await withUserImageUrls(updated[0]!) });
+    // Clerk seeds the name only at account creation. Existing display names
+    // belong to the Pulse profile and must survive sign-in/app restarts.
+    res.json({ user: await withUserImageUrls(existing[0]) });
     return;
   }
 
