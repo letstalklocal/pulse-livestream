@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { type ReactNode } from "react";
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import Svg, { Circle, Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useGetCoinBalance } from "@workspace/api-client-react";
 import { Avatar } from "@/components/Avatar";
@@ -39,7 +40,12 @@ export function AccountHeader({ children }: { children?: ReactNode }) {
             </View>
           )}
           <View style={styles.coinBalance}>
-            <Text style={styles.coinIcon}>🪙</Text>
+            {/* Explicit gold artwork avoids platform-specific emoji colors. */}
+            <Svg width={16} height={16} viewBox="0 0 24 24" accessible={false}>
+              <Circle cx={12} cy={12} r={11} fill="#E5A400" stroke="#A96B00" strokeWidth={1} />
+              <Circle cx={12} cy={12} r={8.5} fill="#FFD54A" stroke="#FFF0A3" strokeWidth={1.5} />
+              <Path d="M15 8.5a4.5 4.5 0 1 0 0 7" fill="none" stroke="#B87900" strokeWidth={2} strokeLinecap="round" />
+            </Svg>
             <Text style={[styles.coinText, { color: colors.foreground }]} numberOfLines={1}>
               {(coinData?.balance ?? 0).toLocaleString(appLocale())}
             </Text>
@@ -76,7 +82,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   coinBalance: { flexDirection: "row", alignItems: "center", gap: 5, flexShrink: 1 },
-  coinIcon: { fontSize: 16 },
   coinText: { fontSize: 16, fontFamily: "Inter_600SemiBold", flexShrink: 1 },
   actions: { flexDirection: "row", alignItems: "center", flexShrink: 0 },
 });

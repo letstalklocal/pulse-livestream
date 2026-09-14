@@ -1244,7 +1244,12 @@ export default function GoLiveScreen() {
             style={[styles.liveBottomDock, { bottom: Platform.OS === "ios" ? bottomPad + 12 : keyboardVisible ? 8 : bottomPad + 12 }]}
           >
             {/* Chat messages grow upward above the fixed action bar. */}
-            <View style={[styles.liveChatArea, vsActive && { maxHeight: keyboardVisible ? 0 : vsChatHeight, overflow: "hidden" }]} pointerEvents="box-none">
+            <View
+              style={[styles.liveChatArea, vsActive && { maxHeight: keyboardVisible ? 0 : vsChatHeight, overflow: "hidden" }]}
+              // Observe bubbled touches without taking the responder from message
+              // removal or translation controls. Include the gaps around bubbles.
+              onTouchEnd={showChat ? dismissLiveChat : undefined}
+            >
               <View style={styles.liveChatList}>
                 {chatMessages.slice(-6).map((item) => (
                   <Pressable key={item.id} style={styles.liveChatBubble} onLongPress={() => Alert.alert(t("Remove message?"), item.text, [
