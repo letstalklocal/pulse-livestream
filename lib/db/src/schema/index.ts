@@ -22,3 +22,5 @@ export * from "./message-preferences";
 export * from "./moments";
 export * from "./identity-verifications";
 export * from "./admin";
+
+export * from "./premium-gift-requests";

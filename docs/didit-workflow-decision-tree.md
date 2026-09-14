@@ -1,19 +1,29 @@
 # Didit age verification decision tree
 
-User-approved flow, updated 2026-09-14. **The running development API is connected to live Didit. Persistent server settings and prepaid credit are pending; real capture and hosted return behavior remain untested.**
+User-approved flow, updated 2026-09-14. **The running development API is currently back on sandbox. The live connection was temporary; persistent live settings still need to be saved before the planned live test. Real capture and hosted return behavior remain untested.**
+
+## One API key setting — 2026-09-14
+
+User decision: use the existing `DIDIT_API_KEY` for the selected environment. The separate `DIDIT_LIVE_API_KEY` was redundant when the workflow IDs, environment and webhook secret also need to change together. Pulse no longer reads the separate key. The current sandbox configuration is retained; switching to live is a separate coordinated settings update before testing.
+
+For that switch, replace `DIDIT_API_KEY` with the live application's key (the value previously saved as `DIDIT_LIVE_API_KEY`), update the environment, both workflow IDs and live webhook signing secret together, then restart and verify the running API. Remove the redundant `DIDIT_LIVE_API_KEY` from server secrets after its value is saved under `DIDIT_API_KEY`. The code change does not edit the host's saved secrets.
+
+Validation: API typecheck, build and the existing HTTP/database verification integration tests passed. Those tests use mocked Didit responses and confirm that both environments read only `DIDIT_API_KEY`, including when an obsolete live-key setting is present. The development API was restarted as PID 4116 with its entire existing environment preserved (`sandbox`). The rebuilt bundle has no reference to `DIDIT_LIVE_API_KEY`. The running verification page returned 200; authenticated website status returned 200 with `environment: sandbox`; unauthenticated status returned 401. The temporary browser session was removed and the designated test account's verification record was unchanged. No provider session or real capture was started.
 
 ## Paused — resume testing on 2026-09-15
+
+**Configuration recheck after the pause:** Both the current tool environment and the running API (PID 385) report `DIDIT_ENVIRONMENT=sandbox`; neither configured workflow ID matches the prepared live workflows. `DIDIT_LIVE_API_KEY` is present. The running webhook secret matches the tool environment, but its live provenance was not revalidated. The earlier live process has been replaced, consistent with a restart restoring the saved sandbox settings. No configuration was changed during this recheck. Save the complete live settings below, restart and verify the running API before any real capture. Testing remains postponed.
 
 Saved on 2026-09-14 at the user's request: “save here we will test tomorrow.” The implementation and connection checks below are complete; real verification testing is postponed. No additional provider changes or account resets are needed for this pause.
 
 Resume with these steps:
 
-1. Confirm the saved server settings and the actual running API both select live Didit with the workflow IDs and signing secret recorded below. The latest tool environment still contains the old environment/workflow settings, although `DIDIT_LIVE_API_KEY` is present. The last confirmed running API was configured for live; rediscover its process after any restart rather than relying on the historical PID.
+1. Confirm the saved server settings and the actual running API both select live Didit with the workflow IDs and signing secret recorded below. The latest tool environment still contains the old environment/workflow settings, although `DIDIT_LIVE_API_KEY` is present. The latest recheck confirmed the running API is back on sandbox; rediscover its process after any restart rather than relying on a historical PID.
 2. Confirm prepaid credit in Didit Billing. The last checked balance was zero; no real capture or paid check has been completed.
 3. Test with `e2ebrands@gmail.com` (UID 33737). Its live record is already prepared and unverified; inspect its current state before considering any reset. Open Account → Age verification, accept the notice and tap Verify now.
 4. Check the actual selfie outcome, any ID fallback within the same hosted session, result wording, return to Pulse and resulting Selfie/ID status. Record observed behavior; configuration checks do not establish that these steps work on a phone.
 
-Keep the existing development domain. The live connection details and persistent settings immediately below take precedence over older historical checkpoints in this document.
+Keep the existing development domain. The configuration recheck above defines the current runtime state; the live connection details below describe the prepared setup and required settings. Older checkpoints are historical.
 
 All age-estimation and documentary fallback steps belong in **one hosted Didit session**. An inconclusive selfie must not return to Pulse to start another session. Only a successful final verification should trigger the automatic return to Pulse. Users must still be able to cancel or close the browser; that does not grant verification.
 
@@ -33,9 +43,9 @@ flowchart TD
 
 ## Running live connection — 2026-09-14
 
-The user added `DIDIT_LIVE_API_KEY`. The key successfully reads the live application's workflows and receives HTTP 403 for the known sandbox session. Pulse now selects this key only when `DIDIT_ENVIRONMENT=live`; sandbox requests keep the existing `DIDIT_API_KEY`. The legacy single-key configuration remains supported.
+Historical connection checkpoint: the user added `DIDIT_LIVE_API_KEY`, and that key successfully read the live application's workflows and received HTTP 403 for the known sandbox session. At that time Pulse selected the extra key in live mode. This selection rule has since been removed at the user's request; both environments now use only `DIDIT_API_KEY`.
 
-| Active setting | Value |
+| Setting used for the temporary live connection | Value |
 | --- | --- |
 | Environment | `live` |
 | Initial workflow | `86aee2d8-2562-4286-99c7-52f333f6d827` — Pulse Adaptive 18+ live verification, published version 1 |
@@ -59,7 +69,7 @@ The designated tester remains `e2ebrands@gmail.com`, UID 33737. Its empty, unver
 
 ### Required persistent settings
 
-These values are active in the running API, but the host's saved settings have not yet been confirmed updated. The user has been asked to save:
+These values were used for the temporary live connection. The current running API is back on sandbox; save these values in the host's server settings before restarting for the live test:
 
 ```text
 DIDIT_ENVIRONMENT=live
@@ -67,7 +77,7 @@ DIDIT_WORKFLOW_ID=86aee2d8-2562-4286-99c7-52f333f6d827
 DIDIT_ID_WORKFLOW_ID=98f54ad5-61dc-48e4-a056-b0a23549aeae
 ```
 
-Also replace `DIDIT_WEBHOOK_SECRET` in server secrets with the signing secret from the **live** application's webhook **Pulse development age verification** (`ffecc06d-4646-42f0-8594-5682d350808f`). Find it in Didit → live application → API & Webhooks. Keep `DIDIT_LIVE_API_KEY` as saved and retain the existing sandbox `DIDIT_API_KEY`. Do not put either key or the webhook secret in this document or chat. A restart with the old saved settings will revert the provider environment to sandbox.
+Also replace `DIDIT_WEBHOOK_SECRET` in server secrets with the signing secret from the **live** application's webhook **Pulse development age verification** (`ffecc06d-4646-42f0-8594-5682d350808f`). Find it in Didit → live application → API & Webhooks. Replace `DIDIT_API_KEY` with the live application's key when saving all these live settings together. The live key was previously saved under `DIDIT_LIVE_API_KEY`; copy its value within the server secrets manager, then remove that redundant setting. Pulse only reads `DIDIT_API_KEY`. Do not put key values or the webhook secret in this document or chat. A restart with the old saved settings will revert the provider environment to sandbox.
 
 ### Real verification test pending
 

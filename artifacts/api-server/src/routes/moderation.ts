@@ -1,8 +1,9 @@
+import { removeAgoraViewers, allowAgoraViewer } from "../lib/agoraViewerRemoval";
 import { Router } from "express";
 import { partyChannels, findParty, partyStreams } from "../lib/liveParty";
 import { randomUUID } from "node:crypto";
-import { and, eq, inArray, isNull } from "drizzle-orm";
-import { db, usersTable, liveStreamSessionsTable, streamModerationTable, creatorBlocksTable, streamReportsTable } from "@workspace/db";
+import { and, eq, inArray, isNull, lte } from "drizzle-orm";
+import { db, premiumGiftRequestsTable, premiumGiftViewersTable, usersTable, liveStreamSessionsTable, streamModerationTable, creatorBlocksTable, streamReportsTable } from "@workspace/db";
 import { authenticatedUser } from "../lib/streamModeration";
 import { activeViewerIds, forgetViewer, getActiveRuntimeStream, getRuntimeStream } from "./streams";
 import { createPrivateGetUrl } from "../lib/objectStorage";
@@ -15,18 +16,21 @@ router.get("/streams/:channelId/moderation", async (req, res) => {
   const stream = await getActiveRuntimeStream(req.params.channelId);
   if (!stream?.sessionId) return void res.status(404).json({ error: "Stream not found" });
   if (stream.hostUid !== host.uid) return void res.status(403).json({ error: "Only the host can manage viewers" });
-  const [restrictions, blocks] = await Promise.all([
+  const [restrictions, blocks, expiredGifts] = await Promise.all([
     db.select().from(streamModerationTable).where(eq(streamModerationTable.sessionId, stream.sessionId)),
     db.select().from(creatorBlocksTable).where(eq(creatorBlocksTable.hostUserId, host.uid)),
+    db.select({ uid: premiumGiftViewersTable.viewerUserId }).from(premiumGiftViewersTable)
+      .innerJoin(premiumGiftRequestsTable, eq(premiumGiftRequestsTable.id, premiumGiftViewersTable.requestId))
+      .where(and(eq(premiumGiftRequestsTable.sessionId, stream.sessionId), lte(premiumGiftRequestsTable.deadline, new Date()), isNull(premiumGiftViewersTable.transactionId), isNull(premiumGiftViewersTable.waivedAt))),
   ]);
   const present = new Set((await partyChannels(stream.channelId)).flatMap(activeViewerIds));
-  const ids = [...new Set([...present, ...restrictions.filter(item => item.muted || item.removed).map(item => item.viewerUserId), ...blocks.map(item => item.viewerUserId)])];
+  const ids = [...new Set([...present, ...expiredGifts.map(row => row.uid), ...restrictions.filter(item => item.muted || item.removed).map(item => item.viewerUserId), ...blocks.map(item => item.viewerUserId)])];
   const people = ids.length ? await db.select().from(usersTable).where(inArray(usersTable.uid, ids)).orderBy(usersTable.name) : [];
   res.json({ users: await Promise.all(people.map(async person => {
     const restriction = restrictions.find(item => item.viewerUserId === person.uid);
     return { uid: person.uid, name: person.name,
       avatarImageUrl: person.avatarImagePath ? await createPrivateGetUrl(person.avatarImagePath) : null,
-      present: present.has(person.uid), muted: restriction?.muted ?? false, removed: restriction?.removed ?? false,
+      present: present.has(person.uid), muted: restriction?.muted ?? false, removed: expiredGifts.some(row => row.uid === person.uid) || (restriction?.removed ?? false),
       blocked: blocks.some(item => item.viewerUserId === person.uid),
     };
   })) });
@@ -64,7 +68,24 @@ router.post("/streams/:channelId/moderation", async (req, res) => {
       rotate = action === "remove" && !prior?.removed && !blocked;
       await tx.insert(streamModerationTable).values(values).onConflictDoUpdate({ target: [streamModerationTable.sessionId, streamModerationTable.viewerUserId], set: { muted: values.muted, removed: values.removed, updatedAt: values.updatedAt } });
     }
-    // Old audience tokens cannot receive the broadcaster after the media channel changes.
+    if ((action === "allow" && !blocked) || (action === "unblock" && !prior?.removed)) {
+      const unpaid = action === "unblock" ? await tx.select({ id: premiumGiftRequestsTable.id }).from(premiumGiftRequestsTable)
+        .innerJoin(premiumGiftViewersTable, eq(premiumGiftViewersTable.requestId, premiumGiftRequestsTable.id))
+        .where(and(eq(premiumGiftRequestsTable.sessionId, session.id), eq(premiumGiftViewersTable.viewerUserId, viewerUid), lte(premiumGiftRequestsTable.deadline, new Date()), isNull(premiumGiftViewersTable.transactionId), isNull(premiumGiftViewersTable.waivedAt))).limit(1) : [];
+      // Removing one restriction must not lift a different outstanding restriction.
+      if (!unpaid.length) {
+        try { await allowAgoraViewer(tx, session, viewerUid); }
+        catch { throw new Error("Could not restore Agora access. Please retry allowing this viewer back."); }
+      }
+    }
+    if (action === "allow") {
+      const expired = await tx.select({ id: premiumGiftRequestsTable.id }).from(premiumGiftRequestsTable)
+        .where(and(eq(premiumGiftRequestsTable.sessionId, session.id), lte(premiumGiftRequestsTable.deadline, new Date())));
+      if (expired.length) await tx.update(premiumGiftViewersTable).set({ waivedAt: new Date() })
+        .where(and(eq(premiumGiftViewersTable.viewerUserId, viewerUid), inArray(premiumGiftViewersTable.requestId, expired.map(row => row.id)), isNull(premiumGiftViewersTable.transactionId)));
+    }
+    if (rotate) rotate = await removeAgoraViewers(tx, session, [viewerUid]);
+    // Rotate only when individual Agora removal could not enforce access.
     const rtcChannelName = rotate ? `live-${randomUUID()}` : session.rtcChannelName;
     if (rotate) await tx.update(liveStreamSessionsTable).set({ rtcChannelName }).where(eq(liveStreamSessionsTable.id, session.id));
     return { rtcChannelName, rotate };

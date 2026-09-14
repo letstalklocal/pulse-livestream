@@ -1,3 +1,5 @@
+import { PremiumGiftRequestSheet } from "@/components/PremiumGiftRequestSheet";
+import { usePremiumGiftRequest, premiumGiftRequestKey } from "@/hooks/usePremiumGiftRequest";
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { createGiftPresentation, expectsNativeCrown } from "@/utils/giftPresentation";
 import { CrownArtwork } from "@/components/CrownArtwork";
@@ -27,13 +29,11 @@ import { useKeepAwake } from "expo-keep-awake";
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  AccessibilityInfo,
   ActivityIndicator,
   Alert,
   Animated,
   AppState,
   BackHandler,
-  Easing,
   FlatList,
   Image,
   Keyboard,
@@ -190,6 +190,7 @@ export default function GoLiveScreen() {
   const [draftRequiredGiftId, setDraftRequiredGiftId] = useState<CreateStreamRequestRequiredGiftId>(null);
   const [showPremiumGiftSheet, setShowPremiumGiftSheet] = useState(false);
   const [showLivePremium, setShowLivePremium] = useState(false);
+  const [showGiftRequest, setShowGiftRequest] = useState(false);
   const [premiumConnecting, setPremiumConnecting] = useState(false);
   const mediaChannelRef = useRef("");
   const mediaSwitchBusyRef = useRef(false);
@@ -216,25 +217,6 @@ export default function GoLiveScreen() {
   const chatDraftVersion = useRef(0);
   const chatSending = useRef(false);
   const [sendingChat, setSendingChat] = useState(false);
-  const chatExpanded = chatText.length > 0;
-  const chatExpansion = useRef(new Animated.Value(0)).current;
-  const [reduceMotion, setReduceMotion] = useState(false);
-  useEffect(() => {
-    let active = true;
-    void AccessibilityInfo.isReduceMotionEnabled().then(value => { if (active) setReduceMotion(value); });
-    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
-    return () => { active = false; subscription.remove(); };
-  }, []);
-  useEffect(() => {
-    const animation = Animated.timing(chatExpansion, {
-      toValue: chatExpanded ? 1 : 0,
-      duration: reduceMotion ? 0 : 180,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    });
-    animation.start();
-    return () => animation.stop();
-  }, [chatExpanded, reduceMotion, chatExpansion]);
   const [isStarting, setIsStarting] = useState(false);
   const [isUploadingBackground, setIsUploadingBackground] = useState(false);
   const [backgroundToCrop, setBackgroundToCrop] = useState<BackgroundCropSource | null>(null);
@@ -336,6 +318,7 @@ export default function GoLiveScreen() {
   const { data: liveStreamData } = useGetStream(activeChannelId, {
     query: { enabled: isLive && !!activeChannelId, refetchInterval: 5000 } as any,
   });
+  const premiumGift = usePremiumGiftRequest(activeChannelId, isLive && !isPrivateInvite && !!liveStreamData?.stream.requiredGift, user?.uid);
   const partyState = useLiveParty(activeChannelId, isLive && !isPrivateInvite && isNative);
   const party = partyState.party;
   const vsActive = battleUsesSplitLayout(party?.battle?.status === "active" && (party.battle.endsAt ?? 0) > partyState.now);
@@ -461,7 +444,7 @@ export default function GoLiveScreen() {
   useStreamSocket({
     channelId: activeChannelId,
     enabled: isLive && !!activeChannelId,
-    onConnect: () => { void earningsQuery.refetch(); },
+    onConnect: () => { void earningsQuery.refetch(); void queryClient.invalidateQueries({ queryKey: premiumGiftRequestKey(activeChannelId) }); },
     onMessage: event => {
         try {
           const msg = JSON.parse(String(event.data)) as {
@@ -473,6 +456,7 @@ export default function GoLiveScreen() {
             giftId?: string; amount?: number; recipientUid?: number; senderUid?: number;
           };
           if (msg.type === "stream_updated") {
+            void queryClient.invalidateQueries({ queryKey: premiumGiftRequestKey(activeChannelId) });
             void queryClient.invalidateQueries({ queryKey: getGetStreamQueryKey(activeChannelId) });
           }
           if (msg.type === "earnings" && typeof msg.coins === "number") {
@@ -1265,10 +1249,7 @@ export default function GoLiveScreen() {
 
           <View style={[styles.liveBottom, { paddingHorizontal: 16 }]}>
             {showChat && (
-              <Animated.View style={[styles.chatInputRow, {
-                marginRight: chatExpansion.interpolate({ inputRange: [0, 1], outputRange: [92, 0] }),
-              }]}>
-
+              <View style={styles.chatInputRow}>
                 <TextInput
                   ref={chatInputRef}
                   style={styles.chatInput}
@@ -1282,22 +1263,16 @@ export default function GoLiveScreen() {
                   onBlur={() => setShowChat(false)}
                   autoFocus
                 />
-                <Animated.View
-                  pointerEvents={chatExpanded ? "auto" : "none"}
-                  accessibilityElementsHidden={!chatExpanded}
-                  importantForAccessibility={chatExpanded ? "auto" : "no-hide-descendants"}
-                  style={{ width: chatExpansion.interpolate({ inputRange: [0, 1], outputRange: [0, 44] }), opacity: chatExpansion, overflow: "hidden" }}
-                >
                   <TouchableOpacity
                     style={[styles.chatSendButton, { opacity: chatText.trim() && !sendingChat ? 1 : 0.4 }]}
                     onPress={() => void sendLiveChat()}
                     disabled={!chatText.trim() || sendingChat}
                     accessibilityRole="button"
                     accessibilityLabel={t("Send")}
+                    accessibilityState={{ disabled: !chatText.trim() || sendingChat, busy: sendingChat }}
                   >
-                    {sendingChat ? <ActivityIndicator color="#FFF" /> : <Ionicons name="send" size={20} color="#FFF" />}
+                    <Ionicons name="send" size={20} color="#FFF" />
                   </TouchableOpacity>
-                </Animated.View>
                 <TouchableOpacity
                   style={styles.chatDismissButton}
                   onPress={dismissLiveChat}
@@ -1306,7 +1281,7 @@ export default function GoLiveScreen() {
                 >
                   <Ionicons name="chevron-down" size={22} color="#FFF" />
                 </TouchableOpacity>
-              </Animated.View>
+              </View>
             )}
             {!showChat ? <View style={styles.liveBottomBar} onLayout={event => setLiveBarHeight(event.nativeEvent.layout.height)}>
               <TouchableOpacity
@@ -1317,9 +1292,16 @@ export default function GoLiveScreen() {
                 <Ionicons name="chatbubble-ellipses" size={26} color="#FFF" />
               </TouchableOpacity>
 
-              {!isPrivateInvite && !isPremium && !liveStreamData?.stream.requiredGift && !party ? (
-                <TouchableOpacity style={styles.liveIconBtn} onPress={() => setShowLivePremium(true)} accessibilityRole="button" accessibilityLabel={t("Convert to Premium")} activeOpacity={0.7}>
-                  <Ionicons name="lock-closed-outline" size={26} color="#FFF" />
+              {!isPrivateInvite && !party ? (
+                <TouchableOpacity
+                  style={styles.liveIconBtn}
+                  disabled={premiumConnecting}
+                  onPress={() => isPremium || liveStreamData?.stream.requiredGift ? setShowGiftRequest(true) : setShowLivePremium(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={isPremium || liveStreamData?.stream.requiredGift ? t("Request a gift") : t("Convert to Premium")}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name={isPremium || liveStreamData?.stream.requiredGift ? "gift-outline" : "lock-closed-outline"} size={26} color={isPremium || liveStreamData?.stream.requiredGift ? "#FFD700" : "#FFF"} />
                 </TouchableOpacity>
               ) : null}
               {premiumConnecting ? <ActivityIndicator color="#FFD700" /> : null}
@@ -1376,6 +1358,7 @@ export default function GoLiveScreen() {
         {showParty ? <PartySheet channelId={activeChannelId} party={party} uid={user.uid} onAction={partyState.act} onClose={() => setShowParty(false)} /> : null}
 
         {showViewerManagement ? <ViewerManagementSheet channelId={activeChannelId} onClose={() => setShowViewerManagement(false)} onProfile={(uid, name) => router.push({ pathname: "/profile/[hostUid]", params: { hostUid: String(uid), name } })} /> : null}
+        {showGiftRequest ? <PremiumGiftRequestSheet channelId={activeChannelId} request={premiumGift.request} remaining={premiumGift.remaining} onClose={() => setShowGiftRequest(false)} /> : null}
         {showLivePremium ? <LivePremiumSheet channelId={activeChannelId} onClose={() => setShowLivePremium(false)} onConfirm={convertLiveToPremium} /> : null}
         <GiftLeaderboard
           channelId={channelIdRef.current}

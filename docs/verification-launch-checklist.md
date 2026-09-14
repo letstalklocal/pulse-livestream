@@ -1,6 +1,6 @@
 # Verification launch checklist
 
-> **Current status (2026-09-14):** The running development API is connected to live Didit with a published selfie-first workflow and enabled live webhook. Saving the persistent server settings and adding prepaid credit remain user steps; the live balance is zero. No real capture or phone return has been verified. See [the current connection and settings](didit-workflow-decision-tree.md#running-live-connection--2026-09-14). This supersedes earlier environment and readiness checkpoints below.
+> **Current status (2026-09-14, rechecked):** The running development API is back on sandbox. The live workflow and webhook were prepared, but the complete live server settings must be saved and the API restarted before testing. Per the user's decision, both environments use only `DIDIT_API_KEY`; the separate `DIDIT_LIVE_API_KEY` is no longer read. Confirm prepaid credit; the last checked live balance was zero. No real capture or phone return has been verified. See [the current checkpoint and required settings](didit-workflow-decision-tree.md#paused--resume-testing-on-2026-09-15). This supersedes earlier environment and readiness checkpoints below.
 
 
 ## Current result

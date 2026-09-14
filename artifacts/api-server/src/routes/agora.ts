@@ -1,3 +1,4 @@
+import { settlePremiumGiftRequests } from "../lib/premiumGiftRequests";
 import { canAccessChannel } from "../lib/privateChannelAccess";
 import { viewerModeration } from "../lib/streamModeration";
 import { Router } from "express";
@@ -40,6 +41,7 @@ router.post("/agora/token", async (req: any, res): Promise<any> => {
   }
 
   if (!invitation) {
+    await settlePremiumGiftRequests(channelName);
     // Public Agora tokens are only minted for a currently active durable live
     // session. This prevents a historical channel name from being reused.
     const session = (await db.select().from(liveStreamSessionsTable).where(and(

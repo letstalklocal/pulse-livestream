@@ -1,3 +1,5 @@
+import { PremiumGiftPrompt } from "@/components/PremiumGiftPrompt";
+import { usePremiumGiftRequest, premiumGiftRequestKey } from "@/hooks/usePremiumGiftRequest";
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { createGiftPresentation, expectsNativeCrown } from "@/utils/giftPresentation";
 import { CrownArtwork } from "@/components/CrownArtwork";
@@ -244,7 +246,8 @@ export default function StreamScreen() {
   // its server details so a Premium requirement cannot be bypassed.
   const streamDetailsLoaded = isDemo || !!stream;
   const hasAdmission = admitted || stream?.viewerAdmitted === true;
-  const accessRestricted = restrictedByEvent || !!stream?.viewerRemoved || !!stream?.viewerBlocked;
+  const premiumGift = usePremiumGiftRequest(channelId ?? "", requiresAdmission && !isPrivateStream && !isDemo, user?.uid);
+  const accessRestricted = restrictedByEvent || !!stream?.viewerRemoved || !!stream?.viewerBlocked || premiumGift.removed || premiumGift.expired;
   useEffect(() => { setRestrictedByEvent(false); }, [channelId]);
   useEffect(() => {
     if (stream) setRestrictedByEvent(!!stream.viewerRemoved || !!stream.viewerBlocked);
@@ -518,6 +521,7 @@ export default function StreamScreen() {
             setRestrictedByEvent(true);
             void queryClient.invalidateQueries({ queryKey: getGetStreamQueryKey(channelId ?? "") });
           } else if (msg.type === "stream_updated") {
+            void queryClient.invalidateQueries({ queryKey: premiumGiftRequestKey(channelId ?? "") });
             void queryClient.invalidateQueries({ queryKey: getGetStreamQueryKey(channelId ?? "") });
           } else if (msg.type === "stream_ended") {
             streamEndedRef.current = true;
@@ -618,6 +622,11 @@ export default function StreamScreen() {
               "reason:",
               reason,
             );
+            if (!didUnmount && reason === 3) { // Agora ConnectionChangedBannedByServer
+              setRestrictedByEvent(true);
+              void queryClient.invalidateQueries({ queryKey: getGetStreamQueryKey(channelId ?? "") });
+              return;
+            }
             if (!didUnmount && state === 5) {
               setAgoraError(`Could not connect to the live stream (reason ${reason}).`);
             }
@@ -1069,6 +1078,10 @@ export default function StreamScreen() {
       </Animated.View>
     </KeyboardAvoidingView>
     </Animated.View>
+
+    {canEnterStream && premiumGift.request?.required ? (
+      <PremiumGiftPrompt request={premiumGift.request} remaining={premiumGift.remaining} paying={premiumGift.paying} error={premiumGift.error} onSend={() => void premiumGift.pay()} />
+    ) : null}
 
     {/* Floating gifts follow the UI while continuing their normal lifecycle. */}
     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { transform: [{ translateX: overlaySlideAnim }] }]}>

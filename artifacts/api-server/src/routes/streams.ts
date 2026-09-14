@@ -1,3 +1,4 @@
+import { createPremiumGiftRequest, payPremiumGiftRequest, premiumGiftStatus, settlePremiumGiftRequests, PremiumGiftError } from "../lib/premiumGiftRequests";
 import { contactBlocked } from "../lib/userSafety";
 import { viewerModeration } from "../lib/streamModeration";
 import { closeStreamParty, findParty, expireParties } from "../lib/liveParty";
@@ -92,7 +93,7 @@ function sessionToRuntime(session: typeof liveStreamSessionsTable.$inferSelect):
 /** Finds an active durable stream and restores it to runtime after a restart. */
 export async function getActiveRuntimeStream(channelId: string): Promise<StreamRecord | undefined> {
   const runtime = streams.get(channelId);
-  if (runtime?.sessionId || runtime?.lastHeartbeat === Infinity) return runtime;
+  if ((runtime?.sessionId && !runtime.requiredGift) || runtime?.lastHeartbeat === Infinity) return runtime;
   const session = (await db.select().from(liveStreamSessionsTable).where(and(
     eq(liveStreamSessionsTable.channelId, channelId),
     isNull(liveStreamSessionsTable.endedAt),
@@ -104,6 +105,8 @@ export async function getActiveRuntimeStream(channelId: string): Promise<StreamR
     return undefined;
   }
   const restored = sessionToRuntime(session);
+  restored.viewerCount = runtime?.viewerCount ?? 0;
+  restored.peakViewers = runtime?.peakViewers ?? 0;
   streams.set(channelId, restored);
   return restored;
 }
@@ -244,6 +247,20 @@ setInterval(async () => {
     }
   }
 }, 5_000);
+
+// Durable deadlines also settle after a restart, even without a connected viewer.
+let settlingGiftRequests = false;
+setInterval(async () => {
+  if (settlingGiftRequests) return;
+  settlingGiftRequests = true;
+  try {
+    for (const result of await settlePremiumGiftRequests()) {
+      for (const uid of result.unpaid) forgetViewer(result.channelId, uid);
+    }
+  } catch (error) {
+    console.warn("Premium gift deadline maintenance failed", error instanceof Error ? error.message : "Unknown error");
+  } finally { settlingGiftRequests = false; }
+}, 1000).unref();
 
 async function saveStreamHistory(stream: StreamRecord, endedAt: Date) {
   try {
@@ -477,6 +494,58 @@ router.post("/streams/:channelId/premium", async (req, res) => {
   wsHub.pushStreamUpdated(channelId);
   res.json({ stream: await toStreamResponse(updated) });
 });
+
+// Kept separate from admission: requests apply only to the current audience and
+// must never rewrite the entry price or the host's free-entry list.
+function premiumGiftEndpoint(handler: (req: any, res: any) => Promise<unknown>) {
+  return async (req: any, res: any) => {
+    try { await handler(req, res); }
+    catch (error) {
+      if (error instanceof PremiumGiftError) return res.status(error.status).json({ error: error.message });
+      if ((error as { code?: string }).code === "23505" || (error as { cause?: { code?: string } }).cause?.code === "23505") return res.status(409).json({ error: "This request key was already used" });
+      req.log.error({ err: error }, "Premium gift request failed");
+      res.status(500).json({ error: "Could not complete the gift request. Please try again." });
+    }
+  };
+}
+const validRequestKey = (value: unknown): value is string => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+router.post("/streams/:channelId/gift-request", premiumGiftEndpoint(async (req, res) => {
+  const host = await currentUser(req);
+  if (!host) return res.status(401).json({ error: "Authentication required" });
+  const { giftId, durationSeconds = 30, idempotencyKey } = req.body ?? {};
+  if (typeof giftId !== "string" || !Object.hasOwn(PREMIUM_GIFT_CATALOG, giftId) || ![30, 60].includes(durationSeconds) || !validRequestKey(idempotencyKey)) return res.status(400).json({ error: "Choose a valid gift and 30 or 60 seconds" });
+  const stream = await getActiveRuntimeStream(req.params.channelId);
+  if (!stream?.sessionId) return res.status(404).json({ error: "Active stream not found" });
+  if (host.uid !== stream.hostUid) return res.status(403).json({ error: "Only the host can request a gift" });
+  const targets: number[] = [];
+  for (const uid of activeViewerIds(stream.channelId)) {
+    const moderation = await viewerModeration(stream.sessionId, stream.hostUid, uid);
+    if (!moderation.removed && !moderation.blocked) targets.push(uid);
+  }
+  const request = await createPremiumGiftRequest(stream.channelId, host.uid, PREMIUM_GIFT_CATALOG[giftId as keyof typeof PREMIUM_GIFT_CATALOG], durationSeconds, idempotencyKey, targets);
+  res.json({ id: request.id, deadline: request.deadline.toISOString() });
+}));
+router.get("/streams/:channelId/gift-request", premiumGiftEndpoint(async (req, res) => {
+  const user = await currentUser(req);
+  if (!user) return res.status(401).json({ error: "Authentication required" });
+  await settlePremiumGiftRequests(req.params.channelId);
+  const stream = await getActiveRuntimeStream(req.params.channelId);
+  if (!stream?.sessionId || !stream.requiredGift || stream.isPrivate) return res.status(404).json({ error: "Premium stream not found" });
+  const moderation = await viewerModeration(stream.sessionId, stream.hostUid, user.uid);
+  if (moderation.blocked) return res.status(403).json({ error: "Stream access denied" });
+  res.json({ request: await premiumGiftStatus(stream.sessionId, user.uid, stream.hostUid), removed: moderation.removed, serverNow: new Date().toISOString() });
+}));
+router.post("/streams/:channelId/gift-request/pay", premiumGiftEndpoint(async (req, res) => {
+  const user = await currentUser(req);
+  if (!user) return res.status(401).json({ error: "Authentication required" });
+  const { requestId, idempotencyKey } = req.body ?? {};
+  if (!validRequestKey(requestId) || !validRequestKey(idempotencyKey)) return res.status(400).json({ error: "Invalid gift payment" });
+  const stream = await getActiveRuntimeStream(req.params.channelId);
+  if (!stream?.sessionId || !stream.requiredGift || stream.isPrivate) return res.status(404).json({ error: "Premium stream not found" });
+  const moderation = await viewerModeration(stream.sessionId, stream.hostUid, user.uid);
+  if (moderation.removed || moderation.blocked) return res.status(403).json({ error: "Stream access denied" });
+  res.json(await payPremiumGiftRequest(stream.channelId, user.uid, user.name, requestId, idempotencyKey));
+}));
 
 class AdmissionIdempotencyConflictError extends Error {}
 
