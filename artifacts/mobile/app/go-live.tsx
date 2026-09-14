@@ -36,6 +36,7 @@ import {
   Easing,
   FlatList,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Linking,
   Modal,
@@ -201,6 +202,17 @@ export default function GoLiveScreen() {
   const [showChat, setShowChat] = useState(false);
   const [chatText, setChatText] = useState("");
   const chatInputRef = useRef<TextInput>(null);
+  const dismissLiveChat = useCallback(() => {
+    chatInputRef.current?.blur();
+    Keyboard.dismiss();
+    setShowChat(false);
+  }, []);
+  useEffect(() => {
+    if (!showChat) return;
+    // Android Back can hide the keyboard without blurring the input.
+    const subscription = Keyboard.addListener("keyboardDidHide", dismissLiveChat);
+    return () => subscription.remove();
+  }, [showChat, dismissLiveChat]);
   const chatDraftVersion = useRef(0);
   const chatSending = useRef(false);
   const [sendingChat, setSendingChat] = useState(false);
@@ -1188,6 +1200,13 @@ export default function GoLiveScreen() {
           enabled={Platform.OS !== "ios"}
           automaticOffset
         >
+          {showChat && (
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              onPress={dismissLiveChat}
+              accessible={false}
+            />
+          )}
           <View style={[styles.liveTopDock, { top: topPad + 12 }]}>
             <View style={styles.liveTopBar}>
               <View style={styles.liveBadgeRow}>
@@ -1274,15 +1293,20 @@ export default function GoLiveScreen() {
                     {sendingChat ? <ActivityIndicator color="#FFF" /> : <Ionicons name="send" size={20} color="#FFF" />}
                   </TouchableOpacity>
                 </Animated.View>
+                <TouchableOpacity
+                  style={styles.chatDismissButton}
+                  onPress={dismissLiveChat}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("Hide keyboard")}
+                >
+                  <Ionicons name="chevron-down" size={22} color="#FFF" />
+                </TouchableOpacity>
               </Animated.View>
             )}
             {!showChat ? <View style={styles.liveBottomBar} onLayout={event => setLiveBarHeight(event.nativeEvent.layout.height)}>
               <TouchableOpacity
                 style={styles.liveIconBtn}
-                onPress={() => {
-                  setShowChat(true);
-                  setTimeout(() => chatInputRef.current?.focus(), 50);
-                }}
+                onPress={() => setShowChat(true)}
                 activeOpacity={0.7}
               >
                 <Ionicons name="chatbubble-ellipses" size={26} color="#FFF" />
@@ -2252,6 +2276,12 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: 4,
+  },
+  chatDismissButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
   },
   chatSendButton: {
     width: 40,

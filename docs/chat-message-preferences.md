@@ -76,7 +76,8 @@ Use these labels:
 - Confirmed 2026-09-14 after TestFlight build 4: on **iOS**, the bottom bar and messages must return to the bottom after the keyboard closes, matching Android. Preserve Android's existing keyboard layout behavior.
 - On **both iOS and Android**, the first typed character expands the live input and reveals an on-screen Send button, like Messages chat. Clearing/sending restores the compact width. Use the existing 180 ms cubic ease-out animation and respect reduced motion.
 - Keep the input focused and editable when sending; retain a failed draft without overwriting newer typing. Use `Type...` as the placeholder.
-- Device regression pending: on iPhone, repeatedly open/type/dismiss the keyboard and confirm the bar/messages return to the bottom; compare Android. On both platforms check first-character expansion, Send visibility, send without keyboard dismissal, clearing, rapid repeat sends, and failure with/without a newer draft. Check regular and party lives and restored safe-area spacing after dismissal.
+- Live keyboard dismissal must remain available independently of sending: tap the video background or the composer down-arrow to close it, preserve the draft, and restore the live controls. Native keyboard dismissal (including Android Back) also restores the controls. Sending still keeps the keyboard open.
+- Device regression pending: check background tap, down-arrow, and Android Back with empty/unsent/sent drafts; reopen and confirm draft preservation. On iPhone, repeatedly open/type/dismiss the keyboard and confirm the bar/messages return to the bottom; compare Android. On both platforms check first-character expansion, Send visibility, send without keyboard dismissal, clearing, rapid repeat sends, and failure with/without a newer draft. Check regular and party lives and restored safe-area spacing after dismissal.
 
 ## Live-stream gift notices
 
