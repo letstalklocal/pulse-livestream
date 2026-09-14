@@ -9,13 +9,14 @@ const output=`${dir}/tests/.verification-${randomUUID()}.cjs`;
 const uid=1700000000+Math.floor(Math.random()*10000000), other=uid+1;
 const prefix=`verification-${randomUUID()}`;
 const origin='https://verification.pulse.test';
-Object.assign(process.env,{DIDIT_API_KEY:'test-only',DIDIT_WEBHOOK_SECRET:'test-secret',DIDIT_WORKFLOW_ID:randomUUID(),DIDIT_ID_WORKFLOW_ID:randomUUID(),DIDIT_ENVIRONMENT:'sandbox',DIDIT_TEST_USER_IDS:`${uid},${other}`,VERIFICATION_PUBLIC_ORIGIN:origin,PULSE_PRIVACY_URL:`${origin}/privacy`,NODE_ENV:'test'});
-await build({stdin:{contents:`import express from 'express'; import router,{diditWebhook} from './src/routes/verification'; export {pool} from '@workspace/db'; export {isAdultDate,decisionStatus,verifyDiditWebhook,requireVerificationConfiguration} from './src/lib/didit'; export function testApp(){const app=express();app.post('/api/verification/webhook',express.raw({type:'application/json'}),diditWebhook);app.use(express.json());app.use((req,res,next)=>{req.auth=()=>({userId:req.get('x-test-auth')||null,tokenType:'session_token'});next();});app.use('/api',router);return app;}`,resolveDir:dir},outfile:output,bundle:true,platform:'node',format:'cjs',external:['pg-native'],logLevel:'silent'});
-const {pool,testApp,isAdultDate,decisionStatus,verifyDiditWebhook,requireVerificationConfiguration}=createRequire(import.meta.url)(output);
+Object.assign(process.env,{DIDIT_API_KEY:'test-only',DIDIT_LIVE_API_KEY:'test-live-key',DIDIT_WEBHOOK_SECRET:'test-secret',DIDIT_WORKFLOW_ID:randomUUID(),DIDIT_ID_WORKFLOW_ID:randomUUID(),DIDIT_ENVIRONMENT:'sandbox',DIDIT_TEST_USER_IDS:`${uid},${other}`,VERIFICATION_PUBLIC_ORIGIN:origin,PULSE_PRIVACY_URL:`${origin}/privacy`,NODE_ENV:'test'});
+await build({stdin:{contents:`import express from 'express'; import router,{diditWebhook} from './src/routes/verification'; export {pool} from '@workspace/db'; export {isAdultDate,decisionStatus,verifyDiditWebhook,requireVerificationConfiguration,diditRequest} from './src/lib/didit'; export function testApp(){const app=express();app.post('/api/verification/webhook',express.raw({type:'application/json'}),diditWebhook);app.use(express.json());app.use((req,res,next)=>{req.auth=()=>({userId:req.get('x-test-auth')||null,tokenType:'session_token'});next();});app.use('/api',router);return app;}`,resolveDir:dir},outfile:output,bundle:true,platform:'node',format:'cjs',external:['pg-native'],logLevel:'silent'});
+const {pool,testApp,isAdultDate,decisionStatus,verifyDiditWebhook,requireVerificationConfiguration,diditRequest}=createRequire(import.meta.url)(output);
 const nativeFetch=globalThis.fetch;
 const records=new Map();let created=0;
 globalThis.fetch=async (url,opts)=>{
  if(!String(url).startsWith('https://verification.didit.me/'))return nativeFetch(url,opts);
+ assert.equal(opts.headers['x-api-key'],process.env.DIDIT_ENVIRONMENT==='live'?'test-live-key':'test-only','provider requests must use the selected environment key');
  if(opts?.method==='POST'){
   const body=JSON.parse(opts.body);
   const existing=[...records.values()].find(r=>r.workflow_id===body.workflow_id&&r.vendor_data===body.vendor_data&&['Not Started','In Progress'].includes(r.status));
@@ -187,7 +188,7 @@ try{
  assert.equal((await nativeFetch(base+'/api/account/verification/continue-id',{method:'POST'})).status,404);
  assert.equal((await nativeFetch(base+'/api/verification/web/continue-id',{method:'POST'})).status,404);
  // Environment changes cannot expose old evidence.
- process.env.DIDIT_ENVIRONMENT='live';const hidden=(await call('/account/verification',{auth:other})).body;assert.equal(hidden.verificationType,null);assert.equal(hidden.upgradeStatus,'not_started');process.env.DIDIT_ENVIRONMENT='sandbox';
+ process.env.DIDIT_ENVIRONMENT='live';await diditRequest(`session/${record.session_id}/decision/`);const hidden=(await call('/account/verification',{auth:other})).body;assert.equal(hidden.verificationType,null);assert.equal(hidden.upgradeStatus,'not_started');process.env.DIDIT_ENVIRONMENT='sandbox';
  console.log('PASS: selfie evidence, ID upgrade consent/auth, concurrent resume, retry/review, stale callbacks, ID-only acceptance, underage revocation and environment isolation.');
  // Named development testers remain allowed when the host reloads the older env allowlist.
  process.env.NODE_ENV='development';

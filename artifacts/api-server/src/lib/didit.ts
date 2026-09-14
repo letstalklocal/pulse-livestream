@@ -5,6 +5,10 @@ export class VerificationError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 export const verificationEnvironment = () => process.env.DIDIT_ENVIRONMENT === "live" ? "live" : "sandbox";
+// A staged live key is only selected when live mode is explicitly enabled.
+const verificationApiKey = () => verificationEnvironment() === "live"
+  ? process.env.DIDIT_LIVE_API_KEY || process.env.DIDIT_API_KEY
+  : process.env.DIDIT_API_KEY;
 export function verificationOrigin() {
   const value = process.env.VERIFICATION_PUBLIC_ORIGIN;
   if (!value) throw new VerificationError(503, "Verification is not available yet. Please try again later.");
@@ -17,7 +21,7 @@ export function verificationConfigured() {
   try {
     verificationOrigin();
     const privacy = new URL(process.env.PULSE_PRIVACY_URL ?? "");
-    return !!(process.env.DIDIT_API_KEY && process.env.DIDIT_WORKFLOW_ID && process.env.DIDIT_WEBHOOK_SECRET)
+    return !!(verificationApiKey() && process.env.DIDIT_WORKFLOW_ID && process.env.DIDIT_WEBHOOK_SECRET)
       && privacy.protocol === "https:" && !privacy.username && !privacy.password
       && !(process.env.NODE_ENV === "production" && verificationEnvironment() !== "live");
   } catch { return false; }
@@ -34,7 +38,7 @@ export function requireVerificationConfiguration(uid: number) {
 export async function diditRequest(path: string, body?: Record<string, unknown>): Promise<Record<string, any>> {
   const response = await fetch(`https://verification.didit.me/v3/${path}`, {
     method: body ? "POST" : "GET",
-    headers: { "x-api-key": process.env.DIDIT_API_KEY!, "Content-Type": "application/json" },
+    headers: { "x-api-key": verificationApiKey()!, "Content-Type": "application/json" },
     ...(body ? { body: JSON.stringify(body) } : {}),
     signal: AbortSignal.timeout(15_000),
     redirect: "error",

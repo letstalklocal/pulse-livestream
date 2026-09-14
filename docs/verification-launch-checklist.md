@@ -1,6 +1,6 @@
 # Verification launch checklist
 
-> **Current decision (2026-09-13):** The user rejected returning to Pulse for an inconclusive selfie. The ID fallback and its explanation must stay inside one Didit session; only final success should trigger the automatic return to Pulse. The separate-session workaround has been rolled back. **The Didit decision tree and hosted messages are not yet configured or ready for retest.** See [the current decision-tree specification](didit-workflow-decision-tree.md). This supersedes earlier completion checkpoints below.
+> **Current status (2026-09-14):** The running development API is connected to live Didit with a published selfie-first workflow and enabled live webhook. Saving the persistent server settings and adding prepaid credit remain user steps; the live balance is zero. No real capture or phone return has been verified. See [the current connection and settings](didit-workflow-decision-tree.md#running-live-connection--2026-09-14). This supersedes earlier environment and readiness checkpoints below.
 
 
 ## Current result
