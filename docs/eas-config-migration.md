@@ -1,5 +1,7 @@
 # EAS configuration backup
 
+**Current workflow (2026-09-15):** `artifacts/mobile/eas.json` exists. For Android testing, follow [the installed-CLI build workflow](android-build-workflow.md). The restoration instructions below are historical and only apply if the active file is missing; do not overwrite the current configuration during a routine build request.
+
 The mobile artifact previously had an `eas.json` containing development,
 preview, production, and submission profiles. It was removed from
 `artifacts/mobile` by request.

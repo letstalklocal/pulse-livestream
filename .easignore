@@ -19,3 +19,6 @@ artifacts/mobile/static-build/
 *.log
 *.apk
 *.aab
+# Development-only server credentials and runtime state.
+.local/
+**/.local/

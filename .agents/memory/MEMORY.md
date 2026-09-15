@@ -2,7 +2,7 @@
 - [Expo SDK 57 Metro preset](expo-sdk57-metro-preset.md) — strict pnpm needs babel-preset-expo declared directly or Metro can fail after restart.
 - [Drizzle post-merge prompts](drizzle-post-merge-prompts.md) — unique-constraint advisories ignore --force and require a PTY; always choose the non-truncating option.
 - [Agora host startup](agora-host-startup.md) — gate broadcasting on engine and camera readiness; this resolved the Android host’s black camera screen on a real device.
-- [Android dev-client bundle verification](android-dev-client-bundle-verification.md) — opening an exp+ link does not prove Metro loaded; require Android bundle logs or a visible marker.
+- [Android dev-client bundle verification](android-dev-client-bundle-verification.md) — use installed `eas build --platform android --profile development`; no unsolicited CLI upgrades/profile changes. Verify current Metro bundle logs or a visible marker.
 - [Agora RTC/RTM Android collision](agora-rtc-rtm-android-collision.md) — RTC 4.5.x and RTM 2.2.6 ship incompatible AOSL libraries; do not link both into one Android APK.
 - [Livestream chat retention](livestream-chat-retention.md) — keep live chat temporary in a capped memory buffer; do not persist ordinary stream messages in PostgreSQL.
 - [Streamer overlay anchoring](streamer-overlay-anchoring.md) — anchor persistent live controls to safe areas; chat must grow upward without participating in control positioning.

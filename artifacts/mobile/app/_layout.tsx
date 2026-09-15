@@ -1,3 +1,4 @@
+import { PurchasesProvider } from "@/context/PurchasesContext";
 import { t, useAppLanguage, initializeAppLanguage, refreshPhoneAppLanguage, localizedTextStyle } from "@/i18n";
 import { InAppNotifications } from "@/components/InAppNotifications";
 import {
@@ -78,6 +79,8 @@ function RootLayoutNav() {
       <Stack.Screen name="moments" options={{ headerShown: false }} />
       <Stack.Screen name="performance" options={{ headerShown: false }} />
       <Stack.Screen name="earnings" options={{ headerShown: false }} />
+      <Stack.Screen name="subscriptions" options={{ headerShown: false }} />
+      <Stack.Screen name="coin-store" options={{ headerShown: false }} />
       <Stack.Screen name="settings" options={{ headerShown: false }} />
       <Stack.Screen name="account" options={{ headerShown: false }} />
       <Stack.Screen name="verification" options={{ headerShown: false }} />
@@ -126,10 +129,12 @@ export default function RootLayout() {
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardProvider>
                   <AuthProvider>
-                    <RtmProvider>
-                      <RootLayoutNav />
-                      <InAppNotifications />
-                    </RtmProvider>
+                    <PurchasesProvider>
+                      <RtmProvider>
+                        <RootLayoutNav />
+                        <InAppNotifications />
+                      </RtmProvider>
+                    </PurchasesProvider>
                   </AuthProvider>
                 </KeyboardProvider>
               </GestureHandlerRootView>

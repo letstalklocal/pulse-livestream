@@ -30,6 +30,7 @@
     },
     "plugins": [
       "./plugins/withAndroidBuildFix",
+      "./plugins/withPurchases",
       [
         "expo-router",
         {

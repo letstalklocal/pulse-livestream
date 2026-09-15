@@ -1,6 +1,7 @@
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { CrownArtwork } from "./CrownArtwork";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { CoinStoreContent } from "./CoinStoreContent";
 import {
   Modal,
   Platform,
@@ -44,28 +45,33 @@ interface Props {
 export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipientUid, onRecipientChange, hintText = "Tap a gift to send it live" }: Props) {
   const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const insets = useSafeAreaInsets();
+  const [buyingCoins, setBuyingCoins] = useState(false);
+  useEffect(() => { if (!visible) setBuyingCoins(false); }, [visible]);
 
   return (
     <Modal
       visible={visible}
       transparent
       animationType="slide"
-      onRequestClose={onClose}
+      onRequestClose={() => buyingCoins ? setBuyingCoins(false) : onClose()}
       statusBarTranslucent
     >
       <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
 
-      <View style={[styles.sheet, { paddingBottom: insets.bottom + (Platform.OS === "android" ? 32 : 16) }]}>
+      {buyingCoins ? <View style={styles.purchaseSheet}>
+        <CoinStoreContent sheet onClose={() => setBuyingCoins(false)} />
+      </View> : <View style={[styles.sheet, { paddingBottom: insets.bottom + (Platform.OS === "android" ? 32 : 16) }]}>
         {/* Handle */}
         <View style={styles.handle} />
 
         {/* Header */}
         <View style={styles.header}>
           <Text style={[localizedTextStyle(), styles.title]}>{t("Send a Gift")}</Text>
-          <View style={styles.coinBadge}>
+          <TouchableOpacity style={styles.coinBadge} onPress={() => setBuyingCoins(true)}
+            accessibilityRole="button" accessibilityLabel={t("Buy Coins")} activeOpacity={0.75}>
             <Text style={styles.coinIcon}>🪙</Text>
-            <Text style={styles.coinCount}>{coins.toLocaleString(appLocale())}</Text>
-          </View>
+            <Text style={[styles.coinCount, localizedTextStyle()]}>{coins === 0 ? t("Buy Coins") : coins.toLocaleString(appLocale())}</Text>
+          </TouchableOpacity>
         </View>
 
         {recipients ? <View style={styles.recipients}>
@@ -103,15 +109,16 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
         </ScrollView>
 
         {coins === 0 && (
-          <Text style={[localizedTextStyle(), styles.hintEmpty]}>{t("You're out of coins — top up from your profile")}</Text>
+          <Text style={[localizedTextStyle(), styles.hintEmpty]}>{t("Tap Buy Coins to top up.")}</Text>
         )}
         <Text style={styles.hint}>{t(hintText)}</Text>
-      </View>
+      </View>}
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  purchaseSheet: { height: "85%", borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: "hidden" },
   recipients: { flexDirection: "row", gap: 8, marginBottom: 16 },
   recipient: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, padding: 8, borderRadius: 8, borderWidth: 1, borderColor: "#444" },
   selectedRecipient: { borderColor: "#FF1966", backgroundColor: "rgba(255,25,102,0.12)" },
@@ -148,6 +155,7 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
   },
   coinBadge: {
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(255,215,0,0.15)",

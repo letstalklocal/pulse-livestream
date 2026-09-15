@@ -1,0 +1,11 @@
+[
+  { "productId": "coins_250_v1", "coins": 250, "usdPriceCents": 199 },
+  { "productId": "coins_500_v1", "coins": 500, "usdPriceCents": 399 },
+  { "productId": "coins_1000_v1", "coins": 1000, "usdPriceCents": 799 },
+  { "productId": "coins_2000_v1", "coins": 2000, "usdPriceCents": 1499 },
+  { "productId": "coins_6000_v1", "coins": 6000, "usdPriceCents": 4499 },
+  { "productId": "coins_8000_v1", "coins": 8000, "usdPriceCents": 5999 },
+  { "productId": "coins_10000_v1", "coins": 10000, "usdPriceCents": 7499 },
+  { "productId": "coins_12000_v1", "coins": 12000, "usdPriceCents": 8999 },
+  { "productId": "coins_14000_v1", "coins": 14000, "usdPriceCents": 9999 }
+]

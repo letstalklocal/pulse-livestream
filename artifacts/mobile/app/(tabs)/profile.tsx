@@ -290,12 +290,12 @@ export default function ProfileScreen() {
 
         {/* Header */}
         <View style={[styles.header, { paddingTop: topInset + 12 }]}>
-          <View style={styles.headerCoinBalance}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel={t("Buy Coins")} onPress={() => router.push("/coin-store")} style={styles.headerCoinBalance}>
             <Text style={styles.coinEmoji}>🪙</Text>
             <Text style={[styles.headerCoinAmount, { color: colors.foreground }]}>
-              {coinBalance.toLocaleString(appLocale())}
+              {coinBalance === 0 ? t("Buy Coins") : coinBalance.toLocaleString(appLocale())}
             </Text>
-          </View>
+          </TouchableOpacity>
           {editing ? (
             <View style={styles.headerBtns}>
               <TouchableOpacity

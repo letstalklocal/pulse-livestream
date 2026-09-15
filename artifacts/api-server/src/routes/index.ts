@@ -1,3 +1,4 @@
+import purchasesRouter from "./purchases";
 import adminRouter from "./admin";
 import userSearchRouter from "./userSearch";
 import verificationRouter from "./verification";
@@ -46,6 +47,7 @@ router.use(directMessagesRouter);
 router.use(userSearchRouter);
 router.use(usersRouter);
 router.use(coinsRouter);
+router.use(purchasesRouter);
 router.use(earningsRouter);
 router.use(performanceRouter);
 router.use(momentsRouter);

@@ -1,3 +1,4 @@
+import { loadEnvFile } from 'node:process';
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import http from "http";
@@ -7,6 +8,13 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import * as wsHub from "./lib/wsHub";
 import { canAccessChannel } from "./lib/privateChannelAccess";
+
+// Local sandbox credentials stay in the ignored .local directory. Explicit
+// process environment values take precedence; production never loads this file.
+if (process.env.NODE_ENV === 'development') {
+  try { loadEnvFile('.local/revenuecat.env'); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+}
 
 const rawPort = process.env["PORT"];
 

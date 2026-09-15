@@ -29,6 +29,8 @@ Use [Policy compliance checklist](policy-compliance-checklist.md) for detailed p
 
 ### A1. In-app purchase functionality
 
+**Latest purchase decisions (2026-09-15):** RevenueCat Test Store integration; a configurable coin-pack screen with no paywall; website coin purchases follow later and share the Pulse wallet. See [coin purchase decisions](coin-purchases.md). All nine coin amounts and USD prices are confirmed. The user reports that all nine Apple consumables were saved and reopened with verified prices; each remains Prepare for Submission, awaiting genuine review screenshots and sales-country availability. See [App Store Connect checkpoint](coin-purchases.md#app-store-connect-checkpoint--2026-09-15). The later web provider remains undecided. RevenueCat now has all nine Test Store products/packages and a working development webhook; nine simulated purchases credited the expected 53,750 coins exactly once each. Header zero-balance Buy Coins buttons and the gift purchase sheet are implemented. Apple linkage, native-device checks and production fulfillment remain open.
+
 - [ ] Confirm launch products: coin packs, Premium if included, and which paid features use coins versus direct entitlements.
 - [ ] Configure products and production/sandbox credentials for each launch store; confirm the billing route for each product using the policy review.
 - [ ] Implement checkout, clear prices, cancellation, pending purchases, failures, and retry behavior.

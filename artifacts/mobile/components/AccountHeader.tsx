@@ -25,32 +25,34 @@ export function AccountHeader({ children }: { children?: ReactNode }) {
   return (
     <View style={[styles.header, { paddingTop: topInset + 12 }]}>
       <View style={styles.row}>
-        <TouchableOpacity
-          style={styles.accountSummary}
-          onPress={() => router.push("/(tabs)/profile")}
-          activeOpacity={0.75}
-          accessibilityRole="button"
-          accessibilityLabel={t("Open profile")}
-        >
-          {user ? (
-            <Avatar uid={user.uid} name={user.name} avatarUri={user.avatarUri} size={38} />
-          ) : (
-            <View style={[styles.guestAvatar, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Ionicons name="person-outline" size={20} color={colors.mutedForeground} />
-            </View>
-          )}
-          <View style={styles.coinBalance}>
+        <View style={styles.accountSummary}>
+          <TouchableOpacity
+            onPress={() => router.push("/(tabs)/profile")}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityLabel={t("Open profile")}
+          >
+            {user ? (
+              <Avatar uid={user.uid} name={user.name} avatarUri={user.avatarUri} size={38} />
+            ) : (
+              <View style={[styles.guestAvatar, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Ionicons name="person-outline" size={20} color={colors.mutedForeground} />
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.coinBalance} onPress={() => router.push("/coin-store")}
+            activeOpacity={0.75} accessibilityRole="button" accessibilityLabel={t("Buy Coins")}>
             {/* Explicit gold artwork avoids platform-specific emoji colors. */}
             <Svg width={16} height={16} viewBox="0 0 24 24" accessible={false}>
               <Circle cx={12} cy={12} r={11} fill="#E5A400" stroke="#A96B00" strokeWidth={1} />
               <Circle cx={12} cy={12} r={8.5} fill="#FFD54A" stroke="#FFF0A3" strokeWidth={1.5} />
               <Path d="M15 8.5a4.5 4.5 0 1 0 0 7" fill="none" stroke="#B87900" strokeWidth={2} strokeLinecap="round" />
             </Svg>
-            <Text style={[styles.coinText, { color: colors.foreground }]} numberOfLines={1}>
-              {(coinData?.balance ?? 0).toLocaleString(appLocale())}
+            <Text style={[styles.coinText, localizedTextStyle(), { color: colors.foreground }]} numberOfLines={1}>
+              {(coinData?.balance ?? 0) === 0 ? t("Buy Coins") : coinData!.balance.toLocaleString(appLocale())}
             </Text>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
         {children ? <View style={styles.actions}>{children}</View> : null}
       </View>
     </View>
@@ -81,7 +83,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  coinBalance: { flexDirection: "row", alignItems: "center", gap: 5, flexShrink: 1 },
+  coinBalance: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 5, flexShrink: 1 },
   coinText: { fontSize: 16, fontFamily: "Inter_600SemiBold", flexShrink: 1 },
   actions: { flexDirection: "row", alignItems: "center", flexShrink: 0 },
 });
