@@ -20,7 +20,7 @@ type Fulfillment = { status: 'credited' | 'pending'; coins: number; balance: num
 
 // Vector artwork keeps the gold coin consistent across iOS and Android.
 function CoinArtwork({ size = 32 }: { size?: number }) {
-  return <Svg width={size} height={size} viewBox="0 0 48 48" accessible={false}>
+  return <Svg width={size} height={size} viewBox="0 0 48 48" accessible={Platform.OS === "web" ? undefined : false}>
     <Ellipse cx={24} cy={43} rx={15} ry={3} fill="#000000" opacity={0.18} />
     <Circle cx={24} cy={25} r={18} fill="#A96B00" />
     <Circle cx={24} cy={22} r={18} fill="#E5A400" stroke="#FFE7A0" strokeWidth={1} />
