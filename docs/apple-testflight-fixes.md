@@ -4,7 +4,7 @@ Updated: 2026-09-14
 
 ## Build plan
 
-**Hold the next build.** The user wants to collect the other fixes before making another Apple/TestFlight build. Keep adding fixes and their verification status here as work continues. No build was started for this documentation update.
+**Latest build decision (2026-09-15):** The user resumed testing builds and explicitly approved RevenueCat Test Store configuration for the next TestFlight build. This supersedes the earlier hold while fixes were collected. Use the installed EAS CLI and existing production profile; see the approved TestFlight configuration below. The assistant has not started a build.
 
 The original live-chat reports came from iPhone TestFlight build 4. The user subsequently installed a newer build to test the fixes; its build number was not provided.
 
@@ -50,3 +50,15 @@ The user requested a new Android testing build and asked to preserve the documen
 This supersedes the build hold for the requested Android testing build. No build was started by the assistant; Apple/TestFlight submission is unchanged.
 
 **CLI preservation requirement (2026-09-15):** Use the installed `eas` command. Do not substitute `npx eas-cli@latest`, recommend an optional CLI update, or alter build profiles/environment for a routine build request. The user flagged the risk of disrupting the working environment. Follow [the Android build workflow](android-build-workflow.md); tooling changes require a separate explanation and explicit authorization.
+
+### Approved RevenueCat TestFlight configuration — 2026-09-15
+
+User approval: “ok add so the next build can be tested in testflight.” The active `eas.json` now sets the two non-secret flags `EXPO_PUBLIC_REVENUECAT_MODE=test` and `PULSE_TESTFLIGHT_BUILD=true` under `build.production.ios.env`. The iOS-specific placement preserves Android behavior while keeping the existing `production` profile. The Expo config guard accepts this explicit testing exception; unmarked production test-mode builds remain rejected.
+
+The installed EAS profile parser and eight RevenueCat tests passed. No CLI upgrade, `.env` edit, Replit-secret change, remote EAS-variable change, build, or submission was performed. Development Clerk/API/database/Agora configuration remains as previously documented. Run `eas build --platform ios --profile production` from `artifacts/mobile` for the next test build.
+
+Before public App Store release: remove `PULSE_TESTFLIGHT_BUILD`, switch RevenueCat mode to `store`, configure the Apple public SDK key, and complete real-store fulfillment/QA. Do not select this Test Store binary for public release. Native purchase and UI checks remain pending on the new TestFlight build.
+
+### Buy Coins grid for the next Apple test — 2026-09-15
+
+The user reports the preceding Android test build looks good and still needs a rebuilt Apple app. The shared purchase page/sheet now uses a themed 3×3 card grid with smaller 32-point gold coin artwork, centered amounts, and white localized prices below. This is a JavaScript/layout change; include it in the next TestFlight build using the already-approved settings. iOS visual checks and the updated Android grid remain pending. No build was started or build environment changed for this redesign.

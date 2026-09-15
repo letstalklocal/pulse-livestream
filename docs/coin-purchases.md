@@ -88,3 +88,17 @@ Implemented in AccountHeader, profile, GiftPicker and the shared CoinStoreConten
 - Separate HTTP/database tests verified concurrent duplicate deliveries credit once, authorization, account ownership, product mapping, and production isolation.
 - The development API was rebuilt and restarted with its existing environment. Development-only webhook credentials are stored in the ignored `artifacts/api-server/.local/revenuecat.env`; startup loads them without overriding explicit environment values. Never commit this file. Production does not load it.
 - Apple products remain only user-verified in App Store Connect. RevenueCat's inspected project still has only its Test Store app. Apple app linkage/credentials, native-device purchase checks, refunds/reconciliation and production enablement remain outstanding. The native build hold remains in effect.
+
+## Buy Coins card design — 2026-09-15
+
+User reports that the existing Android test build looks good; iOS still needs a rebuilt TestFlight app for testing. This is user-confirmed feedback before the following visual change, not a completed device check of the new design or every purchase case.
+
+- The shared Buy Coins page and gift-drawer purchase sheet use **three columns and three rows** for the nine approved packs, in ascending coin order.
+- Reference: the user-provided `downloads/Screenshot 2026-09-14 at 11.52.51 PM.png`. Use Pulse's dark surfaces, pink accents and rounded cards.
+- Each card shows gold vector coin artwork, the centered coin amount, then the localized store price **in white beneath the amount**.
+- Follow-up correction: make the card coin artwork smaller. Artwork is now 32 points, with compact 124-point minimum-height cards; text may expand the cards for localized prices/accessibility scaling.
+- Preserve the approved nine product IDs, amounts and prices, RevenueCat checkout, pending-purchase recovery, disabled states, and the shared page/sheet navigation. Purchase prices remain supplied by RevenueCat.
+
+Implementation: `artifacts/mobile/components/CoinStoreContent.tsx`. Type/localization checks are separate from visual/device checks. The temporary browser preview could not launch because its runtime lacks a required system library; no browser or native appearance verification is claimed. Device check: three cards per row, small coin artwork, white prices below amounts, scrolling, long localized prices, large text, and return to gifts without losing the live/chat or selected recipient. No EAS/CLI/environment settings were changed for this design task.
+
+**Refresh placement correction:** In both the Buy Coins page and gift purchase sheet, use a refresh icon at the top right of the header and remove the full-width Refresh button. Retain its accessible Refresh label and the existing refresh of customer information/offerings, coin catalog and wallet balance, including disabled behavior while busy or signed out.

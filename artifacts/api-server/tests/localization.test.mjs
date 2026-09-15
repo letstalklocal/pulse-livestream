@@ -62,6 +62,10 @@ try {
    if(file.endsWith('/app/verification.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='chevron-back')return;
    // The new signup route is intentional; compare the existing email form after its move.
    if(file.endsWith('/(auth)/_layout.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='sign-up-email')return;
+   // Approved coin-card redesign replaces the decorative ellipse with gold SVG artwork.
+   if(file.endsWith('/components/CoinStoreContent.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='ellipse')return;
+   // Approved move of the existing Refresh action to the coin-store header icon.
+   if(file.endsWith('/components/CoinStoreContent.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='refresh')return;
    if(ts.isJsxAttribute(n)&&stableAttributes.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));
    if(ts.isPropertyAssignment(n)&&stableFields.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));
    ts.forEachChild(n,walk);

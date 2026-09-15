@@ -29,7 +29,7 @@ Pulse is a pnpm monorepo with `workspace:*` dependencies and a root preinstall g
 pnpm --filter @workspace/mobile add react-native-purchases react-native-purchases-ui
 ```
 
-Both packages are auto-linked into the next native build. Expo Go and an older installed build without the modules cannot exercise these native purchases. Pulse shows a clear unavailable message instead of crashing the whole app. The next Apple/TestFlight build is still on hold; no EAS build or store submission was started.
+Both packages are auto-linked into the next native build. Expo Go and an older installed build without the modules cannot exercise these native purchases. Pulse shows a clear unavailable message instead of crashing the whole app. The user has authorized the next TestFlight build configuration. The assistant has not started an EAS build or store submission; the next build must include the approved testing flags below.
 
 References: [React Native installation](https://www.revenuecat.com/docs/getting-started/installation/reactnative), [Expo installation](https://www.revenuecat.com/docs/getting-started/installation/expo).
 
@@ -38,7 +38,8 @@ References: [React Native installation](https://www.revenuecat.com/docs/getting-
 | Setting | Purpose |
 | --- | --- |
 | `RC_API_KEY` | The public Test Store SDK key the user stored in Replit. The supplied same public key is already wired into `lib/revenuecat-config.ts` for native development. |
-| `EXPO_PUBLIC_REVENUECAT_MODE=test` | Explicit Test Store selection for an internal preview build; native development defaults to test mode. |
+| `EXPO_PUBLIC_REVENUECAT_MODE=test` | Explicit Test Store selection for the authorized iOS TestFlight build in `build.production.ios.env`; native development also defaults to test mode. |
+| `PULSE_TESTFLIGHT_BUILD=true` | Build-only, explicit iOS TestFlight opt-in allowing Test Store under the existing `production` profile. It does not detect the eventual App Store distribution channel. |
 | `EXPO_PUBLIC_REVENUECAT_MODE=store` | Real platform-store selection. |
 | `EXPO_PUBLIC_REVENUECAT_IOS_KEY` | Public `appl_` SDK key for a future Apple app. |
 | `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY` | Public `goog_` SDK key for a future Google app. |
@@ -48,7 +49,7 @@ References: [React Native installation](https://www.revenuecat.com/docs/getting-
 | `REVENUECAT_ENVIRONMENT` | `SANDBOX` for this initial implementation. Sandbox is rejected in production runtime. |
 | `REVENUECAT_COIN_PRODUCTS` | Optional JSON override. Defaults to the nine approved immutable coin mappings in `src/config/coin-products.json`. Explicit invalid or empty configuration disables purchases. |
 
-Do not change to a live key merely to test: the one supplied `test_` key works on both iOS and Android with Test Store. The Expo config rejects explicit Test Store mode in the EAS production profile. Production-mode app bundles default to platform keys and disable purchases if the correct public key is absent.
+Do not change to a live key merely to test: the one supplied `test_` key works on both iOS and Android with Test Store. The Expo config rejects explicit Test Store mode in the EAS production profile unless `PULSE_TESTFLIGHT_BUILD=true` marks an iOS testing build. The two flags are scoped to `build.production.ios.env`, preserving Android profiles. Without explicit test mode, release bundles use platform keys and disable purchases if the correct public key is absent. Before public App Store release, remove the TestFlight flag, set RevenueCat mode to `store`, configure the Apple SDK key and complete production fulfillment/QA. Build flags do not prevent a test binary from being selected for public release; do not release the TestFlight test-mode binary.
 
 References: [Test Store](https://www.revenuecat.com/docs/test-and-launch/sandbox/test-store), [API v2 authentication](https://www.revenuecat.com/docs/api-v2).
 
@@ -189,7 +190,7 @@ pnpm --filter @workspace/api-server run build
 
 Purchase tests cover the default nine-pack catalog, account switching mid-operation, stale results, recovery after SDK errors, key selection, local prices, entitlement checks, webhook authentication/environment/ownership, concurrent duplicate delivery and server-authoritative amounts. HTTP/database tests use temporary fixtures and simulated RevenueCat events; they do not simulate successful real payment as release proof.
 
-Device checks still required: nine localized prices/amounts, successful/failed/cancelled/pending purchases, repeated taps, closing/reopening after payment, correct wallet credit, logout/account switch, subscription activation/expiry/restore, Customer Center and Android app-switch payment return. A native rebuild is required, but remains on hold per the user's build plan. No visual/device validation has been claimed.
+Device checks still required: nine localized prices/amounts, successful/failed/cancelled/pending purchases, repeated taps, closing/reopening after payment, correct wallet credit, logout/account switch, subscription activation/expiry/restore, Customer Center and Android app-switch payment return. A native rebuild is required; the user has now authorized RevenueCat TestFlight configuration for the next iOS build. No visual/device validation has been claimed.
 
 ### Verified sandbox checkpoint
 
@@ -198,3 +199,15 @@ See [the complete evidence](coin-purchases.md#revenuecat-sandbox-verification--2
 The ignored `artifacts/api-server/.local/revenuecat.env` supplies development-only webhook authorization, environment and app allowlist. `src/index.ts` loads it only with `NODE_ENV=development`, with explicit environment values taking precedence. Replit Secrets should hold the corresponding deployment settings when production is ready. Production remains disabled.
 
 Test Store price creation uses the official API endpoint `POST /projects/{project_id}/products/{product_id}/test_store_prices`, with USD `amount_micros`; price verification uses `GET .../prices`. Reference: [RevenueCat's official API client](https://github.com/RevenueCat/cli/blob/main/internal/api/products.go).
+
+### Approved TestFlight configuration — 2026-09-15
+
+The user explicitly approved adding test mode for the next TestFlight build. `artifacts/mobile/eas.json` now sets `EXPO_PUBLIC_REVENUECAT_MODE=test` and `PULSE_TESTFLIGHT_BUILD=true` in `build.production.ios.env`. `app.config.js` allows this explicit iOS exception. Local `.env` files, Replit secrets, EAS remote variables, development Clerk/API/database/Agora settings, and the installed CLI were not changed.
+
+Continue using the installed CLI from `artifacts/mobile`:
+
+```bash
+eas build --platform ios --profile production
+```
+
+Verification: the installed EAS profile parser resolves both flags for iOS and neither for Android. Eight purchase/configuration tests pass, including release-bundle selection of the public Test Store key, local/cloud Expo config evaluation, rejection without the explicit opt-in, and preservation of real-store mode. No new native build or device payment check was performed by the assistant. The already-built binary cannot gain these flags without a new build.

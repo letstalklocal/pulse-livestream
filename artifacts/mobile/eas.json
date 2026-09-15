@@ -12,7 +12,13 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "ios": {
+        "env": {
+          "EXPO_PUBLIC_REVENUECAT_MODE": "test",
+          "PULSE_TESTFLIGHT_BUILD": "true"
+        }
+      }
     }
   },
   "submit": {

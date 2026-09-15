@@ -75,16 +75,29 @@ test('cancelled purchases are silent; pending/network errors are actionable', ()
   assert.match(purchaseErrorMessage({ code: '20' }), /pending/);
   assert.match(purchaseErrorMessage({ code: '10' }), /connect/);
 });
-test('production EAS guard rejects explicit test-store mode', () => {
-  const file = require('../app.config.js');
-  const oldProfile = process.env.EAS_BUILD_PROFILE, oldMode = process.env.EXPO_PUBLIC_REVENUECAT_MODE;
-  try {
-    process.env.EAS_BUILD_PROFILE = 'production'; process.env.EXPO_PUBLIC_REVENUECAT_MODE = 'test';
-    assert.throws(() => file({ config: {} }), /cannot use RevenueCat Test Store/);
-    process.env.EXPO_PUBLIC_REVENUECAT_MODE = 'store';
-    assert.deepEqual(file({ config: { name: 'Pulse' } }), { name: 'Pulse' });
-  } finally {
-    if (oldProfile === undefined) delete process.env.EAS_BUILD_PROFILE; else process.env.EAS_BUILD_PROFILE = oldProfile;
-    if (oldMode === undefined) delete process.env.EXPO_PUBLIC_REVENUECAT_MODE; else process.env.EXPO_PUBLIC_REVENUECAT_MODE = oldMode;
+function evaluateBuild(env, appConfig = { name: 'Pulse' }) {
+  const context = { module: { exports: {} }, process: { env } };
+  runInNewContext(readFileSync(`${__dirname}/../app.config.js`, 'utf8'), context);
+  return context.module.exports({ config: appConfig });
+}
+test('production guard requires explicit iOS TestFlight opt-in for simulated payments', () => {
+  const env = { EAS_BUILD_PROFILE: 'production', EXPO_PUBLIC_REVENUECAT_MODE: 'test' };
+  assert.throws(() => evaluateBuild(env), /cannot use RevenueCat Test Store/);
+  assert.throws(() => evaluateBuild({ ...env, PULSE_TESTFLIGHT_BUILD: 'false' }), /cannot use RevenueCat Test Store/);
+  assert.throws(() => evaluateBuild({ ...env, PULSE_TESTFLIGHT_BUILD: 'true', EAS_BUILD_PLATFORM: 'android' }), /cannot use RevenueCat Test Store/);
+  assert.deepEqual(evaluateBuild({ ...env, EXPO_PUBLIC_REVENUECAT_MODE: 'store' }), { name: 'Pulse' });
+});
+test('saved TestFlight profile enables the test SDK in a release bundle without changing Android settings', () => {
+  const eas = JSON.parse(readFileSync(`${__dirname}/../eas.json`, 'utf8'));
+  const profile = eas.build.production;
+  const env = { ...profile.env, ...profile.ios.env, EAS_BUILD_PROFILE: 'production' };
+  // EAS evaluates app config locally as well as on its iOS build worker.
+  for (const platform of [undefined, 'ios']) {
+    assert.deepEqual(evaluateBuild({ ...env, EAS_BUILD_PLATFORM: platform }), { name: 'Pulse' });
   }
+  assert.equal(config.purchaseConfiguration('ios', false, { mode: env.EXPO_PUBLIC_REVENUECAT_MODE }).apiKey, config.REVENUECAT_TEST_KEY);
+  assert.equal(profile.env?.EXPO_PUBLIC_REVENUECAT_MODE, undefined);
+  assert.equal(profile.android?.env?.EXPO_PUBLIC_REVENUECAT_MODE, undefined);
+  assert.equal(profile.autoIncrement, true);
+  assert.equal(eas.build.development.developmentClient, true);
 });

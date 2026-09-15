@@ -3,6 +3,8 @@ import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TouchableOpa
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Circle, Ellipse, Path } from 'react-native-svg';
 import { useAuth as useClerkAuth } from '@clerk/expo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -15,6 +17,18 @@ import { useAppLanguage } from '@/i18n';
 
 type Catalog = { enabled: boolean; environment: string; products: { productId: string; coins: number }[] };
 type Fulfillment = { status: 'credited' | 'pending'; coins: number; balance: number };
+
+// Vector artwork keeps the gold coin consistent across iOS and Android.
+function CoinArtwork({ size = 32 }: { size?: number }) {
+  return <Svg width={size} height={size} viewBox="0 0 48 48" accessible={false}>
+    <Ellipse cx={24} cy={43} rx={15} ry={3} fill="#000000" opacity={0.18} />
+    <Circle cx={24} cy={25} r={18} fill="#A96B00" />
+    <Circle cx={24} cy={22} r={18} fill="#E5A400" stroke="#FFE7A0" strokeWidth={1} />
+    <Circle cx={24} cy={22} r={14} fill="#FFD54A" stroke="#FFF0A3" strokeWidth={1.5} />
+    <Path d="M28 15a8 8 0 1 0 0 14" fill="none" stroke="#B87900" strokeWidth={3} strokeLinecap="round" />
+    <Path d="m40 3 1.2 3.8L45 8l-3.8 1.2L40 13l-1.2-3.8L35 8l3.8-1.2Z" fill="#FFF0A3" />
+  </Svg>;
+}
 
 export function CoinStoreContent({ onClose, sheet = false }: { onClose?: () => void; sheet?: boolean }) {
   const colors = useColors();
@@ -111,25 +125,38 @@ export function CoinStoreContent({ onClose, sheet = false }: { onClose?: () => v
   return <View style={[styles.container, { backgroundColor: colors.background }]}>
     <View style={[styles.header, { paddingTop: sheet ? 12 : (Platform.OS === 'web' ? 24 : insets.top) + 12, borderColor: colors.border }]}>
       <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('Back')} onPress={() => onClose ? onClose() : router.back()} style={[styles.back, { borderColor: colors.border }]}><Ionicons name="chevron-back" size={20} color={colors.foreground} /></TouchableOpacity>
-      <Text style={[styles.title, localizedTextStyle(), { color: colors.foreground }]}>{t('Buy Coins')}</Text><View style={styles.back} />
+      <Text style={[styles.title, localizedTextStyle(), { color: colors.foreground }]}>{t('Buy Coins')}</Text>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('Refresh')} accessibilityState={{ disabled: busy || !accountMatches }} disabled={busy || !accountMatches} hitSlop={8} onPress={() => { void purchases.refresh(); void catalog.refetch(); void balance.refetch(); }} style={[styles.back, { opacity: busy || !accountMatches ? 0.5 : 1 }]}>
+        <Ionicons name="refresh" size={22} color={colors.foreground} />
+      </TouchableOpacity>
     </View>
     <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
-      <Text style={[styles.label, localizedTextStyle(), { color: colors.mutedForeground }]}>{t('Coin balance')}</Text>
-      <Text style={[styles.balance, { color: '#FFD700' }]}>{accountMatches ? appNumber(balance.data?.balance ?? 0) : '—'}</Text>
+      <View style={[styles.balancePanel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={styles.balanceLabel}>
+          <View style={[styles.balanceIcon, { backgroundColor: `${colors.primary}18` }]}><CoinArtwork size={24} /></View>
+          <Text style={[styles.label, localizedTextStyle(), { color: colors.mutedForeground }]}>{t('Coin balance')}</Text>
+        </View>
+        <Text style={[styles.balance, { color: '#FFD54A' }]}>{accountMatches ? appNumber(balance.data?.balance ?? 0) : '—'}</Text>
+      </View>
       {purchases.testStore && <Text style={[styles.copy, localizedTextStyle(), { color: colors.mutedForeground }]}>{t('Test purchases — no real payment.')}</Text>}
       {!accountMatches && button('Sign in', () => router.push('/(auth)/sign-in'))}
       {(catalog.isLoading || (accountMatches && !purchases.ready && !purchases.error)) && <ActivityIndicator color={colors.primary} />}
       {!!purchases.error && <Text accessibilityRole="alert" style={[styles.copy, localizedTextStyle(), { color: colors.destructive }]}>{t(purchases.error)}</Text>}
       {catalog.isError && <Text accessibilityRole="alert" style={[styles.copy, localizedTextStyle(), { color: colors.destructive }]}>{t('Could not load coin packs. Please try again.')}</Text>}
       {accountMatches && !catalog.isLoading && (!configured || (purchases.ready && packs.length === 0)) && <Text style={[styles.copy, localizedTextStyle(), { color: colors.mutedForeground }]}>{t('Coin packs are not available yet.')}</Text>}
-      {packs.map(pack => <TouchableOpacity key={pack.pkg.identifier} accessibilityRole="button" accessibilityLabel={t('{v0} coins for {v1}', { v0: appNumber(pack.coins), v1: pack.price })} accessibilityState={{ disabled: !!disabled, busy }} disabled={!!disabled} onPress={() => { void buy(pack); }} style={[styles.pack, { backgroundColor: colors.card, borderColor: colors.border, opacity: disabled ? 0.5 : 1 }]}>
-        <View style={styles.packAmount}><Ionicons name="ellipse" size={24} color="#FFD700" /><Text style={[styles.packCoins, localizedTextStyle(), { color: colors.foreground }]}>{t('{v0} coins', { v0: appNumber(pack.coins) })}</Text></View>
-        <Text style={[styles.price, { color: colors.primary }]}>{pack.price}</Text>
-      </TouchableOpacity>)}
+      <View style={styles.packGrid}>
+        {packs.map(pack => <TouchableOpacity key={pack.pkg.identifier} accessibilityRole="button" accessibilityLabel={t('{v0} coins for {v1}', { v0: appNumber(pack.coins), v1: pack.price })} accessibilityState={{ disabled: !!disabled, busy }} disabled={!!disabled} activeOpacity={0.75} onPress={() => { void buy(pack); }} style={[styles.pack, { backgroundColor: colors.card, borderColor: `${colors.primary}66`, opacity: disabled ? 0.5 : 1 }]}>
+          <LinearGradient colors={[`${colors.primary}24`, colors.card]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} pointerEvents="none" />
+          <CoinArtwork />
+          <Text style={[styles.packCoins, localizedTextStyle(), { color: colors.foreground }]}>{appNumber(pack.coins)}</Text>
+          <View style={[styles.priceBadge, { backgroundColor: `${colors.primary}20` }]}>
+            <Text style={[styles.price, localizedTextStyle()]}>{pack.price}</Text>
+          </View>
+        </TouchableOpacity>)}
+      </View>
       {!!transactionId && <Text accessibilityLiveRegion="polite" style={[styles.copy, localizedTextStyle(), { color: colors.mutedForeground }]}>{t('Payment received. Waiting for your coins to be confirmed. You do not need to buy again.')}</Text>}
       {fulfillment.isError && <Text style={[styles.copy, localizedTextStyle(), { color: colors.destructive }]}>{t('Could not check your purchase yet. We will keep trying.')}</Text>}
       {!!notice && <Text accessibilityLiveRegion="polite" style={[styles.copy, localizedTextStyle(), { color: colors.foreground }]}>{t(notice)}</Text>}
-      {button('Refresh', () => { void purchases.refresh(); void catalog.refetch(); void balance.refetch(); }, busy || !accountMatches)}
       {button('Restore purchases', () => { void purchases.restore(); }, busy || !purchases.ready)}
       <Text style={[styles.copy, localizedTextStyle(), { color: colors.mutedForeground }]}>{t('Restore recovers subscriptions and lifetime access. Your coin balance is saved in your Pulse account.')}</Text>
       {button('Manage purchases', () => { void purchases.manage(); }, busy || !purchases.ready)}
@@ -139,9 +166,13 @@ export function CoinStoreContent({ onClose, sheet = false }: { onClose?: () => v
 const styles = StyleSheet.create({
   container: { flex: 1 }, header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 14, borderBottomWidth: 1 },
   back: { width: 38, height: 38, borderRadius: 19, borderWidth: 0, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 21, fontFamily: 'Inter_700Bold' }, content: { padding: 20, gap: 16 }, label: { fontSize: 14, textAlign: 'center' },
-  balance: { fontSize: 36, fontFamily: 'Inter_700Bold', textAlign: 'center' }, copy: { fontSize: 14, lineHeight: 21 },
-  pack: { borderWidth: 1, borderRadius: 16, padding: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  packAmount: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }, packCoins: { fontSize: 18, fontFamily: 'Inter_600SemiBold', flexShrink: 1 },
-  price: { fontSize: 17, fontFamily: 'Inter_700Bold' }, action: { borderWidth: 1, borderRadius: 14, padding: 16, alignItems: 'center' }, actionText: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
+  title: { fontSize: 21, fontFamily: 'Inter_700Bold' }, content: { padding: 20, gap: 16, width: '100%', maxWidth: 600, alignSelf: 'center' }, label: { fontSize: 14, flexShrink: 1 },
+  balancePanel: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: 14, borderWidth: 1, borderRadius: 18 },
+  balanceLabel: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 }, balanceIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  balance: { fontSize: 23, fontFamily: 'Inter_700Bold' }, copy: { fontSize: 14, lineHeight: 21 },
+  packGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
+  pack: { width: '31.5%', minHeight: 124, borderWidth: 1, borderRadius: 20, paddingVertical: 14, paddingHorizontal: 6, alignItems: 'center', gap: 8, overflow: 'hidden' },
+  packCoins: { fontSize: 18, fontFamily: 'Inter_700Bold', textAlign: 'center', width: '100%' },
+  priceBadge: { borderRadius: 10, paddingVertical: 6, paddingHorizontal: 4, alignSelf: 'stretch', marginTop: 'auto' },
+  price: { color: '#FFFFFF', fontSize: 14, fontFamily: 'Inter_600SemiBold', textAlign: 'center' }, action: { borderWidth: 1, borderRadius: 14, padding: 16, alignItems: 'center' }, actionText: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
 });
