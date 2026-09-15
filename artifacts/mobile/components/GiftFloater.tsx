@@ -1,7 +1,6 @@
-import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import { CrownArtwork } from "./CrownArtwork";
 import React, { useEffect, useRef } from "react";
-import { Animated, Easing, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, StyleSheet, Text } from "react-native";
 
 export interface FloatingGift {
   id: string;
@@ -19,7 +18,6 @@ interface Props {
 }
 
 export function GiftFloater({ gift, onDone }: Props) {
-  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const translateY = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.4)).current;
@@ -75,10 +73,6 @@ export function GiftFloater({ gift, onDone }: Props) {
       {gift.name === "Crown" ? (
         <CrownArtwork size={90} style={{ height: 110, opacity: gift.inVideo ? 0 : 1 }} />
       ) : <Text style={[styles.emoji, gift.inVideo && { opacity: 0 }]}>{gift.emoji}</Text>}
-      <View style={styles.label}>
-        <Text style={styles.sender} numberOfLines={1}>{gift.senderName}</Text>
-        <Text style={[localizedTextStyle(), styles.name]}>{t("sent a {v0}!", { v0: gift.name })}</Text>
-      </View>
     </Animated.View>
   );
 }
@@ -92,7 +86,6 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
   },
   emoji: {
     fontSize: 90,
@@ -100,26 +93,5 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(255,25,102,0.6)",
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 24,
-  },
-  label: {
-    backgroundColor: "rgba(0,0,0,0.65)",
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    alignItems: "center",
-    gap: 2,
-    borderWidth: 1,
-    borderColor: "rgba(255,25,102,0.3)",
-  },
-  sender: {
-    color: "#FF1966",
-    fontSize: 14,
-    fontWeight: "700",
-    fontFamily: "Inter_700Bold",
-  },
-  name: {
-    color: "rgba(255,255,255,0.9)",
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
   },
 });

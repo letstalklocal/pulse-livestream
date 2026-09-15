@@ -8,6 +8,7 @@ import { startMomentProof, stopMomentProof } from "@/utils/momentProof";
 import { recordGiftMoment, stopMomentRecording, prepareMomentRecording } from "@/utils/momentRecorder";
 import { KeyboardAvoidingView as LiveKeyboardAvoidingView, KeyboardStickyView, useKeyboardState } from "react-native-keyboard-controller";
 import { TranslatedMessage } from "@/components/TranslatedMessage";
+import { LiveChatAvatar } from "@/components/LiveChatAvatar";
 import { TranslationToggle } from "@/components/TranslationToggle";
 import { BeautySheet, DEFAULT_BEAUTY, type BeautySettings } from "@/components/BeautySheet";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -1240,8 +1241,11 @@ export default function GoLiveScreen() {
                     { text: t("Cancel"), style: "cancel" },
                     { text: t("Remove"), style: "destructive", onPress: () => void deleteStreamChatMessage(activeChannelId, item.id).then(() => queryClient.invalidateQueries({ queryKey: getGetStreamChatQueryKey(activeChannelId) })).catch(() => Alert.alert(t("Could not remove message"), t("Please try again."))) },
                   ])}>
-                    <Text style={[styles.liveChatSender, { color: item.color }]}>{item.senderName}: </Text>
-                    <TranslatedMessage text={item.text} messageId={item.id} kind="live" channelId={activeChannelId} incoming={item.senderUid !== undefined && item.senderUid !== user?.uid} style={styles.liveChatText} />
+                    <LiveChatAvatar senderUid={item.senderUid} senderName={item.senderName} />
+                    <View style={styles.liveChatContent}>
+                      <Text style={styles.liveChatSender}>{item.senderName}</Text>
+                      <TranslatedMessage text={item.text} messageId={item.id} kind="live" channelId={activeChannelId} incoming={item.senderUid !== undefined && item.senderUid !== user?.uid} style={styles.liveChatText} />
+                    </View>
                   </Pressable>
                 ))}
               </View>
@@ -2175,23 +2179,25 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   liveChatBubble: {
+    alignItems: "flex-start",
     flexDirection: "row",
-    flexWrap: "wrap",
-    backgroundColor: "rgba(0,0,0,0.42)",
-    borderRadius: 8,
-    paddingHorizontal: 10,
+    gap: 6,
+    paddingRight: 10,
     paddingVertical: 5,
     alignSelf: "flex-start",
     maxWidth: "60%",
   },
+  liveChatContent: { flexShrink: 1, minWidth: 0, gap: 0 },
   liveChatSender: {
+    color: "rgba(255,255,255,0.7)",
+    flexShrink: 1,
     fontSize: 12,
     fontWeight: "700",
     fontFamily: "Inter_600SemiBold",
   },
   liveChatText: {
     color: "#FFF",
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: "Inter_400Regular",
     flexShrink: 1,
   },

@@ -1,10 +1,10 @@
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Modal, PanResponder, Pressable, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Animated, Modal, PanResponder, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { LiveParty } from "@workspace/api-client-react";
-import { RtcSurfaceViewComponent, VideoSourceType } from "@/utils/agora";
+import { RtcSurfaceViewComponent, RtcTextureViewComponent, VideoSourceType } from "@/utils/agora";
 import { Avatar } from "./Avatar";
 import { battleUsesSplitLayout, partyLayout } from "@/utils/partyLayout";
 
@@ -88,7 +88,9 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onWin
     onPanResponderTerminationRequest: () => false,
   })).current;
   useEffect(() => () => interactionCallback.current?.(false), [party?.id, vs]);
-  const Video = RtcSurfaceViewComponent;
+  // Android SurfaceView draws on a separate surface, bypassing rounded clipping.
+  const useTextureVideo = Platform.OS === "android" && !vs;
+  const Video = useTextureVideo ? RtcTextureViewComponent : RtcSurfaceViewComponent;
   const mineFirst = party?.participants[0]?.channelId === channelId;
   const myScore = (mineFirst ? battle?.firstScore : battle?.secondScore) ?? 0;
   const peerScore = (mineFirst ? battle?.secondScore : battle?.firstScore) ?? 0;
@@ -132,7 +134,7 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onWin
           {Video && media.connection ? <Video
             canvas={{ uid: peer.uid, sourceType: VideoSourceType.VideoSourceRemote }}
             connection={media.connection}
-            zOrderMediaOverlay
+            {...(!useTextureVideo ? { zOrderMediaOverlay: true } : {})}
             style={StyleSheet.absoluteFill}
           /> : null}
           {!media.ready ? <View style={styles.waiting}>
@@ -141,6 +143,7 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onWin
           </View> : null}
           {vs ? <Text style={styles.name} numberOfLines={1}>{peer.name}</Text> : null}
           </Pressable>
+          {!vs ? <View pointerEvents="none" style={styles.partnerBorder} /> : null}
         </Animated.View>
       ) : null}
       {peer && hidden && !vs ? (
@@ -229,7 +232,8 @@ const styles = StyleSheet.create({
   audioActionText: { color: "#FFF", fontSize: 16, fontFamily: "Inter_500Medium" },
   audioError: { color: "#FF759A", fontSize: 13, marginTop: 12 },
   mainVs: { position: "absolute", left: 0, overflow: "hidden", backgroundColor: "#111" },
-  partner: { position: "absolute", top: 0, left: 0, borderRadius: 8, overflow: "hidden", backgroundColor: "#202026", zIndex: 3 },
+  partner: { position: "absolute", top: 0, left: 0, borderRadius: 5, overflow: "hidden", backgroundColor: "#202026", zIndex: 3 },
+  partnerBorder: { ...StyleSheet.absoluteFill, borderRadius: 5, borderWidth: 1, borderColor: "rgba(0,0,0,0.25)" },
   waiting: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", gap: 12, backgroundColor: "#202026" },
   name: { position: "absolute", bottom: 0, left: 0, right: 0, paddingHorizontal: 8, paddingVertical: 6, color: "#FFF", backgroundColor: "rgba(0,0,0,0.55)", fontSize: 12, fontFamily: "Inter_600SemiBold" },
   retry: { color: "#FFF", fontSize: 12, fontFamily: "Inter_500Medium", padding: 8 },

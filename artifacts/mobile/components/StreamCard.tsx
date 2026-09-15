@@ -1,6 +1,7 @@
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
 import {
   Dimensions,
@@ -98,6 +99,24 @@ export function StreamCard({ stream, isVisible = false }: Props) {
 
         {/* Live video preview — 5s each time the card enters the viewport */}
         <LivePreviewThumbnail key={stream.rtcChannelName ?? stream.channelId} channelId={stream.channelId} hostUid={stream.hostUid} isVisible={isVisible} />
+
+        {/* Fade across the image itself so the name row has no visible boundary. */}
+        <LinearGradient
+          colors={[
+            "rgba(0,0,0,0)",
+            "rgba(0,0,0,0.01)",
+            "rgba(0,0,0,0.04)",
+            "rgba(0,0,0,0.11)",
+            "rgba(0,0,0,0.23)",
+            "rgba(0,0,0,0.39)",
+            "rgba(0,0,0,0.55)",
+          ]}
+          locations={[0, 0.16, 0.32, 0.48, 0.64, 0.82, 1]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={styles.bottomFade}
+          pointerEvents="none"
+        />
 
         {/* Top-left: category */}
         <View style={[styles.categoryBadge, { backgroundColor: bg1 }]}>
@@ -208,7 +227,13 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 8,
     paddingVertical: 7,
-    backgroundColor: "rgba(0,0,0,0.55)",
+  },
+  bottomFade: {
+    position: "absolute",
+    height: "45%",
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   nameWrap: { flex: 1 },
   hostName: { color: "#FFF", fontSize: 12, fontWeight: "700", fontFamily: "Inter_700Bold" },

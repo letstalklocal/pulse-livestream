@@ -13,9 +13,10 @@ interface Props {
   avatarUri?: string;
   size?: number;
   borderWidth?: number;
+  borderColor?: string;
 }
 
-export function Avatar({ uid, name, avatarUri, size = 40, borderWidth = 0 }: Props) {
+export function Avatar({ uid, name, avatarUri, size = 40, borderWidth = 0, borderColor }: Props) {
   const color = getAvatarColor(uid);
   const initials = name.slice(0, 2).toUpperCase();
   const fontSize = size * 0.38;
@@ -30,7 +31,7 @@ export function Avatar({ uid, name, avatarUri, size = 40, borderWidth = 0 }: Pro
           height: size,
           borderRadius: radius,
           backgroundColor: color + "33",
-          borderColor: color,
+          borderColor: borderColor ?? color,
           borderWidth,
         },
       ]}

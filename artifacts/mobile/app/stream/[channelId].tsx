@@ -5,6 +5,7 @@ import { createGiftPresentation, expectsNativeCrown } from "@/utils/giftPresenta
 import { CrownArtwork } from "@/components/CrownArtwork";
 import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
 import { TranslatedMessage } from "@/components/TranslatedMessage";
+import { LiveChatAvatar } from "@/components/LiveChatAvatar";
 import { TranslationToggle } from "@/components/TranslationToggle";
 import { ReportStreamSheet } from "@/components/ReportStreamSheet";
 import { useStreamSocket } from "@/hooks/useStreamSocket";
@@ -1015,10 +1016,11 @@ export default function StreamScreen() {
             style={styles.chatScroll}
             renderItem={({ item }) => (
               <View style={styles.chatBubble}>
-                <Text style={[styles.chatSender, { color: item.color }]}>
-                  {item.sender}:{" "}
-                </Text>
-                <TranslatedMessage text={item.text} messageId={item.id} kind="live" channelId={channelId} incoming={item.senderUid !== undefined && item.senderUid !== user?.uid} style={styles.chatText} />
+                <LiveChatAvatar senderUid={item.senderUid} senderName={item.sender} />
+                <View style={styles.chatContent}>
+                  <Text style={styles.chatSender}>{item.sender}</Text>
+                  <TranslatedMessage text={item.text} messageId={item.id} kind="live" channelId={channelId} incoming={item.senderUid !== undefined && item.senderUid !== user?.uid} style={styles.chatText} />
+                </View>
               </View>
             )}
           />
@@ -1444,23 +1446,25 @@ const styles = StyleSheet.create({
   chatScroll: { maxHeight: 240 },
   chatList: { gap: 5, paddingBottom: 4 },
   chatBubble: {
+    alignItems: "flex-start",
     flexDirection: "row",
-    flexWrap: "wrap",
-    backgroundColor: "rgba(0,0,0,0.42)",
-    borderRadius: 8,
-    paddingHorizontal: 10,
+    gap: 6,
+    paddingRight: 10,
     paddingVertical: 5,
     alignSelf: "flex-start",
     maxWidth: "60%",
   },
+  chatContent: { flexShrink: 1, minWidth: 0, gap: 0 },
   chatSender: {
+    color: "rgba(255,255,255,0.7)",
+    flexShrink: 1,
     fontSize: 12,
     fontWeight: "700",
     fontFamily: "Inter_600SemiBold",
   },
   chatText: {
     color: "#FFF",
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: "Inter_400Regular",
     flexShrink: 1,
   },

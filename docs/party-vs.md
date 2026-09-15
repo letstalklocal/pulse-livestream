@@ -126,3 +126,9 @@ Separate unfinished device check: the Crown default chime should be audible to a
 Main files: `artifacts/mobile/components/PartyStage.tsx`, `artifacts/mobile/app/stream/[channelId].tsx`, `artifacts/mobile/hooks/usePartyMedia.ts`, `artifacts/mobile/utils/partyConnection.ts`, `artifacts/mobile/utils/partyLayout.ts`, and `artifacts/api-server/tests/party-window.test.mjs`.
 
 All changes are saved in the workspace. Preserve unrelated existing changes. No commit or deployment was requested. Stop implementation until the user resumes.
+
+## Rounded partner window — September 15, 2026
+
+The small floating party window uses a 5-point corner radius on host and viewer, at both window sizes (latest user correction after the Android renderer fix). Add a thin 1-point black border at 75% transparency (25% opacity) around the floating window, drawn above the video with touches passing through so window controls remain usable. The user reported square video corners on Android despite the rounded outer container. Use Agora TextureView for the Android floating partner video so it participates in parent clipping; retain SurfaceView on iOS and in the retained side-by-side layout. Keep the secondary connection, resizing, hide/restore, navigation gestures, and audio controls intact.
+
+Validation: the party-window harness passes for Android and iOS renderer selection and existing interaction/audio regressions; mobile TypeScript also passes. Native verification remains pending: check all four corners with live video at both sizes, hide/restore, stream switching, and foreground/background transitions on Android. Mocked tests cannot verify native video clipping or playback.

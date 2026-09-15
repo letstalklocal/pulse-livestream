@@ -62,3 +62,23 @@ Before public App Store release: remove `PULSE_TESTFLIGHT_BUILD`, switch Revenue
 ### Buy Coins grid for the next Apple test — 2026-09-15
 
 The user reports the preceding Android test build looks good and still needs a rebuilt Apple app. The shared purchase page/sheet now uses a themed 3×3 card grid with smaller 32-point gold coin artwork, centered amounts, and white localized prices below. This is a JavaScript/layout change; include it in the next TestFlight build using the already-approved settings. iOS visual checks and the updated Android grid remain pending. No build was started or build environment changed for this redesign.
+
+### Live gift label and Buy Coins cleanup — 2026-09-15
+
+Removed the extra sender/gift-name box from the shared live GiftFloater; existing live chat gift messages, animations and native Crown suppression remain. Removed Restore purchases and its explanation from Buy Coins; the existing subscription/settings restoration remains. Native visual checks of regular/party gifts and the updated purchase sheet are pending. No native build was started.
+
+### Transparent live message backgrounds — 2026-09-15
+
+Removed the translucent gray background and corner radius from individual host/viewer live chat messages. Kept existing spacing, sender colors, text, translation/moderation and keyboard-dismissal behavior. Applies to regular and party lives; DM styling is unchanged. Native visual/gesture checks remain pending.
+
+### Live chat sender avatars — 2026-09-15
+
+Added a 20-point circular sender avatar directly to the left of each username in host/viewer live chat (user corrected the earlier right-side request), including party lives. Uses the existing cached user-profile lookup and initials fallback; no chat payload or backend change. Preserve transparent message backgrounds, gift notices, message actions and composer behavior. Device layout/gesture checks remain pending.
+
+### Live chat avatar and text refinement — 2026-09-15
+
+Latest user correction: avatar is 22 points (2 points larger) with a 1-point, 50%-opaque white border. Keep it on the left of a text column: username in softened white (70% opacity), message below in the existing white 12-point Inter regular font. Applies to host/viewer and party lives, with transparent backgrounds and existing message actions preserved. Shared Avatar accepts an optional border-color override; other avatar styles retain their existing defaults. Native appearance/gesture checks remain pending.
+
+**Latest avatar size/position refinement:** Live-chat avatars are now 26 points with a 3-point top offset on host/viewer and party lives. Preserve the 1-point, 50%-opaque white border and stacked username/message layout. Device appearance check pending.
+
+**Latest live chat text-size correction:** Message text is now 14 points in Inter Regular on host/viewer, including party lives. Usernames stay at 12 points in Inter SemiBold. Preserve the avatar, colors, transparent backgrounds and message actions. Native wrapping/appearance check pending.

@@ -157,8 +157,6 @@ export function CoinStoreContent({ onClose, sheet = false }: { onClose?: () => v
       {!!transactionId && <Text accessibilityLiveRegion="polite" style={[styles.copy, localizedTextStyle(), { color: colors.mutedForeground }]}>{t('Payment received. Waiting for your coins to be confirmed. You do not need to buy again.')}</Text>}
       {fulfillment.isError && <Text style={[styles.copy, localizedTextStyle(), { color: colors.destructive }]}>{t('Could not check your purchase yet. We will keep trying.')}</Text>}
       {!!notice && <Text accessibilityLiveRegion="polite" style={[styles.copy, localizedTextStyle(), { color: colors.foreground }]}>{t(notice)}</Text>}
-      {button('Restore purchases', () => { void purchases.restore(); }, busy || !purchases.ready)}
-      <Text style={[styles.copy, localizedTextStyle(), { color: colors.mutedForeground }]}>{t('Restore recovers subscriptions and lifetime access. Your coin balance is saved in your Pulse account.')}</Text>
       {button('Manage purchases', () => { void purchases.manage(); }, busy || !purchases.ready)}
     </ScrollView>
   </View>;

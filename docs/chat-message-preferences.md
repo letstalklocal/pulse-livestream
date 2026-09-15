@@ -88,8 +88,16 @@ Build timing and per-fix verification are tracked in [Apple / TestFlight fixes](
 - Current viewers see a bottom requirement with a Send Gift button and countdown; blink at 10 seconds or less, respecting Reduced Motion. Pay to remain; unpaid viewers are removed at the deadline. Coin purchases from this window are deferred.
 - Preserve existing Premium entry, free-entry, manual Remove/Block/Allow Back, ordinary gifts, and all chat/keyboard behavior. Details and regression checks: [timed Premium gifts](premium-gift-requests.md).
 
+## Live-stream message appearance
+
+- Latest user correction (2026-09-15): add a small circular sender avatar on the **left**, beside a column containing the username and then the message below (supersedes the earlier inline/right-side layouts), on host and viewer live chat. Use the sender profile photo, with initials while unavailable; keep the avatar beside the name/message column when text wraps. Current size: 26 points, with a 1-point white border at 50% opacity. Latest user refinement: vertically center the avatar beside the combined username/message column, including wrapped text; this replaces the fixed 3-point downward offset. Align the avatar’s left edge with the outer left edge of the chat input box below, moving the whole avatar/name/message row together; message rows have no extra left padding. Apply to regular and party lives.
+- User correction (2026-09-15): remove the gray/translucent boxes behind individual live chat messages on both host and viewer screens, including party lives. Message backgrounds are transparent.
+- Latest text styling correction: username stays at 12 points in Inter SemiBold, softened white at 70% opacity; the message appears below it in white, 13-point Inter Regular (latest user size correction). The username/message column uses a 0-point gap (latest user correction: bring them 2 points closer, from 2 to 0). This supersedes the previous colored username/inline message presentation. Preserve translation and moderation actions, gift notices, and keyboard-dismissal touch behavior. This change applies to live chat only; direct-message bubble styling remains unchanged.
+- Device checks pending: verify ordinary and gift messages without boxes in regular/party lives on host/viewer; confirm message readability, long-press translation/removal and tapping messages to dismiss the host keyboard. Type/localization checks do not verify native appearance or gestures.
+
 ## Live-stream gift notices
 
+- Latest user correction (2026-09-15): remove the separate floating box containing the sender username and gift name. These details already appear in live messages. Preserve gift artwork/animation, native Crown deduplication and capture, and the existing chat notice on both host and viewer, including party lives.
 - Latest user correction (2026-09-12): use **Alex sent 🪙 500 coins · Crown**. Order the value as coin icon, amount, then “coins”. Preserve sender and gift names.
 - Use the confirmed gift transaction amount; keep deduplication, moderation removal, and party-channel mirroring intact. Both host and viewer chat use the shared server message.
 - Device regression: send a gift in a regular/party live and check the order on host and viewer, including a four-digit amount and a long name. Device checks are still pending for this correction.
@@ -140,3 +148,7 @@ Check the relevant behavior on a device/preview; typechecking alone cannot verif
 8. When changing server chat access, run the relevant integration coverage for follow direction, Rose activation, blocking, and cross-conversation quote rejection.
 
 Latest user corrections override this document. Update the affected requirement when behavior is explicitly changed, and revert only the requested change when the user asks for a rollback.
+
+Gift-display regression for the box removal: send ordinary gifts and a Crown in regular/party lives; verify no floating sender/gift text box, the gift notice remains in chat, the gift animation still runs, and native Crown rendering stays deduplicated. Device verification remains pending; type/localization checks do not exercise native animations.
+
+Live avatar device checks: confirm the avatar’s left edge aligns with the chat input box below and is vertically centered beside the combined username/message column, with softened-white username above the message, actual sender photos and initials fallback, long names/messages, gift messages, and regular/party host/viewer views. Verify transparent backgrounds, translation/removal gestures and keyboard dismissal remain intact. Device appearance/gesture checks are pending.

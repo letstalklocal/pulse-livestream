@@ -23,6 +23,7 @@ const mocks = {
   'react/jsx-runtime': `export const jsx=(type,props)=>({type,props:{...props,children:[props.children]}});export const jsxs=jsx;`,
   'react-native': `
     export const Modal='Modal',View='View',Text='Text',Pressable='Pressable',TouchableOpacity='TouchableOpacity',ActivityIndicator='ActivityIndicator';
+    export const Platform={OS:process.env.PARTY_TEST_PLATFORM || 'android'};
     export const StyleSheet={create:s=>s,absoluteFill:{position:'absolute'}};
     export const useWindowDimensions=()=>({width:360,height:800});
     export const PanResponder={create:handlers=>({panHandlers:handlers})};
@@ -30,7 +31,7 @@ const mocks = {
   `,
   'react-native-safe-area-context': `export const useSafeAreaInsets=()=>({top:24,bottom:24});`,
   '@expo/vector-icons': `export const Ionicons='Icon';`,
-  '@/utils/agora': `export const RtcSurfaceViewComponent='NativeVideo',VideoSourceType={VideoSourceRemote:0};`,
+  '@/utils/agora': `export const RtcSurfaceViewComponent='NativeVideo',RtcTextureViewComponent='TextureVideo',VideoSourceType={VideoSourceRemote:0};`,
   '@workspace/api-client-react': `export const actOnStreamParty=async()=>({});export const getPartyMedia=async()=>({});`,
   '@/utils/partyConnection': `export const joins=[];export function openPartyConnection(engine,fetchToken,uid,onState,isMuted){joins.push({uid,isMuted});onState({connection:{channelId:'partner-channel',localUid:99},ready:true,error:null});return ()=>{}}`,
   './Avatar': `export const Avatar='Avatar';`,
@@ -48,6 +49,7 @@ try {
     }}],
   });
   const {PartyStage,render,reset,usePartyMedia,joins,openPartyConnection}=createRequire(import.meta.url)(out);
+  const videoType = (process.env.PARTY_TEST_PLATFORM || 'android') === 'android' ? 'TextureVideo' : 'NativeVideo';
   const participants=[{uid:1,channelId:'first',name:'First'},{uid:2,channelId:'second',name:'Second'}];
   const interactions=[];
   const audioRequests=[];
@@ -69,6 +71,13 @@ try {
     p.onPanResponderRelease(null,{dx,dy,vx});refresh();
   };
   refresh();
+  assert.ok(find(n=>n.type===videoType),'Use a clippable texture for Android floating video and the surface renderer on iOS');
+  assert.equal(layout().borderRadius,5);
+  assert.equal(layout().overflow,'hidden');
+  const video = find(n=>n.type===videoType);
+  assert.deepEqual(video.props.connection,props.media.connection,'Preserve the secondary channel');
+  assert.equal(video.props.canvas.uid,2,'Render the party partner');
+  assert.equal(video.props.zOrderMediaOverlay,videoType==='TextureVideo'?undefined:true);
   assert.equal(layout().width,120);
   assert.equal(layout().height,120*16/9);
   assert.equal(layout().left,228);
@@ -98,7 +107,7 @@ try {
   assert.equal(tabStyle.height,88);assert.equal(tabStyle.alignItems,'center');assert.equal(tabStyle.justifyContent,'center');
   assert.equal(find(n=>n.type==='Icon'&&n.props.name==='chevron-back').props.size,22);assert.equal(panel().props.pointerEvents,'none');
   assert.equal(layout().width,90);assert.equal(layout().transform[0].translateX.value,102);
-  assert.ok(find(n=>n.type==='NativeVideo'),'Hidden video remains mounted');
+  assert.ok(find(n=>n.type===videoType),'Hidden video remains mounted');
   restore().props.onPress();refresh();assert.equal(layout().width,90);assert.equal(layout().transform[0].translateX.value,0);
   swipe(20,0,0.8);assert.ok(restore());
   props.party={...props.party,id:'party-2'};refresh();
