@@ -82,3 +82,13 @@ Latest user correction: avatar is 22 points (2 points larger) with a 1-point, 50
 **Latest avatar size/position refinement:** Live-chat avatars are now 26 points with a 3-point top offset on host/viewer and party lives. Preserve the 1-point, 50%-opaque white border and stacked username/message layout. Device appearance check pending.
 
 **Latest live chat text-size correction:** Message text is now 14 points in Inter Regular on host/viewer, including party lives. Usernames stay at 12 points in Inter SemiBold. Preserve the avatar, colors, transparent backgrounds and message actions. Native wrapping/appearance check pending.
+
+### Gold live counter icons — 2026-09-15
+
+The user reported a white coin in the iPhone live counter; inspection found both host and viewer counters still used the system coin emoji. Replaced both with a 14-point gold SVG icon shared with the existing 16-point account-header artwork. Explicit fills preserve the gold color across platforms. Live earnings/count calculations and leaderboard tap behavior are unchanged. Applies to regular and party lives. Native iPhone appearance check remains pending; include this JavaScript change in the next TestFlight build. No build or environment changes were made.
+
+### Viewer live menu order — 2026-09-15
+
+Viewer three-dot menu now reads Report, Translate, Share, Exit Live. Removed “chat” from the viewer translation label; retained translation state/consent and all existing action handlers. All supported app languages include the shorter label. Native menu/action checks remain pending.
+
+**Top Gifters gold icon:** Replaced the coin emoji beside leaderboard totals with the shared explicit-gold artwork. Ranking, amounts and sheet behavior are unchanged; native visual verification remains pending.

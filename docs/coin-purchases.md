@@ -104,3 +104,7 @@ Implementation: `artifacts/mobile/components/CoinStoreContent.tsx`. Type/localiz
 **Refresh placement correction:** In both the Buy Coins page and gift purchase sheet, use a refresh icon at the top right of the header and remove the full-width Refresh button. Retain its accessible Refresh label and the existing refresh of customer information/offerings, coin catalog and wallet balance, including disabled behavior while busy or signed out.
 
 **Restore placement correction (2026-09-15):** Remove Restore purchases and its explanatory paragraph from the shared Buy Coins page/sheet. Keep restoration on the existing Settings → Pulse Pro subscription screen. Preserve Manage purchases, the header refresh icon and coin checkout behavior.
+
+**Live counter artwork correction (2026-09-15):** Host and viewer live coin counters now use the shared explicit-gold SVG artwork from account headers, replacing the platform-dependent emoji that appeared white on iPhone. These remain live earnings counters opening the leaderboard, separate from spendable-balance Buy Coins shortcuts. iPhone visual verification is pending.
+
+**Top Gifters artwork correction:** The live Top Gifters sheet also uses the shared 14-point gold SVG coin beside each total, preserving leaderboard order, amounts, colors and refresh behavior. Applies to both host and viewer entry points. Native appearance check pending.

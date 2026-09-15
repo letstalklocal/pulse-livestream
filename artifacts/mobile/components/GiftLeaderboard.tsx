@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useGetStreamLeaderboard } from "@workspace/api-client-react";
+import { GoldCoinIcon } from "./GoldCoinIcon";
 
 const MEDAL = ["🥇", "🥈", "🥉"];
 
@@ -72,7 +73,8 @@ export function GiftLeaderboard({ channelId, visible, onClose }: Props) {
                     </Text>
                     <Text style={styles.name} numberOfLines={1}>{entry.name}</Text>
                     <View style={styles.coinPill}>
-                      <Text style={styles.coinText}>🪙 {entry.coins.toLocaleString(appLocale())}</Text>
+                      <GoldCoinIcon size={14} />
+                      <Text style={styles.coinText}>{entry.coins.toLocaleString(appLocale())}</Text>
                     </View>
                   </View>
                 ))
@@ -138,6 +140,9 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   coinPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
     backgroundColor: "rgba(255,25,102,0.15)",
     borderRadius: 20,
     paddingHorizontal: 12,

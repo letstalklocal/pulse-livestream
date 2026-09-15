@@ -66,6 +66,8 @@ try {
    if(file.endsWith('/components/CoinStoreContent.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='ellipse')return;
    // Approved move of the existing Refresh action to the coin-store header icon.
    if(file.endsWith('/components/CoinStoreContent.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='refresh')return;
+   // Approved viewer menu reorder moves Report above Share; these decorative icon names may move.
+   if(file.endsWith('/stream/[channelId].tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&['flag-outline','share-outline'].includes(n.initializer?.text))return;
    if(ts.isJsxAttribute(n)&&stableAttributes.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));
    if(ts.isPropertyAssignment(n)&&stableFields.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));
    ts.forEachChild(n,walk);

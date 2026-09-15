@@ -13,7 +13,7 @@ import { tokenCache } from "@/utils/tokenCache";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -28,15 +28,6 @@ const domain = process.env["EXPO_PUBLIC_DOMAIN"];
 if (domain) setBaseUrl(`https://${domain}`);
 
 SplashScreen.preventAutoHideAsync();
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      staleTime: 10_000,
-    },
-  },
-});
 
 const publishableKey = process.env["EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY"] ?? "";
 const proxyUrl = process.env["EXPO_PUBLIC_CLERK_PROXY_URL"] || undefined;
@@ -98,6 +89,16 @@ function ApiAuthBridge({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  // Fast Refresh preserves screen observers, so their QueryClient must survive
+  // root-module re-evaluation too. A module-level client splits the cache.
+  const [queryClient] = useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: 1,
+        staleTime: 10_000,
+      },
+    },
+  }));
   const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   useEffect(() => {
     void initializeAppLanguage();

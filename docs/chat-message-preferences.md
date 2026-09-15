@@ -88,6 +88,14 @@ Build timing and per-fix verification are tracked in [Apple / TestFlight fixes](
 - Current viewers see a bottom requirement with a Send Gift button and countdown; blink at 10 seconds or less, respecting Reduced Motion. Pay to remain; unpaid viewers are removed at the deadline. Coin purchases from this window are deferred.
 - Preserve existing Premium entry, free-entry, manual Remove/Block/Allow Back, ordinary gifts, and all chat/keyboard behavior. Details and regression checks: [timed Premium gifts](premium-gift-requests.md).
 
+## Viewer live-stream three-dot menu
+
+- Latest user decision (2026-09-15): order the menu **Report → Translate → Share → Exit Live**.
+- Android viewer menu spacing must include the bottom safe-area inset so the sheet clears the system navigation buttons, retaining its existing 40-point gap. Use the inset independently of keyboard visibility. Check three-button and gesture navigation in regular and party lives; device verification is pending.
+- The viewer translation label is **Translate**, removing “chat” from the label. Keep its current On/Off indicator, consent, saved preference, availability and error handling.
+- Preserve report-sheet behavior and demo checks, native sharing, menu dismissal and the existing exit action. This menu change does not change host/DM translation controls.
+- Device checks pending: order/labels, translation On/Off, reporting, sharing and leaving a regular or party live.
+
 ## Live-stream message appearance
 
 - Latest user correction (2026-09-15): add a small circular sender avatar on the **left**, beside a column containing the username and then the message below (supersedes the earlier inline/right-side layouts), on host and viewer live chat. Use the sender profile photo, with initials while unavailable; keep the avatar beside the name/message column when text wraps. Current size: 26 points, with a 1-point white border at 50% opacity. Latest user refinement: vertically center the avatar beside the combined username/message column, including wrapped text; this replaces the fixed 3-point downward offset. Align the avatar’s left edge with the outer left edge of the chat input box below, moving the whole avatar/name/message row together; message rows have no extra left padding. Apply to regular and party lives.

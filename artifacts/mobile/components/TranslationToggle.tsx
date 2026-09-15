@@ -6,7 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { getTranslationStatus } from "@workspace/api-client-react";
 import { useTranslationPreferences } from "@/hooks/useTranslationPreferences";
 
-export function TranslationToggle({ peerId, color = "#FFF", menu = false }: { peerId?: string; color?: string; menu?: boolean }) {
+export function TranslationToggle({ peerId, color = "#FFF", menu = false, menuLabel }: { peerId?: string; color?: string; menu?: boolean; menuLabel?: string }) {
   const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const { preferences, ready, update } = useTranslationPreferences();
   const enabled = peerId ? preferences.conversations[peerId] === true : preferences.live;
@@ -25,11 +25,11 @@ export function TranslationToggle({ peerId, color = "#FFF", menu = false }: { pe
   };
   return <TouchableOpacity onPress={() => void toggle()} disabled={!ready || busy} hitSlop={menu ? undefined : 8}
     accessibilityRole="switch" accessibilityState={{ checked: enabled, disabled: !ready || busy }}
-    accessibilityLabel={peerId ? t("Auto-translate this conversation") : t("Translate live chat")}
+    accessibilityLabel={menu && menuLabel ? t(menuLabel) : peerId ? t("Auto-translate this conversation") : t("Translate live chat")}
     style={menu ? { flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 } : { padding: 6 }}>
     {busy ? <ActivityIndicator size="small" color={color} /> : <Ionicons name="globe-outline" size={21} color={enabled ? "#FF1966" : color} />}
     {menu ? <>
-      <Text style={[localizedTextStyle(), { color, fontSize: 16, fontFamily: "Inter_500Medium", flex: 1 }]}>{t("Translate chat")}</Text>
+      <Text style={[localizedTextStyle(), { color, fontSize: 16, fontFamily: "Inter_500Medium", flex: 1 }]}>{t(menuLabel ?? "Translate chat")}</Text>
       <Text style={[localizedTextStyle(), { color: enabled ? "#FF1966" : "#999", fontSize: 13 }]}>{enabled ? t("On") : t("Off")}</Text>
     </> : null}
   </TouchableOpacity>;

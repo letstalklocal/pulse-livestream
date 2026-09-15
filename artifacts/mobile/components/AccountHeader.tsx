@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { type ReactNode } from "react";
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import Svg, { Circle, Path } from "react-native-svg";
+import { GoldCoinIcon } from "./GoldCoinIcon";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useGetCoinBalance } from "@workspace/api-client-react";
 import { Avatar } from "@/components/Avatar";
@@ -42,12 +42,7 @@ export function AccountHeader({ children }: { children?: ReactNode }) {
           </TouchableOpacity>
           <TouchableOpacity style={styles.coinBalance} onPress={() => router.push("/coin-store")}
             activeOpacity={0.75} accessibilityRole="button" accessibilityLabel={t("Buy Coins")}>
-            {/* Explicit gold artwork avoids platform-specific emoji colors. */}
-            <Svg width={16} height={16} viewBox="0 0 24 24" accessible={false}>
-              <Circle cx={12} cy={12} r={11} fill="#E5A400" stroke="#A96B00" strokeWidth={1} />
-              <Circle cx={12} cy={12} r={8.5} fill="#FFD54A" stroke="#FFF0A3" strokeWidth={1.5} />
-              <Path d="M15 8.5a4.5 4.5 0 1 0 0 7" fill="none" stroke="#B87900" strokeWidth={2} strokeLinecap="round" />
-            </Svg>
+            <GoldCoinIcon />
             <Text style={[styles.coinText, localizedTextStyle(), { color: colors.foreground }]} numberOfLines={1}>
               {(coinData?.balance ?? 0) === 0 ? t("Buy Coins") : coinData!.balance.toLocaleString(appLocale())}
             </Text>

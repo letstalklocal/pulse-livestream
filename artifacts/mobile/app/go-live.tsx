@@ -92,6 +92,7 @@ import { GIFTS } from "@/components/GiftPicker";
 import { LivePremiumSheet } from "@/components/LivePremiumSheet";
 import { switchBroadcastChannel } from "@/utils/switchBroadcastChannel";
 import { GiftLeaderboard } from "@/components/GiftLeaderboard";
+import { GoldCoinIcon } from "@/components/GoldCoinIcon";
 
 const isNative = Platform.OS === "ios" || Platform.OS === "android";
 const CATEGORIES = ["Gaming", "Music", "Talk", "Art", "Dance", "Other"];
@@ -1212,7 +1213,8 @@ export default function GoLiveScreen() {
                   onPress={() => setShowLeaderboard(true)}
                   activeOpacity={0.75}
                 >
-                  <Text style={styles.viewerPillText}>🪙 {streamCoins.toLocaleString(appLocale())}</Text>
+                  <GoldCoinIcon size={14} />
+                  <Text style={styles.viewerPillText}>{streamCoins.toLocaleString(appLocale())}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.viewerPill} disabled={isPrivateInvite} onPress={() => setShowViewerManagement(true)} accessibilityLabel={t("Manage viewers")}>
                   <Ionicons name="eye" size={13} color="#FFF" />

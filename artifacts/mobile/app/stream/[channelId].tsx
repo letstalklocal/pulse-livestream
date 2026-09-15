@@ -64,6 +64,7 @@ import { useAuth } from "@/context/AuthContext";
 import { GiftPicker, GIFTS, type Gift } from "@/components/GiftPicker";
 import { GiftFloater, type FloatingGift } from "@/components/GiftFloater";
 import { GiftLeaderboard } from "@/components/GiftLeaderboard";
+import { GoldCoinIcon } from "@/components/GoldCoinIcon";
 import {
   ChannelProfileType,
   ClientRoleType,
@@ -977,7 +978,7 @@ export default function StreamScreen() {
           </View>
 
           <TouchableOpacity style={styles.statsRow} onPress={() => setShowLeaderboard(true)} activeOpacity={0.75}>
-            <Text style={styles.coinEmoji}>🪙</Text>
+            <GoldCoinIcon size={14} />
             <Text style={styles.statsText}>{hostCoins.toLocaleString(appLocale())}</Text>
             <View style={styles.statsDivider} />
             <Ionicons name="eye" size={12} color="#FFF" />
@@ -1197,10 +1198,23 @@ export default function StreamScreen() {
       onRequestClose={() => setShowKebabMenu(false)}
     >
       <TouchableWithoutFeedback onPress={() => setShowKebabMenu(false)}>
-        <View style={styles.kebabBackdrop}>
+        <View style={[styles.kebabBackdrop, Platform.OS === "android" && { paddingBottom: insets.bottom + 40 }]}>
           <TouchableWithoutFeedback>
             <View style={styles.kebabMenu}>
-              <TranslationToggle menu />
+              <TouchableOpacity
+                style={styles.kebabItem}
+                activeOpacity={0.7}
+                onPress={() => {
+                  setShowKebabMenu(false);
+                  if (isDemo) { Alert.alert(t("Demo stream"), t("This is a demo, not a live creator stream.")); return; }
+                  setShowReport(true);
+                }}
+              >
+                <Ionicons name="flag-outline" size={20} color="#FF453A" />
+                <Text style={[localizedTextStyle(), [styles.kebabItemText, { color: "#FF453A" }]]}>{t("Report")}</Text>
+              </TouchableOpacity>
+              <View style={styles.kebabDivider} />
+              <TranslationToggle menu menuLabel="Translate" />
               <View style={styles.kebabDivider} />
               <TouchableOpacity
                 style={styles.kebabItem}
@@ -1218,19 +1232,6 @@ export default function StreamScreen() {
               >
                 <Ionicons name="share-outline" size={20} color="#FFF" />
                 <Text style={[localizedTextStyle(), styles.kebabItemText]}>{t("Share")}</Text>
-              </TouchableOpacity>
-              <View style={styles.kebabDivider} />
-              <TouchableOpacity
-                style={styles.kebabItem}
-                activeOpacity={0.7}
-                onPress={() => {
-                  setShowKebabMenu(false);
-                  if (isDemo) { Alert.alert(t("Demo stream"), t("This is a demo, not a live creator stream.")); return; }
-                  setShowReport(true);
-                }}
-              >
-                <Ionicons name="flag-outline" size={20} color="#FF453A" />
-                <Text style={[localizedTextStyle(), [styles.kebabItemText, { color: "#FF453A" }]]}>{t("Report")}</Text>
               </TouchableOpacity>
               <View style={styles.kebabDivider} />
               <TouchableOpacity
@@ -1405,10 +1406,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     fontFamily: "Inter_600SemiBold",
-  },
-  coinEmoji: {
-    fontSize: 12,
-    lineHeight: 15,
   },
   statsDivider: {
     width: 1,
