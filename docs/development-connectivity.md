@@ -87,3 +87,30 @@ For a recurrence, append: timestamp and edit; delivered bundle/refresh; device/n
 The original temporary artifacts were `/tmp/pulse-connectivity-monitor.jsonl`, `/tmp/pulse-device-probe.cjs`, and `/tmp/metro-restored.log`. The monitor completed automatically. **These files may disappear after an environment reset; this document preserves the results.** Recreate diagnostics against current ports and installed tools rather than relying on old paths or PIDs.
 
 For native inspection, Metro exposes connected targets at `/json/list`. This installed Expo version required the debugger WebSocket Origin to match its configured `EXPO_PACKAGER_PROXY_URL`; localhost Origin alone was rejected. Use the configured origin over the local inspector connection without weakening its checks. In this Hermes runtime, `Runtime.evaluate` with `awaitPromise` returned a Promise object before completion; collect actual asynchronous results and remove temporary diagnostic state afterward. A connected inspector or a returned Promise object is not evidence of a successful API request.
+
+
+## September 16: Metro exits with ENOENT in a pnpm temporary directory
+
+The user reported the mobile development command exiting with status 7 on Node 24.13.0, with a missing path ending in `typedoc_tmp_8086/dist/lib/utils-common` under `node_modules/.pnpm/typedoc@0.28.19_typescript@6.0.3/node_modules`.
+
+Evidence captured before recovery:
+
+- Metro was not running and port 18115 refused connections; the development API on port 8080 still returned `{"status":"ok"}`.
+- The temporary directory was absent, but the completed `typedoc/dist/lib/utils-common` directory existed. Its modification time was 22:08:35 UTC; pnpm installation metadata was updated at 22:10:09 UTC.
+- The installed pnpm 10.26.1 source creates staging directories named `<package>_tmp_<process.pid>` and renames them to the final package directory during import. This exactly matches the reported path format.
+- `scripts/post-merge.sh` also performs a frozen-lockfile install. The available error excerpt does not identify which install initiated this particular failure or contain the original full stack trace.
+
+**Assessment:** a dependency install overlapping with the development server's directory watching/scanning is the leading explanation. The temporary path is an installation artifact, not a missing application asset. The exact failing watcher and triggering install remain unconfirmed; do not classify this as the earlier phone DNS problem or an application-feature regression.
+
+Recovery: after confirming no dependency install was running, started the existing `@workspace/mobile` dev script with its existing workspace environment and configured port 18115. No cache clearing, dependency installation, version changes, or application-code changes were performed. Metro subsequently returned `packager-status:running`. This verifies server startup, not delivery of a fresh phone bundle or phone UI behavior. Recovery logs are in `/tmp/pulse-metro-recovery.log` and may disappear after an environment reset.
+
+A separate startup warning reported a missing `libnspr4.so` for the React Native desktop DevTools executable. Metro still started successfully; that warning is distinct from the reported temporary-directory crash.
+
+For dependency installs or patch application, stop Metro first, allow the install to finish, then restart Metro. If this recurs without an overlapping install, capture the full stack trace and timestamp before changing watcher configuration. Do not create the missing temporary directory or reinstall packages solely because this staging path no longer exists.
+
+
+### Preview workflow status after the manual recovery
+
+The user still saw the failure in Replit Preview. The workflow log at `.local/state/workflow-logs/i-rZGqth_3DzHYmN-ICW5/artifacts_mobile__expo.shell.exec.0` was last modified at 22:08:35 UTC and contained the original crash, with no newer workflow start recorded. Its full stack identifies `@expo/metro-file-map@57.0.2` `FallbackWatcher.#watchdir` calling `fs.watch` on the vanished pnpm staging directory. This confirms the watcher failure; the particular install invocation remains unidentified.
+
+The separately launched recovery server responded successfully both locally and through the Expo development hostname, but it did not reset Replit's failed workflow/Preview status. The assistant stopped only that manually launched process group to free port 18115 for the Replit-managed workflow. Restart the mobile workflow using Replit's Stop/Run controls; a Preview page reload alone does not start a new workflow. The assistant has no workflow-control tool in this session, so the managed restart and Preview recovery still require user confirmation. Do not report a standalone Metro health response as proof that Replit Preview has recovered.
