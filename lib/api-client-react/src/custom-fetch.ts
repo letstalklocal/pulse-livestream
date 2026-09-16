@@ -1,5 +1,7 @@
 export type CustomFetchOptions = RequestInit & {
   responseType?: "json" | "text" | "blob" | "auto";
+  /** Optional deadline covering authentication, fetch and response parsing. */
+  timeoutMs?: number;
 };
 
 export type ErrorType<T = unknown> = ApiError<T>;
@@ -326,6 +328,38 @@ export async function customFetch<T = unknown>(
   input: RequestInfo | URL,
   options: CustomFetchOptions = {},
 ): Promise<T> {
+  const { timeoutMs, ...requestOptions } = options;
+  if (timeoutMs === undefined) return performFetch<T>(input, requestOptions);
+
+  const controller = new AbortController();
+  const upstream = options.signal ?? (isRequest(input) ? input.signal : undefined);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let cancel = () => {};
+  const stopped = new Promise<never>((_, reject) => {
+    cancel = () => {
+      reject(new Error("Request cancelled."));
+      controller.abort();
+    };
+    timer = setTimeout(() => {
+      reject(new Error("The request timed out. Please check your connection and try again."));
+      controller.abort();
+    }, timeoutMs);
+    upstream?.addEventListener("abort", cancel, { once: true });
+    if (upstream?.aborted) cancel();
+  });
+  try {
+    return await Promise.race([
+      stopped,
+      performFetch<T>(input, { ...requestOptions, signal: controller.signal }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+    upstream?.removeEventListener("abort", cancel);
+  }
+}
+
+async function performFetch<T>(input: RequestInfo | URL, options: CustomFetchOptions): Promise<T> {
+  if (options.signal?.aborted) throw new Error("Request cancelled.");
   input = applyBaseUrl(input);
   const { responseType = "auto", headers: headersInit, ...init } = options;
 
@@ -358,6 +392,8 @@ export async function customFetch<T = unknown>(
     }
   }
 
+  // A token may settle after the deadline. Never send that expired request.
+  if (init.signal?.aborted) throw new Error("Request cancelled.");
   const requestInfo = { method, url: resolveUrl(input) };
 
   const response = await fetch(input, { ...init, method, headers });

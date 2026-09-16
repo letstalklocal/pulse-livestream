@@ -17,7 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth as useClerkAuth } from "@clerk/expo";
 import * as Crypto from "expo-crypto";
 import * as Haptics from "expo-haptics";
-import { useKeepAwake } from "expo-keep-awake";
+import { useStreamKeepAwake } from "@/hooks/useStreamKeepAwake";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -164,7 +164,7 @@ function StreamBackdrop({ imageUrl, demo = false, category }: {
 // Mount only while the viewer is focused and allowed to watch. Expo assigns
 // a unique lock per instance, so outgoing streams cannot release the next one's lock.
 function StreamViewerKeepAwake() {
-  useKeepAwake(undefined, { suppressDeactivateWarnings: true });
+  useStreamKeepAwake();
   return null;
 }
 
@@ -350,17 +350,6 @@ export default function StreamScreen() {
   useEffect(() => { setGiftRecipientUid(hostUid ?? undefined); }, [hostUid, party?.id]);
   const giftRecipient = party?.status === "active" ? party.participants.find(p => p.uid === giftRecipientUid) : undefined;
 
-  const AVATAR_COLORS = ["#FF1966","#7B2FFF","#FF6B35","#00C2A8","#FFB800","#0095FF"];
-  const hostInitials = (stream?.hostName ?? "?")
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-  const hostAvatarColor = AVATAR_COLORS[
-    (stream?.hostName ?? "").split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % AVATAR_COLORS.length
-  ]!;
-
   // Coins earned by the streamer during this specific live (filtered by channelId)
   const streamEarningsQuery = useGetStreamEarnings(channelId ?? "", {
     query: { enabled: !!channelId && !isDemo, refetchInterval: 30000 } as any,
@@ -413,6 +402,18 @@ export default function StreamScreen() {
     : null;
   // The list is already cached when swiping, before the destination detail query resolves.
   const listedStream = allStreams.find((item) => item.channelId === channelId);
+  const displayHostName = stream?.hostName ?? listedStream?.hostName;
+  const AVATAR_COLORS = ["#FF1966","#7B2FFF","#FF6B35","#00C2A8","#FFB800","#0095FF"];
+  const hostInitials = (displayHostName ?? "")
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  const hostAvatarColor = AVATAR_COLORS[
+    (displayHostName ?? "").split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % AVATAR_COLORS.length
+  ]!;
+
   const demoCategory = stream?.category ?? listedStream?.category;
   const backgroundImageUrl = stream?.hostBackgroundImageUrl
     ?? listedStream?.hostBackgroundImageUrl
@@ -583,27 +584,28 @@ export default function StreamScreen() {
 
   // Join Agora channel on native
   useEffect(() => {
+    // Access loss must discard public-channel rendering state before admission.
+    setJoined(false);
+    setRemoteUid(null);
+    setRemoteVideoReady(false);
+    primaryRtcChannelRef.current = "";
     if (!channelId || !isNative || !canEnterStream) return;
     let didUnmount = false;
+    let engine: any = null;
+    const setupIsCancelled = () => didUnmount || streamEndedRef.current;
+    const releaseSetupEngine = () => {
+      // Agora returns a singleton wrapper. Clear this attempt's handle during
+      // cleanup so its late token response cannot release a newer connection.
+      const ownedEngine = engine;
+      engine = null;
+      if (!ownedEngine || engineRef.current !== ownedEngine) return;
+      engineRef.current = null;
+      try { ownedEngine.leaveChannel?.(); } catch (_error) {}
+      try { ownedEngine.release?.(); } catch (_error) {}
+    };
     const setup = async () => {
-      let engine: any = null;
-      const setupIsCancelled = () => didUnmount || streamEndedRef.current;
-      const releaseSetupEngine = () => {
-        if (!engine) return;
-        if (engineRef.current !== engine) {
-          engine = null;
-          return;
-        }
-        engineRef.current = null;
-        try { engine.leaveChannel?.(); } catch (_error) {}
-        try { engine.release?.(); } catch (_error) {}
-        engine = null;
-      };
       try {
         if (setupIsCancelled()) return;
-        setJoined(false);
-        setRemoteUid(null);
-        setRemoteVideoReady(false);
         setAgoraError(null);
         engine = createEngine();
         if (!engine) throw new Error("This development build does not include the Agora video module.");
@@ -756,10 +758,7 @@ export default function StreamScreen() {
     setup();
     return () => {
       didUnmount = true;
-      const engine = engineRef.current;
-      engineRef.current = null;
-      try { engine?.leaveChannel?.(); } catch (_error) {}
-      try { engine?.release?.(); } catch (_error) {}
+      releaseSetupEngine();
       try { updateViewers.mutate({ channelId, data: { action: "leave" } }); } catch (_e) {}
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -980,36 +979,55 @@ export default function StreamScreen() {
       >
         {/* Top bar */}
         <View style={styles.topBar} pointerEvents="auto">
-          <View style={styles.backBtn}>
+          <View style={styles.hostControls}>
             <TouchableOpacity
+              testID="viewer-exit-live"
+              accessibilityRole="button"
+              accessibilityLabel={t("Exit Live")}
+              style={styles.exitButton}
+              onPress={() => router.back()}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="chevron-back" size={25} color="#FFF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.hostAvatarButton}
               onPress={() => hostUid ? router.push(`/profile/${hostUid}`) : undefined}
               activeOpacity={0.8}
             >
               <View style={[styles.avatarCircle, { backgroundColor: hostAvatarColor }]}>
-                <Text style={styles.avatarInitials}>{hostInitials}</Text>
+                {hostInitials ? <Text style={styles.avatarInitials}>{hostInitials}</Text> : <Ionicons name="person" size={15} color="#FFF" />}
               </View>
             </TouchableOpacity>
           </View>
 
           <View style={styles.streamMeta}>
-            {stream && (
-              <Text style={styles.hostName}>{stream.hostName}</Text>
+            {displayHostName && (
+              <Text style={styles.hostName} numberOfLines={1}>{displayHostName}</Text>
             )}
           </View>
 
-          <TouchableOpacity style={styles.statsRow} onPress={() => setShowLeaderboard(true)} activeOpacity={0.75}>
-            <GoldCoinIcon size={14} />
-            <Text style={styles.statsText}>{hostCoins.toLocaleString(appLocale())}</Text>
-            <View style={styles.statsDivider} />
-            <Ionicons name="eye" size={12} color="#FFF" />
-            <Text style={styles.statsText}>
-              {partyViewerCount != null
-                ? partyViewerCount >= 1000
-                  ? `${(partyViewerCount / 1000).toFixed(1)}K`
-                  : partyViewerCount
-                : "—"}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.statsGroup}>
+            <TouchableOpacity style={styles.statsRow} onPress={() => setShowLeaderboard(true)} activeOpacity={0.75}>
+              <GoldCoinIcon size={14} />
+              <Text style={styles.statsText}>{hostCoins.toLocaleString(appLocale())}</Text>
+              <View style={styles.statsDivider} />
+              <Ionicons name="eye" size={12} color="#FFF" />
+              <Text style={styles.statsText}>
+                {partyViewerCount != null
+                  ? partyViewerCount >= 1000
+                    ? `${(partyViewerCount / 1000).toFixed(1)}K`
+                    : partyViewerCount
+                  : "—"}
+              </Text>
+            </TouchableOpacity>
+            {requiresAdmission && !streamEnded ? (
+              <View style={styles.premiumBadge} pointerEvents="none" testID="viewer-premium-badge">
+                <View style={styles.premiumDot} />
+                <Text style={[localizedTextStyle(), styles.premiumBadgeText]}>{t("PREMIUM")}</Text>
+              </View>
+            ) : null}
+          </View>
         </View>
 
 
@@ -1361,23 +1379,50 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     paddingHorizontal: 14,
   },
+  statsGroup: { alignItems: "center" },
+  premiumBadge: {
+    position: "absolute",
+    top: "100%",
+    marginTop: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "#FF1966",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 5,
+  },
+  premiumDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FFF" },
+  premiumBadgeText: { color: "#FFF", fontSize: 9, fontWeight: "700", fontFamily: "Inter_700Bold", letterSpacing: 0.3 },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 6,
     marginBottom: 4,
   },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  hostControls: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: 0,
+    marginLeft: -10,
+  },
+  exitButton: {
+    width: 44,
+    height: 44,
+    alignItems: "flex-end",
+    justifyContent: "center",
+    paddingRight: 2,
+  },
+  hostAvatarButton: {
+    width: 36,
+    height: 44,
+    alignItems: "flex-start",
     justifyContent: "center",
   },
   avatarCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
@@ -1385,7 +1430,7 @@ const styles = StyleSheet.create({
   },
   avatarInitials: {
     color: "#FFF",
-    fontSize: 13,
+    fontSize: 10,
     fontFamily: "Inter_700Bold",
     letterSpacing: 0.5,
   },
@@ -1402,7 +1447,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.2)",
   },
-  streamMeta: { flex: 1 },
+  streamMeta: { flex: 1, minWidth: 0, marginLeft: -6 },
   hostName: {
     color: "#FFF",
     fontSize: 15,

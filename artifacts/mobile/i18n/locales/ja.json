@@ -832,5 +832,8 @@
   "Sign up with Apple": "Appleで登録",
   "Sign in with Apple": "Appleでログイン",
   "Could not complete Apple sign-in. Please try again or use email.": "Appleでのログインを完了できませんでした。再試行するか、メールを使用してください。",
-  "Sign in with Email": "メールでログイン"
+  "Sign in with Email": "メールでログイン",
+  "Live Viewers": "Live視聴者",
+  "Not watching": "視聴していません",
+  "Couldn't load gift totals. Tap to retry.": "ギフトの合計を読み込めませんでした。タップして再試行してください。"
 }

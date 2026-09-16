@@ -126,3 +126,40 @@ User reported iPhone right swipe navigating back after the viewer became a regul
 ### Installed build visible in Settings — 2026-09-16
 
 Settings → About → App version now displays the installed app version and native build number as `1.0.2 (12)` (example only). `expo-application` supplies `nativeApplicationVersion` and `nativeBuildVersion` from the installed binary (iOS CFBundleVersion / Android versionCode), rather than guessing from remote EAS history or app.json. The SDK-matched existing transitive package is now a direct mobile dependency. The separate Bundle version row remains for JavaScript troubleshooting. When native metadata is unavailable, such as web, retain the configured version/Unknown fallback and omit the unavailable build. Device verification: compare the Settings number to TestFlight on iPhone and the installed Android build. This change does not start a build or infer the current installed build number.
+
+### Blank viewer after Premium entry payment — 2026-09-16
+
+User reported iPhone video remaining blank after paying during a public-to-Premium conversion, with exit/re-entry restoring playback. Fixed a viewer Agora singleton cleanup race where a retired token request could release the replacement connection; reset old render readiness while admission blocks access. Same live session and screen remain; the existing protected-media-channel switch remains. Four mocked reconnect regressions and mobile TypeScript passed. Actual iPhone conversion/payment/video recovery remains unverified. See [reconnect requirements and regression evidence](coins-premium-revenuecat.md#premium-conversion-viewer-reconnect--2026-09-16).
+
+
+## Go Live startup recovery and background caching — September 16, 2026
+
+Reported: iPhone Go Live remains spinning and the stream never appears on another device. Saved background thumbnail is also blank, but coins/profile picture load. Account reported as `javilo2`; the user explicitly confirmed TestFlight now uses Replit production, not development. The precise deployed hostname/build is not yet verified. Development health/feed checks succeeded, which does not prove production or iPhone connectivity.
+
+Confirmed code defects: startup authentication/network/body reads had no deadline, cleanup could also wait indefinitely, and camera-ready setup did not display startup errors stored in camera-error state. Host requests now opt into 20-second deadlines (stream ending: 5 seconds), including authentication and body parsing. A late authentication result cannot send an expired request. Startup failures show an alert with the failed step; a finally block restores the button after bounded cleanup. Existing request callers without a timeout keep their normal behavior. An aborted HTTP request is not a guaranteed server rollback; existing heartbeat expiry remains a fallback for orphan sessions. This addresses indefinite waiting/error visibility, not a confirmed root cause of the reported iPhone stall.
+
+User also requested local background caching; see [background cache requirements](stream-background-crop.md#local-background-cache--september-16-2026). No broadcaster keyboard/dock layout changed.
+
+Automated checks: startup request tests exercise stuck authentication/fetch/body reads, late token settlement, cancellation, HTTP errors and successful retries; startup flow tests exercise creation/token failures, failed cleanup, visible alerts and successful media-channel handoff. Native iPhone testing and delivery in an updated build remain required.
+
+Environment correction (September 16): TestFlight now uses Replit production, explicitly confirmed by the user. Earlier development-service instructions above are historical; do not revert the build to development. Production diagnosis must use the production endpoint/account. RevenueCat test-mode decisions remain separate.
+
+
+Reported affected build: **1.0.2 (11)** on iPhone TestFlight. The user confirms Replit production. A read-only EAS `production` environment lookup from the workspace's linked project still returned the current development hostname; this may represent a different/stale project configuration and is not proof of the installed binary's endpoint. Requested the published production URL before investigating that server. No EAS values were modified. The new cache/startup changes are not present in the reported build.
+
+Validation completed: API-client declaration build, mobile TypeScript, both startup test scripts and diff whitespace check passed. These are code checks, not native/iPhone or production-account verification.
+
+
+### Production read-only checks — September 16, 2026
+
+User supplied `https://chimbalivestream.replit.app` as the production server used by TestFlight 1.0.2 (11). Production health, stream feed, exact-name user search and UID 39726 profile requests returned HTTP 200. `javilo2` still has a saved stream-background object path; its signed download returned HTTP 200 with 144,340 bytes. The account has no uploaded avatar URL in this API response; the visible profile picture may come from the authentication provider/local cache, so that observation alone does not prove all profile-image requests succeed.
+
+These results rule out a missing background record or unavailable object at the time of the check. They do not establish the cause of build 11's blank thumbnail or infinite startup spinner. No authenticated stream was created and no account, production configuration or deployment was changed. Requested a controlled app reopen/retry to distinguish a persistent failure from stale app state. Local caching and bounded startup/error visibility remain prepared code changes, not a verified production/device repair.
+
+
+Device follow-up: the user first reported that both problems remained after reopening, then closed/reopened again and reported that the images now appear. The user subsequently explicitly confirmed that Go Live also starts the broadcast successfully. Both the background and startup recovered on the existing TestFlight 1.0.2 (11) build against Replit production. No production deployment or new TestFlight build occurred during this recovery, so it cannot be attributed to the prepared caching/deadline changes. The original cause remains unconfirmed.
+
+
+### Broadcasting screen sleep and mandatory regressions — September 16, 2026
+
+The user corrected the reported broadcasting device from iPhone to Android, then explicitly requested that **both** platforms stay awake. Implemented shared activation retry/foreground renewal for host and viewer and a pnpm native patch that reapplies the Android/iOS idle-prevention setting for existing tags. Exact device trigger remains unconfirmed. Both Android and iPhone must be rebuilt for the native repair; no build was started. The Live Viewers list also now closes after 10 idle seconds, resetting on interaction and pausing for moderation. The user requires the [stream-screen regression checklist](stream-screen-regressions.md) on every future viewer/broadcaster functionality change; root AGENTS.md now enforces that workflow. Native device sleep/keyboard/gesture checks remain pending.

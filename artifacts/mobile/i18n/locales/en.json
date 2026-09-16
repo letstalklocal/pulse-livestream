@@ -832,5 +832,8 @@
   "Sign up with Apple": "Sign up with Apple",
   "Sign in with Apple": "Sign in with Apple",
   "Could not complete Apple sign-in. Please try again or use email.": "Could not complete Apple sign-in. Please try again or use email.",
-  "Sign in with Email": "Sign in with Email"
+  "Sign in with Email": "Sign in with Email",
+  "Live Viewers": "Live Viewers",
+  "Not watching": "Not watching",
+  "Couldn't load gift totals. Tap to retry.": "Couldn't load gift totals. Tap to retry."
 }

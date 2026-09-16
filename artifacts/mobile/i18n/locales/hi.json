@@ -832,5 +832,8 @@
   "Sign up with Apple": "Apple से साइन अप करें",
   "Sign in with Apple": "Apple से साइन इन करें",
   "Could not complete Apple sign-in. Please try again or use email.": "Apple से साइन इन पूरा नहीं हो सका। फिर से कोशिश करें या ईमेल का उपयोग करें।",
-  "Sign in with Email": "ईमेल से साइन इन करें"
+  "Sign in with Email": "ईमेल से साइन इन करें",
+  "Live Viewers": "Live दर्शक",
+  "Not watching": "अभी नहीं देख रहे",
+  "Couldn't load gift totals. Tap to retry.": "उपहारों का कुल योग लोड नहीं हो सका। फिर से कोशिश करने के लिए टैप करें।"
 }

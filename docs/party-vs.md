@@ -22,7 +22,7 @@ Party links two existing public, free live sessions. Hosts invite from More > Pa
 
 ## VS rules
 
-- Either host requests VS; the other accepts. Invitations expire after thirty seconds.
+- Either host in an active, media-ready Party starts VS directly. No battle invitation or second-host acceptance is required. The initial Party invitation still requires acceptance and expires after thirty seconds.
 - A three-second countdown precedes a three-minute round.
 - Gift coin value is the score. Only successful gift transactions during the round count; participant-sent gifts do not count.
 - Scores and the ledger's battle_id are updated in the same database transaction. Duplicate payment requests cannot score twice.
@@ -132,3 +132,11 @@ All changes are saved in the workspace. Preserve unrelated existing changes. No 
 The small floating party window uses a 5-point corner radius on host and viewer, at both window sizes (latest user correction after the Android renderer fix). Add a thin 1-point black border at 75% transparency (25% opacity) around the floating window, drawn above the video with touches passing through so window controls remain usable. The user reported square video corners on Android despite the rounded outer container. Use Agora TextureView for the Android floating partner video so it participates in parent clipping; retain SurfaceView on iOS and in the retained side-by-side layout. Keep the secondary connection, resizing, hide/restore, navigation gestures, and audio controls intact.
 
 Validation: the party-window harness passes for Android and iOS renderer selection and existing interaction/audio regressions; mobile TypeScript also passes. Native verification remains pending: check all four corners with live video at both sizes, hide/restore, stream switching, and foreground/background transitions on Android. Mocked tests cannot verify native video clipping or playback.
+
+## Direct battle start — September 16, 2026
+
+Latest user instruction supersedes the former VS invitation/acceptance rule: when either participating host selects Start VS, both hosts and their audiences enter the three-second countdown automatically, followed by the existing three-minute round. Keep initial Party invitation/acceptance, both-camera readiness, public/free-only eligibility, scores/gift accounting, disconnect cancellation, End VS, rematches and presentation unchanged. “Anyone” means either host in that Party, not an audience member or unrelated host.
+
+The existing `battle_request` API action now creates an active round with server-owned start/end timestamps under the existing Party transaction lock. Concurrent starts cannot create duplicate rounds. A legacy pending round can be started through the same action; legacy acceptance endpoints remain compatible, but the mobile battle sheet no longer offers acceptance/decline controls. The initiating sheet closes after successful start. No migration or action-enum change is required.
+
+Validation: updated Party integration tests pass for immediate active/countdown state seen by both hosts and viewers, either host starting rematches, concurrent starts producing one round, readiness/ownership restrictions, scoring boundaries, duplicate gifts, early ending and disconnect cancellation. API/mobile TypeScript and API build pass. Development API was restarted with its prior environment and launch arguments. Running health returned 200; the Party start endpoint locally and Party read endpoint through the development hostname returned the expected unauthenticated 401. Authenticated battle behavior was exercised by the database-backed handler integration suite, not a signed-in phone or HTTP session. Device checks remain: start from either host, observe both countdowns without acceptance, verify score updates and End VS/rematch.

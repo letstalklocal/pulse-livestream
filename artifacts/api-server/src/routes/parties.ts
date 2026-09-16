@@ -118,8 +118,16 @@ router.post("/streams/:channelId/party", async (req, res) => {
     const battle = await settleBattle(p, tx);
     if (action === "battle_request") {
       if (!partyMediaReady(p)) return { status: 409, error: "Wait for both cameras to connect" };
-      if (battle && ["pending", "active"].includes(battle.status)) return { status: 409, error: "A VS round is already pending or running" };
-      await tx.insert(liveBattlesTable).values({ id: randomUUID(), partyId: p.id, requesterUid: user.uid, status: "pending", expiresAt: new Date(Date.now() + PARTY_INVITE_MS) });
+      if (battle?.status === "active") return { status: 409, error: "A VS round is already pending or running" };
+      const startsAt = new Date(Date.now() + 3000);
+      const endsAt = new Date(startsAt.getTime() + BATTLE_DURATION_MS);
+      // Either connected host starts the round. Also allow a pending request
+      // left by an older server to enter the countdown without acceptance.
+      if (battle?.status === "pending") {
+        await tx.update(liveBattlesTable).set({ status: "active", startsAt, endsAt }).where(eq(liveBattlesTable.id, battle.id));
+      } else {
+        await tx.insert(liveBattlesTable).values({ id: randomUUID(), partyId: p.id, requesterUid: user.uid, status: "active", startsAt, endsAt, expiresAt: endsAt });
+      }
       return {};
     }
     if (action === "battle_end") {

@@ -27,7 +27,7 @@ export function PartySheet({ channelId, party, uid, onAction, onClose }: {
     setBusy(true); setError(null);
     try {
       await onAction({ action, targetChannelId, partyId: party?.id, battleId: battle?.id });
-      if (action === "accept" || action === "battle_accept" || action === "battle_end" || action === "leave") onClose();
+      if (action === "accept" || action === "battle_request" || action === "battle_end" || action === "leave") onClose();
     }
     catch (e) { setError(e instanceof Error ? e.message : "Could not update Party. Try again."); }
     finally { setBusy(false); }
@@ -51,11 +51,7 @@ export function PartySheet({ channelId, party, uid, onAction, onClose }: {
               {button(incoming ? "Decline" : "Cancel invitation", "close-circle-outline", incoming ? "decline" : "cancel")}
             </> : <>
               <Text style={[localizedTextStyle(), styles.status]}>{party.ready ? t("Party connected") : t("Connecting both hosts...")}</Text>
-              {battle?.status === "pending" ? <>
-                <Text style={[localizedTextStyle(), styles.status]}>{battle.requesterUid === uid ? t("Waiting for VS acceptance") : t("Your partner invited you to a 3-minute VS")}</Text>
-                {battle.requesterUid !== uid ? button("Accept VS", "flash", "battle_accept", !party.ready) : null}
-                {button(battle.requesterUid === uid ? "Cancel VS request" : "Decline VS", "close-circle-outline", "battle_decline")}
-              </> : battle?.status === "active" ? <>
+              {battle?.status === "active" ? <>
                 <Text style={[localizedTextStyle(), styles.status]}>{t("VS in progress")}</Text>
                 <TouchableOpacity style={styles.action} disabled={busy} accessibilityRole="button" onPress={() => Alert.alert(t("End VS early?"), t("This round will end without a winner. Party and both lives will continue. Gifts already sent stay with their recipients."), [{ text: t("Keep battling"), style: "cancel" }, { text: t("End VS"), style: "destructive", onPress: () => void act("battle_end") }])}>
                   <Ionicons name="stop-circle-outline" color="#FF759A" size={21} /><Text style={[localizedTextStyle(), [styles.actionText, { color: "#FF759A" }]]}>{t("End VS")}</Text>

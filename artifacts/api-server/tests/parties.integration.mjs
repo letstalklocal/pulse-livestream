@@ -87,10 +87,20 @@ try {
   assert.equal((await post(ca, v, "Muted across rooms")).statusCode, 403);
   await call(moderation, "/streams/:channelId/moderation", "post", b, { viewerUid: v, action: "unmute" }, { channelId: cb });
   assert.equal((await call(streams, "/streams/:channelId/premium", "post", a, { requiredGiftId: "rose", freeViewerIds: [] }, { channelId: ca })).statusCode, 409);
-  assert.equal((await action(ca, a, { action: "battle_request", partyId: invitation.id })).statusCode, 200);
+  assert.equal((await action(ca, v, { action: "battle_request", partyId: invitation.id })).statusCode, 403);
+  assert.equal((await action(cc, c, { action: "battle_request", partyId: invitation.id })).statusCode, 409);
+  const starts = await Promise.all([
+    action(ca, a, { action: "battle_request", partyId: invitation.id }),
+    action(cb, b, { action: "battle_request", partyId: invitation.id }),
+  ]);
+  assert.deepEqual(starts.map(r => r.statusCode).sort(), [200, 409]);
   let battle = (await state(ca, a)).body.party.battle;
-  assert.equal((await action(ca, a, { action: "battle_accept", partyId: invitation.id, battleId: battle.id })).statusCode, 403);
-  assert.equal((await action(cb, b, { action: "battle_accept", partyId: invitation.id, battleId: battle.id })).statusCode, 200);
+  assert.equal(battle.status, "active", "No second-host acceptance required");
+  assert.equal(battle.endsAt - battle.startsAt, 180000);
+  assert.ok(battle.startsAt > Date.now(), "Keep the three-second countdown");
+  assert.equal((await state(cb, b)).body.party.battle.id, battle.id);
+  assert.equal((await state(ca, v)).body.party.battle.status, "active");
+  assert.equal((await pool.query("select count(*)::int as n from live_battles where party_id=$1", [invitation.id])).rows[0].n, 1);
   await gift(v, a, ca);
   assert.equal((await state(ca, a)).body.party.battle.firstScore, 0, "Countdown gifts do not score");
   await pool.query("update live_battles set starts_at=now()-interval '1 second' where id=$1", [battle.id]);
@@ -108,11 +118,10 @@ try {
   battle = (await state(ca, a)).body.party.battle;
   assert.equal(battle.status, "finished"); assert.equal(battle.firstScore, 5); assert.equal(battle.secondScore, 10); assert.equal(battle.winnerUid, b);
   for (const [endingChannel, endingUid] of [[ca, a], [cb, b]]) {
-    assert.equal((await action(ca, a, { action: "battle_request", partyId: invitation.id })).statusCode, 200);
+    assert.equal((await action(endingChannel, endingUid, { action: "battle_request", partyId: invitation.id })).statusCode, 200, "Either host starts a rematch");
     const early = (await state(cb, b)).body.party.battle;
     const end = { action: "battle_end", partyId: invitation.id, battleId: early.id };
-    assert.equal((await action(ca, a, end)).statusCode, 409, "Pending rounds cannot be ended as active battles");
-    await action(cb, b, { action: "battle_accept", partyId: invitation.id, battleId: early.id });
+    assert.equal(early.status, "active", "Rematch starts without acceptance");
     assert.equal((await action(ca, v, end)).statusCode, 403, "Viewers cannot end VS");
     assert.equal((await action(cc, c, end)).statusCode, 409, "Unrelated hosts cannot end VS");
     assert.equal((await action(ca, a, { ...end, battleId: battle.id })).statusCode, 409, "An old round ID cannot stop a rematch");
@@ -140,7 +149,7 @@ try {
   }
   assert.equal((await action(ca, a, { action: "battle_request", partyId: invitation.id })).statusCode, 200, "Rematch is allowed");
   const rematch = (await state(cb, b)).body.party.battle;
-  await action(cb, b, { action: "battle_accept", partyId: invitation.id, battleId: rematch.id });
+  assert.equal(rematch.status, "active");
   await pool.query("update live_parties set first_ready_at=now()-interval '30 seconds' where id=$1", [invitation.id]);
   assert.equal((await state(cb, b)).body.party.battle.status, "cancelled", "Connection loss cancels VS");
   await action(ca, a, { action: "ready", partyId: invitation.id });

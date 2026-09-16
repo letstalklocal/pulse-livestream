@@ -1,4 +1,5 @@
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
+import { loadChatPeerStatus } from "@/utils/chatPeerStatus";
 import { formatLastSeen } from "@/utils/lastSeen";
 import { SwipeToReply } from "@/components/SwipeToReply";
 import { useAuth as useClerkAuth } from "@clerk/expo";
@@ -67,11 +68,18 @@ export default function DmScreen() {
   const safety = useAccountSafety(Number(peerIdStr));
   const contactBlocked = safety.data?.contactBlocked === true;
   const {getToken}=useClerkAuth();
-  const peerStatus=useQuery({queryKey:["message-peer",user?.uid,peerIdStr],enabled:!!user?.uid&&!!peerIdStr&&!contactBlocked,refetchInterval:5000,queryFn:async():Promise<{online:boolean;lastSeen:number|null;needsGift:boolean}>=>{
-    const token=await getToken();const base=process.env.EXPO_PUBLIC_DOMAIN?`https://${process.env.EXPO_PUBLIC_DOMAIN}`:"";
-    const res=await fetch(`${base}/api/messages/peers/${encodeURIComponent(peerIdStr)}`,{headers:{Authorization:`Bearer ${token}`}});if(!res.ok)throw new Error("Couldn’t load chat status.");return res.json();
-  }});
-  const needsGift=peerStatus.data?.needsGift===true;
+  const peerStatus = useQuery({
+    queryKey: ["message-peer", user?.uid, peerIdStr],
+    enabled: !!user?.uid && !!peerIdStr && !contactBlocked,
+    refetchInterval: 5000,
+    retry: false,
+    queryFn: ({ signal }) => loadChatPeerStatus({
+      baseUrl: process.env.EXPO_PUBLIC_DOMAIN ? `https://${process.env.EXPO_PUBLIC_DOMAIN}` : "",
+      peerId: peerIdStr,
+      getToken,
+      signal,
+    }),
+  });
   const [lastSeenNow, setLastSeenNow] = useState(Date.now);
   useFocusEffect(useCallback(() => {
     setLastSeenNow(Date.now());
@@ -109,6 +117,10 @@ export default function DmScreen() {
   useEffect(() => { setReplyTo(null); }, [peerIdStr]);
   const replyText = (message: DmMessage) => message.kind === "media" ? (message.mediaType === "video" ? t("Video") : t("Photo")) : message.kind === "media_pack" ? t("Media pack") : message.kind === "private_stream_invitation" ? t("Private live invitation") : message.text;
   const [messages, setMessages] = useState<DmMessage[]>(() => getMessages(peerIdStr));
+  // Server-synced history permanently opens a chat under the server's existing
+  // rules. Presence refreshes must not gate an established conversation.
+  const establishedChat = getMessages(peerIdStr).length > 0;
+  const needsGift = !establishedChat && peerStatus.data?.needsGift === true;
   const [showGiftPicker, setShowGiftPicker] = useState(false);
   const [showPackPicker, setShowPackPicker] = useState(false);
   const [showMediaChooser, setShowMediaChooser] = useState(false);
@@ -280,6 +292,11 @@ export default function DmScreen() {
     try {
       const result=await spendMutation.mutateAsync({data:{uid:user.uid,recipientUid:Number(peerIdStr),amount:1,giftName:"Rose",senderName:user.name??"Viewer",description:"🌹 Rose to open chat",idempotencyKey:roseRequestKey.current}});
       queryClient.setQueryData(getGetCoinBalanceQueryKey({uid:user.uid}),{balance:result.balance});
+      // Cancel a pre-payment status response so it cannot overwrite the unlock.
+      await queryClient.cancelQueries({ queryKey: ["message-peer", user.uid, peerIdStr] });
+      queryClient.setQueryData(["message-peer", user.uid, peerIdStr], (previous: any) => ({
+        ...previous, online: previous?.online ?? false, lastSeen: previous?.lastSeen ?? null, needsGift: false,
+      }));
       const receipt=await sendDm(peerIdStr,name,"🎁 🌹 Rose gift • 1 coin");
       await peerStatus.refetch();
       if(!receipt.ok)setSendError("Rose sent. Your chat is activated, but the gift receipt could not be delivered.");
@@ -431,7 +448,7 @@ export default function DmScreen() {
       )}
       {replyTo && !contactBlocked && !needsGift && <View style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 12, marginHorizontal: 16, borderLeftWidth: 3, borderLeftColor: colors.primary, backgroundColor: colors.card }}><View style={{ flex: 1 }}><Text style={[localizedTextStyle(), { color: colors.primary, fontWeight: "600" }]}>{t("Replying to {v0}", { v0: replyTo.senderId === myUidStr ? t("yourself") : replyTo.senderName })}</Text><Text numberOfLines={2} style={{ color: colors.mutedForeground, marginTop: 4 }}>{replyText(replyTo)}</Text></View><TouchableOpacity accessibilityLabel={t("Cancel reply")} disabled={sendingMessage} onPress={() => setReplyTo(null)}><Ionicons name="close" size={22} color={colors.mutedForeground} /></TouchableOpacity></View>}
       {/* Input bar */}
-      {contactBlocked ? <Text style={[localizedTextStyle(), { color: colors.mutedForeground, textAlign: "center", padding: 16, paddingBottom: composerBottomInset + 16 }]}>{safety.data?.blockedByMe ? t("You blocked this user. Use the user menu to unblock.") : t("Messaging is unavailable with this account.")}</Text> : peerStatus.isPending ? <ActivityIndicator color={colors.primary} style={{padding:20}}/> : peerStatus.isError ? <TouchableOpacity onPress={()=>void peerStatus.refetch()} style={{padding:20}}><Text style={[localizedTextStyle(), {color:colors.mutedForeground,textAlign:"center"}]}>{t("Couldn’t load chat settings. Tap to retry.")}</Text></TouchableOpacity> : needsGift ? <View style={{padding:20,paddingBottom:composerBottomInset+20,gap:10}}><Text style={[localizedTextStyle(), {color:colors.mutedForeground,textAlign:"center"}]}>{t("Send a Rose to activate your chat with {v0}.", { v0: name })}</Text><TouchableOpacity disabled={sendingRose} onPress={()=>void activateChat()} style={{padding:16,borderRadius:14,backgroundColor:colors.primary,alignItems:"center"}}>{sendingRose?<ActivityIndicator color="#FFF"/>:<Text style={[localizedTextStyle(), {color:"#FFF",fontWeight:"600"}]}>{t("🌹 Send Rose · 1 coin")}</Text>}</TouchableOpacity></View> : <View style={[styles.inputBar, { borderTopColor: colors.border, paddingBottom: composerBottomInset + 8 }]}>
+      {contactBlocked ? <Text style={[localizedTextStyle(), { color: colors.mutedForeground, textAlign: "center", padding: 16, paddingBottom: composerBottomInset + 16 }]}>{safety.data?.blockedByMe ? t("You blocked this user. Use the user menu to unblock.") : t("Messaging is unavailable with this account.")}</Text> : !establishedChat && peerStatus.isPending ? <ActivityIndicator color={colors.primary} style={{padding:20}}/> : !establishedChat && peerStatus.isError && !peerStatus.data ? <TouchableOpacity onPress={()=>void peerStatus.refetch()} style={{padding:20}}><Text style={[localizedTextStyle(), {color:colors.mutedForeground,textAlign:"center"}]}>{t("Couldn’t load chat settings. Tap to retry.")}</Text></TouchableOpacity> : needsGift ? <View style={{padding:20,paddingBottom:composerBottomInset+20,gap:10}}><Text style={[localizedTextStyle(), {color:colors.mutedForeground,textAlign:"center"}]}>{t("Send a Rose to activate your chat with {v0}.", { v0: name })}</Text><TouchableOpacity disabled={sendingRose} onPress={()=>void activateChat()} style={{padding:16,borderRadius:14,backgroundColor:colors.primary,alignItems:"center"}}>{sendingRose?<ActivityIndicator color="#FFF"/>:<Text style={[localizedTextStyle(), {color:"#FFF",fontWeight:"600"}]}>{t("🌹 Send Rose · 1 coin")}</Text>}</TouchableOpacity></View> : <View style={[styles.inputBar, { borderTopColor: colors.border, paddingBottom: composerBottomInset + 8 }]}>
         <TextInput
           ref={inputRef}
           style={[styles.input, { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border }]}

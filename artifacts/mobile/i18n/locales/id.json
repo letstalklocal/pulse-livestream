@@ -832,5 +832,8 @@
   "Sign up with Apple": "Daftar dengan Apple",
   "Sign in with Apple": "Masuk dengan Apple",
   "Could not complete Apple sign-in. Please try again or use email.": "Tidak dapat menyelesaikan proses masuk dengan Apple. Coba lagi atau gunakan email.",
-  "Sign in with Email": "Masuk dengan email"
+  "Sign in with Email": "Masuk dengan email",
+  "Live Viewers": "Penonton Live",
+  "Not watching": "Tidak sedang menonton",
+  "Couldn't load gift totals. Tap to retry.": "Gagal memuat total hadiah. Ketuk untuk mencoba lagi."
 }

@@ -150,6 +150,11 @@ overrides:
   '@esbuild-kit/esm-loader': npm:tsx@^4.21.0
   esbuild: 0.27.3
 
+patchedDependencies:
+  expo-keep-awake@57.0.1:
+    hash: 67a2170262d8c08759fd0ba40b4e20555acb0d0d6f5e8517e7d1ab93c5976fe5
+    path: patches/expo-keep-awake@57.0.1.patch
+
 importers:
 
   .:
@@ -268,7 +273,7 @@ importers:
         version: 57.0.16(expo@57.0.20)
       expo-keep-awake:
         specifier: ~57.0.1
-        version: 57.0.1(expo@57.0.20)(react@19.2.3)
+        version: 57.0.1(patch_hash=67a2170262d8c08759fd0ba40b4e20555acb0d0d6f5e8517e7d1ab93c5976fe5)(expo@57.0.20)(react@19.2.3)
       react-native-agora:
         specifier: ^4.5.4
         version: 4.5.4(react-native@0.86.3(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.3))(react@19.2.3)
@@ -10214,7 +10219,7 @@ snapshots:
 
   expo-json-utils@57.0.1: {}
 
-  expo-keep-awake@57.0.1(expo@57.0.20)(react@19.2.3):
+  expo-keep-awake@57.0.1(patch_hash=67a2170262d8c08759fd0ba40b4e20555acb0d0d6f5e8517e7d1ab93c5976fe5)(expo@57.0.20)(react@19.2.3):
     dependencies:
       expo: 57.0.20(@babel/core@7.29.0)(@expo/metro-runtime@57.0.15)(expo-router@57.0.19)(react-dom@19.2.3(react@19.2.3))(react-native-web@0.21.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-native-worklets@0.10.1(@babel/core@7.29.0)(react-native@0.86.3(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.3))(react@19.2.3)(typescript@6.0.3)
       react: 19.2.3
@@ -10402,7 +10407,7 @@ snapshots:
       expo-constants: 57.0.17(expo@57.0.20)(react-native@0.86.3(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.3))
       expo-file-system: 57.0.6(expo@57.0.20)(react-native@0.86.3(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.3))
       expo-font: 57.0.3(expo@57.0.20)(react-native@0.86.3(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.3))(react@19.2.3)
-      expo-keep-awake: 57.0.1(expo@57.0.20)(react@19.2.3)
+      expo-keep-awake: 57.0.1(patch_hash=67a2170262d8c08759fd0ba40b4e20555acb0d0d6f5e8517e7d1ab93c5976fe5)(expo@57.0.20)(react@19.2.3)
       expo-modules-autolinking: 57.0.12(typescript@6.0.3)
       expo-modules-core: 57.0.16(react-native-worklets@0.10.1(@babel/core@7.29.0)(react-native@0.86.3(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.3))(react@19.2.3)
       pretty-format: 29.7.0

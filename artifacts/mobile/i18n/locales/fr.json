@@ -832,5 +832,8 @@
   "Sign up with Apple": "S’inscrire avec Apple",
   "Sign in with Apple": "Se connecter avec Apple",
   "Could not complete Apple sign-in. Please try again or use email.": "Impossible de terminer la connexion avec Apple. Réessayez ou utilisez votre adresse e-mail.",
-  "Sign in with Email": "Se connecter avec une adresse e-mail"
+  "Sign in with Email": "Se connecter avec une adresse e-mail",
+  "Live Viewers": "Spectateurs Live",
+  "Not watching": "Ne regarde pas",
+  "Couldn't load gift totals. Tap to retry.": "Impossible de charger le total des cadeaux. Appuyez pour réessayer."
 }

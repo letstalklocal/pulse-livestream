@@ -1,3 +1,4 @@
+import { Image as CachedImage } from "expo-image";
 import { PremiumGiftRequestSheet } from "@/components/PremiumGiftRequestSheet";
 import { usePremiumGiftRequest, premiumGiftRequestKey } from "@/hooks/usePremiumGiftRequest";
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
@@ -12,7 +13,7 @@ import { LiveChatAvatar } from "@/components/LiveChatAvatar";
 import { TranslationToggle } from "@/components/TranslationToggle";
 import { BeautySheet, DEFAULT_BEAUTY, type BeautySettings } from "@/components/BeautySheet";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { ViewerManagementSheet } from "@/components/ViewerManagementSheet";
+import { LiveViewersSheet } from "@/components/LiveViewersSheet";
 import { useStreamSocket } from "@/hooks/useStreamSocket";
 import { useLiveParty } from "@/hooks/useLiveParty";
 import { usePartyMedia } from "@/hooks/usePartyMedia";
@@ -26,7 +27,7 @@ import * as ImagePicker from "expo-image-picker";
 import { StreamBackgroundCropper, type BackgroundCropSource } from "@/components/StreamBackgroundCropper";
 import { fetch as expoFetch } from "expo/fetch";
 import * as Haptics from "expo-haptics";
-import { useKeepAwake } from "expo-keep-awake";
+import { useStreamKeepAwake } from "@/hooks/useStreamKeepAwake";
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -91,7 +92,6 @@ import { GiftFloater, type FloatingGift } from "@/components/GiftFloater";
 import { GIFTS } from "@/components/GiftPicker";
 import { LivePremiumSheet } from "@/components/LivePremiumSheet";
 import { switchBroadcastChannel } from "@/utils/switchBroadcastChannel";
-import { GiftLeaderboard } from "@/components/GiftLeaderboard";
 import { GoldCoinIcon } from "@/components/GoldCoinIcon";
 
 const isNative = Platform.OS === "ios" || Platform.OS === "android";
@@ -164,10 +164,10 @@ async function requestPermissions(): Promise<MediaPermissionResult> {
   }
 }
 
-// Mounted only during a broadcast; Expo releases the idle-timer lock on unmount
-// and restores it when iOS returns from the background.
+// Mounted only during a broadcast; the shared lease renews on foreground return
+// and releases this screen's lock on unmount.
 function LiveBroadcastKeepAwake() {
-  useKeepAwake(undefined, { suppressDeactivateWarnings: true });
+  useStreamKeepAwake();
   return null;
 }
 
@@ -290,10 +290,10 @@ export default function GoLiveScreen() {
   const pendingJoinRef = useRef<{ token: string; channelId: string } | null>(null);
 
   const queryClient = useQueryClient();
-  const generateToken = useGenerateAgoraToken();
-  const createStream = useCreateStream();
-  const invitationAction = useActOnPrivateStreamInvitation();
-  const endStream = useEndStream();
+  const generateToken = useGenerateAgoraToken({ request: { timeoutMs: 20_000 } });
+  const createStream = useCreateStream({ request: { timeoutMs: 20_000 } });
+  const invitationAction = useActOnPrivateStreamInvitation({ request: { timeoutMs: 20_000 } });
+  const endStream = useEndStream({ request: { timeoutMs: 5_000 } });
   const heartbeat = useHeartbeatStream();
   const sendChatMutation = useSendChatMessage();
   const requestBackgroundUpload = useRequestStreamBackgroundUpload();
@@ -305,6 +305,20 @@ export default function GoLiveScreen() {
   const backgroundImageUrl = backgroundProfile?.user.streamBackgroundImagePath === user?.streamBackgroundImagePath
     ? backgroundProfile?.user.streamBackgroundImageUrl ?? user?.streamBackgroundImageUrl
     : user?.streamBackgroundImageUrl;
+  // The object path is stable across signed-URL refreshes and changes on replacement.
+  const backgroundCacheKey = user?.streamBackgroundImagePath
+    ? `stream-background:${user.uid}:${user.streamBackgroundImagePath}` : null;
+  const [cachedBackground, setCachedBackground] = useState<{ key: string; uri: string } | null>(null);
+  useEffect(() => {
+    if (!backgroundCacheKey || Platform.OS === "web") return;
+    let active = true;
+    void CachedImage.getCachePathAsync(backgroundCacheKey).then(uri => {
+      if (active) setCachedBackground(uri ? { key: backgroundCacheKey, uri } : null);
+    }).catch(() => { /* Remote image loading remains available if cache lookup fails. */ });
+    return () => { active = false; };
+  }, [backgroundCacheKey]);
+  const backgroundThumbnailUrl = backgroundImageUrl
+    ?? (cachedBackground?.key === backgroundCacheKey ? cachedBackground?.uri : undefined);
   const failedBackgroundUrlRef = useRef<string | null>(null);
   useFocusEffect(useCallback(() => {
     if (!user?.uid || isLive) return;
@@ -425,7 +439,6 @@ export default function GoLiveScreen() {
   const [showViewerManagement, setShowViewerManagement] = useState(false);
   const [showLiveMenu, setShowLiveMenu] = useState(false);
   const [liveBarHeight, setLiveBarHeight] = useState(76);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   // WebSocket push — server sends earnings + gift events in real time
   const [realtimeEarnings, setRealtimeEarnings] = useState({ channelId: "", coins: 0 });
@@ -730,6 +743,7 @@ export default function GoLiveScreen() {
     const confirmedGiftId = isPrivateInvite ? null : (premiumGiftId ?? requiredGiftId);
     if (isPremium && !confirmedGiftId) return;
 
+    setCameraError(null);
     setIsStarting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
@@ -738,6 +752,7 @@ export default function GoLiveScreen() {
 
     let activatedPrivate = false;
     let createdStream = false;
+    let startupStep = "Creating the stream";
     try {
       // Create the durable private session first. Invitation activation then
       // atomically verifies this exact host/channel before releasing escrow.
@@ -754,12 +769,14 @@ export default function GoLiveScreen() {
       });
       createdStream = true;
       if (isPrivateInvite) {
+        startupStep = "Starting the private session";
         await invitationAction.mutateAsync({ id: privateInvitationId, action: "start" });
         activatedPrivate = true;
       }
 
       // The durable live session must exist before Agora can authorize any
       // token for this channel, including the broadcaster's first token.
+      startupStep = "Connecting the broadcast";
       const tokenData = await generateToken.mutateAsync({
         data: { channelName: channelId, uid: user!.uid, role: "broadcaster" },
       });
@@ -779,6 +796,11 @@ export default function GoLiveScreen() {
       durationRef.current = setInterval(() => setDuration((d) => d + 1), 1000);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e) {
+      const message = `${startupStep}: ${e instanceof Error ? e.message : "Could not start the live stream."}`;
+      console.warn("[Agora] start live error:", message);
+      setCameraError(message);
+      // Camera-ready previews do not render the camera-error overlay.
+      Alert.alert(t("Could not start the live stream."), message);
       if (createdStream) {
         try {
           await endStream.mutateAsync({ channelId });
@@ -793,8 +815,7 @@ export default function GoLiveScreen() {
           // Heartbeat expiry remains the final recovery path if cleanup cannot reach the server.
         }
       }
-      console.warn("[Agora] start live error:", e);
-      setCameraError(e instanceof Error ? e.message : "Could not start the live stream.");
+    } finally {
       setIsStarting(false);
     }
   }, [title, category, user, generateToken, createStream, cameraReady, invitationAction, isPrivateInvite, invitationChannelId, privateInvitationId, requiredGiftId]);
@@ -894,7 +915,6 @@ export default function GoLiveScreen() {
     setIsPremium(false);
     setRequiredGiftId(null);
     setDraftRequiredGiftId(null);
-    setShowLeaderboard(false);
     setShowViewerManagement(false);
     setShowLiveMenu(false);
     setShowBeauty(false);
@@ -1208,16 +1228,11 @@ export default function GoLiveScreen() {
                     <Text style={[localizedTextStyle(), styles.demoBadgeText]}>{t("DEMO")}</Text>
                   </View>
                 )}
-                <TouchableOpacity
-                  style={styles.viewerPill}
-                  onPress={() => setShowLeaderboard(true)}
-                  activeOpacity={0.75}
-                >
+                <TouchableOpacity style={styles.viewerPill} onPress={() => setShowViewerManagement(true)} activeOpacity={0.75} accessibilityLabel={t("Live Viewers")}>
                   <GoldCoinIcon size={14} />
                   <Text style={styles.viewerPillText}>{streamCoins.toLocaleString(appLocale())}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.viewerPill} disabled={isPrivateInvite} onPress={() => setShowViewerManagement(true)} accessibilityLabel={t("Manage viewers")}>
-                  <Ionicons name="eye" size={13} color="#FFF" />
+                  <View style={styles.viewerPillDivider} />
+                  <Ionicons name="eye" size={12} color="#FFF" />
                   <Text style={styles.viewerPillText}>{viewerCount}</Text>
                 </TouchableOpacity>
               </View>
@@ -1363,14 +1378,10 @@ export default function GoLiveScreen() {
         {showBeauty ? <BeautySheet settings={beauty} onChange={changeBeauty} error={beautyError} onClose={() => setShowBeauty(false)} /> : null}
         {showParty ? <PartySheet channelId={activeChannelId} party={party} uid={user.uid} onAction={partyState.act} onClose={() => setShowParty(false)} /> : null}
 
-        {showViewerManagement ? <ViewerManagementSheet channelId={activeChannelId} onClose={() => setShowViewerManagement(false)} onProfile={(uid, name) => router.push({ pathname: "/profile/[hostUid]", params: { hostUid: String(uid), name } })} /> : null}
+        {showViewerManagement ? <LiveViewersSheet isHost canManage={!isPrivateInvite} channelId={activeChannelId} onClose={() => setShowViewerManagement(false)} onProfile={(uid, name) => router.push({ pathname: "/profile/[hostUid]", params: { hostUid: String(uid), name } })} /> : null}
         {showGiftRequest ? <PremiumGiftRequestSheet channelId={activeChannelId} request={premiumGift.request} remaining={premiumGift.remaining} onClose={() => setShowGiftRequest(false)} /> : null}
         {showLivePremium ? <LivePremiumSheet channelId={activeChannelId} onClose={() => setShowLivePremium(false)} onConfirm={convertLiveToPremium} /> : null}
-        <GiftLeaderboard
-          channelId={channelIdRef.current}
-          visible={showLeaderboard}
-          onClose={() => setShowLeaderboard(false)}
-        />
+
 
         {/* Floating gift animations — rendered above everything */}
         {floatingGifts.map((fg) => (
@@ -1511,12 +1522,19 @@ export default function GoLiveScreen() {
               disabled={isUploadingBackground}
               activeOpacity={0.85}
             >
-              {backgroundImageUrl ? (
-                <Image source={{ uri: backgroundImageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" onError={() => {
-                  if (failedBackgroundUrlRef.current === backgroundImageUrl) return;
-                  failedBackgroundUrlRef.current = backgroundImageUrl;
-                  void refreshBackground();
-                }} />
+              {backgroundThumbnailUrl ? (
+                <CachedImage
+                  source={{ uri: backgroundThumbnailUrl, cacheKey: backgroundCacheKey ?? undefined }}
+                  cachePolicy="memory-disk"
+                  recyclingKey={backgroundCacheKey}
+                  style={StyleSheet.absoluteFill}
+                  contentFit="cover"
+                  onError={() => {
+                    if (failedBackgroundUrlRef.current === backgroundThumbnailUrl) return;
+                    failedBackgroundUrlRef.current = backgroundThumbnailUrl;
+                    void refreshBackground();
+                  }}
+                />
               ) : (
                 <Ionicons name="image-outline" size={28} color="#FFF" />
               )}
@@ -2211,9 +2229,10 @@ const styles = StyleSheet.create({
     gap: 5,
     backgroundColor: "rgba(0,0,0,0.5)",
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
+  viewerPillDivider: { width: 1, height: 10, backgroundColor: "rgba(255,255,255,0.25)", marginHorizontal: 2 },
   viewerPillText: { color: "#FFF", fontSize: 12, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
   liveBadgeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   liveBadge: {

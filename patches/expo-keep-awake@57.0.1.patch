@@ -1,0 +1,35 @@
+diff --git a/android/src/main/java/expo/modules/keepawake/ExpoKeepAwakeManager.kt b/android/src/main/java/expo/modules/keepawake/ExpoKeepAwakeManager.kt
+index 5ec417e97e00a5e58b3fc0bd1b617047b2f8df69..5b583d03a964c443cdd5f0ef09493f88ef2838b1 100644
+--- a/android/src/main/java/expo/modules/keepawake/ExpoKeepAwakeManager.kt
++++ b/android/src/main/java/expo/modules/keepawake/ExpoKeepAwakeManager.kt
+@@ -18,10 +18,10 @@ class ExpoKeepAwakeManager(
+ 
+   fun activate(tag: String) {
+     val activity = currentActivity
+-    if (!isActivated) {
+-      activity.runOnUiThread {
+-        activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+-      }
++    // Reassert the window flag even if the tag already exists: media or
++    // Activity/window transitions can clear it independently of this tag set.
++    activity.runOnUiThread {
++      activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+     }
+     tags.add(tag)
+   }
+diff --git a/ios/KeepAwakeModule.swift b/ios/KeepAwakeModule.swift
+index 835b4f12ed54e81c28c07cc90f50686dd384d832..720cbd327d736402cd9ecad8d44eade729bd2224 100644
+--- a/ios/KeepAwakeModule.swift
++++ b/ios/KeepAwakeModule.swift
+@@ -9,9 +9,8 @@ public final class KeepAwakeModule: Module {
+     Name("ExpoKeepAwake")
+ 
+     AsyncFunction("activate") { (tag: String) -> Bool in
+-      if self.activeTags.isEmpty {
+-        setActivated(true)
+-      }
++      // Reassert the idle timer after native media/window transitions.
++      setActivated(true)
+       self.activeTags.insert(tag)
+       return true
+     }

@@ -832,5 +832,8 @@
   "Sign up with Apple": "使用 Apple 注册",
   "Sign in with Apple": "使用 Apple 登录",
   "Could not complete Apple sign-in. Please try again or use email.": "无法完成 Apple 登录。请重试或使用电子邮箱。",
-  "Sign in with Email": "使用电子邮箱登录"
+  "Sign in with Email": "使用电子邮箱登录",
+  "Live Viewers": "Live 观众",
+  "Not watching": "未在观看",
+  "Couldn't load gift totals. Tap to retry.": "无法加载礼物总额。点击重试。"
 }

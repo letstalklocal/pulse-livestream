@@ -832,5 +832,8 @@
   "Sign up with Apple": "Mit Apple registrieren",
   "Sign in with Apple": "Mit Apple anmelden",
   "Could not complete Apple sign-in. Please try again or use email.": "Die Apple-Anmeldung konnte nicht abgeschlossen werden. Versuche es erneut oder nutze E-Mail.",
-  "Sign in with Email": "Mit E-Mail anmelden"
+  "Sign in with Email": "Mit E-Mail anmelden",
+  "Live Viewers": "Live-Zuschauer",
+  "Not watching": "Schaut gerade nicht zu",
+  "Couldn't load gift totals. Tap to retry.": "Geschenksummen konnten nicht geladen werden. Zum Wiederholen tippen."
 }

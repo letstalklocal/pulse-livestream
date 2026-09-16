@@ -78,6 +78,10 @@ try {
    if(file.endsWith('/components/CoinStoreContent.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='refresh')return;
    // Approved viewer menu reorder moves Report above Share; these decorative icon names may move.
    if(file.endsWith('/stream/[channelId].tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&['flag-outline','share-outline'].includes(n.initializer?.text))return;
+   // User-approved viewer exit button, Premium badge and missing-avatar icon.
+   // These additive header controls are separate from localization preservation.
+   if(file.endsWith('/stream/[channelId].tsx')&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&['viewer-exit-live','viewer-premium-badge'].includes(p.initializer?.text)))return;
+   if(file.endsWith('/stream/[channelId].tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='person')return;
    if(ts.isJsxAttribute(n)&&stableAttributes.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));
    if(ts.isPropertyAssignment(n)&&stableFields.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));
    ts.forEachChild(n,walk);
@@ -86,6 +90,9 @@ try {
  const paths=execFileSync('git',['diff','--name-only'],{cwd:root,encoding:'utf8'}).trim().split('\n').filter(p=>/^artifacts\/mobile\/(app|components)\/.*\.tsx$/.test(p)&&!p.endsWith('/settings.tsx'));
  for(const path of paths){
   if(['artifacts/mobile/components/SignupEligibilityFields.tsx','artifacts/mobile/components/CompleteSignup.tsx'].includes(path))continue;
+  // Approved replacement by the unified sheet is covered by live-viewers-sheet.test.cjs,
+  // including search, moderation actions and preventing cached host-roster disclosure.
+  if(['artifacts/mobile/components/ViewerManagementSheet.tsx','artifacts/mobile/components/GiftLeaderboard.tsx'].includes(path))continue;
   const before=execFileSync('git',['show',`HEAD:${path}`],{cwd:root,encoding:'utf8'});
   // Both signup routes now exist in HEAD; compare each screen against its own baseline.
   const currentPath=path;

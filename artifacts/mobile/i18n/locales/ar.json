@@ -832,5 +832,8 @@
   "Sign up with Apple": "إنشاء حساب باستخدام Apple",
   "Sign in with Apple": "تسجيل الدخول باستخدام Apple",
   "Could not complete Apple sign-in. Please try again or use email.": "تعذر إكمال تسجيل الدخول باستخدام Apple. حاول مرة أخرى أو استخدم البريد الإلكتروني.",
-  "Sign in with Email": "تسجيل الدخول بالبريد الإلكتروني"
+  "Sign in with Email": "تسجيل الدخول بالبريد الإلكتروني",
+  "Live Viewers": "مشاهدو Live",
+  "Not watching": "لا يشاهد الآن",
+  "Couldn't load gift totals. Tap to retry.": "تعذّر تحميل إجمالي الهدايا. اضغط لإعادة المحاولة."
 }
