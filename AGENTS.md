@@ -2,6 +2,8 @@
 
 Before changing direct messages, chat UI, keyboard/composer behavior, message status indicators, replies, or message preferences, read [docs/chat-message-preferences.md](docs/chat-message-preferences.md).
 
+Before changing stream viewer navigation, swipe transitions, looping, or diagnosing flashes between streams, read [docs/stream-navigation.md](docs/stream-navigation.md). Preserve its accepted behavior and distinguish device confirmations from suspected causes.
+
 Before changing coin artwork, wallet purchases, Premium gift requests, or RevenueCat, read [docs/coins-premium-revenuecat.md](docs/coins-premium-revenuecat.md) and its linked requirements.
 
 Before diagnosing data disappearing after edits, Metro refresh connectivity, Android hostname/DNS errors, or Replit Remote SSH failures, read [docs/development-connectivity.md](docs/development-connectivity.md) and follow its troubleshooting sequence.

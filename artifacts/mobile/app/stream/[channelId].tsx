@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth as useClerkAuth } from "@clerk/expo";
 import * as Crypto from "expo-crypto";
 import * as Haptics from "expo-haptics";
+import { useKeepAwake } from "expo-keep-awake";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -160,6 +161,13 @@ function StreamBackdrop({ imageUrl, demo = false, category }: {
   );
 }
 
+// Mount only while the viewer is focused and allowed to watch. Expo assigns
+// a unique lock per instance, so outgoing streams cannot release the next one's lock.
+function StreamViewerKeepAwake() {
+  useKeepAwake(undefined, { suppressDeactivateWarnings: true });
+  return null;
+}
+
 export default function StreamScreen() {
   const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const insets = useSafeAreaInsets();
@@ -181,6 +189,11 @@ export default function StreamScreen() {
   const [remoteVideoReady, setRemoteVideoReady] = useState(false);
   const [agoraError, setAgoraError] = useState<string | null>(null);
   const isDemo = (channelId ?? "").endsWith("-demo");
+  const [viewerFocused, setViewerFocused] = useState(false);
+  useFocusEffect(useCallback(() => {
+    setViewerFocused(true);
+    return () => setViewerFocused(false);
+  }, []));
   const [messages, setMessages] = useState<ChatMsg[]>(isDemo ? SEED_CHAT : []);
   const [inputText, setInputText] = useState("");
   const [joined, setJoined] = useState(false);
@@ -900,6 +913,7 @@ export default function StreamScreen() {
 
   return (
     <View style={styles.container}>
+    {viewerFocused && canEnterStream && <StreamViewerKeepAwake />}
     <Animated.View
       style={[StyleSheet.absoluteFill, { backgroundColor: "#000", transform: [{ translateY: slideAnim }] }]}
       {...panResponder.panHandlers}

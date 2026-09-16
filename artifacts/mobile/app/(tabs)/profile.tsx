@@ -40,6 +40,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PostFooter } from "@/components/PostFooter";
 import { Avatar } from "@/components/Avatar";
+import { GoldCoinIcon } from "@/components/GoldCoinIcon";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { POST_ASPECT_RATIO } from "@/utils/postLayout";
@@ -271,7 +272,7 @@ export default function ProfileScreen() {
         {/* Header */}
         <View style={[styles.header, { paddingTop: topInset + 12 }]}>
           <TouchableOpacity accessibilityRole="button" accessibilityLabel={t("Buy Coins")} onPress={() => router.push("/coin-store")} style={styles.headerCoinBalance}>
-            <Text style={styles.coinEmoji}>🪙</Text>
+            <GoldCoinIcon />
             <Text style={[styles.headerCoinAmount, { color: colors.foreground }]}>
               {coinBalance === 0 ? t("Buy Coins") : coinBalance.toLocaleString(appLocale())}
             </Text>
@@ -630,7 +631,6 @@ const styles = StyleSheet.create({
   statDivider: { width: 1, height: 30, marginHorizontal: 12 },
   statValue: { fontSize: 18, fontWeight: "700", fontFamily: "Inter_700Bold" },
   statLabel: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  coinEmoji: { fontSize: 16 },
   goLiveBtn: {
     flexDirection: "row",
     alignItems: "center",
