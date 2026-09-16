@@ -118,3 +118,11 @@ Preserve the accepted implementation: regular full-screen stack page navigation 
 ### Viewer display timeout — 2026-09-16
 
 User reports the iPhone display sleeps after the configured timeout while watching a stream. Inspection found keep-awake protection on the broadcaster only. The viewer now mounts an Expo keep-awake lock while focused and allowed to watch, releasing it on blur/unmount, stream end or access restriction. Uses the existing dependency; host behavior is unchanged. See [display-sleep requirements and device checks](stream-navigation.md#display-sleep-while-watching). Native timeout testing remains pending; the earlier iPhone confirmation covered the transition flash, not this new fix.
+
+### Viewer right swipe should hide messages — 2026-09-16
+
+User reported iPhone right swipe navigating back after the viewer became a regular stack page. Disabled native navigation gestures only for `stream/[channelId]` using `gestureEnabled: false`; the existing right-hide/left-restore handler and animations remain. Keep the accepted stack presentation and flash fixes. See [gesture requirements and device checks](stream-navigation.md#iphone-horizontal-swipe-back-conflict--2026-09-16). Native verification remains pending.
+
+### Installed build visible in Settings — 2026-09-16
+
+Settings → About → App version now displays the installed app version and native build number as `1.0.2 (12)` (example only). `expo-application` supplies `nativeApplicationVersion` and `nativeBuildVersion` from the installed binary (iOS CFBundleVersion / Android versionCode), rather than guessing from remote EAS history or app.json. The SDK-matched existing transitive package is now a direct mobile dependency. The separate Bundle version row remains for JavaScript troubleshooting. When native metadata is unavailable, such as web, retain the configured version/Unknown fallback and omit the unavailable build. Device verification: compare the Settings number to TestFlight on iPhone and the installed Android build. This change does not start a build or infer the current installed build number.

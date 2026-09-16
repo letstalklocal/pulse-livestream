@@ -4,11 +4,11 @@ Recorded: 2026-09-16. This is the accepted behavior to preserve on iOS and Andro
 
 ## Expected behavior
 
-- Opening a viewer stream opens a regular full-screen navigation page (`presentation: "card"`, `animation: "none"`), not a full-screen modal. “Card” is the navigation option name; the viewer still fills the screen. This requirement applies to `stream/[channelId]`, not the broadcaster's `go-live` screen.
+- Opening a viewer stream opens a regular full-screen navigation page (`presentation: "card"`, `animation: "none"`, `gestureEnabled: false`), not a full-screen modal. “Card” is the navigation option name; the viewer still fills the screen. This requirement applies to `stream/[channelId]`, not the broadcaster's `go-live` screen.
 - On an upward swipe, the current stream slides up while the incoming stream preview enters from below. A downward swipe reverses the movement. Preserve the simultaneous 320 ms animation. The current implementation starts the animation on swipe release, rather than tracking the finger continuously.
 - Streams loop in both directions: up from the last opens the first; down from the first opens the last. Boundary swipes must not return to Discover/Home. With zero or one listed stream, or if the current stream is absent from the list, a swipe stays on the current screen (existing warning haptic). Explicit close and Exit Live still leave the viewer.
 - First visits and repeat visits should transition without exposing Discover or showing an unintended color/white/black flash. Do not mask a regression by adding a black background to the viewer root or a stream-specific black navigation content background: the user explicitly rejected those additions. Existing video/loading/no-image background styles were not removed.
-- Preserve horizontal swipes that hide/restore controls, party-window gestures, chat and keyboard behavior, gifts, and access rules. This transition work does not authorize redesigning them.
+- Swipe right to hide the viewer messages/controls; swipe left to restore them. Native iOS swipe-back must be disabled on the viewer route so it cannot intercept this gesture and exit to the previous screen. Preserve the 240 ms overlay animation, keyboard dismissal on hiding, party-window gestures, chat and keyboard behavior, gifts, and access rules. This transition work does not authorize redesigning them.
 
 ## Display sleep while watching
 
@@ -52,3 +52,9 @@ See [Apple/TestFlight fixes](apple-testflight-fixes.md#iphone-demo-stream-transi
 - `artifacts/mobile/app/_layout.tsx`: viewer stack presentation and shared navigation background.
 - `artifacts/mobile/app/stream/[channelId].tsx`: `DemoVideo`, `StreamBackdrop`, list/category fallback, next/previous selection, `navigateToStream`, swipe handlers, incoming overlay, destination loading and video readiness.
 - `artifacts/mobile/components/PartyStage.tsx`: main video area and party-window interaction.
+
+## iPhone horizontal swipe-back conflict — 2026-09-16
+
+After accepting regular page navigation, the user reported that right-swiping exited to the previous screen instead of hiding live messages. The viewer route had `presentation: "card"` without disabling native navigation gestures. Added `gestureEnabled: false` on this route only, allowing the existing horizontal PanResponder to handle hide/restore. Preserve page presentation, vertical transitions/looping, explicit close/Exit Live, Android system Back and other routes' navigation gestures.
+
+Device checks pending: on iPhone swipe right from the left edge and the center, including over messages, and confirm overlays hide without leaving the stream; swipe left to restore. Repeat with keyboard open (hide dismisses it), on demos/real streams and after vertical navigation. Verify vertical looping, party-window gesture isolation and explicit exit; compare Android. Typechecking does not prove native gesture arbitration.

@@ -9,6 +9,7 @@ import { LANGUAGES, deviceLanguage } from "@/constants/languages";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth as useClerkAuth } from "@clerk/expo";
 import Constants from "expo-constants";
+import { nativeApplicationVersion, nativeBuildVersion } from "expo-application";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -386,7 +387,8 @@ export default function SettingsScreen() {
             <Text
               style={[localizedTextStyle(), [styles.versionValue, { color: colors.mutedForeground }]]}
             >
-              {Constants.expoConfig?.version ?? t("Unknown")}
+              {nativeApplicationVersion ?? Constants.expoConfig?.version ?? t("Unknown")}
+              {nativeBuildVersion ? ` (${nativeBuildVersion})` : ""}
             </Text>
           </View>
           <View style={styles.versionRow}>

@@ -62,6 +62,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
+    "expo-application": "~57.0.2",
     "expo-build-properties": "~57.0.17",
     "expo-dev-client": "~57.0.18",
     "expo-image-manipulator": "~57.0.16",

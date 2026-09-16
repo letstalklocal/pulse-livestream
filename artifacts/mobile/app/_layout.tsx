@@ -61,7 +61,8 @@ function RootLayoutNav() {
         name="stream/[channelId]"
         // Swipes replace this route. Replacing iOS modals can expose Discover
         // between dismissal and presentation; keep viewers in the opaque stack.
-        options={{ headerShown: false, presentation: "card", animation: "none" }}
+        // The viewer owns horizontal swipes for hiding/restoring its overlays.
+        options={{ headerShown: false, presentation: "card", animation: "none", gestureEnabled: false }}
       />
       <Stack.Screen name="dm/[peerId]" options={{ headerShown: false }} />
       <Stack.Screen name="posts/[uid]" options={{ headerShown: false }} />

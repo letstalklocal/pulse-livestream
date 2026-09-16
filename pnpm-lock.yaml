@@ -254,6 +254,9 @@ importers:
 
   artifacts/mobile:
     dependencies:
+      expo-application:
+        specifier: ~57.0.2
+        version: 57.0.2(expo@57.0.20)
       expo-build-properties:
         specifier: ~57.0.17
         version: 57.0.17(expo@57.0.20)
