@@ -1,6 +1,6 @@
 # Message translation
 
-Settings → Preferred language applies to live chat and DMs. Preferences are stored per signed-in account on the device. Automatic translation is off by default. The live-chat language icon toggles it for live rooms; the DM header icon toggles it for that conversation. Long-press an incoming text message for manual translation. The small language icon appears only on translated messages; tap it to switch to the original.
+Settings → Translation Language applies to live chat and DMs. Preferences are stored per signed-in account on the device. Automatic translation is off by default. The live-chat language icon toggles it for live rooms; the DM header icon toggles it for that conversation. Long-press an incoming text message for manual translation. The small language icon appears only on translated messages; tap it to switch to the original.
 
 Before first use, the app explains that selected message text is sent to Google Cloud Translation. Only text and target language are sent, not user names, account IDs, conversation IDs, authentication tokens, or attachments. Identifying information typed within a message remains part of its text. This is server-side translation, not end-to-end encryption: the app server and Google process the selected text.
 
@@ -30,3 +30,7 @@ Google's data-use policy states that Cloud Translation text is held briefly in m
 ## Validation
 
 `node artifacts/api-server/tests/message-translation.integration.mjs` runs against isolated database fixtures with a mocked Google HTTP response. It checks authentication, DM access and cached-access rechecks, trusted stored text, minimum provider payload, deduplication, removed/blocked viewers, Premium entry, ended streams, same-language handling, provider failure, unchanged originals, and rate limits. It sends no customer messages to Google.
+
+## Settings label — 2026-09-16
+
+User approved **Translation Language** as the replacement for **Preferred language**. Keep it separate from App language: this chooses the target language for message translation, while App language controls interface copy. The settings row and picker title share the existing stable catalog key `Preferred language`; all ten catalog display values were updated. This is a label-only change and preserves saved preferences, defaults, consent and translation toggles.

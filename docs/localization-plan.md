@@ -64,3 +64,11 @@ Signup onboarding: the new signup method screen uses the existing detected/saved
 Password confirmation: the user approved adding Confirm password to email signup. Its label, mismatch feedback and show/hide controls are translated in all ten languages. The complete catalog now contains 746 keys per language. Confirmation is checked locally and does not alter the Clerk request payload or email verification flow.
 
 Phone signup placeholder: the user requested a disabled Sign up with Phone option matching Google’s Coming soon presentation. The phone label is translated in all ten catalogs, bringing coverage to 747 keys; no phone authentication or SMS integration is enabled.
+
+## Approved settings terminology — 2026-09-16
+
+Display **Translation Language** instead of Preferred language, and **Media Vault** instead of My Vault, including settings rows and corresponding screen/picker titles. Keep app-interface language and message-translation language independent. Update all ten catalog values while retaining stable source identifiers `Preferred language` and `My Vault`, route `/my-vault`, saved preferences and branching comparisons. These older names in code/source catalogs are identifiers, not the intended English UI labels. This supersedes earlier display terminology in this document. Device label/layout verification remains pending.
+
+User also approved **Subscriptions** instead of **Fan Subscriptions**, localized in all ten catalogs under the existing stable key `Fan Subscriptions`. This setting is intended for viewer memberships offering streamer-specific live benefits in the future, separate from app-wide Pulse Pro. This change only renames the existing settings label/placeholder; it does not implement paid streamer memberships or change purchase behavior.
+
+User approved **Manage Admins** instead of **Managed Admins**. All ten catalogs use the action-oriented label under stable key `Managed Admins`; the settings action/placeholder and admin functionality remain unchanged.

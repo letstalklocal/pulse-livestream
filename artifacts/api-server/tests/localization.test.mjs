@@ -31,7 +31,7 @@ try {
  assert.notEqual(m.useAppLanguage().t,english.t,'Compiler sees a new language-bound translator');
  assert.equal(english.t('Cancel'),'Cancel');
  assert.equal(m.t('Crown'),'Crown');assert.equal(m.t('LIVE'),'LIVE');assert.equal(m.t('Party'),'Party');
- assert.equal(m.t('Moments'),'Momentos');assert.equal(m.t('My Vault'),'Mi bóveda');
+ assert.equal(m.t('Moments'),'Momentos');assert.equal(m.t('My Vault'),'Bóveda multimedia');
  m.storage.fail=true;await assert.rejects(m.setAppLanguage('de'));assert.equal(m.useAppLanguage().language,'es');
  m.storage.fail=false;await Promise.all([m.setAppLanguage('fr'),m.setAppLanguage('de')]);assert.equal(m.useAppLanguage().language,'de');
  assert.equal(m.storage.values.get('pulse:translation:123'),'unchanged');assert.ok(m.storage.writes.every(([key])=>key==='pulse:app-language'));
