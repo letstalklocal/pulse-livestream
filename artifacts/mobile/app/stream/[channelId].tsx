@@ -390,13 +390,19 @@ export default function StreamScreen() {
   });
   const allStreams = allStreamsData?.streams ?? [];
   const currentIndex = allStreams.findIndex((s) => s.channelId === channelId);
-  const nextStream = currentIndex >= 0 && currentIndex < allStreams.length - 1
-    ? allStreams[currentIndex + 1]
+  // Loop in both directions, without replacing a lone or unlisted stream.
+  const canCycleStreams = currentIndex >= 0 && allStreams.length > 1;
+  const nextStream = canCycleStreams
+    ? allStreams[(currentIndex + 1) % allStreams.length]
     : null;
-  const prevStream = currentIndex > 0 ? allStreams[currentIndex - 1] : null;
+  const prevStream = canCycleStreams
+    ? allStreams[(currentIndex - 1 + allStreams.length) % allStreams.length]
+    : null;
   // The list is already cached when swiping, before the destination detail query resolves.
+  const listedStream = allStreams.find((item) => item.channelId === channelId);
+  const demoCategory = stream?.category ?? listedStream?.category;
   const backgroundImageUrl = stream?.hostBackgroundImageUrl
-    ?? allStreams.find((item) => item.channelId === channelId)?.hostBackgroundImageUrl
+    ?? listedStream?.hostBackgroundImageUrl
     ?? privateInvitationData?.invitation?.backgroundImageUrl;
 
   useEffect(() => {
@@ -802,7 +808,7 @@ export default function StreamScreen() {
           // Access via closure; use refs to avoid stale state
           swipeUpRef.current();
         } else if (gs.dy > 60) {
-          // Swipe down — go to previous stream or back
+          // Swipe down — go to the previous stream, wrapping to the last
           swipeDownRef.current();
         }
       },
@@ -825,7 +831,7 @@ export default function StreamScreen() {
       if (prevStream) {
         navigateToStream(prevStream.channelId, "down");
       } else {
-        router.back();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       }
     };
   });
@@ -915,7 +921,7 @@ export default function StreamScreen() {
         ) : streamEnded ? (
           <View style={[StyleSheet.absoluteFill, { backgroundColor: "#000" }]} />
         ) : isDemo ? (
-          <DemoVideo category={stream?.category} />
+          <DemoVideo category={demoCategory} />
         ) : showNativeVideo && VideoView ? (
           <>
             <VideoView

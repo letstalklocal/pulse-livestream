@@ -92,3 +92,17 @@ The user reported a white coin in the iPhone live counter; inspection found both
 Viewer three-dot menu now reads Report, Translate, Share, Exit Live. Removed “chat” from the viewer translation label; retained translation state/consent and all existing action handlers. All supported app languages include the shorter label. Native menu/action checks remain pending.
 
 **Top Gifters gold icon:** Replaced the coin emoji beside leaderboard totals with the shared explicit-gold artwork. Ranking, amounts and sheet behavior are unchanged; native visual verification remains pending.
+
+## iPhone demo-stream transition regression — 2026-09-16
+
+User confirms Discover did not flash between demo streams in TestFlight build 4, and does flash when swiping up in build 9. Builds 5–8 were not confirmed tested for this behavior; do not attribute introduction specifically to build 9. Exact build-to-commit mapping is unavailable: the currently configured EAS project history only returned completed iOS build 2.
+
+The existing modal presentation and swipe replacement code predate this regression window; they are a possible exposure mechanism, not a proven newly introduced cause. Current provisional mitigation uses a stack card for the viewer route, retaining the vertical transition. The user rejected the added black background because the iPhone symptom may be another manifestation of the category mismatch; both newly added black backgrounds (route content and viewer root) were removed. The existing background styles remain as before this investigation. Category fallback and bidirectional looping remain, alongside the provisional card presentation change; device testing has not isolated their effects. Mobile TypeScript and diff formatting checks pass. Native iPhone validation and identification of the triggering change remain pending. Preserve the approved chat, keyboard, gifts and party behaviors while investigating.
+
+### Stream-list boundaries — 2026-09-16
+
+User reports Android does not show the Discover flash, but after swiping to the end and back to the first stream, another downward swipe exits to Home. Latest explicit correction supersedes the initial stay-at-the-boundary interpretation: streams loop in both directions on both platforms. Down from the first opens the last; up from the last opens the first. Empty/single-stream lists and a current stream absent from the list do not navigate or exit. Explicit close/Exit Live controls remain unchanged. Device verification pending: loop across both boundaries repeatedly and verify explicit exit.
+
+### First-visit Android flash — 2026-09-16
+
+User clarified Android also has a faint whitish/translucent flash on the first visit to each demo stream; revisiting already seen streams does not flash. iPhone shows translucent Discover on every transition. This supersedes the earlier broad report of no Android flash. Inspection found the incoming preview uses the cached list category, while the actual demo previously used only the detail-query category and temporarily fell back to Other's blue palette on a cold visit. The demo now falls back to the same cached list category immediately. This fixes a concrete first-render palette mismatch; it does not prove the reported white flash or iPhone Discover exposure has the same cause. Cold/repeat traversal on both devices remains required.

@@ -59,7 +59,9 @@ function RootLayoutNav() {
       />
       <Stack.Screen
         name="stream/[channelId]"
-        options={{ headerShown: false, presentation: "fullScreenModal", animation: "none" }}
+        // Swipes replace this route. Replacing iOS modals can expose Discover
+        // between dismissal and presentation; keep viewers in the opaque stack.
+        options={{ headerShown: false, presentation: "card", animation: "none" }}
       />
       <Stack.Screen name="dm/[peerId]" options={{ headerShown: false }} />
       <Stack.Screen name="posts/[uid]" options={{ headerShown: false }} />
