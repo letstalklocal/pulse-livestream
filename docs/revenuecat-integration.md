@@ -2,6 +2,8 @@
 
 Updated: 2026-09-15. Read [the purchase decisions](coin-purchases.md) before changing this flow.
 
+Shared change handoff: [coins, Premium gifts, and RevenueCat](coins-premium-revenuecat.md).
+
 ## Current scope and status
 
 - React Native SDK and UI SDK **10.9.1** installed. The UI SDK is used for Customer Center only. No RevenueCat paywall or automatic purchase prompt is implemented.
@@ -14,6 +16,12 @@ Updated: 2026-09-15. Read [the purchase decisions](coin-purchases.md) before cha
 - Existing sample/special-feature products: `consumable`, `monthly`, `yearly`, `lifetime`. The nine approved `coins_<amount>_v1` consumables are now also configured in the Test Store and attached to the separate `coins` offering. Entitlement `pulse_pro` already correctly includes monthly/yearly/lifetime only. The current `default` offering already has Monthly, Yearly, Lifetime and a custom consumable package. Those existing objects were inspected, not created by this integration.
 
 **App Store Connect checkpoint (user-reported, 2026-09-15):** All nine consumables were saved and reopened with the approved IDs and US prices for `com.chimba.livestream`. Each is Prepare for Submission. Genuine review screenshots and sales-country availability remain pending; availability was left unset. No review/release submission was made. See [the full checkpoint](coin-purchases.md#app-store-connect-checkpoint--2026-09-15).
+
+## Development startup isolation result — 2026-09-15
+
+The user tested with RevenueCat startup disabled in development and reported that the data remained missing. Metro logs continued to show Android `UnknownHostException` for the development API hostname. The temporary switch was removed and normal RevenueCat configuration restored. Metro was restarted with its original environment (the temporary mode removed) and `--clear`. The user subsequently reported that data loading was fixed. Gold-coin and Premium gift-request code were not changed during this investigation. The user also confirmed the API health URL worked in Chrome on the affected Android phone; their saved SSH hostname matched the current workspace hostname. The user later reported SSH recovered too; the exact SSH failure was not captured. Recovery is user-confirmed. A subsequent delivered source edit/refresh preserved visible data on both phones, with successful native API probes. The cause of the original failure remains unconfirmed.
+
+Further timing, native probes, and controlled refresh results: [development connectivity investigation](development-connectivity.md).
 
 ## 1. Install the packages
 
@@ -166,6 +174,10 @@ These endpoints cannot credit coins. Only a verified webhook does. The sandbox c
 **Before production:** implement refund/debt handling, transaction reconciliation/alerts and operational recovery; verify store-specific quantities and transaction IDs; complete real Apple/Google sandbox tests and production isolation. Production coin fulfillment remains blocked in code until those checks are deliberately completed. Test Store is simulated payment, not proof of live store billing.
 
 Reference: [Webhook setup](https://www.revenuecat.com/docs/integrations/webhooks), [event types](https://www.revenuecat.com/docs/integrations/webhooks/event-types-and-fields).
+
+### Planned Premium prompt quick refill — 2026-09-15
+
+Future work requested by the user: expose **500 / 1,000 / 2,000 coin** refill choices in the timed Premium request prompt. The corresponding approved consumables already exist in the catalog (`coins_500_v1`, `coins_1000_v1`, `coins_2000_v1`). This has not been implemented. Preserve server-confirmed wallet fulfillment; a coin purchase alone does not satisfy the timed gift request. See [the recorded follow-up](coin-purchases.md#planned-quick-refill-in-the-timed-premium-prompt--2026-09-15).
 
 ## 7. Customer Center and restoration
 

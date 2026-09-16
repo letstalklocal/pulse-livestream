@@ -1,6 +1,6 @@
 # Apple / TestFlight fixes
 
-Updated: 2026-09-14
+Updated: 2026-09-15
 
 ## Build plan
 
@@ -37,11 +37,11 @@ Implementation: `artifacts/mobile/app/go-live.tsx` and `artifacts/mobile/compone
 
 ## RevenueCat integration — 2026-09-15
 
-Collect for the next authorized build: RevenueCat native SDKs, coin purchase screen and separate special-feature subscription screen. No paywall or web checkout/link is included. All nine launch coin amounts and prices are confirmed. The user reports all nine App Store Connect consumables saved and reopened with verified prices; genuine review screenshots and sales-country availability remain pending. Remote webhook setup remains pending. See [the App Store Connect checkpoint](coin-purchases.md#app-store-connect-checkpoint--2026-09-15). The existing Test Store and `pulse_pro` product mappings were inspected successfully via API. Native purchase and Customer Center testing still require a rebuilt app; do not treat JavaScript/type/HTTP tests as device checks. See [integration and validation](revenuecat-integration.md). The build hold remains in place.
+Collect for the next authorized build: RevenueCat native SDKs, coin purchase screen and separate special-feature subscription screen. No paywall or web checkout/link is included. All nine launch coin amounts and prices are confirmed. The user reports all nine App Store Connect consumables saved and reopened with verified prices; genuine review screenshots and sales-country availability remain pending. Sandbox webhook setup and actual Test Store delivery are verified; Apple/Google linkage and production fulfillment remain pending. See [the App Store Connect checkpoint](coin-purchases.md#app-store-connect-checkpoint--2026-09-15). The existing Test Store and `pulse_pro` product mappings were inspected successfully via API. Native purchase and Customer Center testing still require a rebuilt app; do not treat JavaScript/type/HTTP tests as device checks. See [integration and validation](revenuecat-integration.md). The latest test-build decision above supersedes the earlier hold.
 
 ### Coin purchase checkpoint — 2026-09-15
 
-RevenueCat Test Store now contains all nine approved packs; actual sandbox webhooks passed on the running API. Account/profile header balances open Buy Coins; zero coins displays the icon plus Buy Coins. The ordinary gift drawer opens shared purchase content in a sheet and returns to gifts without changing routes. Pending native checks: all nine localized prices, zero/positive labels, checkout/cancel/pending recovery, gift-recipient retention, live continuity and chat draft/keyboard behavior. SDK native modules require the next authorized build; the build hold is unchanged. Apple linkage/credentials and production fulfillment are still pending.
+RevenueCat Test Store now contains all nine approved packs; actual sandbox webhooks passed on the running API. Account/profile header balances open Buy Coins; zero coins displays the icon plus Buy Coins. The ordinary gift drawer opens shared purchase content in a sheet and returns to gifts without changing routes. Pending native checks: all nine localized prices, zero/positive labels, checkout/cancel/pending recovery, gift-recipient retention, live continuity and chat draft/keyboard behavior. SDK native modules must be present in the testing binary; follow the latest authorized test-build workflow above. Apple linkage/credentials and production fulfillment are still pending.
 
 ### Android testing build requested — 2026-09-15
 

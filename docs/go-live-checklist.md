@@ -1,7 +1,9 @@
 # Pulse go-live development checklist
 
 Created: September 11, 2026  
-Status: Planning — no launch date committed
+Status: Development in progress — no launch date committed
+
+Last status review: September 16, 2026
 
 ## Purpose and tracking
 
@@ -9,21 +11,39 @@ This is the working development plan for getting Pulse ready for public launch. 
 
 All boxes start unchecked. Check an item only when its acceptance checks pass and evidence is recorded. Existing code is not proof of production readiness. Assign a named owner and target date before starting each workstream.
 
-Use [Policy compliance checklist](policy-compliance-checklist.md) for detailed policy review and source references. Recheck applicable platform requirements before submission. This plan does not choose launch countries, minimum age, vendors, or legal policy wording.
+Use [Policy compliance checklist](policy-compliance-checklist.md) for detailed policy review and source references. Recheck applicable platform requirements before submission. The approved countries, 18+ minimum, provider direction and later decisions are recorded below. Final policy wording and launch sign-off remain open.
 
 | ID | Workstream | Status | Owner | Target | Evidence / sign-off |
 |---|---|---|---|---|---|
-| A1 | In-app purchases (IAP) | Open | TBD | TBD | — |
-| A2 | Google sign-in | Open | TBD | TBD | — |
-| A3 | Age verification | Selfie/ID upgrade implemented in sandbox; launch checks open | TBD | TBD | — |
-| A4 | Admin website | Staff access, live users, and overview metrics implemented in development; launch checks open | TBD | TBD | — |
-| A5 | Policy website and app links | Open | TBD | TBD | — |
-| A6 | Moderation process | Stream-filtering proposal received; review open | TBD | TBD | — |
-| A7 | Public feed strategy and verification access | Source document received; review open | TBD | TBD | — |
-| B1 | Account lifecycle and support | Proposed | TBD | TBD | — |
-| B2 | Security and production operations | Proposed | TBD | TBD | — |
-| B3 | Core app and device QA | Proposed | TBD | TBD | — |
-| B4 | Store submission and release | Proposed | TBD | TBD | — |
+| A1 | In-app purchases (IAP) | Test Store integration built and sandbox credits recorded; real-store linkage, refund/reconciliation and production fulfillment open | TBD | TBD | [Purchase handoff](coins-premium-revenuecat.md); no production sign-off |
+| A2 | Google sign-in | Clerk browser OAuth built; Google enabled in Replit and user device login confirmed; language-switch investigation and release QA pending | TBD | TBD | [Signup screen](../artifacts/mobile/app/(auth)/sign-up.tsx) |
+| A3 | Age verification | Selfie/ID and new-account birthday/terms signup built; current API still sandbox; live capture, legacy accounts and access enforcement open | TBD | TBD | [Current Didit checkpoint](didit-workflow-decision-tree.md); no launch sign-off |
+| A4 | Admin website | Staff access, real user directory/account details and overview built in development; operational sections, production MFA and domain open | TBD | TBD | [Admin evidence](admin-website.md) |
+| A5 | Policy website and app links | Public pages reachable; privacy and terms unfinished; launch domain and release-link checks open | TBD | TBD | [Public website](public-website.md); HTTP checked September 16 |
+| A6 | Moderation process | Reporting and host moderation controls exist; platform process, review queue, escalation, appeals and coverage remain open | TBD | TBD | [Strategy proposal](stream-filtering-strategy.md); user requirements still needed |
+| A7 | Public feed strategy and verification access | Premium badge/price exists; agreed verification gate and public/mature distribution rules not implemented | TBD | TBD | [Stream card](../artifacts/mobile/components/StreamCard.tsx); [onboarding requirements](onboarding.md) |
+| B1 | Account lifecycle and support | Deletion request flow exists; actual deletion/provider erasure and support operations need completion | TBD | TBD | [Account settings](account-settings.md) |
+| B2 | Security and production operations | Release environment, authorization audit, monitoring, recovery and operational sign-off remain open | TBD | TBD | Requirements below; no production audit completed in this review |
+| B3 | Core app and device QA | Automated checks and selected user device confirmations recorded; integrated release-device checks remain open | TBD | TBD | [TestFlight checks](apple-testflight-fixes.md); [connectivity record](development-connectivity.md) |
+| B4 | Store submission and release | TestFlight test configuration prepared; nine Apple consumables reported saved; public-release setup, metadata and reviewer access remain open | TBD | TBD | [Store checkpoint](coin-purchases.md#app-store-connect-checkpoint--2026-09-15) |
+
+## Status review — September 16, 2026
+
+No A workstream has full launch sign-off. This review distinguishes implemented development features from real-store/provider capture, device checks and operational readiness. It does not start a build, switch environments or submit the app.
+
+Current checks and material gaps:
+
+- **IAP:** the nine-pack Test Store catalog and purchase/credit flow are implemented. Prior recorded tests credited 53,750 coins in nine isolated QA transactions; they did not exercise native Apple/Google billing. Current unauthenticated `POST /api/purchases/revenuecat/webhook` returns 401 (configured, authorization required), not 503. Development settings load from the ignored `.local/revenuecat.env`, so their absence from process-launch metadata does not mean the running service is unconfigured. Production fulfillment is explicitly disabled in code pending real-store QA, refund/debt handling and reconciliation. Apple review screenshots, country availability and RevenueCat/store linkage remain open. Timed Premium gift quick refill is a recorded later enhancement, not a newly added launch blocker.
+- **Google signup:** Clerk browser OAuth now exists on signup and sign-in, with existing backend birthday/Terms completion for new Pulse profiles. Mocked OAuth/signup/account-sync checks and mobile types pass. Clerk Google enablement, `mobile://sso-callback` allowlisting, device returns/account linking and production credentials are still pending; see [onboarding](onboarding.md#google-sign-in-through-clerk--september-16-2026).
+- **Age verification:** the running development API (PID 383 at this check) and current tool environment still select sandbox and the earlier workflow IDs. Pulse reads only `DIDIT_API_KEY`. The prepared live settings must be installed together, then the running API and provider credit checked before real selfie/fallback/ID-upgrade testing. No real capture was performed in this review. The later September 16 implementation now adds the birthday field, explicit terms acceptance and authenticated backend gate for new Pulse accounts. See [the completed onboarding checkpoint](onboarding.md#implemented-new-account-onboarding--september-16-2026). Legacy-account rollout remains open.
+- **Feed/access:** verification and Mature Content state are stored, but live/Premium/feed authorization does not yet consume them. Existing Premium card artwork includes a lock and price; that alone does not implement the agreed unverified-tap prompt, media restriction or eligible public-live trial. Final stream filtering and preview rules remain tied to A6/A7.
+- **Admin/moderation:** staff login, user lookup, overview and audit foundations exist. The documented finance/live/report/audit operational sections and approved privileged actions remain unfinished. Stream reports and host mute/remove/block/allow controls exist; they are not the staffed platform moderation process. Capture the user's process requirements before choosing automated enforcement or completing the review queue.
+- **Public policies:** home, privacy, terms, support and personal verification URLs returned HTTP 200 on the development host. Privacy identifies unfinished data-handling/retention details; terms explicitly say they are a preview, not the final user agreement. Business name and support email are set. Final content, production domain and app/store links still need release checks; retain the user's decision to stay on the development domain for now.
+- **Other release work:** account deletion currently creates a manual-review request; complete the actual deletion and provider-erasure procedure. Finish production configuration, security/backup/monitoring checks, device regressions, store materials and reviewer accounts. The September 15 connectivity incident recovered and a controlled refresh preserved data on both phones; the original cause remains unconfirmed. Follow the connectivity runbook if it recurs.
+
+Evidence scope: current source and recorded project decisions were reviewed; selected running public endpoints and non-secret configuration were checked. Prior transaction and device results are attributed to their existing records. This was not a fresh provider/dashboard audit, full regression run, device session or legal/store-policy review. No backend behavior or secrets were changed.
+
+Birthday/terms onboarding for new accounts is now implemented and translated. Next development work remains verification-based access rules while the coordinated live Didit settings are pending. Then complete real verification and purchase-device checks alongside Google sign-in and the agreed moderation/admin work. A6 remains a launch blocker until the operating process is defined and staffed.
 
 ## A. Requested development priorities
 
@@ -56,16 +76,16 @@ Use [Policy compliance checklist](policy-compliance-checklist.md) for detailed p
 
 ### A3. Age verification
 
-**Setup checkpoint:** [Didit setup guide](didit-verification-setup.md) records the new local integration, required server secrets, webhook/callback URLs, and pending provider/device checks. No live provider account or completed verification is claimed; keep A3 open.
+**Setup checkpoint (September 16):** the [Didit checkpoint](didit-workflow-decision-tree.md) records the implemented integration, prepared live workflows and required coordinated settings update. The running API remains sandbox. Real selfie-only success, same-session ID fallback, optional ID upgrade and phone return still need testing; keep A3 open. New-account birthday/terms signup is implemented and translated; legacy-account rollout and feed/Premium enforcement remain unfinished requirements.
 
-**Approved verification delivery:** **Verify now → account-linked Pulse website → external ID/18+ verification → optional website-only Show mature content setting → return to Pulse and refresh backend state.** Keep `isVerified` and `matureContentEnabled` separate, both defaulting to `false`; successful verification never automatically enables mature content. Full requirements and acceptance checks are in [onboarding](onboarding.md#approved-website-verification-and-mature-content-opt-in).
+**Current approved verification delivery:** **Read the short notice and consent in Pulse → Verify now opens Didit directly → selfie, with any required ID fallback inside the same hosted session → successful final result returns to Pulse and refreshes backend state.** The account-linked website separately provides the optional Mature Content preference and later ID upgrade. Keep `isVerified` and `matureContentEnabled` separate, both defaulting to `false`; successful verification never automatically enables mature content. This supersedes the earlier mandatory intermediate Pulse website and rejected split-session fallback. See the [current flow and pending hosted checks](didit-workflow-decision-tree.md) and [onboarding requirements](onboarding.md#approved-website-verification-and-mature-content-opt-in).
 
 - [ ] Implement secure app-to-website account handoff and provider verification with backend-validated results.
 - [ ] Add the separate, off-by-default website mature-content preference after successful verification, including later withdrawal.
 - [ ] Implement return-to-app refresh and backend access checks using both flags where applicable; keep payment, following, and content eligibility separate.
 - [ ] Test failure/cancellation, account mismatch, forged/replayed results, default-off state after verification, opt-in/withdrawal, and stale client state on release builds.
 
-**Provider direction approved:** proceed with **Didit as the preferred provider to test**. The purpose is to keep Pulse 18+ and prevent minors from accessing restricted features; mature-content opt-in is a separate user preference. Describe Pulse accurately if the provider asks about its features or content. This decision does not mean an account has been created, commercial eligibility confirmed, or integration tested.
+**Provider direction approved:** proceed with **Didit as the preferred provider to test**. The purpose is to keep Pulse 18+ and prevent minors from accessing restricted features; mature-content opt-in is a separate user preference. Describe Pulse accurately if the provider asks about its features or content. The integration and sandbox tests are now recorded in the current checkpoint; commercial/market eligibility and completed live capture still require confirmation.
 
 **Russia must not block progress.** Continue work for supported markets while confirming Russian resident/document availability separately. If unavailable, discuss a fallback or deferred verification access for Russia with the user. Do not silently remove the country, bypass verification, or mark affected users verified.
 
@@ -88,9 +108,9 @@ Use [Policy compliance checklist](policy-compliance-checklist.md) for detailed p
 - [x] Record priority launch markets and the user’s minimum account age decision: **18+ only**. This checkbox records the product decision, not completed implementation or country review.
 - [ ] Review country-specific requirements and any additional age restrictions for watching, broadcasting, messaging, purchases, and payouts.
 - [x] Record the user’s signup decision: required birthday, clear 18+ notice, and required terms agreement. Implementation remains open.
-- [ ] Implement the birthday field and 18+ eligibility check, including exact eighteenth-birthday and leap-day boundary cases using a defined date/time policy.
-- [ ] Add an initially unchecked terms agreement control and working Terms of Service link; require acceptance before completing signup.
-- [ ] Enforce age and terms requirements on the backend and retain an account-linked acceptance timestamp and terms version.
+- [x] Implement the new-signup birthday field and 18+ eligibility check, including exact eighteenth-birthday and leap-day boundary cases using the documented UTC policy. [September 16 evidence](onboarding.md#implemented-new-account-onboarding--september-16-2026).
+- [x] Add an initially unchecked terms agreement control and working Terms of Service link; require acceptance before completing new signup. Final policy wording and release-version reacceptance remain under A5.
+- [x] Enforce age and terms requirements for new Pulse accounts on the authenticated backend and retain private birthday, server acceptance timestamp and terms version. Existing-account rollout remains open below.
 - [x] Record the user’s access decision: unverified users may join and view only the public feed; broader product access requires successful ID verification. Implementation remains open.
 - [ ] Implement the access rules in app navigation and backend authorization, including pending/failed/review-needed states, direct API requests, deep links, and the transition to verified access.
 - [ ] Validate Didit for priority-market/document coverage, age/identity results, mobile onboarding, privacy, cost, and failure/review handling before production adoption.

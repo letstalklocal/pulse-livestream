@@ -1198,7 +1198,7 @@ export default function StreamScreen() {
       onRequestClose={() => setShowKebabMenu(false)}
     >
       <TouchableWithoutFeedback onPress={() => setShowKebabMenu(false)}>
-        <View style={[styles.kebabBackdrop, Platform.OS === "android" && { paddingBottom: insets.bottom + 40 }]}>
+        <View style={[styles.kebabBackdrop, Platform.OS === "android" && { paddingBottom: insets.bottom + 24 }]}>
           <TouchableWithoutFeedback>
             <View style={styles.kebabMenu}>
               <TouchableOpacity

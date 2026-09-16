@@ -20,7 +20,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AppState, StyleSheet, Text, View } from "react-native";
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { AuthProvider } from "@/context/AuthContext";
+import { AuthProvider, useAuth as usePulseAuth } from "@/context/AuthContext";
+import CompleteSignup from "@/components/CompleteSignup";
 import { RtmProvider } from "@/context/RtmContext";
 import colors from "@/constants/colors";
 
@@ -44,10 +45,13 @@ function BuildConfigurationError() {
 
 function RootLayoutNav() {
   const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
+  const { onboardingRequired, syncError, user } = usePulseAuth();
+  if (onboardingRequired || (syncError && !user)) return <CompleteSignup />;
   return (
     <Stack screenOptions={{ contentStyle: { backgroundColor: '#08080F' } }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      <Stack.Screen name="sso-callback" options={{ headerShown: false }} />
       <Stack.Screen name="profile/[hostUid]" options={{ headerShown: false }} />
       <Stack.Screen
         name="go-live"

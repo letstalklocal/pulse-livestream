@@ -24,3 +24,5 @@ export * from "./identity-verifications";
 export * from "./admin";
 
 export * from "./premium-gift-requests";
+
+export * from "./user-onboarding";

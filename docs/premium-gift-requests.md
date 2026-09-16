@@ -1,12 +1,14 @@
 # Timed gifts during a Premium live
 
+Shared change handoff: [coins, Premium gifts, and RevenueCat](coins-premium-revenuecat.md).
+
 ## Confirmed behavior
 
 - In the streamer's live bottom bar, the existing lock position becomes a gift icon once Premium is active. The lock still opens the existing conversion flow on a public live.
 - The gift icon opens a dedicated gift selector with 30 or 60 seconds; default is 30. The streamer can reopen it to see time remaining and how many viewers paid. Only one request runs at a time.
 - The current admitted audience, including viewers granted free entry, must send the requested gift using the bottom prompt's **Send Gift** button to keep watching. Later arrivals use the existing entry flow and are not retroactively included in an earlier request.
 - The bottom prompt shows the required gift, cost, countdown, and Send Gift. The countdown blinks once per second at 10 seconds or less. Reduced Motion uses a steady warning color.
-- There is no coin-purchase flow in this window yet. Insufficient coins displays an error without charging or admitting the viewer.
+- There is no coin-purchase flow in this window yet. Insufficient coins displays an error without charging or admitting the viewer. **Planned later (2026-09-15): add a quick refill directly in the timed request prompt, offering 500, 1,000, or 2,000 coins.** The user requested a note for future implementation; no refill UI or payment behavior has been added. Deadline/access changes were not requested.
 - Paying hides the prompt. Unpaid viewers lose access at expiry. Existing viewer management still offers Remove, Block, and Allow Back. Allow Back can waive an expired request; it does not undo an independent Block.
 - Entry price, previously granted free entry, ordinary gifts, DMs, private lives, party controls, chat composer, and keyboard dismissal remain separate.
 
@@ -49,7 +51,7 @@ References: [Agora banning API](https://docs.agora.io/en/api-reference/api-ref/r
 - Native mode: `TEST_AGORA_REMOVAL=1 node artifacts/api-server/tests/premium-gift-requests.integration.mjs`. Agora calls are mocked with synthetic credentials; this does not prove live Agora service behavior.
 - Coverage: host/auth checks, default 30/selected 60, invalid gifts/durations, public/private rejection, concurrent create/payment retries, exact balances, insufficient coins, wrong participant/channel, grace-period access, deadline token/presence/chat access denial, lost-response retry after payment, preserved entry price/free list, late arrivals, subsequent rounds, restricted roster, Allow Back, native no-rotation behavior, provider failure fallback, and failed unban preserving restrictions.
 - After the session restart, `AGORA_CUSTOMER_ID`, `AGORA_SECRET`, app ID, and app certificate are available. Agora’s read-only rule-list endpoint returned HTTP 200 / success. A viewer-specific `join_channel` ban was created on a unique, isolated test channel and then deleted successfully through the real Agora API. No real viewer was targeted and the test rule was cleaned up. This verifies credentials and create/delete permissions; this check alone does not verify device removal or re-entry; see the subsequent user confirmation below.
-- Do not start an Apple/TestFlight build yet. Continue tracking that hold in [Apple / TestFlight fixes](apple-testflight-fixes.md).
+- Build timing follows the latest decision in [Apple / TestFlight fixes](apple-testflight-fixes.md); the September 15 approved test-build workflow supersedes the earlier hold. No build was started for this documentation update.
 
 User device confirmation (2026-09-14): After reloading resolved an Android viewer’s Replit hostname lookup failure, the user confirmed subsequent live joins worked without issues. Following the requested test of an unpaid viewer being removed at the gift deadline, a paying viewer staying, and the broadcast continuing uninterrupted, the user reported “all works awesome.” This records the core flow as user-confirmed, not an independently observed device test. The exact device/build combination for the gift test was not specified; Apple-specific verification and the remaining edge cases below are still outstanding. The hostname failure’s cause remains unconfirmed.
 

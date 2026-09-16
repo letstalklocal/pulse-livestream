@@ -1,3 +1,7 @@
+import SignupProgress from "@/components/SignupProgress";
+import SignupEligibilityFields from "@/components/SignupEligibilityFields";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
+import { birthdayError, birthdayFromParts, SIGNUP_TERMS_VERSION } from "@/lib/signup-eligibility";
 import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import { Ionicons } from "@expo/vector-icons";
 import { useSignUp, useAuth } from "@clerk/expo";
@@ -5,8 +9,8 @@ import { Link, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
+  BackHandler,
+  Keyboard,
   Pressable,
   ScrollView,
   StatusBar,
@@ -20,31 +24,45 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 
 export default function EmailSignUpScreen() {
-  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
+  const { t, localizedTextStyle } = useAppLanguage();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { isSignedIn } = useAuth();
   const { signUp, errors, fetchStatus } = useSignUp();
 
+  const [step, setStep] = useState<1 | 2>(1);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [verifyCode, setVerifyCode] = useState("");
+  const [day, setDay] = useState("");
+  const [month, setMonth] = useState("");
+  const [year, setYear] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const dateOfBirth = birthdayFromParts(day, month, year);
 
   useEffect(() => {
     if (isSignedIn) router.replace("/(tabs)/profile");
   }, [isSignedIn]);
 
   const passwordsMatch = password === confirmPassword;
-  const canSubmit = Boolean(email && password && confirmPassword && passwordsMatch) && fetchStatus !== "fetching";
+  const canContinue = Boolean(email && password && confirmPassword && passwordsMatch) && fetchStatus !== "fetching";
+  const canSubmit = canContinue && termsAccepted && !birthdayError(dateOfBirth);
+  const goToStep = (next: 1 | 2) => {
+    Keyboard.dismiss();
+    setStep(next);
+  };
+  const handleContinue = () => {
+    if (canContinue) goToStep(2);
+  };
 
   const handleSubmit = async () => {
-    if (!canSubmit) return;
-    const { error } = await signUp.password({ emailAddress: email, password });
-    if (error) return;
+    if (step !== 2 || !canSubmit) return;
+    const { error } = await signUp.password({ emailAddress: email, password, unsafeMetadata: { pulseOnboarding: { dateOfBirth, termsAccepted, termsVersion: SIGNUP_TERMS_VERSION } } });
+    if (error) { goToStep(1); return; }
     if (!error) await signUp.verifications.sendEmailCode();
   };
 
@@ -62,21 +80,33 @@ export default function EmailSignUpScreen() {
     signUp.unverifiedFields.includes("email_address") &&
     signUp.missingFields.length === 0;
 
+  useEffect(() => {
+    if (step !== 2 || needsEmailVerification) return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (fetchStatus !== "fetching") { Keyboard.dismiss(); setStep(1); }
+      return true;
+    });
+    return () => subscription.remove();
+  }, [step, needsEmailVerification, fetchStatus]);
+
   if (needsEmailVerification) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <StatusBar barStyle="light-content" />
-        <TouchableOpacity style={[styles.backBtn, { top: insets.top + 10 }]} onPress={() => router.back()}>
+        <View style={[styles.header, { marginTop: insets.top }]}>
+        <TouchableOpacity style={[styles.backBtn, { top: 10 }]} accessibilityLabel={t("Back")} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={22} color={colors.foreground} />
         </TouchableOpacity>
+          <Text accessibilityRole="header" style={[localizedTextStyle(), styles.headerTitle, { color: colors.foreground }]}>{t("Check Your Email")}</Text>
+        </View>
 
-        <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 56 }]} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={[styles.content, { paddingTop: 16 }]} keyboardShouldPersistTaps="handled">
           <View style={styles.logoRow}>
             <View style={[styles.logoDot, { backgroundColor: colors.primary }]} />
             <Text style={[styles.logoText, { color: colors.foreground }]}>Pulse</Text>
           </View>
 
-          <Text style={[localizedTextStyle(), [styles.title, { color: colors.foreground }]]}>{t("Check your email")}</Text>
+          <SignupProgress stage={4} />
           <Text style={[localizedTextStyle(), [styles.subtitle, { color: colors.mutedForeground }]]}>{t("We sent a 6-digit code to {v0}", { v0: email })}</Text>
 
           <View style={styles.form}>
@@ -119,25 +149,32 @@ export default function EmailSignUpScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle="light-content" />
-      <TouchableOpacity style={[styles.backBtn, { top: insets.top + 10 }]} onPress={() => router.back()}>
+      <View style={[styles.header, { marginTop: insets.top }]}>
+      <TouchableOpacity style={[styles.backBtn, { top: 10 }]} accessibilityLabel={t("Back")} disabled={fetchStatus === "fetching"}
+        onPress={() => step === 2 ? goToStep(1) : router.back()}>
         <Ionicons name="chevron-back" size={22} color={colors.foreground} />
       </TouchableOpacity>
+        <Text accessibilityRole="header" style={[localizedTextStyle(), styles.headerTitle, { color: colors.foreground }]}>{t(step === 1 ? "Create Account" : "Birthday & Terms")}</Text>
+      </View>
 
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 56 }]} keyboardShouldPersistTaps="handled">
+      <KeyboardAwareScrollViewCompat
+        key={step}
+        contentContainerStyle={[styles.content, { paddingTop: 16 }]}
+        keyboardShouldPersistTaps="handled"
+        bottomOffset={32}
+      >
         <View style={styles.logoRow}>
           <View style={[styles.logoDot, { backgroundColor: colors.primary }]} />
           <Text style={[styles.logoText, { color: colors.foreground }]}>Pulse</Text>
         </View>
 
-        <Text style={[localizedTextStyle(), [styles.title, { color: colors.foreground }]]}>{t("Create account")}</Text>
-        <Text style={[localizedTextStyle(), [styles.subtitle, { color: colors.mutedForeground }]]}>{t("Join Pulse and start streaming to the world")}</Text>
+        <SignupProgress stage={step === 1 ? 2 : 3} />
+        {step === 1 && <Text style={[localizedTextStyle(), [styles.subtitle, { textAlign: "center", color: colors.mutedForeground }]]}>{t("Join Pulse and start enjoying live streams.")}</Text>}
 
         <View style={styles.form}>
+          {step === 1 && <>
           <View style={[styles.inputBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Ionicons name="mail-outline" size={18} color={colors.mutedForeground} />
             <TextInput
@@ -199,19 +236,24 @@ export default function EmailSignUpScreen() {
             <Text accessibilityLiveRegion="polite" style={[localizedTextStyle(), styles.errorText]}>{t("Passwords don't match.")}</Text>
           )}
 
+          </>}
+
+          {step === 2 && <SignupEligibilityFields day={day} month={month} year={year} termsAccepted={termsAccepted}
+            onDay={setDay} onMonth={setMonth} onYear={setYear} onTerms={setTermsAccepted} disabled={fetchStatus === "fetching"} />}
+
           <TouchableOpacity
             style={[
               styles.primaryBtn,
-              { backgroundColor: colors.primary, opacity: canSubmit ? 1 : 0.5 },
+              { backgroundColor: colors.primary, opacity: (step === 1 ? canContinue : canSubmit) ? 1 : 0.5 },
             ]}
-            onPress={handleSubmit}
-            disabled={!canSubmit}
+            onPress={step === 1 ? handleContinue : handleSubmit}
+            disabled={step === 1 ? !canContinue : !canSubmit}
             activeOpacity={0.85}
           >
             {fetchStatus === "fetching" ? (
               <ActivityIndicator color="#FFF" />
             ) : (
-              <Text style={[localizedTextStyle(), styles.primaryBtnText]}>{t("Create account")}</Text>
+              <Text style={[localizedTextStyle(), styles.primaryBtnText]}>{t(step === 1 ? "Continue" : "Create account")}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -229,13 +271,15 @@ export default function EmailSignUpScreen() {
         <View nativeID="clerk-captcha" />
 
         <View style={{ height: insets.bottom + 24 }} />
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollViewCompat>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  header: { minHeight: 58, paddingHorizontal: 64, paddingVertical: 16, justifyContent: "center" },
+  headerTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold", textAlign: "center" },
   backBtn: {
     position: "absolute",
     left: 16,

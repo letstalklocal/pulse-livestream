@@ -1,3 +1,4 @@
+import SignedOutProfile from "@/components/SignedOutProfile";
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { usePrivacyPreferences } from "@/hooks/usePrivacyPreferences";
 import { Ionicons } from "@expo/vector-icons";
@@ -260,28 +261,7 @@ export default function ProfileScreen() {
   };
 
   // Sign-out / guest state
-  if (!user) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: "center", alignItems: "center", paddingHorizontal: 32 }]}>
-        <StatusBar barStyle="light-content" />
-        <Ionicons name="person-circle-outline" size={64} color={colors.mutedForeground} />
-        <Text style={[localizedTextStyle(), [styles.headerTitle, { color: colors.foreground, marginTop: 16, marginBottom: 8 }]]}>{t("Your Profile")}</Text>
-        <Text style={[localizedTextStyle(), [styles.bio, { color: colors.mutedForeground, textAlign: "center", marginBottom: 32 }]]}>{t("Sign in to build your profile, go live, and grow your audience on Pulse.")}</Text>
-        <TouchableOpacity
-          style={[styles.goLiveBtn, { backgroundColor: colors.primary, paddingHorizontal: 48 }]}
-          onPress={() => router.push("/(auth)/sign-in" as any)}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="log-in-outline" size={16} color="#FFF" />
-          <Text style={[localizedTextStyle(), styles.goLiveBtnText]}>{t("Sign in")}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.push("/(auth)/sign-up" as any)} style={{ marginTop: 14 }}>
-          <Text style={[localizedTextStyle(), [styles.bio, { color: colors.mutedForeground }]]}>{t("No account? ")}<Text style={[localizedTextStyle(), { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>{t("Sign up")}</Text>
-          </Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  if (!user) return <SignedOutProfile />;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>

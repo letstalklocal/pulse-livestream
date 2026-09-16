@@ -73,7 +73,7 @@ Use these labels:
 
 ## Host live-stream composer
 
-Build timing and per-fix verification are tracked in [Apple / TestFlight fixes](apple-testflight-fixes.md). The next build is on hold while other fixes are collected.
+Build timing and per-fix verification are tracked in [Apple / TestFlight fixes](apple-testflight-fixes.md). Its latest approved test-build decisions supersede the earlier hold while fixes were collected.
 
 - Confirmed 2026-09-14 after TestFlight build 4: on **iOS**, the bottom bar and messages must return to the bottom after the keyboard closes, matching Android. Preserve Android's existing keyboard layout behavior.
 - Latest user correction: on **both iOS and Android**, the streamer live composer opens at full width and keeps the Send icon visible, including with an empty draft and while sending. Disable Send for blank text or an in-flight send. Do not expand/collapse the live input on typing, clearing, or sending. This supersedes the earlier live expansion requirement only; Messages keeps its existing composer animation.
@@ -85,13 +85,13 @@ Build timing and per-fix verification are tracked in [Apple / TestFlight fixes](
 ## Timed Premium gift requests
 
 - The streamer gift icon replaces the lock in the same bottom-bar position while Premium is active. Select a gift and 30 or 60 seconds, default 30.
-- Current viewers see a bottom requirement with a Send Gift button and countdown; blink at 10 seconds or less, respecting Reduced Motion. Pay to remain; unpaid viewers are removed at the deadline. Coin purchases from this window are deferred.
+- Current viewers see a bottom requirement with a Send Gift button and countdown; blink at 10 seconds or less, respecting Reduced Motion. Pay to remain; unpaid viewers are removed at the deadline. Coin purchases from this window are deferred. Planned later (user decision, 2026-09-15): add a quick refill in the timed request prompt with 500, 1,000, and 2,000 coin choices; this is not implemented yet.
 - Preserve existing Premium entry, free-entry, manual Remove/Block/Allow Back, ordinary gifts, and all chat/keyboard behavior. Details and regression checks: [timed Premium gifts](premium-gift-requests.md).
 
 ## Viewer live-stream three-dot menu
 
 - Latest user decision (2026-09-15): order the menu **Report → Translate → Share → Exit Live**.
-- Android viewer menu spacing must include the bottom safe-area inset so the sheet clears the system navigation buttons, retaining its existing 40-point gap. Use the inset independently of keyboard visibility. Check three-button and gesture navigation in regular and party lives; device verification is pending.
+- Android viewer menu spacing must include the bottom safe-area inset so the sheet clears the system navigation buttons. Latest user correction (2026-09-15): lower the sheet slightly after the inset fix made it too high; reduce the extra gap from 40 to 24 points (16 points lower), preserving the inset. Use the inset independently of keyboard visibility. Check three-button and gesture navigation in regular and party lives; device verification is pending.
 - The viewer translation label is **Translate**, removing “chat” from the label. Keep its current On/Off indicator, consent, saved preference, availability and error handling.
 - Preserve report-sheet behavior and demo checks, native sharing, menu dismissal and the existing exit action. This menu change does not change host/DM translation controls.
 - Device checks pending: order/labels, translation On/Off, reporting, sharing and leaving a regular or party live.

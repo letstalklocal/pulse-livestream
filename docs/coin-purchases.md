@@ -1,5 +1,7 @@
 # Coin purchases
 
+Shared change handoff: [coins, Premium gifts, and RevenueCat](coins-premium-revenuecat.md).
+
 ## Recorded user decisions — 2026-09-15
 
 - Integrate RevenueCat for the first in-app purchase implementation, initially using the supplied public Test Store SDK key.
@@ -80,6 +82,10 @@ No duplicates were created. Subscriptions and app download pricing were unchange
 
 Implemented in AccountHeader, profile, GiftPicker and the shared CoinStoreContent component. Device checks remain pending: zero/positive balances, all nine options, purchase and return to gifts, recipient retention, chat draft/keyboard behavior, live continuity, and Android Back.
 
+## Planned: quick refill in the timed Premium prompt — 2026-09-15
+
+The user requested a future quick refill/recharge option directly in the timed Premium gift request prompt, with **500, 1,000, and 2,000 coin choices**. Record this for later; it is not implemented in the current prompt. The approved catalog already contains `coins_500_v1`, `coins_1000_v1`, and `coins_2000_v1`; this request does not add new pack sizes or change approved prices. Detailed interaction and payment-return behavior remain future work. Existing deadline, confirmed-wallet-credit, and gift-payment/access rules remain the current baseline. See [timed Premium gifts](premium-gift-requests.md).
+
 ## RevenueCat sandbox verification — 2026-09-15
 
 - Completed and read back the `coins` offering (`ofrng03b8bc924d`) with nine Test Store products, exact approved USD prices, and nine custom packages. SDK offerings response also returned all nine.
@@ -87,7 +93,7 @@ Implemented in AccountHeader, profile, GiftPicker and the shared CoinStoreConten
 - Executed one simulated RevenueCat Test Store purchase per pack on an isolated QA account. Actual RevenueCat webhook deliveries credited **53,750 coins in nine ledger entries**, exactly the sum of the nine packs. No real money was charged. Local QA user, balance and ledger fixtures were removed afterward.
 - Separate HTTP/database tests verified concurrent duplicate deliveries credit once, authorization, account ownership, product mapping, and production isolation.
 - The development API was rebuilt and restarted with its existing environment. Development-only webhook credentials are stored in the ignored `artifacts/api-server/.local/revenuecat.env`; startup loads them without overriding explicit environment values. Never commit this file. Production does not load it.
-- Apple products remain only user-verified in App Store Connect. RevenueCat's inspected project still has only its Test Store app. Apple app linkage/credentials, native-device purchase checks, refunds/reconciliation and production enablement remain outstanding. The native build hold remains in effect.
+- Apple products remain only user-verified in App Store Connect. RevenueCat's inspected project still has only its Test Store app. Apple app linkage/credentials, native-device purchase checks, refunds/reconciliation and production enablement remain outstanding. Follow the latest approved test-build workflow in [Apple/TestFlight fixes](apple-testflight-fixes.md); it supersedes the earlier hold.
 
 ## Buy Coins card design — 2026-09-15
 

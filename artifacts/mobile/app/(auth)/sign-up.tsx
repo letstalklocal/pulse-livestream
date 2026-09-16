@@ -1,3 +1,6 @@
+import SocialSignInButton from "@/components/SocialSignInButton";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
+import SignupProgress from "@/components/SignupProgress";
 import { useAppLanguage } from "@/i18n";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@clerk/expo";
@@ -21,63 +24,38 @@ export default function SignUpScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle="light-content" />
+      <View style={[styles.header, { marginTop: insets.top }]}>
       <TouchableOpacity
-        style={[styles.backBtn, { top: insets.top + 10 }]}
+        style={[styles.backBtn, { top: 10 }]}
         accessibilityRole="button"
         accessibilityLabel={t("Back")}
         onPress={() => router.canGoBack() ? router.back() : router.replace("/(auth)/sign-in")}
       >
         <Ionicons name="chevron-back" size={22} color={colors.foreground} />
       </TouchableOpacity>
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 56, paddingBottom: insets.bottom + 24 }]}>
+        <Text accessibilityRole="header" style={[localizedTextStyle(), styles.headerTitle, { color: colors.foreground }]}>{t("Create Account")}</Text>
+      </View>
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: 16, paddingBottom: insets.bottom + 24 }]}>
         <View style={styles.logoRow}>
           <View style={[styles.logoDot, { backgroundColor: colors.primary }]} />
           <Text style={[styles.logoText, { color: colors.foreground }]}>Pulse</Text>
         </View>
-        <Text style={[localizedTextStyle(), styles.title, { color: colors.foreground }]}>{t("Create account")}</Text>
-        <Text style={[localizedTextStyle(), styles.subtitle, { color: colors.mutedForeground }]}>{t("Join Pulse and start streaming to the world")}</Text>
+        <SignupProgress stage={2} />
+        <Text style={[localizedTextStyle(), styles.subtitle, { textAlign: "center", color: colors.mutedForeground }]}>{t("Join Pulse and start enjoying live streams.")}</Text>
 
         <View style={styles.options}>
-          <TouchableOpacity
-            testID="signup-google"
-            disabled
-            accessibilityRole="button"
-            accessibilityState={{ disabled: true }}
-            accessibilityLabel={t("Sign up with Google")}
-            accessibilityHint={t("Coming soon")}
-            style={[styles.option, { backgroundColor: colors.card, borderColor: colors.border }]}
-          >
-            <Ionicons name="logo-google" size={22} color={colors.mutedForeground} />
-            <View style={styles.optionCopy}>
-              <Text style={[localizedTextStyle(), styles.optionTitle, { color: colors.mutedForeground }]}>{t("Sign up with Google")}</Text>
-              <Text style={[localizedTextStyle(), styles.comingSoon, { color: colors.mutedForeground }]}>{t("Coming soon")}</Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            testID="signup-phone"
-            disabled
-            accessibilityRole="button"
-            accessibilityState={{ disabled: true }}
-            accessibilityLabel={t("Sign up with Phone")}
-            accessibilityHint={t("Coming soon")}
-            style={[styles.option, { backgroundColor: colors.card, borderColor: colors.border }]}
-          >
-            <Ionicons name="call-outline" size={22} color={colors.mutedForeground} />
-            <View style={styles.optionCopy}>
-              <Text style={[localizedTextStyle(), styles.optionTitle, { color: colors.mutedForeground }]}>{t("Sign up with Phone")}</Text>
-              <Text style={[localizedTextStyle(), styles.comingSoon, { color: colors.mutedForeground }]}>{t("Coming soon")}</Text>
-            </View>
-          </TouchableOpacity>
+          <GoogleSignInButton signup />
+          <SocialSignInButton provider="apple" signup />
           <TouchableOpacity
             testID="signup-email"
             accessibilityRole="button"
             accessibilityLabel={t("Sign up with Email")}
             onPress={() => router.push("/(auth)/sign-up-email" as Href)}
             activeOpacity={0.85}
-            style={[styles.option, { backgroundColor: colors.primary, borderColor: colors.primary }]}
+            style={[styles.option, { backgroundColor: colors.card, borderColor: colors.border }]}
           >
-            <Ionicons name="mail-outline" size={22} color="#FFF" />
-            <Text style={[localizedTextStyle(), styles.optionTitle, styles.optionCopy, { color: "#FFF" }]}>{t("Sign up with Email")}</Text>
+            <Ionicons name="mail-outline" size={22} color={colors.foreground} />
+            <Text style={[localizedTextStyle(), styles.optionTitle, styles.optionCopy, { color: colors.foreground }]}>{t("Sign up with Email")}</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.footerRow}>
@@ -95,6 +73,8 @@ export default function SignUpScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  header: { minHeight: 58, paddingHorizontal: 64, paddingVertical: 16, justifyContent: "center" },
+  headerTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold", textAlign: "center" },
   backBtn: { position: "absolute", left: 16, width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center", justifyContent: "center", zIndex: 10 },
   content: { paddingHorizontal: 24, flexGrow: 1 },
   logoRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 32 },

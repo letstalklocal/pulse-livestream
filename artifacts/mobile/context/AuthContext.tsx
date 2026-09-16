@@ -1,3 +1,4 @@
+import type { SignupDeclaration } from "@/lib/signup-eligibility";
 import { AppState } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -7,6 +8,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -30,6 +32,9 @@ interface AuthContextValue {
   user: User | null;
   isLoaded: boolean;
   isSignedIn: boolean;
+  onboardingRequired: boolean;
+  syncError: string | null;
+  completeSignup: (declaration?: SignupDeclaration) => Promise<boolean>;
   updateUser: (fields: Partial<Omit<User, "uid" | "clerkId">>) => void;
 }
 
@@ -39,27 +44,34 @@ const AuthContext = createContext<AuthContextValue>({
   user: null,
   isLoaded: false,
   isSignedIn: false,
+  onboardingRequired: false,
+  syncError: null,
+  completeSignup: async () => false,
   updateUser: () => {},
 });
 
-async function clerkSync(clerkId: string, name: string): Promise<User | null> {
+async function clerkSync(clerkId: string, name: string, getToken: () => Promise<string | null>, onboarding: unknown): Promise<{ user?: User; onboardingRequired?: boolean; error?: string }> {
   try {
+    const token = await getToken();
+    if (!token) return { error: "Your account could not be saved. Please try again." };
     const domain = process.env["EXPO_PUBLIC_DOMAIN"];
     const base = domain ? `https://${domain}` : "";
     const res = await fetch(`${base}/api/users/clerk-sync`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clerkId, name }),
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ clerkId, name, onboarding }),
     });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { user: User };
-    return data.user;
+    const data = await res.json();
+    if (res.status === 422 && data.code === "ONBOARDING_REQUIRED") return { onboardingRequired: true, error: data.error };
+    if (!res.ok || !data.user || data.user.clerkId !== clerkId) return { error: "Your account could not be saved. Please try again." };
+    return { user: data.user };
   } catch {
-    return null;
+    return { error: "Your account could not be saved. Please try again." };
   }
 }
 
 async function syncProfile(
+  getToken: () => Promise<string | null>,
   uid: number,
   name: string,
   bio: string,
@@ -67,11 +79,13 @@ async function syncProfile(
   streamBackgroundImagePath?: string | null,
 ) {
   try {
+    const token = await getToken();
+    if (!token) return;
     const domain = process.env["EXPO_PUBLIC_DOMAIN"];
     const base = domain ? `https://${domain}` : "";
     await fetch(`${base}/api/users/${uid}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         name,
         bio,
@@ -87,57 +101,79 @@ async function syncProfile(
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { isSignedIn, isLoaded: clerkLoaded, getToken } = useClerkAuth();
+  const { isSignedIn, isLoaded: clerkLoaded, getToken: clerkGetToken } = useClerkAuth();
+  // Clerk Expo returns a new getToken wrapper on every render. Keep our callback
+  // stable so state updates cannot restart sync effects, while using the latest token getter.
+  const tokenGetterRef = useRef(clerkGetToken);
+  tokenGetterRef.current = clerkGetToken;
+  const getToken = useCallback(() => tokenGetterRef.current(), []);
   const queryClient = useQueryClient();
   const { user: clerkUser } = useUser();
   const [user, setUser] = useState<User | null>(null);
   const [localLoaded, setLocalLoaded] = useState(false);
 
-  // When Clerk user signs in, sync with server to get/create DB record
+  const [onboardingRequired, setOnboardingRequired] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const accountRef = useRef(clerkUser);
+  accountRef.current = isSignedIn ? clerkUser : null;
+  const syncSequence = useRef(0);
+
+  const completeSignup = useCallback(async (declaration?: SignupDeclaration) => {
+    const account = accountRef.current;
+    if (!account) return false;
+    const sequence = ++syncSequence.current;
+    const name = account.fullName || account.username || account.primaryEmailAddress?.emailAddress?.split("@")[0] || "Pulse User";
+    const result = await clerkSync(account.id, name, getToken, declaration ?? account.unsafeMetadata?.pulseOnboarding);
+    if (accountRef.current?.id !== account.id || sequence !== syncSequence.current) return false;
+    if (result.user) {
+      const synced = { ...result.user, avatarUri: result.user.avatarImageUrl ?? account.imageUrl ?? undefined };
+      setUser(synced);
+      setOnboardingRequired(false);
+      setSyncError(null);
+      setLocalLoaded(true);
+      try { await AsyncStorage.setItem(`${STORAGE_KEY}:${account.id}`, JSON.stringify(synced)); } catch { /* Server acceptance remains authoritative. */ }
+      return true;
+    }
+    if (result.onboardingRequired) {
+      setUser(null);
+      setOnboardingRequired(true);
+      // Do not keep a stale local profile after the server rejects account creation.
+      try { await AsyncStorage.removeItem(`${STORAGE_KEY}:${account.id}`); } catch { /* Not an authorization source. */ }
+    }
+    if (accountRef.current?.id !== account.id || sequence !== syncSequence.current) return false;
+    setSyncError(result.error ?? "Your account could not be saved. Please try again.");
+    setLocalLoaded(true);
+    return false;
+  }, [getToken]);
+
+  // Draft declarations travel through Clerk's signup metadata so email verification
+  // and restarting signup do not lose them. The API validates them before creating a Pulse account.
   useEffect(() => {
     if (!clerkLoaded) return;
+    ++syncSequence.current;
+    setOnboardingRequired(false);
+    setSyncError(null);
     if (!isSignedIn || !clerkUser) {
       setUser(null);
       setLocalLoaded(true);
       return;
     }
-
+    let active = true;
     const clerkId = clerkUser.id;
-    const clerkName =
-      clerkUser.fullName ||
-      clerkUser.username ||
-      clerkUser.primaryEmailAddress?.emailAddress?.split("@")[0] ||
-      "Pulse User";
-
-    // Check AsyncStorage cache first (keyed by clerkId)
-    const storageKey = `${STORAGE_KEY}:${clerkId}`;
-    AsyncStorage.getItem(storageKey).then(async (raw) => {
-      if (raw) {
-        try {
+    setUser(previous => previous?.clerkId === clerkId ? previous : null);
+    setLocalLoaded(false);
+    void (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(`${STORAGE_KEY}:${clerkId}`);
+        if (raw && active) {
           const cached = JSON.parse(raw) as User;
-          setUser(cached);
-          setLocalLoaded(true);
-        } catch {
-          // ignore
+          if (cached.clerkId === clerkId && Number.isInteger(cached.uid)) { setUser(cached); setLocalLoaded(true); }
         }
-      }
-
-      // Load the saved Pulse profile; Clerk supplies a name only for new accounts.
-      const synced = await clerkSync(clerkId, clerkName);
-      if (synced) {
-        const merged: User = {
-          ...(raw ? (JSON.parse(raw) as User) : {}),
-          ...synced,
-          avatarUri: synced.avatarImageUrl ?? clerkUser.imageUrl ?? undefined,
-        };
-        setUser(merged);
-        setLocalLoaded(true);
-        await AsyncStorage.setItem(storageKey, JSON.stringify(merged));
-      } else {
-        setLocalLoaded(true);
-      }
-    });
-  }, [clerkLoaded, isSignedIn, clerkUser?.id]);
+      } catch { /* An unavailable cache must not prevent server sync. */ }
+      if (active) await completeSignup();
+    })();
+    return () => { active = false; ++syncSequence.current; };
+  }, [clerkLoaded, isSignedIn, clerkUser?.id, completeSignup]);
 
   useEffect(() => {
     if (!isSignedIn || !user?.uid) return;
@@ -180,6 +216,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           fields.streamBackgroundImagePath !== undefined
         ) {
           void syncProfile(
+            getToken,
             prev.uid,
             updated.name,
             updated.bio,
@@ -190,7 +227,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return updated;
       });
     },
-    [],
+    [getToken],
   );
 
   return (
@@ -199,6 +236,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         isLoaded: clerkLoaded && localLoaded,
         isSignedIn: !!isSignedIn && !!user,
+        onboardingRequired, syncError, completeSignup,
         updateUser,
       }}
     >

@@ -1,10 +1,12 @@
+import { getAuth } from "@clerk/express";
+import { signupEligibility, SIGNUP_TERMS_VERSION } from "../lib/signupEligibility";
 import { countryName } from "../lib/countryLocation";
 import { canViewPosts, privacyPreferences, redactProfileLocation } from "../lib/privacy";
 import { authenticatedUser } from "../lib/streamModeration";
 import { contactBlocked } from "../lib/userSafety";
 import { Router } from "express";
 import { eq, desc, and, sql } from "drizzle-orm";
-import { db, usersTable, streamHistoryTable, followsTable } from "@workspace/db";
+import { db, usersTable, userOnboardingTable, streamHistoryTable, followsTable } from "@workspace/db";
 import { createPrivateGetUrl, createPrivateUploadUrl } from "../lib/objectStorage";
 
 const router = Router();
@@ -59,28 +61,17 @@ router.put("/users/:uid", async (req, res) => {
     return;
   }
 
-  const rows = await db
-    .insert(usersTable)
-    .values({
-      uid,
-      name: name.trim(),
-      bio: (bio ?? "").trim(),
-      avatarImagePath: avatarImagePath ?? null,
-      streamBackgroundImagePath: streamBackgroundImagePath ?? null,
-    })
-    .onConflictDoUpdate({
-      target: usersTable.uid,
-      set: {
-        name: name.trim(),
-        bio: (bio ?? "").trim(),
-        ...(avatarImagePath !== undefined ? { avatarImagePath } : {}),
-        ...(streamBackgroundImagePath !== undefined
-          ? { streamBackgroundImagePath }
-          : {}),
-        updatedAt: new Date(),
-      },
-    })
-    .returning();
+  const actor = await authenticatedUser(req);
+  if (!actor) return void res.status(401).json({ error: "Authentication required" });
+  if (actor.uid !== uid) return void res.status(403).json({ error: "You can only update your own profile" });
+  // Updates cannot create an account or bypass signup eligibility.
+  const rows = await db.update(usersTable).set({
+    name: name.trim(), bio: (bio ?? "").trim(),
+    ...(avatarImagePath !== undefined ? { avatarImagePath } : {}),
+    ...(streamBackgroundImagePath !== undefined ? { streamBackgroundImagePath } : {}),
+    updatedAt: new Date(),
+  }).where(eq(usersTable.uid, uid)).returning();
+  if (!rows[0]) return void res.status(404).json({ error: "User not found" });
 
   res.json({ user: await withUserImageUrls(rows[0]!) });
 });
@@ -115,43 +106,37 @@ router.post("/users/:uid/stream-background/upload", async (req, res) => {
   }
 });
 
-// Find-or-create a user by Clerk ID (called on every sign-in)
+// The authenticated identity owns the account; a body-supplied ID is never authority.
 router.post("/users/clerk-sync", async (req, res) => {
-  const { clerkId, name } = req.body as { clerkId?: string; name?: string };
-  if (!clerkId || !name) {
-    res.status(400).json({ error: "clerkId and name are required" });
-    return;
+  const clerkId = getAuth(req).userId;
+  if (!clerkId) return void res.status(401).json({ error: "Authentication required" });
+  const { clerkId: claimedId, name, onboarding } = req.body ?? {};
+  if (claimedId !== undefined && claimedId !== clerkId) return void res.status(403).json({ error: "Account mismatch" });
+  if (typeof name !== "string" || !name.trim() || name.length > 200) return void res.status(400).json({ error: "A valid name is required" });
+  res.setHeader("Cache-Control", "no-store");
+  try {
+    const result = await db.transaction(async tx => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${clerkId}))`);
+      const [existing] = await tx.select().from(usersTable).where(eq(usersTable.clerkId, clerkId)).limit(1);
+      // Preserve existing profiles. Legacy-account onboarding is a separate rollout.
+      if (existing) return { user: existing };
+      const error = signupEligibility(onboarding);
+      if (error) return { error };
+      for (let attempt = 0; attempt < 20; attempt++) {
+        const uid = Math.floor(Math.random() * 90000) + 10000;
+        const [user] = await tx.insert(usersTable).values({ uid, clerkId, name: name.trim(), bio: "" }).onConflictDoNothing().returning();
+        if (!user) continue;
+        await tx.insert(userOnboardingTable).values({ userId: uid, dateOfBirth: onboarding.dateOfBirth, termsVersion: SIGNUP_TERMS_VERSION });
+        return { user };
+      }
+      throw new Error("Account allocation unavailable");
+    });
+    if (result.error) return void res.status(422).json({ code: "ONBOARDING_REQUIRED", error: result.error, termsVersion: SIGNUP_TERMS_VERSION });
+    res.json({ user: await withUserImageUrls(result.user!) });
+  } catch {
+    // Do not log birthdays, submitted declarations or database parameter values.
+    res.status(503).json({ error: "Your account could not be saved. Please try again." });
   }
-
-  const existing = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.clerkId, clerkId))
-    .limit(1);
-
-  if (existing[0]) {
-    // Clerk seeds the name only at account creation. Existing display names
-    // belong to the Pulse profile and must survive sign-in/app restarts.
-    res.json({ user: await withUserImageUrls(existing[0]) });
-    return;
-  }
-
-  // Create new user — generate a random 5-digit numeric uid
-  let uid: number;
-  let attempts = 0;
-  while (true) {
-    uid = Math.floor(Math.random() * 90000) + 10000;
-    const clash = await db.select({ uid: usersTable.uid }).from(usersTable).where(eq(usersTable.uid, uid)).limit(1);
-    if (!clash[0]) break;
-    if (++attempts > 10) { uid = Date.now() % 1_000_000; break; }
-  }
-
-  const rows = await db
-    .insert(usersTable)
-    .values({ uid, clerkId, name: name.trim(), bio: "" })
-    .returning();
-
-  res.json({ user: await withUserImageUrls(rows[0]!) });
 });
 
 router.post("/users/:uid/follow", async (req, res) => {

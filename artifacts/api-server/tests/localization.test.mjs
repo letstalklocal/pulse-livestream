@@ -50,6 +50,16 @@ try {
   function walk(n){
    // The user approved this additional confirmation control; signup-flow tests cover its behavior.
    if(file.endsWith('/(auth)/sign-up.tsx')&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&p.initializer?.text==='confirm-password-field'))return;
+   // Approved two-step signup remounts the scroller to reset its position; form state stays in the screen.
+   if(file.endsWith('/(auth)/sign-up-email.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='key'&&n.initializer?.getText(a)==='{step}'&&n.parent.parent.tagName?.getText(a)==='KeyboardAwareScrollViewCompat')return;
+   // Google signup is now implemented in a shared component; dedicated OAuth tests cover it.
+   if(file.endsWith('/(auth)/sign-up.tsx')&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&p.initializer?.text==='signup-google'))return;
+   if(file.endsWith('/app/_layout.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='sso-callback')return;
+   // User removed the Phone placeholder and replaced only the signed-out profile branch.
+   if(file.endsWith('/(auth)/sign-up.tsx')&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&p.initializer?.text==='signup-phone'))return;
+   if(file.endsWith('/(tabs)/profile.tsx')&&ts.isIfStatement(n)&&n.expression.getText(a)==='!user')return;
+   // Approved additive birthday/terms fields; their behavior is covered by signup-flow tests.
+   if(file.endsWith('/(auth)/sign-up-email.tsx')&&ts.isJsxSelfClosingElement(n)&&n.tagName.getText(a)==='SignupEligibilityFields')return;
    // Approved additive account entry; keep comparing every existing account control.
    if(file.endsWith('/account.tsx')&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&p.initializer?.text==='age-verification-entry'))return;
    // Approved Discover username-search button and route; preserve all prior controls.
@@ -75,8 +85,10 @@ try {
  };
  const paths=execFileSync('git',['diff','--name-only'],{cwd:root,encoding:'utf8'}).trim().split('\n').filter(p=>/^artifacts\/mobile\/(app|components)\/.*\.tsx$/.test(p)&&!p.endsWith('/settings.tsx'));
  for(const path of paths){
+  if(['artifacts/mobile/components/SignupEligibilityFields.tsx','artifacts/mobile/components/CompleteSignup.tsx'].includes(path))continue;
   const before=execFileSync('git',['show',`HEAD:${path}`],{cwd:root,encoding:'utf8'});
-  const currentPath=path==='artifacts/mobile/app/(auth)/sign-up.tsx'?'artifacts/mobile/app/(auth)/sign-up-email.tsx':path;
+  // Both signup routes now exist in HEAD; compare each screen against its own baseline.
+  const currentPath=path;
   const after=readFileSync(root+currentPath.replace('artifacts/mobile/',''),'utf8');
   assert.deepEqual(signatures(path,after),signatures(path,before),`Behavioral attributes and payment/media identifiers changed in ${path}`);
  }
