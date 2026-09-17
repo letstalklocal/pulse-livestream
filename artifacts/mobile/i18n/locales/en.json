@@ -862,5 +862,12 @@
   "Activities": "Activities",
   "Objects": "Objects",
   "Symbols": "Symbols",
-  "Flags": "Flags"
+  "Flags": "Flags",
+  "Close picture in picture": "Close picture in picture",
+  "Could not save this setting. Please try again.": "Could not save this setting. Please try again.",
+  "Keep watching a live while browsing the app or opening messages.": "Keep watching a live while browsing the app or opening messages.",
+  "Picture in picture": "Picture in picture",
+  "Picture in picture settings": "Picture in picture settings",
+  "Return to live": "Return to live",
+  "Tap to change size and show controls.": "Tap to change size and show controls."
 }

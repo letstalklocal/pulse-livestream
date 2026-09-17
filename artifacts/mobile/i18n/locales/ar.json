@@ -862,5 +862,12 @@
   "Activities": "الأنشطة",
   "Objects": "الأشياء",
   "Symbols": "الرموز",
-  "Flags": "الأعلام"
+  "Flags": "الأعلام",
+  "Close picture in picture": "إغلاق صورة داخل صورة",
+  "Could not save this setting. Please try again.": "تعذر حفظ هذا الإعداد. يرجى المحاولة مرة أخرى.",
+  "Keep watching a live while browsing the app or opening messages.": "واصل مشاهدة live أثناء تصفح التطبيق أو فتح الرسائل.",
+  "Picture in picture": "صورة داخل صورة",
+  "Picture in picture settings": "إعدادات صورة داخل صورة",
+  "Return to live": "العودة إلى live",
+  "Tap to change size and show controls.": "اضغط لتغيير الحجم وإظهار عناصر التحكم."
 }

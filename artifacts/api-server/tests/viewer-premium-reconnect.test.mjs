@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { transformSync } from 'esbuild';
 
-const source = readFileSync(new URL('../../mobile/app/stream/[channelId].tsx', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../../mobile/context/LivePlaybackContext.tsx', import.meta.url), 'utf8');
 const start = source.indexOf('  // Join Agora channel on native');
 const end = source.indexOf('  // Once joined,', start);
 const { code } = transformSync(source.slice(start, end), { loader: 'ts' });

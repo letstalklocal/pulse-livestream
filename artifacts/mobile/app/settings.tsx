@@ -131,6 +131,8 @@ export default function SettingsScreen() {
           onPress={() =>
             item.label === "Account"
               ? router.push("/account")
+              : item.label === "General"
+                ? router.push("/general")
               : item.label === "Pulse Pro"
                 ? router.push("/subscriptions")
               : item.label === "Buy coins"

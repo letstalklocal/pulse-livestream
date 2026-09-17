@@ -862,5 +862,12 @@
   "Activities": "गतिविधियाँ",
   "Objects": "वस्तुएँ",
   "Symbols": "चिह्न",
-  "Flags": "झंडे"
+  "Flags": "झंडे",
+  "Close picture in picture": "पिक्चर इन पिक्चर बंद करें",
+  "Could not save this setting. Please try again.": "यह सेटिंग सेव नहीं हो सकी। कृपया फिर से कोशिश करें।",
+  "Keep watching a live while browsing the app or opening messages.": "ऐप ब्राउज़ करते या संदेश खोलते समय live देखते रहें।",
+  "Picture in picture": "पिक्चर इन पिक्चर",
+  "Picture in picture settings": "पिक्चर इन पिक्चर सेटिंग्स",
+  "Return to live": "live पर वापस जाएँ",
+  "Tap to change size and show controls.": "आकार बदलने और नियंत्रण दिखाने के लिए टैप करें।"
 }

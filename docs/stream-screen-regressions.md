@@ -136,3 +136,10 @@ The complete flow is now explicit: (1) tapping one of the current favorites chan
 ### Direct Change Favorite workflow — September 17, 2026
 
 Latest user workflow supersedes the two-step editor: opening the reaction sheet shows the eight favorites. Tap a favorite to target it, then tap singular **Change Favorite**. This opens the full in-app emoji picker directly. Choose an emoji with Select; it returns to the original favorites sheet with the new emoji selected. Tap the outlined Done to save the account favorites and close the entire three-dot sheet back to the live. No intermediate Change Favorites screen or extra return step remains.
+
+
+### In-app viewer picture in picture — September 17, 2026
+
+Back/chevron now keeps an admitted live (including Premium) in a bottom-right floating player while navigating back normally. The existing viewer message action also opens the conversation with PiP. Tap to enlarge; gear opens General, center expand restores the same viewer, and right X closes playback. Settings → General includes the saved device preference. See [the full requirements and checks](stream-navigation.md#in-app-picture-in-picture--september-17-2026).
+
+This explicitly supersedes chevron-as-stop while PiP is enabled; **Exit Live** remains a full stop. Preserve all other required navigation/header/list/keyboard checks. PiP must keep admitted viewing awake while foregrounded and release its independent lease on close/end/access loss. Feed previews must not seize the singleton engine while PiP is active. Automated lifecycle and UI coverage is included in the required suite; it is not device proof. Android/iPhone real-stream, Premium, party, keyboard, touch, navigation and timeout verification remains pending. No build or deployment was started.

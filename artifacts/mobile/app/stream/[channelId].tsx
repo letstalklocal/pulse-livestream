@@ -1,8 +1,10 @@
+import { DemoVideo } from "@/components/DemoVideo";
+import { useLivePlayback } from "@/context/LivePlaybackContext";
 import { ReactionFavoritesChooser } from "@/components/ReactionFavoritesChooser";
 import { useReactionFavorites } from "@/hooks/useReactionFavorites";
 import { LiveReactions } from "@/components/LiveReactions";
 import { PremiumGiftPrompt } from "@/components/PremiumGiftPrompt";
-import { usePremiumGiftRequest, premiumGiftRequestKey } from "@/hooks/usePremiumGiftRequest";
+import { premiumGiftRequestKey } from "@/hooks/usePremiumGiftRequest";
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { createGiftPresentation, expectsNativeCrown } from "@/utils/giftPresentation";
 import { CrownArtwork } from "@/components/CrownArtwork";
@@ -12,8 +14,6 @@ import { LiveChatAvatar } from "@/components/LiveChatAvatar";
 import { TranslationToggle } from "@/components/TranslationToggle";
 import { ReportStreamSheet } from "@/components/ReportStreamSheet";
 import { useStreamSocket } from "@/hooks/useStreamSocket";
-import { useLiveParty } from "@/hooks/useLiveParty";
-import { usePartyMedia } from "@/hooks/usePartyMedia";
 import { PartyStage } from "@/components/PartyStage";
 import { battleUsesSplitLayout, partyLayout } from "@/utils/partyLayout";
 import { Ionicons } from "@expo/vector-icons";
@@ -25,6 +25,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  BackHandler,
   Alert,
   Animated,
   Dimensions,
@@ -45,15 +46,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  useGenerateAgoraToken,
-  updateStreamPresence,
   getGetStreamQueryKey,
   useGetStream,
   useGetStreamChat,
   getGetStreamChatQueryKey,
   useListStreams,
   useSendChatMessage,
-  useUpdateViewerCount,
   useGetCoinBalance,
   getGetCoinBalanceQueryKey,
   useGetStreamEarnings,
@@ -70,11 +68,8 @@ import { GiftFloater, type FloatingGift } from "@/components/GiftFloater";
 import { GiftLeaderboard } from "@/components/GiftLeaderboard";
 import { GoldCoinIcon } from "@/components/GoldCoinIcon";
 import {
-  ChannelProfileType,
-  ClientRoleType,
   RtcSurfaceViewComponent,
   VideoSourceType,
-  createEngine,
 } from "@/utils/agora";
 
 const isNative = Platform.OS === "ios" || Platform.OS === "android";
@@ -108,46 +103,6 @@ const SEED_CHAT: ChatMsg[] = [
   { id: "s2", sender: "cosmic_fan",   text: "First time watching, love it",  color: "#7B4FFF" },
   { id: "s3", sender: "pulse_user99", text: "Keep it up! 🔥",               color: "#00C896" },
 ];
-
-const CATEGORY_COLORS: Record<string, [string, string]> = {
-  Gaming: ["#7B4FFF", "#3D1FA8"],
-  Music:  ["#FF1966", "#8B0030"],
-  Talk:   ["#00C896", "#006B51"],
-  Art:    ["#FF8C00", "#8B4700"],
-  Dance:  ["#FF1966", "#8B0030"],
-  Other:  ["#4FC3F7", "#1565C0"],
-};
-
-function DemoVideo({ category }: { category?: string }) {
-  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
-  const [bg1, bg2] = CATEGORY_COLORS[category ?? ""] ?? CATEGORY_COLORS["Other"]!;
-  const shift = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(shift, { toValue: 1, duration: 3000, useNativeDriver: false }),
-        Animated.timing(shift, { toValue: 0, duration: 3000, useNativeDriver: false }),
-      ]),
-    ).start();
-  }, [shift]);
-
-  const bgColor = shift.interpolate({
-    inputRange: [0, 1],
-    outputRange: [bg2, bg1],
-  });
-
-  return (
-    <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: bgColor }]}>
-      <View style={[StyleSheet.absoluteFill, styles.videoOverlay]} />
-      <View style={styles.videoCenter}>
-        <Text style={styles.videoInitials}>
-          {(category ?? "?").slice(0, 2).toUpperCase()}
-        </Text>
-      </View>
-    </Animated.View>
-  );
-}
 
 function StreamBackdrop({ imageUrl, demo = false, category }: {
   imageUrl?: string | null;
@@ -188,18 +143,24 @@ export default function StreamScreen() {
   const { user } = useAuth();
   const { getToken } = useClerkAuth();
 
-  const [remoteUid, setRemoteUid] = useState<number | null>(null);
-  const [remoteVideoReady, setRemoteVideoReady] = useState(false);
-  const [agoraError, setAgoraError] = useState<string | null>(null);
+  const playback = useLivePlayback();
+  const { attach, detach } = playback;
+  const { joined, remoteUid, remoteVideoReady, agoraError } = playback;
+  useEffect(() => {
+    attach(channelId, privateInvitationId);
+    return () => detach(channelId);
+  }, [channelId, privateInvitationId, attach, detach]);
   const isDemo = (channelId ?? "").endsWith("-demo");
   const [viewerFocused, setViewerFocused] = useState(false);
   useFocusEffect(useCallback(() => {
     setViewerFocused(true);
     return () => setViewerFocused(false);
   }, []));
+  useFocusEffect(useCallback(() => {
+    attach(channelId, privateInvitationId);
+  }, [attach, channelId, privateInvitationId]));
   const [messages, setMessages] = useState<ChatMsg[]>(isDemo ? SEED_CHAT : []);
   const [inputText, setInputText] = useState("");
-  const [joined, setJoined] = useState(false);
   const [likeCount, setLikeCount] = useState(Math.floor(Math.random() * 500) + 50);
   const [showGiftPicker, setShowGiftPicker] = useState(false);
   const giftPresentation = useRef(createGiftPresentation());
@@ -234,11 +195,8 @@ export default function StreamScreen() {
   const spendMutation = useSpendCoins();
   const admitToStream = useAdmitToStream();
   const sendChatMutation = useSendChatMessage();
-  const engineRef = useRef<any>(null);
-  const primaryRtcChannelRef = useRef("");
   const partyWindowTouchRef = useRef(false);
   const admissionKeyRef = useRef(Crypto.randomUUID());
-  const streamEndedRef = useRef(false);
   const listRef = useRef<FlatList>(null);
 
   // Slide animation for swipe transitions
@@ -273,9 +231,9 @@ export default function StreamScreen() {
   // Demo streams have no persisted stream record. Every live channel waits for
   // its server details so a Premium requirement cannot be bypassed.
   const streamDetailsLoaded = isDemo || !!stream;
-  const hasAdmission = admitted || stream?.viewerAdmitted === true;
-  const premiumGift = usePremiumGiftRequest(channelId ?? "", requiresAdmission && !isPrivateStream && !isDemo, user?.uid);
-  const accessRestricted = restrictedByEvent || !!stream?.viewerRemoved || !!stream?.viewerBlocked || premiumGift.removed || premiumGift.expired;
+  const hasAdmission = admitted || (playback.channelId === channelId && playback.session?.admitted) || stream?.viewerAdmitted === true;
+  const premiumGift = playback.premiumGift;
+  const accessRestricted = (playback.channelId === channelId && playback.accessRestricted) || restrictedByEvent || !!stream?.viewerRemoved || !!stream?.viewerBlocked || premiumGift.removed || premiumGift.expired;
   useEffect(() => { setRestrictedByEvent(false); }, [channelId]);
   useEffect(() => {
     if (stream) setRestrictedByEvent(!!stream.viewerRemoved || !!stream.viewerBlocked);
@@ -292,7 +250,6 @@ export default function StreamScreen() {
   );
 
   useEffect(() => {
-    streamEndedRef.current = false;
     slideAnim.setValue(0);
     overlaySlideAnim.setValue(0);
     setOverlaysHidden(false);
@@ -307,21 +264,9 @@ export default function StreamScreen() {
   useEffect(() => {
     if (!isPrivateStream || !privateInvitationData?.invitation) return;
     if (privateInvitationData.invitation.status !== "active") {
-      streamEndedRef.current = true;
       setStreamEnded(true);
     }
   }, [isPrivateStream, privateInvitationData]);
-
-  useFocusEffect(useCallback(() => {
-    if (!channelId || isDemo || !user?.uid || !canEnterStream) return;
-    const refresh = () => void updateStreamPresence(channelId, { action: "join" }).catch(() => {});
-    refresh();
-    const timer = setInterval(refresh, 15000);
-    return () => {
-      clearInterval(timer);
-      void updateStreamPresence(channelId, { action: "leave" }).catch(() => {});
-    };
-  }, [channelId, isDemo, user?.uid, canEnterStream]));
 
   // Poll real chat for non-demo streams
   const { data: chatPollData } = useGetStreamChat(channelId ?? "", undefined, {
@@ -353,11 +298,11 @@ export default function StreamScreen() {
 
   const hostUid = stream?.hostUid ?? hostUidFromChannel;
   const isOwnStream = !!user?.uid && user.uid === hostUid;
-  const partyState = useLiveParty(channelId ?? "", isNative && !isPrivateStream && !isDemo && canEnterStream && !streamEnded);
+  const partyState = playback.partyState;
   const party = partyState.party;
   const vsActive = battleUsesSplitLayout(party?.battle?.status === "active" && (party.battle.endsAt ?? 0) > partyState.now);
   const vsChatHeight = partyLayout(SCREEN_W, SCREEN_H, insets.top, insets.bottom).chatHeight;
-  const partyMedia = usePartyMedia(engineRef, channelId ?? "", party, isNative && joined && canEnterStream && !streamEnded, false);
+  const partyMedia = playback.partyMedia;
   const partyViewerCount = party?.status === "active" ? party.viewerCount : stream?.viewerCount;
   const [giftRecipientUid, setGiftRecipientUid] = useState<number | undefined>(undefined);
   useEffect(() => { setGiftRecipientUid(hostUid ?? undefined); }, [hostUid, party?.id]);
@@ -440,8 +385,6 @@ export default function StreamScreen() {
   }, [backgroundImageUrl, nextStream?.hostBackgroundImageUrl, prevStream?.hostBackgroundImageUrl]);
 
 
-  const generateToken = useGenerateAgoraToken();
-  const updateViewers = useUpdateViewerCount();
 
   const confirmAdmission = async () => {
     if (!channelId || admitted) return;
@@ -462,6 +405,7 @@ export default function StreamScreen() {
         );
       }
       setAdmitted(true);
+      playback.admit(channelId);
       void streamEarningsQuery.refetch();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
@@ -559,8 +503,7 @@ export default function StreamScreen() {
             void queryClient.invalidateQueries({ queryKey: premiumGiftRequestKey(channelId ?? "") });
             void queryClient.invalidateQueries({ queryKey: getGetStreamQueryKey(channelId ?? "") });
           } else if (msg.type === "stream_ended") {
-            streamEndedRef.current = true;
-            setStreamEnded(true);
+                  setStreamEnded(true);
           } else if (msg.type === "earnings" && typeof msg.coins === "number") {
             setRealtimeCoins(previous => Math.max(previous ?? 0, msg.coins!));
           } else if (msg.type === "gift" && msg.giftName) {
@@ -572,21 +515,9 @@ export default function StreamScreen() {
     },
   });
 
-  // Countdown + auto-navigate when stream ends
   useEffect(() => {
-    if (!streamEnded || isDemo) return;
-    const engine = engineRef.current;
-    engineRef.current = null;
-    try { engine?.leaveChannel?.(); } catch (error) {
-      console.warn("[Agora viewer] leave-on-end error:", error);
-    }
-    try { engine?.release?.(); } catch (error) {
-      console.warn("[Agora viewer] release-on-end error:", error);
-    }
-    setJoined(false);
-    setRemoteUid(null);
-    setRemoteVideoReady(false);
-  }, [streamEnded, isDemo]);
+    if (playback.channelId === channelId && playback.ended) setStreamEnded(true);
+  }, [channelId, playback.channelId, playback.ended]);
 
   useEffect(() => {
     if (!streamEnded) return;
@@ -594,198 +525,6 @@ export default function StreamScreen() {
     const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
     return () => clearTimeout(t);
   }, [streamEnded, countdown, router]);
-
-  // Join Agora channel on native
-  useEffect(() => {
-    // Access loss must discard public-channel rendering state before admission.
-    setJoined(false);
-    setRemoteUid(null);
-    setRemoteVideoReady(false);
-    primaryRtcChannelRef.current = "";
-    if (!channelId || !isNative || !canEnterStream) return;
-    let didUnmount = false;
-    let engine: any = null;
-    const setupIsCancelled = () => didUnmount || streamEndedRef.current;
-    const releaseSetupEngine = () => {
-      // Agora returns a singleton wrapper. Clear this attempt's handle during
-      // cleanup so its late token response cannot release a newer connection.
-      const ownedEngine = engine;
-      engine = null;
-      if (!ownedEngine || engineRef.current !== ownedEngine) return;
-      engineRef.current = null;
-      try { ownedEngine.leaveChannel?.(); } catch (_error) {}
-      try { ownedEngine.release?.(); } catch (_error) {}
-    };
-    const setup = async () => {
-      try {
-        if (setupIsCancelled()) return;
-        setAgoraError(null);
-        engine = createEngine();
-        if (!engine) throw new Error("This development build does not include the Agora video module.");
-        engineRef.current = engine;
-        const appId = process.env["EXPO_PUBLIC_AGORA_APP_ID"] ?? "";
-        if (!appId) throw new Error("Agora App ID is missing.");
-        const initializeResult = engine.initialize({
-          appId,
-          channelProfile: ChannelProfileType.ChannelProfileLiveBroadcasting,
-        });
-        if (initializeResult < 0) throw new Error(`Agora initialization failed (${initializeResult}).`);
-        const videoResult = engine.enableVideo();
-        const audioResult = engine.enableAudio();
-        if (videoResult < 0 || audioResult < 0) {
-          throw new Error(`Agora media setup failed (${videoResult}, ${audioResult}).`);
-        }
-        engine.registerEventHandler({
-          onError: (err: number, msg: string) => {
-            console.warn("[Agora viewer] onError:", err, msg);
-            if (!didUnmount) setAgoraError(`Live video error ${err}: ${msg || "Unknown Agora error"}`);
-          },
-          onJoinChannelSuccess: (connection: any, elapsed: number) => {
-            if (connection?.channelId !== primaryRtcChannelRef.current) return;
-            console.log("[Agora viewer] joined:", connection?.channelId, elapsed);
-            if (!didUnmount) {
-              setJoined(true);
-              setAgoraError(null);
-            }
-          },
-          onConnectionStateChanged: (connection: any, state: number, reason: number) => {
-            if (connection?.channelId !== primaryRtcChannelRef.current) return;
-            console.log(
-              "[Agora viewer] connectionState channel:",
-              connection?.channelId,
-              "state:",
-              state,
-              "reason:",
-              reason,
-            );
-            if (!didUnmount && reason === 3) { // Agora ConnectionChangedBannedByServer
-              setRestrictedByEvent(true);
-              void queryClient.invalidateQueries({ queryKey: getGetStreamQueryKey(channelId ?? "") });
-              return;
-            }
-            if (!didUnmount && state === 5) {
-              setAgoraError(`Could not connect to the live stream (reason ${reason}).`);
-            }
-          },
-          onUserJoined: (_connection: any, uid: number, elapsed: number) => {
-            if (_connection?.channelId !== primaryRtcChannelRef.current) return;
-            console.log("[Agora viewer] onUserJoined uid:", uid, "elapsed:", elapsed);
-            if (!didUnmount) setRemoteUid(uid);
-          },
-          onRemoteVideoStateChanged: (
-            _connection: any,
-            uid: number,
-            state: number,
-            reason: number,
-            elapsed: number,
-          ) => {
-            if (_connection?.channelId !== primaryRtcChannelRef.current) return;
-            console.log(
-              "[Agora viewer] remoteVideoState uid:",
-              uid,
-              "state:",
-              state,
-              "reason:",
-              reason,
-              "elapsed:",
-              elapsed,
-            );
-            if (didUnmount) return;
-            setRemoteUid(uid);
-            if (state === 2) {
-              setRemoteVideoReady(true);
-              setAgoraError(null);
-            } else if (state === 0 || state === 4) {
-              setRemoteVideoReady(false);
-              if (state === 4) {
-                setAgoraError(`The host video could not be decoded (reason ${reason}).`);
-              }
-            }
-          },
-          onFirstRemoteVideoFrame: (
-            _connection: any,
-            uid: number,
-            width: number,
-            height: number,
-            elapsed: number,
-          ) => {
-            if (_connection?.channelId !== primaryRtcChannelRef.current) return;
-            console.log(
-              "[Agora viewer] firstRemoteVideoFrame uid:",
-              uid,
-              "size:",
-              `${width}x${height}`,
-              "elapsed:",
-              elapsed,
-            );
-            if (!didUnmount) {
-              setRemoteUid(uid);
-              setRemoteVideoReady(true);
-              setAgoraError(null);
-            }
-          },
-          onUserOffline: (_conn: any, uid: number, reason: number) => {
-            if (_conn?.channelId !== primaryRtcChannelRef.current) return;
-            console.log("[Agora viewer] onUserOffline uid:", uid, "reason:", reason);
-            if (!didUnmount) {
-              setRemoteUid(null);
-              setRemoteVideoReady(false);
-            }
-          },
-        });
-        const tokenData = await generateToken.mutateAsync({
-          data: { channelName: channelId, uid: user?.uid ?? 0, role: "audience" },
-        });
-        if (setupIsCancelled() || engineRef.current !== engine) {
-          releaseSetupEngine();
-          return;
-        }
-        primaryRtcChannelRef.current = tokenData.channelName;
-        const joinResult = engine.joinChannel(tokenData.token, tokenData.channelName, user?.uid ?? 0, {
-          clientRoleType: ClientRoleType.ClientRoleAudience,
-          autoSubscribeAudio: true,
-          autoSubscribeVideo: true,
-        });
-        console.log("[Agora viewer] joinChannel result:", joinResult, "channel:", channelId);
-        if (joinResult < 0) throw new Error(`Could not join the live stream (${joinResult}).`);
-        // Explicitly unmute remote streams — Agora v4 can default to muted
-        const videoUnmuteResult = engine.muteAllRemoteVideoStreams(false);
-        const audioUnmuteResult = engine.muteAllRemoteAudioStreams(false);
-        console.log(
-          "[Agora viewer] remote unmute results video:",
-          videoUnmuteResult,
-          "audio:",
-          audioUnmuteResult,
-        );
-        console.log("[Agora viewer] joined and unmuted remote streams");
-        updateViewers.mutate({ channelId, data: { action: "join" } });
-      } catch (e) {
-        console.warn("[Agora viewer] setup error:", e);
-        releaseSetupEngine();
-        if (!setupIsCancelled()) {
-          setAgoraError(e instanceof Error ? e.message : "Could not start live video.");
-        }
-      }
-    };
-
-    setup();
-    return () => {
-      didUnmount = true;
-      releaseSetupEngine();
-      try { updateViewers.mutate({ channelId, data: { action: "leave" } }); } catch (_e) {}
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channelId, canEnterStream, stream?.rtcChannelName]);
-
-  // Once joined, pre-set the remote uid from the known host uid so the
-  // RtcTextureView mounts immediately — don't wait for onUserPublished
-  // (which can fire before React has a chance to mount the view).
-  useEffect(() => {
-    if (joined && hostUid != null && remoteUid === null) {
-      console.log("[Agora viewer] pre-setting remoteUid from hostUid:", hostUid);
-      setRemoteUid(hostUid);
-    }
-  }, [joined, hostUid, remoteUid]);
 
   const navigateToStream = (targetChannelId: string, direction: "up" | "down") => {
     if (isNavigatingRef.current) return;
@@ -893,11 +632,31 @@ export default function StreamScreen() {
     }
   };
 
+  const leaveViewer = useCallback(() => {
+    Keyboard.dismiss();
+    if (canEnterStream && !streamEnded && !isTransitioning) playback.minimize(channelId);
+    if (router.canGoBack()) router.back();
+    else router.replace("/(tabs)");
+  }, [canEnterStream, streamEnded, isTransitioning, playback.minimize, channelId, router]);
+  useFocusEffect(useCallback(() => {
+    const back = BackHandler.addEventListener("hardwareBackPress", () => { leaveViewer(); return true; });
+    return () => back.remove();
+  }, [leaveViewer]));
+  const openMessages = () => {
+    Keyboard.dismiss();
+    const floating = canEnterStream && !streamEnded && playback.minimize(channelId);
+    const destination = { pathname: "/dm/[peerId]" as const, params: { peerId: String(hostUid ?? ""), peerName: stream?.hostName ?? "" } };
+    // The floating session owns playback now; do not leave a hidden viewer route
+    // behind the DM that would reopen a stream after the user closes its PiP.
+    if (floating) router.replace(destination);
+    else router.push(destination);
+  };
+
   const topPad    = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = keyboardVisible ? 0 : Platform.OS === "web" ? 34 : insets.bottom;
 
   const VideoView = RtcSurfaceViewComponent;
-  const showNativeVideo = isNative && joined && remoteUid !== null && VideoView;
+  const showNativeVideo = !playback.minimized && playback.channelId === channelId && isNative && joined && remoteUid !== null && VideoView;
 
   if (accessRestricted) {
     return <View style={[styles.endedScreen, { padding: 24 }]}>
@@ -937,7 +696,7 @@ export default function StreamScreen() {
       automaticOffset
     >
       {/* Full-screen video area */}
-      <PartyStage channelId={channelId ?? ""} mainName={stream?.hostName ?? "Host"} party={party} now={partyState.now} media={partyMedia} onWindowInteraction={active => { partyWindowTouchRef.current = active; }} onPartnerDoubleTap={target => navigateToStream(target, "up")} main={<>
+      <PartyStage channelId={channelId ?? ""} mainName={stream?.hostName ?? "Host"} party={playback.minimized ? null : party} now={partyState.now} media={partyMedia} onWindowInteraction={active => { partyWindowTouchRef.current = active; }} onPartnerDoubleTap={target => navigateToStream(target, "up")} main={<>
         {!canEnterStream ? (
           <View style={styles.admissionBlocked}>
             <StreamBackdrop imageUrl={backgroundImageUrl} />
@@ -998,7 +757,7 @@ export default function StreamScreen() {
               accessibilityRole="button"
               accessibilityLabel={t("Exit Live")}
               style={styles.exitButton}
-              onPress={() => router.back()}
+              onPress={leaveViewer}
               activeOpacity={0.75}
             >
               <Ionicons name="chevron-back" size={25} color="#FFF" />
@@ -1095,7 +854,7 @@ export default function StreamScreen() {
             <TouchableOpacity
               style={[styles.followBtn, isFollowing && styles.followBtnActive]}
               onPress={isFollowing
-                ? () => router.push({ pathname: "/dm/[peerId]", params: { peerId: String(hostUid ?? ""), peerName: stream?.hostName ?? "" } })
+                ? openMessages
                 : toggleFollow
               }
               activeOpacity={0.75}
@@ -1302,7 +1061,9 @@ export default function StreamScreen() {
                 activeOpacity={0.7}
                 onPress={() => {
                   setShowKebabMenu(false);
-                  router.back();
+                  playback.close();
+                  if (router.canGoBack()) router.back();
+                  else router.replace("/(tabs)");
                 }}
               >
                 <Ionicons name="exit-outline" size={20} color="#FFF" />
@@ -1366,10 +1127,6 @@ const styles = StyleSheet.create({
   admissionConfirmText: { color: "#111118", fontSize: 14, fontFamily: "Inter_700Bold" },
   admissionCancel: { paddingVertical: 12, paddingHorizontal: 20, marginTop: 3 },
   admissionCancelText: { color: "rgba(255,255,255,0.62)", fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  videoOverlay: {
-    backgroundColor: "transparent",
-    opacity: 0.4,
-  },
   nativeVideoStatus: {
     position: "absolute",
     top: 0,
@@ -1388,18 +1145,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     lineHeight: 21,
     textAlign: "center",
-  },
-  videoCenter: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  videoInitials: {
-    fontSize: 72,
-    fontWeight: "800",
-    color: "rgba(255,255,255,0.2)",
-    fontFamily: "Inter_700Bold",
-    letterSpacing: 4,
   },
   overlay: {
     flex: 1,

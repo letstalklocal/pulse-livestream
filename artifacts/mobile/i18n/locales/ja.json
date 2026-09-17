@@ -862,5 +862,12 @@
   "Activities": "アクティビティ",
   "Objects": "物",
   "Symbols": "記号",
-  "Flags": "旗"
+  "Flags": "旗",
+  "Close picture in picture": "ピクチャ・イン・ピクチャを閉じる",
+  "Could not save this setting. Please try again.": "この設定を保存できませんでした。もう一度お試しください。",
+  "Keep watching a live while browsing the app or opening messages.": "アプリ内の閲覧中やメッセージを開いている間も live の視聴を続けます。",
+  "Picture in picture": "ピクチャ・イン・ピクチャ",
+  "Picture in picture settings": "ピクチャ・イン・ピクチャ設定",
+  "Return to live": "live に戻る",
+  "Tap to change size and show controls.": "タップしてサイズを変更し、操作ボタンを表示します。"
 }

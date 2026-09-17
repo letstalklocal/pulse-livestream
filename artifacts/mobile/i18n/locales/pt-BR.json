@@ -862,5 +862,12 @@
   "Activities": "Atividades",
   "Objects": "Objetos",
   "Symbols": "Símbolos",
-  "Flags": "Bandeiras"
+  "Flags": "Bandeiras",
+  "Close picture in picture": "Fechar picture-in-picture",
+  "Could not save this setting. Please try again.": "Não foi possível salvar esta configuração. Tente novamente.",
+  "Keep watching a live while browsing the app or opening messages.": "Continue assistindo a um live enquanto navega pelo app ou abre mensagens.",
+  "Picture in picture": "Picture-in-picture",
+  "Picture in picture settings": "Configurações de picture-in-picture",
+  "Return to live": "Voltar ao live",
+  "Tap to change size and show controls.": "Toque para mudar o tamanho e mostrar os controles."
 }

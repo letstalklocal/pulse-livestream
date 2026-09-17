@@ -1,3 +1,5 @@
+import { LivePlaybackProvider } from "@/context/LivePlaybackContext";
+import { LivePictureInPicture } from "@/components/LivePictureInPicture";
 import { PurchasesProvider } from "@/context/PurchasesContext";
 import { t, useAppLanguage, initializeAppLanguage, refreshPhoneAppLanguage, localizedTextStyle } from "@/i18n";
 import { InAppNotifications } from "@/components/InAppNotifications";
@@ -79,6 +81,7 @@ function RootLayoutNav() {
       <Stack.Screen name="earnings" options={{ headerShown: false }} />
       <Stack.Screen name="subscriptions" options={{ headerShown: false }} />
       <Stack.Screen name="coin-store" options={{ headerShown: false }} />
+      <Stack.Screen name="general" options={{ headerShown: false }} />
       <Stack.Screen name="settings" options={{ headerShown: false }} />
       <Stack.Screen name="account" options={{ headerShown: false }} />
       <Stack.Screen name="verification" options={{ headerShown: false }} />
@@ -139,8 +142,11 @@ export default function RootLayout() {
                   <AuthProvider>
                     <PurchasesProvider>
                       <RtmProvider>
-                        <RootLayoutNav />
-                        <InAppNotifications />
+                        <LivePlaybackProvider>
+                          <RootLayoutNav />
+                          <LivePictureInPicture />
+                          <InAppNotifications />
+                        </LivePlaybackProvider>
                       </RtmProvider>
                     </PurchasesProvider>
                   </AuthProvider>

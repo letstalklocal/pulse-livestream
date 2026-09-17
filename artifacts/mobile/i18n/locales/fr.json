@@ -862,5 +862,12 @@
   "Activities": "Activités",
   "Objects": "Objets",
   "Symbols": "Symboles",
-  "Flags": "Drapeaux"
+  "Flags": "Drapeaux",
+  "Close picture in picture": "Fermer l’image dans l’image",
+  "Could not save this setting. Please try again.": "Impossible d’enregistrer ce réglage. Réessayez.",
+  "Keep watching a live while browsing the app or opening messages.": "Continuez à regarder un live en parcourant l’app ou en ouvrant vos messages.",
+  "Picture in picture": "Image dans l’image",
+  "Picture in picture settings": "Réglages de l’image dans l’image",
+  "Return to live": "Revenir au live",
+  "Tap to change size and show controls.": "Touchez pour changer la taille et afficher les commandes."
 }

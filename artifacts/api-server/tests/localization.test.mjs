@@ -67,8 +67,8 @@ try {
    // Approved Discover username-search button and route; preserve all prior controls.
    if(file.endsWith('/(tabs)/index.tsx')&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&p.initializer?.text==='discover-user-search'))return;
    if(file.endsWith('/app/_layout.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='search-users')return;
-   // Approved additive purchase routes; continue comparing every prior route.
-   if(file.endsWith('/app/_layout.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&['coin-store','subscriptions'].includes(n.initializer?.text))return;
+   // Approved additive purchase/General routes; continue comparing every prior route.
+   if(file.endsWith('/app/_layout.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&['coin-store','subscriptions','general'].includes(n.initializer?.text))return;
    // The explicitly registered verification route removes Expo's default header, as approved.
    if(file.endsWith('/app/_layout.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='verification')return;
    if(file.endsWith('/app/verification.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='chevron-back')return;

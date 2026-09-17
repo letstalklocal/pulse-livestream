@@ -862,5 +862,12 @@
   "Activities": "Aktivitas",
   "Objects": "Benda",
   "Symbols": "Simbol",
-  "Flags": "Bendera"
+  "Flags": "Bendera",
+  "Close picture in picture": "Tutup gambar dalam gambar",
+  "Could not save this setting. Please try again.": "Pengaturan ini tidak dapat disimpan. Silakan coba lagi.",
+  "Keep watching a live while browsing the app or opening messages.": "Terus tonton live sambil menjelajahi aplikasi atau membuka pesan.",
+  "Picture in picture": "Gambar dalam gambar",
+  "Picture in picture settings": "Pengaturan gambar dalam gambar",
+  "Return to live": "Kembali ke live",
+  "Tap to change size and show controls.": "Ketuk untuk mengubah ukuran dan menampilkan kontrol."
 }

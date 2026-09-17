@@ -862,5 +862,12 @@
   "Activities": "活动",
   "Objects": "物品",
   "Symbols": "符号",
-  "Flags": "旗帜"
+  "Flags": "旗帜",
+  "Close picture in picture": "关闭画中画",
+  "Could not save this setting. Please try again.": "无法保存此设置。请重试。",
+  "Keep watching a live while browsing the app or opening messages.": "浏览应用或打开消息时继续观看 live。",
+  "Picture in picture": "画中画",
+  "Picture in picture settings": "画中画设置",
+  "Return to live": "返回 live",
+  "Tap to change size and show controls.": "轻点可调整大小并显示控件。"
 }

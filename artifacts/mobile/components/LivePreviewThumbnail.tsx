@@ -1,3 +1,4 @@
+import { useLivePlayback } from "@/context/LivePlaybackContext";
 import React, { useEffect, useRef, useState } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { useGenerateAgoraToken } from "@workspace/api-client-react";
@@ -24,6 +25,7 @@ interface Props {
 }
 
 export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: Props) {
+  const { previewsBlocked } = useLivePlayback();
   const [joined, setJoined] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
   const [remoteUid, setRemoteUid] = useState<number | null>(null);
@@ -37,7 +39,7 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
   const isNative = Platform.OS !== "web";
 
   useEffect(() => {
-    if (!isNative || channelId.endsWith("-demo") || !isVisible || isBroadcasting()) {
+    if (!isNative || channelId.endsWith("-demo") || !isVisible || previewsBlocked || isBroadcasting()) {
       setJoined(false);
       setVideoReady(false);
       setRemoteUid(null);
@@ -189,7 +191,7 @@ export function LivePreviewThumbnail({ channelId, hostUid, isVisible = false }: 
 
     return cleanupPreview;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channelId, isVisible]);
+  }, [channelId, isVisible, previewsBlocked]);
 
   if (!isNative || !VideoView || !joined || remoteUid === null) return null;
 
