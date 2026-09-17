@@ -1,3 +1,4 @@
+import reactionPreferencesRouter from "./reaction-preferences";
 import purchasesRouter from "./purchases";
 import adminRouter from "./admin";
 import userSearchRouter from "./userSearch";
@@ -34,6 +35,7 @@ router.use(verificationRouter);
 router.use(countryLocationRouter);
 router.use(privacyRouter);
 router.use(messageSettingsRouter);
+router.use(reactionPreferencesRouter);
 router.use(notificationsRouter);
 router.use(accountRouter);
 router.use(partiesRouter);

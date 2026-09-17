@@ -1,3 +1,6 @@
+import { ReactionFavoritesChooser } from "@/components/ReactionFavoritesChooser";
+import { useReactionFavorites } from "@/hooks/useReactionFavorites";
+import { LiveReactions } from "@/components/LiveReactions";
 import { PremiumGiftPrompt } from "@/components/PremiumGiftPrompt";
 import { usePremiumGiftRequest, premiumGiftRequestKey } from "@/hooks/usePremiumGiftRequest";
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
@@ -205,6 +208,16 @@ export default function StreamScreen() {
   const [showReport, setShowReport] = useState(false);
   const [restrictedByEvent, setRestrictedByEvent] = useState(false);
   const [showKebabMenu, setShowKebabMenu] = useState(false);
+  const [showReactionChooser, setShowReactionChooser] = useState(false);
+  const reactionFavorites = useReactionFavorites();
+  const [reactionEmoji, setReactionEmoji] = useState("❤️");
+  const closeKebabMenu = () => {
+    if (reactionFavorites.save.isPending) return;
+    if (showReactionChooser) Keyboard.dismiss();
+    setShowReactionChooser(false);
+    setShowKebabMenu(false);
+  };
+  useEffect(() => { setReactionEmoji("❤️"); setShowReactionChooser(false); setShowKebabMenu(false); }, [channelId, reactionFavorites.accountId]);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [streamEnded, setStreamEnded] = useState(false);
   const [countdown, setCountdown] = useState(10);
@@ -1116,6 +1129,11 @@ export default function StreamScreen() {
             <Ionicons name="ellipsis-vertical" size={24} color="#FFF" />
           </TouchableOpacity>
         </View>
+        {viewerFocused && canEnterStream && !streamEnded ? (
+          <View pointerEvents="box-none" style={{ position: "absolute", right: 8, bottom: bottomPad + 58, display: keyboardVisible ? "none" : "flex" }}>
+            <LiveReactions key={channelId} channelId={channelId ?? ""} canSend selectedEmoji={reactionEmoji} />
+          </View>
+        ) : null}
       </Animated.View>
     </KeyboardAvoidingView>
     </Animated.View>
@@ -1233,12 +1251,14 @@ export default function StreamScreen() {
       transparent
       visible={showKebabMenu}
       animationType="fade"
-      onRequestClose={() => setShowKebabMenu(false)}
+      onRequestClose={closeKebabMenu}
     >
-      <TouchableWithoutFeedback onPress={() => setShowKebabMenu(false)}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      <TouchableWithoutFeedback onPress={closeKebabMenu}>
         <View style={[styles.kebabBackdrop, Platform.OS === "android" && { paddingBottom: insets.bottom + 24 }]}>
           <TouchableWithoutFeedback>
             <View style={styles.kebabMenu}>
+              {showReactionChooser ? <ReactionFavoritesChooser key={reactionFavorites.accountId ?? "guest"} preferences={reactionFavorites} selected={reactionEmoji} onSaved={(emojis, activeEmoji) => { setReactionEmoji(activeEmoji && emojis.includes(activeEmoji) ? activeEmoji : emojis[0]); closeKebabMenu(); }} onCancel={() => { Keyboard.dismiss(); setShowReactionChooser(false); }} onChoose={emoji => { setReactionEmoji(emoji); closeKebabMenu(); }} /> : <>
               <TouchableOpacity
                 style={styles.kebabItem}
                 activeOpacity={0.7}
@@ -1272,6 +1292,11 @@ export default function StreamScreen() {
                 <Text style={[localizedTextStyle(), styles.kebabItemText]}>{t("Share")}</Text>
               </TouchableOpacity>
               <View style={styles.kebabDivider} />
+              <TouchableOpacity testID="viewer-choose-reaction" style={styles.kebabItem} activeOpacity={0.7} onPress={() => setShowReactionChooser(true)}>
+                <Text style={{ fontSize: 20 }}>{reactionEmoji}</Text>
+                <Text style={[localizedTextStyle(), styles.kebabItemText]}>{t("Change emoji")}</Text>
+              </TouchableOpacity>
+              <View style={styles.kebabDivider} />
               <TouchableOpacity
                 style={styles.kebabItem}
                 activeOpacity={0.7}
@@ -1283,10 +1308,12 @@ export default function StreamScreen() {
                 <Ionicons name="exit-outline" size={20} color="#FFF" />
                 <Text style={[localizedTextStyle(), styles.kebabItemText]}>{t("Exit Live")}</Text>
               </TouchableOpacity>
+              </>}
             </View>
           </TouchableWithoutFeedback>
         </View>
       </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </Modal>
 
     <GiftLeaderboard

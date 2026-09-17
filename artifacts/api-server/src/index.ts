@@ -6,6 +6,7 @@ import { WebSocketServer } from "ws";
 import { verifyToken } from "@clerk/express";
 import app from "./app";
 import { logger } from "./lib/logger";
+import { attachReactionSocket } from "./lib/liveReactions";
 import * as wsHub from "./lib/wsHub";
 import { canAccessChannel } from "./lib/privateChannelAccess";
 
@@ -35,6 +36,7 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: "/api/ws" });
 
 wss.on("connection", (ws) => {
+  attachReactionSocket(ws);
   let subscribedChannel: string | null = null;
 
   ws.on("message", async (data) => {

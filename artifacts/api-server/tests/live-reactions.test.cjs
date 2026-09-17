@@ -1,0 +1,58 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const ts = require('../../mobile/node_modules/typescript');
+const code = ts.transpileModule(fs.readFileSync(require.resolve('../src/lib/liveReactions.ts'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+const table = keys => Object.fromEntries(keys.map(key => [key, key]));
+const usersTable = table(['uid', 'clerkId']);
+const liveStreamSessionsTable = table(['id', 'channelId']);
+const premiumStreamAdmissionsTable = table(['id', 'sessionId', 'viewerUserId']);
+const rows = new Map([[usersTable, [{ uid: 1, clerkId: 'host' }, { uid: 2, clerkId: 'viewer' }]], [liveStreamSessionsTable, []], [premiumStreamAdmissionsTable, []]]);
+let now = 100000, blocked = false, party = false;
+const db = { select() { return { from(t) { return { where(predicate) { return { limit: async n => rows.get(t).filter(predicate).slice(0, n) }; } }; } }; } };
+const emojiApi = {};
+vm.runInNewContext(ts.transpileModule(fs.readFileSync(require.resolve('../src/lib/reactionEmoji.ts'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { exports: emojiApi });
+const api = {};
+vm.runInNewContext(code, { exports: api, Date: class extends Date { static now() { return now; } }, process: { env: {} }, require(name) {
+  if (name === './reactionEmoji') return emojiApi;
+  if (name === '@workspace/db') return { db, usersTable, liveStreamSessionsTable, premiumStreamAdmissionsTable };
+  if (name === 'drizzle-orm') return { eq: (key, value) => row => row[key] === value, and: (...checks) => row => checks.every(check => check(row)) };
+  if (name === '@clerk/express') return { verifyToken: async token => { if (!['host', 'viewer'].includes(token)) throw Error('invalid'); return { sub: token }; } };
+  if (name === './privateChannelAccess') return { canAccessChannel: async () => !blocked };
+  if (name === './liveParty') return { partyChannels: async channel => party ? ['public', 'partner'] : [channel] };
+  throw Error(name);
+} });
+function socket() {
+  const handlers = {}, sent = [];
+  const ws = { readyState: 1, bufferedAmount: 0, on: (event, callback) => { handlers[event] = callback; }, send: payload => sent.push(JSON.parse(payload)), close() { ws.readyState = 3; handlers.close(); } };
+  api.attachReactionSocket(ws);
+  return { ws, sent, message: value => handlers.message(Buffer.from(JSON.stringify(value))), subscribe: (channelId, token) => handlers.message(Buffer.from(JSON.stringify({ type: 'subscribe_reactions', channelId, token }))) };
+}
+(async () => {
+  const sender = socket(), receiver = socket(), elsewhere = socket();
+  await sender.subscribe('pulse-gaming-demo'); await receiver.subscribe('pulse-gaming-demo'); await elsewhere.subscribe('pulse-art-demo');
+  await sender.message({ type: 'reaction', emoji: '🔥', count: 4 });
+  assert.equal(receiver.sent.at(-1).count, 4); assert.equal(sender.sent.length, 1, 'No echo duplicates optimistic animation'); assert.equal(elsewhere.sent.length, 1, 'Channel isolation');
+  await sender.message({ type: 'reaction', emoji: '🔥', count: 4 }); assert.equal(receiver.sent.length, 2, 'Rate limit');
+  now += 220;
+  for (const value of [{ emoji: 'bad', count: 1 }, { emoji: '❤️', count: 9 }, { emoji: '❤️', count: 0 }, { emoji: '❤️', count: 1.5 }]) await sender.message({ type: 'reaction', ...value });
+  assert.equal(receiver.sent.length, 2, 'Payload validation');
+  const unauth = socket(); await unauth.subscribe('public'); assert.equal(unauth.sent.at(-1).type, 'subscription_denied');
+  const session = { id: 1, channelId: 'public', hostUserId: 1, lastHeartbeatAt: new Date(now), requiredGiftId: 'rose', premiumFreeViewerIds: [] };
+  rows.get(liveStreamSessionsTable).push(session);
+  const unpaid = socket(); await unpaid.subscribe('public', 'viewer'); assert.equal(unpaid.sent.at(-1).type, 'subscription_denied');
+  const host = socket(); await host.subscribe('public', 'host'); assert.equal(host.sent.at(-1).type, 'reactions_ready');
+  rows.get(premiumStreamAdmissionsTable).push({ id: 1, sessionId: 1, viewerUserId: 2 });
+  const paid = socket(); await paid.subscribe('public', 'viewer'); assert.equal(paid.sent.at(-1).type, 'reactions_ready');
+  await paid.message({ type: 'reaction', emoji: '👏', count: 8 }); assert.equal(host.sent.at(-1).count, 8);
+  blocked = true; now += 220; await paid.message({ type: 'reaction', emoji: '👏', count: 1 }); assert.equal(paid.ws.readyState, 3, 'Revoked sender disconnects');
+  blocked = false; session.requiredGiftId = null;
+  const publicSender = socket(); await publicSender.subscribe('public', 'viewer');
+  rows.get(liveStreamSessionsTable).push({ ...session, id: 2, channelId: 'partner' });
+  const partner = socket(); await partner.subscribe('partner', 'host'); party = true;
+  await publicSender.message({ type: 'reaction', emoji: '🎉', count: 2 }); assert.equal(partner.sent.at(-1).count, 2, 'Party mirroring');
+  session.endedAt = new Date(); now += 220; await publicSender.message({ type: 'reaction', emoji: '🎉', count: 1 }); assert.equal(publicSender.ws.readyState, 3, 'Ended stream rejected');
+  const unknown = socket(); await unknown.subscribe('made-up-demo'); assert.equal(unknown.sent.at(-1).type, 'subscription_denied');
+  receiver.ws.close(); now += 220; await sender.message({ type: 'reaction', emoji: '❤️', count: 1 }); assert.equal(receiver.sent.length, 2, 'Closed receiver cleanup');
+  console.log('PASS: shared reaction delivery, no echo, isolation, payload/rate limits, authentication, Premium admission, revocation, party mirroring, ended streams and cleanup.');
+})().catch(error => { console.error(error); process.exit(1); });

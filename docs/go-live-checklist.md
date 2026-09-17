@@ -290,6 +290,7 @@ Do not promise dates until owners review scope and dependencies. A6 remains a la
   - Confirm compatibility with the installed SDK and recording path. Evaluate SVGA decoding and synchronized gift audio separately; alpha transparency alone does not establish either capability.
   - Preserve the requirement that animation and sound enter the live media path and saved recording, without post-recording compositing. See [Moments investigation and paused checkpoint](moments-feasibility.md) and [device proof history](moment-capture-proof.md).
   - Owner/target: TBD when this work resumes. Existing Crown/default-chime verification remains tracked in the Moments checkpoint.
+- [ ] **C2. iPhone Moments recording.** **Low priority.** Research and test whether the installed Agora recorder can capture the broadcaster's camera, microphone, and live gift overlay into a saved Moment on a physical iPhone. If the native recorder is not viable on iOS, evaluate an `AVAssetWriter`-based native capture path. This remains a future investigation until an iPhone device test confirms a complete playable clip and upload.
 
 ## Final go-live sign-off
 

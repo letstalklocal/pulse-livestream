@@ -1,8 +1,8 @@
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { FollowingActivity } from "@/components/FollowingActivity";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useRef } from "react";
 import {
   Alert,
   FlatList,
@@ -25,7 +25,13 @@ export default function ChatScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { conversations } = useRtm();
+  const openingPeerRef = useRef<number | null>(null);
+  useFocusEffect(useCallback(() => {
+    openingPeerRef.current = null;
+  }, []));
   const openDm = (peerId: number, peerName: string) => {
+    if (openingPeerRef.current !== null) return;
+    openingPeerRef.current = peerId;
     router.push({ pathname: "/dm/[peerId]", params: { peerId: String(peerId), peerName } });
   };
 

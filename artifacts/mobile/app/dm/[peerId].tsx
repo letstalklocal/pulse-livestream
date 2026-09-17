@@ -11,7 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as Crypto from "expo-crypto";
 import * as Haptics from "expo-haptics";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import {
   Alert,
   AccessibilityInfo,
@@ -58,6 +58,12 @@ export default function DmScreen() {
   }, []);
   const composerBottomInset = keyboardVisible ? 0 : insets.bottom;
   const router = useRouter();
+  const leavingRef = useRef(false);
+  const handleBack = useCallback(() => {
+    if (leavingRef.current) return;
+    leavingRef.current = true;
+    router.back();
+  }, [router]);
   const { user } = useAuth();
   const { getMessages, sendDm, markRead, conversations } = useRtm();
   const queryClient = useQueryClient();
@@ -123,7 +129,7 @@ export default function DmScreen() {
   const needsGift = !establishedChat && peerStatus.data?.needsGift === true;
   const [showGiftPicker, setShowGiftPicker] = useState(false);
   const [showPackPicker, setShowPackPicker] = useState(false);
-  const [showMediaChooser, setShowMediaChooser] = useState(false);
+  const mediaChooserRef = useRef<{ open: () => void }>(null);
   const [showInviteComposer, setShowInviteComposer] = useState(false);
   const [inviteGiftId, setInviteGiftId] = useState<string | null>(null);
   const [listPositioned, setListPositioned] = useState(false);
@@ -324,7 +330,7 @@ export default function DmScreen() {
     >
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <TouchableOpacity onPress={handleBack} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="chevron-back" size={24} color={colors.foreground} />
         </TouchableOpacity>
         <View style={{ width: 40, height: 40 }}>
@@ -470,7 +476,7 @@ export default function DmScreen() {
         <View style={{ width: 84, marginLeft: 8, flexDirection: "row", gap: 8 }}>
         <TouchableOpacity
           style={styles.giftBtn}
-          onPress={() => setShowMediaChooser(true)}
+          onPress={() => mediaChooserRef.current?.open()}
           activeOpacity={0.75}
           testID="chooser"
           accessibilityRole="button"
@@ -504,10 +510,11 @@ export default function DmScreen() {
         </TouchableOpacity>
       </View>}
 
-      <MediaChooser
-        visible={showMediaChooser && !contactBlocked}
+      <ChatMediaChooser
+        key={peerIdStr}
+        ref={mediaChooserRef}
         peerId={peerIdStr}
-        onClose={() => setShowMediaChooser(false)}
+        blocked={contactBlocked}
         onOpenPackPicker={() => setShowPackPicker(true)}
         onMediaSent={() => {
           setTimeout(() => setMessages(getMessages(peerIdStr)), 500);
@@ -579,6 +586,28 @@ export default function DmScreen() {
         </View></View>
       </Modal>
     </KeyboardAvoidingView>
+  );
+}
+
+// Keep visibility local and the native modal outside the animated composer controls.
+function ChatMediaChooser({ ref, peerId, blocked, onOpenPackPicker, onMediaSent }: {
+  ref: React.Ref<{ open: () => void }>;
+  peerId: string;
+  blocked: boolean;
+  onOpenPackPicker: () => void;
+  onMediaSent: () => void;
+}) {
+  const [visible, setVisible] = useState(false);
+  useImperativeHandle(ref, () => ({ open: () => setVisible(true) }), []);
+
+  return (
+    <MediaChooser
+      visible={visible && !blocked}
+      peerId={peerId}
+      onClose={() => setVisible(false)}
+      onOpenPackPicker={onOpenPackPicker}
+      onMediaSent={onMediaSent}
+    />
   );
 }
 

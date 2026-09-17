@@ -1,3 +1,4 @@
+import { LiveReactions } from "@/components/LiveReactions";
 import { Image as CachedImage } from "expo-image";
 import { PremiumGiftRequestSheet } from "@/components/PremiumGiftRequestSheet";
 import { usePremiumGiftRequest, premiumGiftRequestKey } from "@/hooks/usePremiumGiftRequest";
@@ -1328,7 +1329,7 @@ export default function GoLiveScreen() {
               {premiumConnecting ? <ActivityIndicator color="#FFD700" /> : null}
 
               <TouchableOpacity style={styles.endLiveIconBtn} onPress={confirmStopLive} activeOpacity={0.85}>
-                <Ionicons name="stop-circle" size={32} color="#FFF" />
+                <Ionicons name="stop" size={26} color="#FFF" />
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.liveIconBtn} onPress={toggleMute} activeOpacity={0.7}>
@@ -1382,6 +1383,10 @@ export default function GoLiveScreen() {
         {showGiftRequest ? <PremiumGiftRequestSheet channelId={activeChannelId} request={premiumGift.request} remaining={premiumGift.remaining} onClose={() => setShowGiftRequest(false)} /> : null}
         {showLivePremium ? <LivePremiumSheet channelId={activeChannelId} onClose={() => setShowLivePremium(false)} onConfirm={convertLiveToPremium} /> : null}
 
+
+        <View pointerEvents="none" style={{ position: "absolute", right: 16, bottom: bottomPad + 66 }}>
+          <LiveReactions key={activeChannelId} channelId={activeChannelId} />
+        </View>
 
         {/* Floating gift animations — rendered above everything */}
         {floatingGifts.map((fg) => (

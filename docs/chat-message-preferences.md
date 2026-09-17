@@ -90,7 +90,7 @@ Build timing and per-fix verification are tracked in [Apple / TestFlight fixes](
 
 ## Viewer live-stream three-dot menu
 
-- Latest user decision (2026-09-15): order the menu **Report → Translate → Share → Exit Live**.
+- Latest user decision (2026-09-15): order the menu **Report → Translate → Share → Exit Live**. The September 17 reaction-selection addition now inserts **Choose reaction** between Share and Exit Live, preserving the relative order of existing actions.
 - Android viewer menu spacing must include the bottom safe-area inset so the sheet clears the system navigation buttons. Latest user correction (2026-09-15): lower the sheet slightly after the inset fix made it too high; reduce the extra gap from 40 to 24 points (16 points lower), preserving the inset. Use the inset independently of keyboard visibility. Check three-button and gesture navigation in regular and party lives; device verification is pending.
 - The viewer translation label is **Translate**, removing “chat” from the label. Keep its current On/Off indicator, consent, saved preference, availability and error handling.
 - Preserve report-sheet behavior and demo checks, native sharing, menu dismissal and the existing exit action. This menu change does not change host/DM translation controls.
@@ -131,6 +131,10 @@ Build timing and per-fix verification are tracked in [Apple / TestFlight fixes](
 - An extra keyboard/composer gap from bottom safe-area padding.
 - Disabling the input during send and thereby dismissing the keyboard.
 
+## Message-list cache plan — September 17, 2026
+
+The agreed future optimization is a bounded startup cache, not a full message-history cache. Begin filling it when the app opens and syncs messages. Keep the 10 most recent conversations, with approximately 15–20 recent messages per conversation. New messages update the cached conversation and move it to the top; a new message in a conversation outside the cache promotes it and evicts the least-recent cached conversation. Eviction never deletes server history. Conversations beyond the 10-conversation cache continue using the existing server-loading behavior. This plan is documented only; the cache is not implemented yet.
+
 ## Implementation locations
 
 - `artifacts/mobile/app/dm/[peerId].tsx`: composer, keyboard spacing, header, receipts, reply selection.
@@ -170,3 +174,45 @@ The server already treats a persisted qualifying DM Rose transaction or any conv
 For a new conversation without history or cached status, keep the initial access check, bounded to 12 seconds across token acquisition, fetch and body parsing. Failures expose the existing retry control; no automatic query retries extend that initial spinner. Background status errors must not unmount a composer backed by prior status. These changes do not persist a new device unlock flag; the durable evidence remains the existing server ledger/history, loaded again after restart.
 
 Validation: dedicated request checks cover successful access, missing token, hanging token/fetch/body, cancellation, HTTP failure and retry recovery. Device checks remain required: reopen an established chat during a slow status request, type/send without losing focus/draft, pay a Rose and reopen without another charge, keep new-chat gift/block rules enforced, retry failed initial status, and investigate any remaining unresponsive-input touches. General API health success does not establish authenticated DM connectivity or the original stall's cause.
+
+## DM media chooser dismissal — 2026-09-17
+
+- Tapping outside the three-option Share Media sheet closes it. The X has an enlarged touch target. Latest user correction: preserve a fast slide on opening and dismissal; use a 150 ms slide with a matching backdrop fade, respecting Reduced Motion. This supersedes the instant-dismissal implementation.
+- Keep all three media actions and the existing upload-in-progress dismissal guard. Taps inside the sheet must not trigger backdrop dismissal.
+- Device verification pending on iPhone and Android: dismiss using the background and X, reopen repeatedly, tap sheet/header whitespace, exercise all three options, and verify dismissal is blocked while uploading. Check Android Back and composer draft/reply preservation and keyboard spacing after returning to chat. Automated type checks do not verify touch responsiveness or native dismissal timing.
+
+- User reports media-sheet opening is slow on the S10 but fast on the Ultra. Sheet visibility now lives in a separate media chooser controller so opening/closing does not itself rerender the conversation or message list. Preserve the 150 ms slide, three media actions, upload guard and composer behavior. This removes unnecessary render work; the cause and improvement on the S10 remain unconfirmed pending device timing checks (tap-to-appearance versus animation duration), including a long conversation and comparison with the Ultra.
+
+- S10 clarification: after closing, the first touch seems missed; reopening pauses and the sheet shoots too high then settles. The slide now starts after measuring the sheet and uses a fixed pixel distance, instead of changing interpolation distance during animation. Hidden sheet contents unmount, opening/closing guards reset before layout, and the native modal stays outside animated composer controls. These address suspected animation/lifecycle contributors, not a device-confirmed root cause. Device regression: repeatedly close/reopen with a single tap on S10 and Ultra, check no overshoot or invisible touch-blocking overlay, and verify iPhone, Android Back, all three media options and upload protection.
+
+## Live reaction chooser — September 17, 2026
+
+- User moved emoji selection into the viewer three-dot menu and requested any emoji instead of six presets. **Choose reaction** opens an input inside the same modal; use the phone emoji keyboard to select one emoji, then **Use emoji**. Support skin tones, flags, keycaps and combined emojis. Reject plain text or multiple separate emojis. Cancel preserves the selected reaction; selecting does not send one.
+- The bottom-right tap button keeps its existing position and shared floating animation, defaults to ❤️ and displays the selected emoji. Remove the floating selection chevron/preset palette. Preserve chat drafts, keyboard/composer behavior, translation and existing menu actions.
+- Automated checks pass for reaction validation/batching and stream regressions. Phone keyboard appearance, selection replacement, modal avoidance, cancellation/backdrop/Back, bottom-dock restoration, safe areas and chat-draft retention remain unverified on Android and iPhone. The user confirmed the original reactions worked well but did not identify platform/build or confirm this chooser revision.
+
+### Reaction chooser usability and single-selection correction — September 17, 2026
+
+Latest user correction supersedes the input-first chooser: the menu label is **Change emoji**. Open directly to a visible grid headed **Tap an emoji**; tapping selects that emoji and closes the chooser. The current choice is highlighted. **More emojis from keyboard** opens the keyboard input with explicit emoji/globe-key instructions and a **Select** button, retaining support for any single emoji.
+
+The field must always hold one valid emoji. Choosing another replaces the previous one; it must never accumulate multiple emojis and then disable Select. Native keyboard appends are normalized to the latest whole emoji sequence, preserving skin tones, flags and ZWJ families. Plain text or clearing the field leaves the last valid choice selected. Cancel leaves the actual reaction unchanged. Preserve the bottom-right tap button, shared floating reactions, chat draft and all existing stream behavior.
+
+Verification: mobile typecheck and required stream regression suite pass, including direct grid choice, full-sequence replacement, enabled Select and cancellation. All ten catalogs and the focused stream localization checks pass. The unrelated pre-existing DM localization baseline issue remains outside this change. Android/iPhone visual, emoji-keyboard and gesture checks remain pending; no backend change, native build or production deployment was needed for this revision.
+
+### Eight saved reaction favorites — September 17, 2026
+
+The user approved eight account-saved favorites, initially ❤️ 🔥 👏 😂 😍 🎉 👍 🙌, with ❤️ the active reaction on first stream opening. **Change emoji** now shows the eight favorites, plus **Pick favorites** initially / **Change favorites** after saving. Both use the same eight-slot replacement editor and **Done**. Any single emoji remains supported via the existing grid/keyboard chooser; selecting an existing favorite swaps positions. Cancel and failed saves preserve the saved set. Account preferences persist in the database and stay separate across accounts. Keep all existing chat drafts, keyboard anchoring and menu actions.
+
+The user also moved the viewer emoji button 48 points lower, closer to the three-dot control, retaining its touch target and safe-area positioning. Device validation is pending; see the stream regression document for automated results and the full favorites/device checklist.
+
+### Blank emoji entry — September 17, 2026
+
+Latest correction: **More emojis** opens **Change emoji** with a blank, focused field and no placeholder emoji. Select is disabled only until a first emoji is chosen; subsequent keyboard emojis replace it. Saved favorites and Cancel behavior remain intact. The user also requested automatic emoji keyboard mode; this is not supported by the current TextInput configuration, and the choice of an in-app emoji-only picker versus the system keyboard remains pending.
+
+### In-app emoji-only picker — September 17, 2026
+
+User explicitly selected an **in-app emoji-only picker**. This supersedes the system-keyboard path and resolves the previously pending choice. **More emojis** now opens **Change emoji** directly inside the same modal, with a blank selection preview, emoji category tabs and a scrollable emoji grid. There is no text input or letter keyboard; dismiss any existing keyboard on entry. Tapping an emoji replaces the preview with that single sequence. **Select** confirms it; Cancel leaves the prior favorite unchanged. The existing eight-favorite editor still commits through Done, and quick-grid choices remain single-tap selections. Preserve the purple devil quick-grid slot and the smaller/lowered/right-aligned live reaction button.
+
+Bundle the Unicode Emoji 16.0 fully-qualified catalog offline: 3,781 sequences in nine categories, including modifiers, combined emoji and flags. Provenance and Unicode license are in `artifacts/mobile/data/emoji/`. The larger grid uses FlatList row virtualization to avoid mounting the whole catalog at once. Native emoji appearance still depends on the phone's installed fonts.
+
+Automated verification: mobile typecheck and required stream regressions pass. Chooser checks cover no text input, blank initial preview, category changes, single replacement, Select/Cancel, row offsets, unique catalog entries and acceptance of every catalog sequence by client/server validators. Focused localization passes across all ten languages; the unrelated pre-existing full-suite DM baseline issue remains separate. No backend or native changes were needed. Android/iPhone visual/device checks remain pending: category scrolling, older-phone font coverage, full glyph appearance, one-tap emoji selection, safe-area/compact-screen layout, favorites Done/cancel, and existing stream keyboard/dock/navigation/awake cases.

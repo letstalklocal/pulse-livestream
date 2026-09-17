@@ -1,0 +1,45 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const ts = require('typescript');
+const compile = file => ts.transpileModule(fs.readFileSync(require.resolve(file), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React } }).outputText;
+const emoji = {}; vm.runInNewContext(compile('../utils/reactionEmoji.ts'), { exports: emoji });
+for (const [value, expected] of [['❤️🔥','🔥'], ['👍👩🏽‍💻','👩🏽‍💻'], ['🔥🇨🇴','🇨🇴'], ['❤️👨‍👩‍👧‍👦','👨‍👩‍👧‍👦'], ['👍🏽','👍🏽'], ['hello',null]]) assert.equal(emoji.latestReactionEmoji(value), expected);
+const catalog=require('../data/emoji/catalog.json');
+const slots=[]; let cursor=0, chosen=[], cancelled=0;
+const react={ createElement:(type,props,...children)=>({type,props:props??{},children}), Fragment:'Fragment', useMemo(fn){cursor++;return fn();}, useState(initial){const i=cursor++; if(!(i in slots))slots[i]=initial;return [slots[i],v=>slots[i]=v];} };
+const api={};
+vm.runInNewContext(compile('../components/ReactionEmojiChooser.tsx'), { exports:api,require(name){
+ if(name==='react')return react;
+ if(name==='@/data/emoji/catalog.json')return catalog;
+ if(name==='react-native')return {FlatList:'FlatList',Keyboard:{dismiss(){}},useWindowDimensions:()=>({height:800}),Pressable:'Pressable',ScrollView:'ScrollView',Text:'Text',TextInput:'TextInput',View:'View',StyleSheet:{create:x=>x}};
+ if(name==='@/i18n')return {t:x=>x,localizedTextStyle:()=>({})};
+ if(name==='@/utils/reactionEmoji')return emoji;
+ throw Error(name);
+} });
+const render=()=>{cursor=0;return api.ReactionEmojiChooser({selected:'❤️',onChoose:e=>chosen.push(e),onCancel:()=>cancelled++});};
+const nodes=n=>!n||typeof n!=='object'?[]:Array.isArray(n)?n.flatMap(nodes):[n,...n.children.flatMap(nodes)];
+const text=n=>typeof n==='string'?n:Array.isArray(n)?n.map(text).join(''):n?.children?text(n.children):'';
+const button=(tree,label)=>nodes(tree).find(n=>n.type==='Pressable'&&(text(n)===label||n.props.accessibilityLabel===label));
+let tree=render(); assert.equal(nodes(tree).some(n=>n.type==='TextInput'),false,'Opens a visible grid without a keyboard');
+button(tree,'🔥').props.onPress(); assert.equal(chosen.at(-1),'🔥','One tap selects directly');
+button(tree,'More emojis').props.onPress(); tree=render();
+assert.equal(nodes(tree).some(n=>n.type==='TextInput'),false,'Compact picker has no keyboard field');
+const preview=tree=>text(nodes(tree).find(n=>n.props.testID==='reaction-emoji-preview'));
+assert.equal(preview(tree),'','Expanded picker opens blank');
+assert.equal(button(tree,'Select').props.disabled,true,'Select requires a choice');
+function pick(value){
+ const list=nodes(tree).find(n=>n.type==='FlatList'); assert.ok(list.props.data.includes(value));
+ list.props.renderItem({item:value}).props.onPress();tree=render();
+}
+pick('😈');assert.equal(preview(tree),'😈');assert.equal(chosen.length,1,'Preview does not confirm');
+button(tree,'People & Body').props.onPress();tree=render();pick('👩🏽‍💻');assert.equal(preview(tree),'👩🏽‍💻','New choice replaces old one');
+button(tree,'Flags').props.onPress();tree=render();pick('🇨🇴');assert.equal(preview(tree),'🇨🇴');
+assert.equal(nodes(tree).find(n=>n.type==='FlatList').props.getItemLayout(null,9).offset,432,'Virtualized row offsets use row indices');
+button(tree,'Select').props.onPress();assert.equal(chosen.at(-1),'🇨🇴');
+const count=chosen.length;button(tree,'Cancel').props.onPress();assert.equal(cancelled,1);assert.equal(chosen.length,count);
+assert.equal(catalog.length,9);assert.equal(new Set(catalog.flatMap(g=>g.emojis)).size,3781);
+for(const value of catalog.flatMap(g=>g.emojis))assert.ok(emoji.isReactionEmoji(value),`Client accepts catalog emoji ${value}`);
+const server={};vm.runInNewContext(compile('../../api-server/src/lib/reactionEmoji.ts'),{exports:server});
+for(const value of catalog.flatMap(g=>g.emojis))assert.ok(server.isReactionEmoji(value),`Server accepts catalog emoji ${value}`);
+console.log('PASS: emoji-only expansion without text input, blank preview, category navigation, single replacement, confirm/cancel, row virtualization and complete 3,781-emoji client/server compatibility.');

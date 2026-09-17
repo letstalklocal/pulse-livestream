@@ -1,17 +1,25 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { AppState } from "react-native";
 import { useAuth } from "@clerk/expo";
 
 /** Reconnect channel events after network changes and refresh durable data on connect. */
-export function useStreamSocket({ channelId, enabled, onMessage, onConnect }: {
+export function useStreamSocket({ channelId, enabled, onMessage, onConnect, onDisconnect, subscriptionType = "subscribe" }: {
+  subscriptionType?: "subscribe" | "subscribe_reactions";
   channelId: string;
   enabled: boolean;
   onMessage: (event: { data: unknown }) => void;
   onConnect: () => void;
+  onDisconnect?: () => void;
 }) {
+  const liveSocket = useRef<WebSocket | null>(null);
+  const send = useCallback((payload: object) => {
+    const ws = liveSocket.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+    try { ws.send(JSON.stringify(payload)); return true; } catch { return false; }
+  }, []);
   const { getToken } = useAuth();
-  const callbacks = useRef({ getToken, onMessage, onConnect });
-  callbacks.current = { getToken, onMessage, onConnect };
+  const callbacks = useRef({ getToken, onMessage, onConnect, onDisconnect });
+  callbacks.current = { getToken, onMessage, onConnect, onDisconnect };
   useEffect(() => {
     const domain = process.env["EXPO_PUBLIC_DOMAIN"];
     if (!enabled || !channelId || !domain) return;
@@ -30,6 +38,8 @@ export function useStreamSocket({ channelId, enabled, onMessage, onConnect }: {
       clearTimeout(watchdog);
       socket?.close();
       socket = null;
+      liveSocket.current = null;
+      callbacks.current.onDisconnect?.();
       try {
         const token = await callbacks.current.getToken();
         if (disposed || current !== generation) return;
@@ -44,12 +54,13 @@ export function useStreamSocket({ channelId, enabled, onMessage, onConnect }: {
           if (!active()) { ws.close(); return; }
           clearTimeout(watchdog);
           attempts = 0;
-          ws.send(JSON.stringify({ type: "subscribe", channelId, token }));
+          liveSocket.current = ws;
+          ws.send(JSON.stringify({ type: subscriptionType, channelId, token }));
           callbacks.current.onConnect();
         };
         ws.onmessage = event => { if (active()) callbacks.current.onMessage(event); };
         ws.onerror = () => { if (active()) { ws.close(); schedule(); } };
-        ws.onclose = () => { if (active()) { clearTimeout(watchdog); schedule(); } };
+        ws.onclose = () => { if (active()) { liveSocket.current = null; callbacks.current.onDisconnect?.(); clearTimeout(watchdog); schedule(); } };
       } catch {
         if (!disposed && current === generation) schedule();
       }
@@ -68,6 +79,8 @@ export function useStreamSocket({ channelId, enabled, onMessage, onConnect }: {
       clearTimeout(watchdog);
       appState.remove();
       socket?.close();
+      liveSocket.current = null;
     };
-  }, [channelId, enabled]);
+  }, [channelId, enabled, subscriptionType]);
+  return send;
 }

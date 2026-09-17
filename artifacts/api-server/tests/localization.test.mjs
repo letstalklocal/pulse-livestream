@@ -48,6 +48,8 @@ try {
  const signatures=(file,source)=>{
   const a=ts.createSourceFile(file,source,99,true,4),result=[];
   function walk(n){
+   // User-approved additive live reactions; existing stream controls remain compared.
+   if((file.endsWith('/stream/[channelId].tsx')||file.endsWith('/app/go-live.tsx'))&&ts.isJsxSelfClosingElement(n)&&['LiveReactions','ReactionFavoritesChooser'].includes(n.tagName.getText(a)))return;
    // The user approved this additional confirmation control; signup-flow tests cover its behavior.
    if(file.endsWith('/(auth)/sign-up.tsx')&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&p.initializer?.text==='confirm-password-field'))return;
    // Approved two-step signup remounts the scroller to reset its position; form state stays in the screen.
@@ -80,7 +82,7 @@ try {
    if(file.endsWith('/stream/[channelId].tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&['flag-outline','share-outline'].includes(n.initializer?.text))return;
    // User-approved viewer exit button, Premium badge and missing-avatar icon.
    // These additive header controls are separate from localization preservation.
-   if(file.endsWith('/stream/[channelId].tsx')&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&['viewer-exit-live','viewer-premium-badge'].includes(p.initializer?.text)))return;
+   if(file.endsWith('/stream/[channelId].tsx')&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&['viewer-exit-live','viewer-premium-badge','viewer-choose-reaction'].includes(p.initializer?.text)))return;
    if(file.endsWith('/stream/[channelId].tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='person')return;
    if(ts.isJsxAttribute(n)&&stableAttributes.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));
    if(ts.isPropertyAssignment(n)&&stableFields.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));

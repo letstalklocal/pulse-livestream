@@ -1,6 +1,6 @@
 import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, Platform, Alert, TextInput, ActivityIndicator } from 'react-native';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable, Animated, Easing, AccessibilityInfo, Platform, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import * as ImagePicker from 'expo-image-picker';
@@ -25,7 +25,51 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  
+  const slide = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  const closing = useRef(false);
+  const opened = useRef(false);
+  const sheetHeight = useRef(0);
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then(value => { if (active) setReduceMotion(value); });
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => { active = false; subscription.remove(); };
+  }, []);
+
+  useLayoutEffect(() => {
+    closing.current = false;
+    opened.current = false;
+    opacity.setValue(0);
+    return () => {
+      slide.stopAnimation();
+      opacity.stopAnimation();
+    };
+  }, [visible, slide, opacity]);
+
+  const handleSheetLayout = (height: number) => {
+    sheetHeight.current = height;
+    if (!visible || opened.current || closing.current || height <= 0) return;
+    opened.current = true;
+    // Measure first; never change the slide's distance halfway through opening.
+    slide.setValue(height);
+    Animated.parallel([
+      Animated.timing(slide, {
+        toValue: 0,
+        duration: reduceMotion ? 0 : 150,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: reduceMotion ? 0 : 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
   const requestUpload = useRequestMediaPackUpload();
   const sendMediaDm = useSendMediaDm();
   
@@ -125,21 +169,64 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
   };
 
   const handleClose = () => {
-    if (uploading) return;
-    setAsset(null);
-    setError(null);
-    onClose();
+    if (uploading || closing.current) return;
+    closing.current = true;
+    Animated.parallel([
+      Animated.timing(slide, {
+        toValue: sheetHeight.current,
+        duration: reduceMotion ? 0 : 150,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: reduceMotion ? 0 : 150,
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (!finished) return;
+      setAsset(null);
+      setError(null);
+      onClose();
+    });
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <View style={[styles.overlay, { paddingBottom: insets.bottom + (Platform.OS === "android" ? 28 : 0) }]}>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={handleClose}>
+      {visible && <View style={styles.overlay}>
+        <Animated.View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.6)", opacity }]}
+        />
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={handleClose}
+          disabled={uploading}
+          accessibilityRole="button"
+          accessibilityLabel={t("Close")}
+          testID="media-chooser-backdrop"
+        />
+        <Animated.View
+          onLayout={(event) => handleSheetLayout(event.nativeEvent.layout.height)}
+          style={{
+            paddingBottom: insets.bottom + (Platform.OS === "android" ? 28 : 0),
+            opacity,
+            transform: [{ translateY: slide }],
+          }}
+        >
         <View style={[styles.content, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.header}>
             <Text style={[localizedTextStyle(), [styles.title, { color: colors.foreground }]]}>
               {asset ? t("Send Media") : t("Share Media")}
             </Text>
-            <TouchableOpacity onPress={handleClose} disabled={uploading}>
+            <TouchableOpacity
+              onPress={handleClose}
+              disabled={uploading}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={t("Close")}
+              testID="media-chooser-close"
+            >
               <Ionicons name="close" size={24} color={colors.foreground} />
             </TouchableOpacity>
           </View>
@@ -260,7 +347,8 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
             </View>
           )}
         </View>
-      </View>
+        </Animated.View>
+      </View>}
     </Modal>
   );
 }
@@ -268,7 +356,6 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
     justifyContent: "flex-end",
   },
   content: {
