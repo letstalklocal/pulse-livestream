@@ -1,9 +1,9 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db, liveStreamSessionsTable, premiumStreamAdmissionsTable } from "@workspace/db";
 import { authenticatedUser, viewerModeration } from "../lib/streamModeration";
 import { Router } from "express";
 import { requireChannelAccess } from "../lib/privateChannelAccess";
-import { findParty, partyChannels, partyViewerAllowed } from "../lib/liveParty";
+import { findParty, partyChannels, partyStreams, partyViewerAllowed } from "../lib/liveParty";
 
 const router = Router();
 
@@ -38,7 +38,9 @@ router.post("/streams/:channelId/chat", async (req, res) => {
     if (!access.allowed || access.muted) return void res.status(403).json({ error: "You cannot chat in this Party" });
   }
   if (session.requiredGiftId && viewer.uid !== session.hostUserId && !session.premiumFreeViewerIds.includes(viewer.uid)) {
-    const admission = (await db.select().from(premiumStreamAdmissionsTable).where(and(eq(premiumStreamAdmissionsTable.sessionId, session.id), eq(premiumStreamAdmissionsTable.viewerUserId, viewer.uid))).limit(1))[0];
+    const partySessions = party ? (await partyStreams(party)).filter((item): item is NonNullable<typeof item> => !!item) : [];
+    const accessSessionIds = partySessions.length ? partySessions.map((item) => item.id) : [session.id];
+    const admission = (await db.select().from(premiumStreamAdmissionsTable).where(and(inArray(premiumStreamAdmissionsTable.sessionId, accessSessionIds), eq(premiumStreamAdmissionsTable.viewerUserId, viewer.uid))).limit(1))[0];
     if (!admission) return void res.status(403).json({ error: "Enter the Premium stream before chatting" });
   }
   const { text, color } = req.body ?? {};

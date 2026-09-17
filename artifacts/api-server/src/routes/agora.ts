@@ -1,10 +1,11 @@
 import { settlePremiumGiftRequests } from "../lib/premiumGiftRequests";
 import { canAccessChannel } from "../lib/privateChannelAccess";
+import { findParty, partyStreams } from "../lib/liveParty";
 import { viewerModeration } from "../lib/streamModeration";
 import { Router } from "express";
 import { RtcTokenBuilder, RtcRole } from "agora-token";
 import { GenerateAgoraTokenBody } from "@workspace/api-zod";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db, liveStreamSessionsTable, premiumStreamAdmissionsTable, usersTable } from "@workspace/db";
 import { privateInvitationForChannel } from "./private-stream-invitations";
 
@@ -75,10 +76,13 @@ router.post("/agora/token", async (req: any, res): Promise<any> => {
         return;
       }
     } else if (session.requiredGiftId && !(session.premiumFreeViewerIds ?? []).includes(user.uid)) {
+      const party = await findParty(session.channelId);
+      const partySessions = party ? (await partyStreams(party)).filter((item): item is NonNullable<typeof item> => !!item) : [];
+      const accessSessionIds = partySessions.length ? partySessions.map((item) => item.id) : [session.id];
       const admission = (await db.select({ id: premiumStreamAdmissionsTable.id })
         .from(premiumStreamAdmissionsTable)
         .where(and(
-          eq(premiumStreamAdmissionsTable.sessionId, session.id),
+          inArray(premiumStreamAdmissionsTable.sessionId, accessSessionIds),
           eq(premiumStreamAdmissionsTable.viewerUserId, user.uid),
         ))
         .limit(1))[0];

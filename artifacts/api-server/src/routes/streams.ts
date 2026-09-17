@@ -1,7 +1,7 @@
 import { createPremiumGiftRequest, payPremiumGiftRequest, premiumGiftStatus, settlePremiumGiftRequests, PremiumGiftError } from "../lib/premiumGiftRequests";
 import { contactBlocked } from "../lib/userSafety";
 import { viewerModeration } from "../lib/streamModeration";
-import { closeStreamParty, findParty, expireParties } from "../lib/liveParty";
+import { closeStreamParty, findParty, partyStreams, expireParties } from "../lib/liveParty";
 import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
@@ -470,19 +470,27 @@ router.post("/streams/:channelId/premium", async (req, res) => {
     if (!session || session.lastHeartbeatAt.getTime() <= Date.now() - HEARTBEAT_TTL_MS) return { status: 404, error: "Active stream not found" };
     if (session.hostUserId !== host.uid) return { status: 403, error: "Only the host can convert this stream" };
     if (session.isPrivate) return { status: 400, error: "Private streams cannot be converted" };
-    if (await findParty(channelId, tx, true)) return { status: 409, error: "Leave Party before going Premium" };
+    const party = await findParty(channelId, tx, true);
     if (session.requiredGiftId) {
       // A lost response can be retried, but never change the price or invitees twice.
       if (session.requiredGiftId === gift.id && JSON.stringify(session.premiumFreeViewerIds) === JSON.stringify(ids) && session.rtcChannelName) return { session };
       return { status: 409, error: "This stream is already Premium" };
     }
-    const active = new Set(activeViewerIds(channelId));
+    const activeChannels = party ? [party.firstChannelId, party.secondChannelId] : [channelId];
+    const active = new Set(activeChannels.flatMap((partyChannelId) => activeViewerIds(partyChannelId)));
     if (ids.some(id => !active.has(id))) return { status: 409, error: "A selected viewer has left. Refresh the viewer list and try again." };
-    const [updated] = await tx.update(liveStreamSessionsTable).set({
+    const premiumValues = {
       requiredGiftId: gift.id, requiredGiftName: gift.name, requiredGiftEmoji: gift.emoji,
       requiredGiftCoinCost: gift.coinCost, premiumFreeViewerIds: ids,
-      rtcChannelName: `premium-${randomUUID()}`,
-    }).where(eq(liveStreamSessionsTable.id, session.id)).returning();
+    };
+    const partySessions = party ? (await partyStreams(party, tx)).filter((item): item is NonNullable<typeof item> => !!item) : [session];
+    for (const partySession of partySessions) {
+      await tx.update(liveStreamSessionsTable).set({
+        ...premiumValues,
+        rtcChannelName: "premium-" + randomUUID(),
+      }).where(eq(liveStreamSessionsTable.id, partySession.id));
+    }
+    const [updated] = await tx.select().from(liveStreamSessionsTable).where(eq(liveStreamSessionsTable.id, session.id));
     return { session: updated! };
   });
   if (!result.session) return void res.status(result.status!).json({ error: result.error });
@@ -492,6 +500,19 @@ router.post("/streams/:channelId/premium", async (req, res) => {
   updated.peakViewers = previous?.peakViewers ?? 0;
   streams.set(channelId, updated);
   wsHub.pushStreamUpdated(channelId);
+  const partyAfterConversion = await findParty(channelId);
+  if (partyAfterConversion) {
+    const [first, second] = await partyStreams(partyAfterConversion);
+    for (const peer of [first, second]) {
+      if (!peer || peer.channelId === channelId) continue;
+      const previousPeer = streams.get(peer.channelId);
+      const runtimePeer = sessionToRuntime(peer);
+      runtimePeer.viewerCount = previousPeer?.viewerCount ?? 0;
+      runtimePeer.peakViewers = previousPeer?.peakViewers ?? 0;
+      streams.set(peer.channelId, runtimePeer);
+      wsHub.pushStreamUpdated(peer.channelId);
+    }
+  }
   res.json({ stream: await toStreamResponse(updated) });
 });
 
@@ -562,6 +583,9 @@ router.post("/streams/:channelId/admission", async (req, res) => {
     res.status(404).json({ error: "Stream not found" });
     return;
   }
+  const party = await findParty(channelId);
+  const partySessionRows = party ? (await partyStreams(party)).filter((item): item is NonNullable<typeof item> => !!item) : [];
+  const admissionSessions = partySessionRows.length ? partySessionRows : [{ id: stream.sessionId!, channelId: stream.channelId, hostUserId: stream.hostUid }];
   if (!stream.requiredGift || stream.isPrivate) {
     res.status(400).json({ error: "Stream does not require Premium admission" });
     return;
@@ -592,13 +616,12 @@ router.post("/streams/:channelId/admission", async (req, res) => {
     admission = await db.transaction(async (tx) => {
       // Serialize every attempt for this admission, including retries using a
       // different key that would otherwise race the unique admission record.
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${channelId}:${viewer.uid}`}))`);
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${party?.id ?? channelId}:${viewer.uid}`}))`);
 
       const existing = (await tx.select()
         .from(premiumStreamAdmissionsTable)
         .where(and(
-          eq(premiumStreamAdmissionsTable.channelId, channelId),
-          eq(premiumStreamAdmissionsTable.sessionId, stream.sessionId!),
+          inArray(premiumStreamAdmissionsTable.sessionId, admissionSessions.map((item) => item.id)),
           eq(premiumStreamAdmissionsTable.viewerUserId, viewer.uid),
         ))
         .limit(1))[0];
@@ -646,18 +669,20 @@ router.post("/streams/:channelId/admission", async (req, res) => {
       }).returning({ id: coinTransactionsTable.id }))[0];
       if (!transaction) throw new Error("Premium admission ledger transaction was not created");
 
-      await tx.insert(premiumStreamAdmissionsTable).values({
-        sessionId: stream.sessionId!,
-        channelId,
-        viewerUserId: viewer.uid,
-        hostUserId: stream.hostUid,
-        giftId: gift.id,
-        giftName: gift.name,
-        giftEmoji: gift.emoji,
-        amount: gift.coinCost,
-        transactionId: transaction.id,
-        idempotencyKey,
-      });
+      for (const admissionSession of admissionSessions) {
+        await tx.insert(premiumStreamAdmissionsTable).values({
+          sessionId: admissionSession.id,
+          channelId: admissionSession.channelId,
+          viewerUserId: viewer.uid,
+          hostUserId: admissionSession.hostUserId,
+          giftId: gift.id,
+          giftName: gift.name,
+          giftEmoji: gift.emoji,
+          amount: gift.coinCost,
+          transactionId: transaction.id,
+          idempotencyKey: admissionSession.id === stream.sessionId ? idempotencyKey : idempotencyKey + ":" + admissionSession.id,
+        });
+      }
       return { balance: debited[0].balance, charged: true };
     });
   } catch (error) {
@@ -704,10 +729,13 @@ router.get("/streams/:channelId", async (req, res) => {
   if (stream.sessionId) stream.viewerCount = activeViewerIds(stream.channelId).length;
   const viewer = await currentUser(req);
   const moderation = viewer && stream.sessionId ? await viewerModeration(stream.sessionId, stream.hostUid, viewer.uid) : { muted: false, removed: false, blocked: false };
+  const party = await findParty(stream.channelId);
+  const partySessionRows = party ? (await partyStreams(party)).filter((item): item is NonNullable<typeof item> => !!item) : [];
+  const accessSessionIds = partySessionRows.length ? partySessionRows.map((item) => item.id) : [stream.sessionId!];
   const viewerAdmitted = !stream.requiredGift || !!viewer && (
     viewer.uid === stream.hostUid || (stream.premiumFreeViewerIds ?? []).includes(viewer.uid) ||
     !!(await db.select({ id: premiumStreamAdmissionsTable.id }).from(premiumStreamAdmissionsTable)
-      .where(and(eq(premiumStreamAdmissionsTable.sessionId, stream.sessionId!), eq(premiumStreamAdmissionsTable.viewerUserId, viewer.uid))).limit(1))[0]
+      .where(and(inArray(premiumStreamAdmissionsTable.sessionId, accessSessionIds), eq(premiumStreamAdmissionsTable.viewerUserId, viewer.uid))).limit(1))[0]
   );
   res.json({ stream: { ...await toStreamResponse(stream), viewerAdmitted, viewerMuted: moderation.muted, viewerRemoved: moderation.removed, viewerBlocked: moderation.blocked } });
 });

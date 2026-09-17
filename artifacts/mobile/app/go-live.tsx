@@ -367,6 +367,11 @@ export default function GoLiveScreen() {
   };
   const incomingBattleId = party?.battle?.status === "pending" && party.battle.requesterUid !== user?.uid ? party.battle.id : null;
   useEffect(() => { if (incomingPartyId || incomingBattleId) setShowParty(true); }, [incomingPartyId, incomingBattleId]);
+  const partyStatusRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (party?.status === "active" && partyStatusRef.current === "pending") setShowParty(false);
+    partyStatusRef.current = party?.status ?? null;
+  }, [party?.id, party?.status]);
 
   // A converted stream keeps its logical ID, but moves publishing to protected media.
   useEffect(() => {
@@ -1314,7 +1319,7 @@ export default function GoLiveScreen() {
                 <Ionicons name="chatbubble-ellipses" size={26} color="#FFF" />
               </TouchableOpacity>
 
-              {!isPrivateInvite && !party ? (
+              {!isPrivateInvite ? (
                 <TouchableOpacity
                   style={styles.liveIconBtn}
                   disabled={premiumConnecting}
@@ -1358,13 +1363,21 @@ export default function GoLiveScreen() {
                 <Text style={[localizedTextStyle(), { color: "#FFF", fontSize: 16 }]}>{proofBusy ? t("Recording test…") : t("Test live gift capture")}</Text>
               </TouchableOpacity>
             ) : null}
-            {isNative && !isPrivateInvite && !isPremium && !liveStreamData?.stream.requiredGift ? (
+            {isNative && !isPrivateInvite && ((!isPremium && !liveStreamData?.stream.requiredGift) || !!party) ? <>
               <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 }} onPress={() => { setShowLiveMenu(false); setShowParty(true); }} accessibilityLabel={t("Party")}>
                 <Ionicons name="people-outline" size={21} color={party ? "#FF1966" : "#FFF"} />
-                <Text style={[localizedTextStyle(), { color: "#FFF", fontSize: 16, fontFamily: "Inter_500Medium", flex: 1 }]}>{party?.status === "active" ? t("Party / VS") : t("Party")}</Text>
+                <Text style={[localizedTextStyle(), { color: "#FFF", fontSize: 16, fontFamily: "Inter_500Medium", flex: 1 }]}>{t("Party")}</Text>
                 <Ionicons name="chevron-forward" size={17} color="#999" />
               </TouchableOpacity>
-            ) : null}
+              {party?.status === "active" ? <>
+                <View style={{ height: 1, marginHorizontal: 20, backgroundColor: "rgba(255,255,255,0.08)" }} />
+                <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 }} onPress={() => { setShowLiveMenu(false); setShowParty(true); }} accessibilityLabel={t("VS")}>
+                  <Ionicons name="flash-outline" size={21} color="#FF1966" />
+                  <Text style={[localizedTextStyle(), { color: "#FFF", fontSize: 16, fontFamily: "Inter_500Medium", flex: 1 }]}>{t("VS")}</Text>
+                  <Ionicons name="chevron-forward" size={17} color="#999" />
+                </TouchableOpacity>
+              </> : null}
+            </> : null}
             {isNative ? <>
               <View style={{ height: 1, marginHorizontal: 20, backgroundColor: "rgba(255,255,255,0.08)" }} />
               <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 }}

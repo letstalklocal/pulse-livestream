@@ -86,7 +86,19 @@ try {
   await call(moderation, "/streams/:channelId/moderation", "post", b, { viewerUid: v, action: "mute" }, { channelId: cb });
   assert.equal((await post(ca, v, "Muted across rooms")).statusCode, 403);
   await call(moderation, "/streams/:channelId/moderation", "post", b, { viewerUid: v, action: "unmute" }, { channelId: cb });
-  assert.equal((await call(streams, "/streams/:channelId/premium", "post", a, { requiredGiftId: "rose", freeViewerIds: [] }, { channelId: ca })).statusCode, 409);
+  assert.equal((await call(streams, "/streams/:channelId/premium", "post", a, { requiredGiftId: "rose", freeViewerIds: [] }, { channelId: ca })).statusCode, 200);
+  const partyPremium = await pool.query("select channel_id,required_gift_id from live_stream_sessions where channel_id=any($1) order by channel_id", [[ca, cb]]);
+  assert.deepEqual(partyPremium.rows.map(row => row.required_gift_id), ["rose", "rose"]);
+  const premiumKey = randomUUID();
+  const paidToB = await call(streams, "/streams/:channelId/admission", "post", v, { idempotencyKey: premiumKey }, { channelId: cb });
+  assert.equal(paidToB.statusCode, 200);
+  const partyAdmissions = (await pool.query("select channel_id,viewer_user_id from premium_stream_admissions")).rows.filter(row => row.viewer_user_id === v && [ca, cb].includes(row.channel_id));
+  assert.deepEqual(partyAdmissions.map(row => row.channel_id).sort(), [ca, cb].sort());
+  const premiumBalances = (await pool.query("select user_id,balance from coin_balances")).rows;
+  assert.equal(Number(premiumBalances.find(row => row.user_id === b)?.balance ?? 0), 1, "Admission gift credits the viewed host");
+  assert.equal(Number(premiumBalances.find(row => row.user_id === a)?.balance ?? 0), 0, "Admission gift is not split");
+  await action(ca, a, { action: "ready", partyId: invitation.id });
+  await action(cb, b, { action: "ready", partyId: invitation.id });
   assert.equal((await action(ca, v, { action: "battle_request", partyId: invitation.id })).statusCode, 403);
   assert.equal((await action(cc, c, { action: "battle_request", partyId: invitation.id })).statusCode, 409);
   const starts = await Promise.all([
@@ -156,6 +168,7 @@ try {
   await action(cb, b, { action: "leave", partyId: invitation.id });
   assert.equal((await state(ca, a)).body.party, null);
   assert.equal((await state(cb, b)).body.party, null);
+  await pool.query("update live_stream_sessions set required_gift_id=null,required_gift_name=null,required_gift_emoji=null,required_gift_coin_cost=null,premium_free_viewer_ids='[]'::jsonb where channel_id=any($1)", [[ca, cb]]);
   await post(ca, v, "Solo again");
   assert.ok(!(await messages(cb, w)).body.messages.some(m => m.text === "Solo again"));
   assert.equal((await call(parties, "/streams/:channelId/party/media", "get", v, {}, { channelId: ca })).statusCode, 403);
@@ -165,7 +178,7 @@ try {
   assert.equal((await action(cb, b, { action: "accept", partyId: expiring.id })).statusCode, 409);
   assert.equal((await call(streams, "/streams/:channelId", "delete", v, {}, { channelId: ca })).statusCode, 403);
   assert.equal((await call(streams, "/streams/:channelId/heartbeat", "post", v, {}, { channelId: ca })).statusCode, 403);
-  console.log("PASS: Party authorization, concurrent invitations, consent, readiness, merged/deduplicated viewers, chat merge/split/deletion/muting, premium exclusion, atomic gift scoring/idempotency, countdown/end boundaries, host early-stop and retry safety, rematch, disconnect cancellation, invitation expiry, and live ownership.");
+  console.log("PASS: Party authorization, concurrent invitations, consent, readiness, merged/deduplicated viewers, chat merge/split/deletion/muting, Party-wide Premium admission, atomic gift scoring/idempotency, countdown/end boundaries, host early-stop and retry safety, rematch, disconnect cancellation, invitation expiry, and live ownership.");
 
   const handlers = new Set();
   const calls = [];
@@ -196,6 +209,7 @@ try {
   assert.equal(handlers.size, 0);
   console.log("PASS: Secondary Agora connection isolates events, never publishes viewer media, renews tokens, leaves only the partner channel, and preserves the host microphone.");
 } finally {
+  await pool.query("delete from premium_stream_admissions where channel_id=any($1)", [channels]);
   await pool.query("delete from coin_transactions where from_user_id=any($1) or to_user_id=any($1)", [[a,b,c,v,w]]);
   await pool.query("delete from coin_balances where user_id=any($1)", [[a,b,c,v,w]]);
   await pool.query("delete from stream_moderation where viewer_user_id=any($1)", [[a,b,c,v,w]]);

@@ -43,7 +43,7 @@ The server catalog determines coins granted. RevenueCat/store product `priceStri
 
 ## Timed Premium gift changes
 
-- While Premium is active, the host's former lock position shows a gift icon. Public lives retain Convert to Premium. The current timed-request control is hidden for private invitations and party mode; this does not add timed requests to those modes.
+- While Premium is active, the host's former lock position shows a gift icon. The Premium control remains visible in Party mode; activating it applies the same entry requirement to every current Party feed.
 - Host selects a gift and **30 or 60 seconds**, default **30**. Only one request runs at a time; reopening shows remaining time and paid/targeted counts.
 - Current admitted viewers, including free-entry viewers, are targeted. Later arrivals follow existing admission rules rather than joining a prior request retroactively.
 - Viewers see the gift, coin cost, countdown, and **Send Gift**. At ten seconds or less the countdown blinks; Reduced Motion uses steady warning styling. Payment hides the requirement. Insufficient coins produces an error without a charge or request clearance.
@@ -52,6 +52,10 @@ The server catalog determines coins granted. RevenueCat/store product `priceStri
 - Payments retain the existing earnings, animation, and live-chat gift-notice path. The separate floating sender/gift-name box was removed elsewhere; the chat notice and gift animation remain.
 
 Current gift costs: Rose 1, Heart 5, Party 10, Diamond 50, Rocket 100, Crown 500 coins. Admission price, timed requests, and ordinary gifts retain their separate records and payment actions.
+
+### Party-wide Premium admission
+
+When either current Party host activates Premium, every current Party stream receives the same admission gift requirement. A viewer pays once and is admitted to the entire Party. The payment is credited in full to the streamer the viewer is watching when they pay; it is not split. The access receipt is recorded for each current Party stream so Agora, chat, and stream detail checks authorize the complete Party.
 
 Implementation: [request hook](../artifacts/mobile/hooks/usePremiumGiftRequest.ts), [host selector](../artifacts/mobile/components/PremiumGiftRequestSheet.tsx), [viewer prompt](../artifacts/mobile/components/PremiumGiftPrompt.tsx), [server payments/expiry](../artifacts/api-server/src/lib/premiumGiftRequests.ts), [stream routes](../artifacts/api-server/src/routes/streams.ts), and the [additive migration](../lib/db/migrations/20260914_premium_gift_requests.sql).
 

@@ -28,7 +28,7 @@ export async function partyValid(party: Party, reader: Reader = db) {
   if (party.status === "pending" && party.expiresAt.getTime() <= now) return false;
   if (!["pending", "active"].includes(party.status)) return false;
   const sessions = await partyStreams(party, reader);
-  if (sessions.some(s => !s || s.endedAt || s.isPrivate || s.requiredGiftId || now - s.lastHeartbeatAt.getTime() >= 60_000)) return false;
+  if (sessions.some(s => !s || s.endedAt || s.isPrivate || now - s.lastHeartbeatAt.getTime() >= 60_000)) return false;
   if (party.status === "active" && party.startedAt && now - party.startedAt.getTime() > PARTY_CONNECT_MS && !partyMediaReady(party, now)) return false;
   return true;
 }

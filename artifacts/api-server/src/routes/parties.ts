@@ -76,7 +76,7 @@ router.post("/streams/:channelId/party", async (req, res) => {
     const own = (await tx.select().from(liveStreamSessionsTable).where(eq(liveStreamSessionsTable.channelId, channelId)).for("update"))[0];
     if (!own || own.endedAt || Date.now() - own.lastHeartbeatAt.getTime() >= 60000) return { status: 404, error: "Your live has ended" };
     if (own.hostUserId !== user.uid) return { status: 403, error: "Only the live host can manage Party" };
-    if (own.isPrivate || own.requiredGiftId) return { status: 409, error: "Party is available on public, free lives" };
+    if (own.isPrivate || (own.requiredGiftId && action === "invite")) return { status: 409, error: "Party is available on public, free lives" };
     const previous = await tx.select().from(livePartiesTable).where(and(
       or(eq(livePartiesTable.firstChannelId, channelId), eq(livePartiesTable.secondChannelId, channelId)),
       inArray(livePartiesTable.status, ["pending", "active"]),
