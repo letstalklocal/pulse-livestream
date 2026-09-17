@@ -112,8 +112,8 @@ function FloatingPlayer() {
             onPress={() => { resize(false); if (pathname !== "/general") router.push("/general"); }}>
             <Ionicons name="settings-outline" size={21} color="#FFF" />
           </Pressable>
-          <Pressable style={styles.control} accessibilityRole="button" accessibilityLabel={t("Picture in picture")}
-            onPress={() => resize(false)}><Ionicons name="contract-outline" size={24} color="#FFF" /></Pressable>
+          <Pressable style={styles.control} accessibilityRole="button" accessibilityLabel={t("Return to live")}
+            onPress={restore}><Ionicons name="expand-outline" size={24} color="#FFF" /></Pressable>
           <Pressable style={styles.control} accessibilityRole="button" accessibilityLabel={t("Close picture in picture")}
             onPress={playback.close}><Ionicons name="close" size={25} color="#FFF" /></Pressable>
         </View> : null}

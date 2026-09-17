@@ -37,7 +37,9 @@ assert.equal(button(tree, 'Close picture in picture'), undefined);
 assert.equal(nodes(tree).some(n => n.type === 'Modal'), false, 'Browsing must not be blocked by a modal');
 button(tree, 'Picture in picture').props.onPress(); tree = render();
 assert.equal(player(tree).width, 192); assert.ok(Math.abs(player(tree).height - 192 * 16 / 9) < 0.01);
-assert.ok(button(tree, 'Picture in picture settings')); assert.ok(button(tree, 'Picture in picture')); assert.ok(button(tree, 'Close picture in picture')); assert.ok(nodes(tree).some(n => n.type === 'Icon' && n.props.name === 'contract-outline')); assert.equal(nodes(tree).find(n => n.type === 'Icon' && n.props.name === 'contract-outline').props.color, "#FFF");
+assert.ok(button(tree, 'Picture in picture settings')); assert.ok(button(tree, 'Picture in picture settings')); assert.ok(button(tree, 'Return to live')); assert.ok(button(tree, 'Close picture in picture')); assert.ok(nodes(tree).some(n => n.type === 'Icon' && n.props.name === 'expand-outline'));
+button(tree, 'Return to live').props.onPress(); assert.equal(navigations[0].params.channelId, 'room'); assert.equal(navigations[0].params.privateInvitationId, '42');
+// A direct tap on the expanded player makes it small again.
 button(tree, 'Picture in picture').props.onPress(); tree = render(); assert.equal(player(tree).width, 112);
 button(tree, 'Picture in picture').props.onPress(); tree = render(); button(tree, 'Close picture in picture').props.onPress(); assert.equal(closeCount, 1);
 button(tree, 'Picture in picture settings').props.onPress(); assert.equal(settings[0], '/general'); assert.equal(large, false);
