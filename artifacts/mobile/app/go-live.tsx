@@ -1363,21 +1363,49 @@ export default function GoLiveScreen() {
                 <Text style={[localizedTextStyle(), { color: "#FFF", fontSize: 16 }]}>{proofBusy ? t("Recording test…") : t("Test live gift capture")}</Text>
               </TouchableOpacity>
             ) : null}
-            {isNative && !isPrivateInvite && ((!isPremium && !liveStreamData?.stream.requiredGift) || !!party) ? <>
+            {isNative && !isPrivateInvite && ((!isPremium && !liveStreamData?.stream.requiredGift) || !!party) ? party?.status === "active" ? <>
+              <TouchableOpacity
+                style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20, opacity: !party.ready ? 0.45 : 1 }}
+                disabled={partyState.mutation.isPending || !party.ready}
+                onPress={() => {
+                  if (party.battle?.status === "active") {
+                    Alert.alert(t("End Battle?"), t("This round will end without a winner. Party and both lives will continue."), [
+                      { text: t("Keep battling"), style: "cancel" },
+                      { text: t("End Battle"), style: "destructive", onPress: () => { setShowLiveMenu(false); void partyState.act({ action: "battle_end", partyId: party.id, battleId: party.battle?.id }).catch(error => Alert.alert(t("Party"), error instanceof Error ? error.message : t("Could not end the battle."))); } },
+                    ]);
+                    return;
+                  }
+                  setShowLiveMenu(false);
+                  void partyState.act({ action: "battle_request", partyId: party.id }).catch(error => Alert.alert(t("Party"), error instanceof Error ? error.message : t("Could not start the battle.")));
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={t(party.battle?.status === "active" ? "End Battle" : "Start Battle")}
+              >
+                <Ionicons name={party.battle?.status === "active" ? "stop-circle-outline" : "flash-outline"} size={21} color="#FF1966" />
+                <Text style={[localizedTextStyle(), { color: "#FFF", fontSize: 16, fontFamily: "Inter_500Medium", flex: 1 }]}>{t(party.battle?.status === "active" ? "End Battle" : "Start Battle")}</Text>
+                <Ionicons name="chevron-forward" size={17} color="#999" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 }}
+                disabled={partyState.mutation.isPending}
+                onPress={() => Alert.alert(t("Leave Party?"), t("Both lives will continue separately. Any unfinished VS round will be cancelled."), [
+                  { text: t("Stay"), style: "cancel" },
+                  { text: t("Leave Party"), style: "destructive", onPress: () => { setShowLiveMenu(false); void partyState.act({ action: "leave", partyId: party.id }).catch(error => Alert.alert(t("Party"), error instanceof Error ? error.message : t("Could not leave the Party."))); } },
+                ])}
+                accessibilityRole="button"
+                accessibilityLabel={t("Leave Party")}
+              >
+                <Ionicons name="exit-outline" size={21} color="#FF759A" />
+                <Text style={[localizedTextStyle(), { color: "#FF759A", fontSize: 16, fontFamily: "Inter_500Medium", flex: 1 }]}>{t("Leave Party")}</Text>
+                <Ionicons name="chevron-forward" size={17} color="#999" />
+              </TouchableOpacity>
+            </> : (
               <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 }} onPress={() => { setShowLiveMenu(false); setShowParty(true); }} accessibilityLabel={t("Party")}>
                 <Ionicons name="people-outline" size={21} color={party ? "#FF1966" : "#FFF"} />
                 <Text style={[localizedTextStyle(), { color: "#FFF", fontSize: 16, fontFamily: "Inter_500Medium", flex: 1 }]}>{t("Party")}</Text>
                 <Ionicons name="chevron-forward" size={17} color="#999" />
               </TouchableOpacity>
-              {party?.status === "active" ? <>
-                <View style={{ height: 1, marginHorizontal: 20, backgroundColor: "rgba(255,255,255,0.08)" }} />
-                <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 }} onPress={() => { setShowLiveMenu(false); setShowParty(true); }} accessibilityLabel={t("VS")}>
-                  <Ionicons name="flash-outline" size={21} color="#FF1966" />
-                  <Text style={[localizedTextStyle(), { color: "#FFF", fontSize: 16, fontFamily: "Inter_500Medium", flex: 1 }]}>{t("VS")}</Text>
-                  <Ionicons name="chevron-forward" size={17} color="#999" />
-                </TouchableOpacity>
-              </> : null}
-            </> : null}
+            ) : null}
             {isNative ? <>
               <View style={{ height: 1, marginHorizontal: 20, backgroundColor: "rgba(255,255,255,0.08)" }} />
               <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 }}
