@@ -66,7 +66,7 @@ function RootLayoutNav() {
         // The viewer owns horizontal swipes for hiding/restoring its overlays.
         options={{ headerShown: false, presentation: "card", animation: "none", gestureEnabled: false }}
       />
-      <Stack.Screen name="dm/[peerId]" options={{ headerShown: false, presentation: "transparentModal", animation: "slide_from_right", animationDuration: 40 }} />
+      <Stack.Screen name="dm/[peerId]" options={{ headerShown: false }} />
       <Stack.Screen name="posts/[uid]" options={{ headerShown: false }} />
       <Stack.Screen name="connections/[uid]" options={{ headerShown: false }} />
       <Stack.Screen name="new-chat" options={{ headerShown: false }} />

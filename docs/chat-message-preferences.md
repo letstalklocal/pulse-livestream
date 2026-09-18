@@ -220,3 +220,7 @@ Automated verification: mobile typecheck and required stream regressions pass. C
 ### Battle result chat — September 18, 2026
 
 Finished battles with an unequal score add a normal scrolling stream message from **Pulse**: `Winner: Username` on the first line and `2,700 coins` directly below it. Apply to real and simulated battles and both Party rooms. Preserve existing message appearance, translation, removal and chat scrolling; this is not a pinned notice. Stable battle IDs deduplicate repeated/concurrent polling, and removed messages stay removed. Cancelled rounds and draws do not announce winners.
+
+## Restore original DM navigation — September 18, 2026
+
+User requested restoring the original DM route configuration to investigate an iPhone conversation that receives new messages but does not respond to Back or composer taps. Use only `headerShown: false`, restoring the navigator's default stack presentation and transition. This supersedes the temporary animation-only test and the custom transparent-modal slide with a 40 ms duration. It is not a confirmed freeze fix. Device verification pending: reopen the affected conversation, type/send, return with Back, and compare a working conversation on iPhone and Android.
