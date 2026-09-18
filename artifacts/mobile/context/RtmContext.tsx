@@ -59,6 +59,7 @@ interface RtmContextValue {
   getMessages: (peerId: string) => DmMessage[];
   sendDm: (peerId: string, peerName: string, text: string, replyToMessageId?: string) => Promise<{ ok: boolean; error?: string }>;
   markRead: (peerId: string) => void;
+  refreshMessages: () => Promise<void>;
 }
 
 const RtmContext = createContext<RtmContextValue>({
@@ -68,6 +69,7 @@ const RtmContext = createContext<RtmContextValue>({
   getMessages: () => [],
   sendDm: async () => ({ ok: false, error: "Not connected" }),
   markRead: () => {},
+  refreshMessages: async () => {},
 });
 
 const messageStore: Record<string, DmMessage[]> = {};
@@ -83,6 +85,7 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
   const getTokenRef = useRef(getToken);
   const syncedMessageIdsRef = useRef(new Set<string>());
   const initialSyncCompleteRef = useRef(false);
+  const syncMessagesRef = useRef<() => Promise<void>>(async () => {});
 
   const uid = user?.uid;
   const uidStr = uid != null ? String(uid) : null;
@@ -189,13 +192,16 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
         if (!response.ok || !active) return;
         const data = await response.json() as { messages?: PersistedDm[] };
         for (const message of data.messages ?? []) {
-          storePersistedMessage(message, initialSyncCompleteRef.current);
+          const unreadOnInitialSync = message.senderId !== uidStr && message.readAt == null;
+          storePersistedMessage(message, initialSyncCompleteRef.current || unreadOnInitialSync);
         }
         initialSyncCompleteRef.current = true;
       } catch (error) {
         console.warn("[DM] sync error:", error);
       }
     };
+
+    syncMessagesRef.current = syncMessages;
 
     const heartbeat = async () => {
       if (AppState.currentState !== "active" || (typeof document !== "undefined" && document.hidden)) return;
@@ -262,8 +268,10 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  const refreshMessages = useCallback(() => syncMessagesRef.current(), []);
+
   return (
-    <RtmContext.Provider value={{ ready, rtmError, conversations, getMessages, sendDm, markRead }}>
+    <RtmContext.Provider value={{ ready, rtmError, conversations, getMessages, sendDm, markRead, refreshMessages }}>
       {children}
     </RtmContext.Provider>
   );

@@ -232,6 +232,9 @@ for (const direction of ["following", "followers"] as const) {
       res.status(400).json({ error: "Invalid uid" });
       return;
     }
+    const viewer = await authenticatedUser(req);
+    if (!viewer) return void res.status(401).json({ error: "Sign in required" });
+    if (viewer.uid !== uid) return void res.status(403).json({ error: "Follower and following lists are private" });
     const personId = direction === "following" ? followsTable.followedId : followsTable.followerId;
     const ownerId = direction === "following" ? followsTable.followerId : followsTable.followedId;
     const rows = await db
@@ -244,8 +247,7 @@ for (const direction of ["following", "followers"] as const) {
       .innerJoin(usersTable, eq(usersTable.uid, personId))
       .where(eq(ownerId, uid))
       .orderBy(usersTable.name, usersTable.uid);
-    const viewer = await authenticatedUser(req);
-    const visibleRows = await Promise.all(rows.map(async row => ({ ...row, ...("postIds" in row && !await canViewPosts(row.uid, viewer?.uid) ? { postIds: [] } : {}) })));
+    const visibleRows = await Promise.all(rows.map(async row => ({ ...row, ...("postIds" in row && !await canViewPosts(row.uid, viewer.uid) ? { postIds: [] } : {}) })));
     const users = await Promise.all(visibleRows.map(async ({ avatarImagePath, ...user }) => ({
       ...user,
       avatarImageUrl: avatarImagePath ? await createPrivateGetUrl(avatarImagePath) : null,

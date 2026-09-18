@@ -8,6 +8,7 @@
     "scheme": "mobile",
     "userInterfaceStyle": "dark",
     "ios": {
+      "buildNumber": "15",
       "bundleIdentifier": "com.chimba.livestream",
       "supportsTablet": false,
       "infoPlist": {
@@ -17,6 +18,7 @@
       }
     },
     "android": {
+      "versionCode": 15,
       "package": "com.pulse.livestream",
       "permissions": [
         "CAMERA",

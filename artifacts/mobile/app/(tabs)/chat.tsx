@@ -24,11 +24,12 @@ export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
-  const { conversations } = useRtm();
+  const { conversations, refreshMessages } = useRtm();
   const openingPeerRef = useRef<number | null>(null);
   useFocusEffect(useCallback(() => {
     openingPeerRef.current = null;
-  }, []));
+    void refreshMessages();
+  }, [refreshMessages]));
   const openDm = (peerId: number, peerName: string) => {
     if (openingPeerRef.current !== null) return;
     openingPeerRef.current = peerId;

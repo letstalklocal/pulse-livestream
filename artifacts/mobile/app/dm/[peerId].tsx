@@ -65,7 +65,7 @@ export default function DmScreen() {
     router.back();
   }, [router]);
   const { user } = useAuth();
-  const { getMessages, sendDm, markRead, conversations } = useRtm();
+  const { getMessages, sendDm, markRead, conversations, refreshMessages } = useRtm();
   const queryClient = useQueryClient();
 
   const { peerId, peerName } = useLocalSearchParams<{ peerId: string; peerName: string }>();
@@ -88,10 +88,11 @@ export default function DmScreen() {
   });
   const [lastSeenNow, setLastSeenNow] = useState(Date.now);
   useFocusEffect(useCallback(() => {
+    void refreshMessages();
     setLastSeenNow(Date.now());
     const timer = setInterval(() => setLastSeenNow(Date.now()), 60_000);
     return () => clearInterval(timer);
-  }, []));
+  }, [refreshMessages]));
   const roseRequestKey=useRef(createGiftRequestKey());
   const [sendingRose,setSendingRose]=useState(false);
   useEffect(()=>{roseRequestKey.current=createGiftRequestKey();},[peerIdStr]);
@@ -222,7 +223,13 @@ export default function DmScreen() {
       keepAtBottom();
     }
     setMessages((current) => current.length === 0 && next.length === 0 ? current : next);
-  }, [peerIdStr, getMessages, conversations, myUidStr, updateFollowingBottom, keepAtBottom]);
+    // If the thread opened from stale cache, rerun the initial position after
+    // the server-synced messages arrive instead of leaving the screen mid-open.
+    if (focusedRef.current && !positionedRef.current && next.length > 0) {
+      if (positionTimerRef.current != null) clearTimeout(positionTimerRef.current);
+      positionTimerRef.current = setTimeout(positionOnOpen, 0);
+    }
+  }, [peerIdStr, getMessages, conversations, myUidStr, updateFollowingBottom, keepAtBottom, positionOnOpen]);
 
   useFocusEffect(
     useCallback(() => {

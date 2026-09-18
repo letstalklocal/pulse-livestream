@@ -82,6 +82,7 @@ export default function PublicProfileScreen() {
 
   const followerUid = currentUser?.uid;
   const canFollow = !!followerUid && followerUid !== uid;
+  const canViewConnections = followerUid === uid;
 
   const { data: followStatusData, refetch: refetchFollowStatus } = useGetFollowStatus(
     uid,
@@ -173,7 +174,7 @@ export default function PublicProfileScreen() {
 
               {/* Stats */}
               <View style={styles.statsRow}>
-                <TouchableOpacity style={styles.stat} accessibilityRole="button" accessibilityLabel={t("View followers")}
+                <TouchableOpacity disabled={!canViewConnections} style={styles.stat} accessibilityRole="button" accessibilityLabel={t("View followers")}
                   onPress={() => router.push({ pathname: "/connections/[uid]", params: { uid: String(uid), tab: "followers", name: displayName } })}>
                   <Text style={[styles.statValue, { color: colors.foreground }]}>
                     {fmtCount(followersCount)}
@@ -181,7 +182,7 @@ export default function PublicProfileScreen() {
                   <Text style={[localizedTextStyle(), [styles.statLabel, { color: colors.mutedForeground }]]}>{t("Followers")}</Text>
                 </TouchableOpacity>
                 <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-                <TouchableOpacity style={styles.stat} accessibilityRole="button" accessibilityLabel={t("View following")}
+                <TouchableOpacity disabled={!canViewConnections} style={styles.stat} accessibilityRole="button" accessibilityLabel={t("View following")}
                   onPress={() => router.push({ pathname: "/connections/[uid]", params: { uid: String(uid), tab: "following", name: displayName } })}>
                   <Text style={[styles.statValue, { color: colors.foreground }]}>
                     {fmtCount(followingCount)}
