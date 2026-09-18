@@ -869,5 +869,9 @@
   "Picture in picture": "Picture in picture",
   "Picture in picture settings": "Picture in picture settings",
   "Return to live": "Return to live",
-  "Tap to change size and show controls.": "Tap to change size and show controls."
+  "Tap to change size and show controls.": "Tap to change size and show controls.",
+  "Simulate battle": "Simulate battle",
+  "Test battle": "Test battle",
+  "100 test coins alternate every 5 seconds. No wallet or earnings changes.": "100 test coins every 5 seconds. Leads alternate; wallets and earnings stay unchanged.",
+  "Winner": "Winner"
 }

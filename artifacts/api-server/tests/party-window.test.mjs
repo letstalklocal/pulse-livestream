@@ -20,16 +20,20 @@ const mocks = {
     export function reset(){slots.forEach(s=>s?.cleanup?.());slots=[];index=0;effects=[];dirty=false}
     export function render(Component,props){let tree;do{dirty=false;index=0;effects=[];tree=Component(props);effects.forEach(f=>f())}while(dirty);return tree}
   `,
-  'react/jsx-runtime': `export const jsx=(type,props)=>({type,props:{...props,children:[props.children]}});export const jsxs=jsx;`,
+  'react/jsx-runtime': `export const Fragment='Fragment';export const jsx=(type,props)=>({type,props:{...props,children:[props.children]}});export const jsxs=jsx;`,
   'react-native': `
     export const Modal='Modal',View='View',Text='Text',Pressable='Pressable',TouchableOpacity='TouchableOpacity',ActivityIndicator='ActivityIndicator';
     export const Platform={OS:process.env.PARTY_TEST_PLATFORM || 'android'};
     export const StyleSheet={create:s=>s,absoluteFill:{position:'absolute'}};
     export const useWindowDimensions=()=>({width:360,height:800});
     export const PanResponder={create:handlers=>({panHandlers:handlers})};
-    export const Animated={View:'Animated.View',Value:class{constructor(v){this.value=v}setValue(v){this.value=v}},timing:(value,config)=>({start(){value.setValue(config.toValue)},stop(){}})};
+    export const AccessibilityInfo={isReduceMotionEnabled:async()=>false,addEventListener:(name,fn)=>{globalThis.battleMotion=fn;return {remove(){}}}};
+    export const AppState={currentState:'active',addEventListener:(name,fn)=>{globalThis.battleAppState=fn;return {remove(){}}}};
+    export const Easing={linear:v=>v,cubic:v=>v*v*v,inOut:fn=>fn,out:fn=>fn};
+    export const Animated={parallel:steps=>({start(){steps.forEach(s=>s.start())},stop(){steps.forEach(s=>s.stop())}}),sequence:steps=>{let running=false;const blink=steps.length===2&&steps.every(s=>s.duration===500);return {isSequence:true,start(){if(blink){running=true;globalThis.battleBlinkLoops=(globalThis.battleBlinkLoops??0)+1;globalThis.battleBlinkStarts=(globalThis.battleBlinkStarts??0)+1}steps.forEach(s=>s.start())},stop(){if(running){running=false;globalThis.battleBlinkLoops--}steps.forEach(s=>s.stop())}}},loop:animation=>{if(!animation.isSequence)throw new Error("Battle highlight must not loop");let running=false;return {start(){running=true;globalThis.battleBlinkLoops=(globalThis.battleBlinkLoops??0)+1;animation.start()},stop(){if(running){running=false;globalThis.battleBlinkLoops--}animation.stop()}}},View:'Animated.View',Value:class{constructor(v){this.value=v;this.listeners=new Map()}setValue(v){this.value=v;this.listeners.forEach(fn=>fn({value:v}))}addListener(fn){const id=String(this.listeners.size);this.listeners.set(id,fn);return id}removeListener(id){this.listeners.delete(id)}stopAnimation(callback){callback?.(this.value)}interpolate(config){return {...config,source:this}}},timing:(value,config)=>({duration:config.duration,start(){(globalThis.battleAnimationEvents??=[]).push({value,from:value.value,to:config.toValue,duration:config.duration});if(config.toValue===1.6)(globalThis.winnerPops??=[]).push({from:value.value,to:config.toValue,duration:config.duration});if(config.duration===650)(globalThis.battleTransitions??=[]).push({from:value.value,to:config.toValue});if(config.duration===1050)globalThis.battleSweeps=(globalThis.battleSweeps??0)+1;value.setValue(config.toValue)},stop(){}})};
   `,
   'react-native-safe-area-context': `export const useSafeAreaInsets=()=>({top:24,bottom:24});`,
+  'expo-linear-gradient': `export const LinearGradient='LinearGradient';`,
   '@expo/vector-icons': `export const Ionicons='Icon';`,
   '@/utils/agora': `export const RtcSurfaceViewComponent='NativeVideo',RtcTextureViewComponent='TextureVideo',VideoSourceType={VideoSourceRemote:0};`,
   '@workspace/api-client-react': `export const actOnStreamParty=async()=>({});export const getPartyMedia=async()=>({});`,
@@ -38,7 +42,7 @@ const mocks = {
 };
 try {
   await build({
-    stdin: {contents:`export {PartyStage} from '../../mobile/components/PartyStage';export {render,reset} from 'react';export {usePartyMedia} from '../../mobile/hooks/usePartyMedia';export {joins} from '@/utils/partyConnection';export {openPartyConnection} from '../../mobile/utils/partyConnection';`,resolveDir:fileURLToPath(new URL('.',import.meta.url))},
+    stdin: {contents:`export {PartyStage} from '../../mobile/components/PartyStage';export {battleMotionFrame} from '../../mobile/utils/battleMotion';export {render,reset} from 'react';export {usePartyMedia} from '../../mobile/hooks/usePartyMedia';export {joins} from '@/utils/partyConnection';export {openPartyConnection} from '../../mobile/utils/partyConnection';`,resolveDir:fileURLToPath(new URL('.',import.meta.url))},
     bundle:true,platform:'node',format:'cjs',jsx:'transform',outfile:out,logLevel:'silent',
     plugins:[{name:'native-mocks',setup(b){
       b.onResolve({filter:/.*/},a=>{
@@ -48,7 +52,7 @@ try {
       b.onLoad({filter:/.*/,namespace:'mock'},a=>({contents:mocks[a.path]}));
     }}],
   });
-  const {PartyStage,render,reset,usePartyMedia,joins,openPartyConnection}=createRequire(import.meta.url)(out);
+  const {PartyStage,battleMotionFrame,render,reset,usePartyMedia,joins,openPartyConnection}=createRequire(import.meta.url)(out);
   const videoType = (process.env.PARTY_TEST_PLATFORM || 'android') === 'android' ? 'TextureVideo' : 'NativeVideo';
   const participants=[{uid:1,channelId:'first',name:'First'},{uid:2,channelId:'second',name:'Second'}];
   const interactions=[];
@@ -115,6 +119,107 @@ try {
   props.party={...props.party,battle:{status:'active',endsAt:10000,firstScore:10,secondScore:20}};refresh();
   assert.equal(layout().width,120);assert.equal(layout().top,pinnedTop);assert.ok(resize());
   assert.equal(interactions.at(-1),false);
+  const segmentOpacity=id=>Object.assign({},...find(n=>n.props.testID===id).props.style).opacity;
+  const markerPosition=()=>`${Object.assign({},...find(n=>n.props.testID==='battle-score-mine').props.style).width.source.value}%`;
+  const flowValue=()=>Object.assign({},...find(n=>n.props.testID==='battle-score-flow').props.style).transform[0].translateX;
+  const flowOpacity=()=>Object.assign({},...find(n=>n.props.testID==='battle-score-flow').props.style).opacity.value;
+  assert.equal(find(n=>n.props.testID==='battle-score-marker'),undefined,'No circular dot');
+  assert.equal(find(n=>n.props.testID==='battle-score-tip').props.colors[0],'rgba(255,255,255,0)');
+  assert.equal(flowOpacity(),0,'Opening an existing battle does not replay awards');
+  assert.equal(markerPosition(),`${(10/30)*100}%`);
+  assert.equal(segmentOpacity('battle-score-mine'),1);assert.equal(segmentOpacity('battle-score-peer'),1);
+  props.party.battle={id:'test-round',simulated:true,status:'active',startsAt:3100,endsAt:183100,firstScore:0,secondScore:0};
+  refresh();assert.equal(markerPosition(),'50%');
+  assert.equal(segmentOpacity('battle-score-mine'),0.25);assert.equal(segmentOpacity('battle-score-peer'),0.25);
+  assert.equal(find(n=>n.props.testID==='battle-score-tie').props.style.opacity.value,0,'Zero scores have no white tie highlight');
+  assert.equal(find(n=>n.props.testID==='battle-score-tip'),undefined,'No winning tip on a tie');
+  assert.equal(flowOpacity(),0,'No idle flow on a tie');
+  assert.ok(find(n=>n.type==='Text'&&n.props.children.includes('Test battle')));
+  assert.ok(find(n=>n.type==='Text'&&n.props.children.includes('Starts 3')));
+  globalThis.battleAnimationEvents=[];
+  props.now=9100;props.party.battle.firstScore=100;refresh();assert.equal(markerPosition(),'95%');
+  assert.equal(segmentOpacity('battle-score-mine'),1);assert.equal(segmentOpacity('battle-score-peer'),0.25);
+  assert.equal(find(n=>n.props.testID==='battle-score-tip').props.colors[2],'rgba(255,255,255,0)');
+  assert.equal(globalThis.battleAnimationEvents.filter(event=>event.duration===1050).length,1,'One continuous animation drives the whole handoff');
+  assert.equal(battleMotionFrame(50,95,268,'mine',0.2).percent,50,'Edge waits until the highlight approaches');
+  const approaching=battleMotionFrame(50,95,268,'mine',0.49);
+  assert.ok(approaching.percent>50&&approaching.merge>0&&approaching.merge<1,'Edge starts moving while the highlights overlap');
+  const merged=battleMotionFrame(50,95,268,'mine',0.7);
+  assert.ok(Math.abs(merged.flowX+28-merged.percent*268/100)<1e-8,'After merging, highlight and edge share one moving position');
+  assert.equal(merged.flowOpacity,0,'Traveling highlight blends into the attached edge');
+  for(const [from,to,side] of [[50,95,'mine'],[95,50,'peer'],[50,50,'mine'],[50,5,'peer']]) {
+    let previous=from;
+    for(let step=0;step<=100;step++) {
+      const frame=battleMotionFrame(from,to,268,side,step/100);
+      assert.ok(to>=from?frame.percent>=previous-1e-8:frame.percent<=previous+1e-8,'Boundary motion never reverses during a merge');
+      previous=frame.percent;
+    }
+    assert.equal(previous,to,'Continuous motion reaches exact target');
+  }
+  const sweepsAfterAward=globalThis.battleSweeps;
+  props.now+=1000;refresh();refresh();
+  assert.equal(globalThis.battleSweeps,sweepsAfterAward,'Clock and identical polls do not replay the sweep');
+  globalThis.battleMotion(true);refresh();
+  assert.equal(find(n=>n.props.testID==='battle-score-flow'),undefined,'Reduced motion keeps a static tip');
+  assert.ok(find(n=>n.props.testID==='battle-score-tip'));
+  globalThis.battleMotion(false);globalThis.battleAppState('background');refresh();
+  assert.equal(find(n=>n.props.testID==='battle-score-flow'),undefined,'Background pauses flow');
+  globalThis.battleAppState('active');refresh();assert.ok(find(n=>n.props.testID==='battle-score-flow'));
+  assert.equal(globalThis.battleSweeps,sweepsAfterAward,'Foreground and motion preference changes do not replay scores');
+  props.now=9100;refresh();
+  assert.ok(find(n=>n.type==='Text'&&n.props.children.includes('2:54')));
+  globalThis.battleTransitions=[];globalThis.battleAnimationEvents=[];
+  props.party.battle.secondScore=100;refresh();assert.equal(markerPosition(),'50%');
+  assert.equal(globalThis.battleAnimationEvents.filter(e=>e.duration===1050).length,1,'Returning to a tie uses the same uninterrupted motion');
+  const reverse=battleMotionFrame(95,50,268,'peer',0.5);
+  assert.ok(Math.abs(reverse.flowX-reverse.percent*268/100)<1e-8,'Right-origin highlight merges and follows the retreating edge');
+  assert.equal(segmentOpacity('battle-score-mine'),1);assert.equal(segmentOpacity('battle-score-peer'),1);
+  assert.equal(find(n=>n.props.testID==='battle-score-tie').props.style.opacity.value,1,'Scored tie retains white center');
+  assert.equal(find(n=>n.props.testID==='battle-score-tie').props.style.left.source.value,50);
+  props.party.battle.firstScore=200;refresh();assert.equal(markerPosition(),`${(200/300)*100}%`);
+  assert.equal(globalThis.battleSweeps,sweepsAfterAward+2,'Tie and next lead each push once');
+  props.channelId='second';refresh();assert.equal(markerPosition(),`${(10/30)*100}%`);
+  assert.equal(segmentOpacity('battle-score-mine'),1);assert.equal(segmentOpacity('battle-score-peer'),1);
+  props.now=props.party.battle.endsAt-11000;refresh();assert.equal(globalThis.battleBlinkLoops,0);
+  props.now=props.party.battle.endsAt-10000;refresh();assert.equal(globalThis.battleBlinkLoops,1,'Blink starts at ten seconds');
+  const blinksAtTen=globalThis.battleBlinkStarts;
+  props.now+=1000;refresh();assert.equal(globalThis.battleBlinkLoops,1,'Only one blink is active');
+  assert.equal(globalThis.battleBlinkStarts,blinksAtTen+1,'Changing 10 to 9 starts exactly one matching blink');
+  refresh();assert.equal(globalThis.battleBlinkStarts,blinksAtTen+1,'Same-second polls do not blink again');
+  globalThis.battleMotion(true);refresh();assert.equal(globalThis.battleBlinkLoops,0,'Reduced Motion keeps warning steady');
+  assert.equal(Object.assign({},...find(n=>n.props.testID==='battle-countdown').props.style).opacity.value,1);
+  globalThis.battleMotion(false);refresh();assert.equal(globalThis.battleBlinkLoops,1);
+  globalThis.battleAppState('background');refresh();assert.equal(globalThis.battleBlinkLoops,0);
+  globalThis.battleAppState('active');refresh();assert.equal(globalThis.battleBlinkLoops,1);
+  props.party.battle={...props.party.battle,status:'finished',winnerUid:1,firstScore:1800,secondScore:1700};
+  props.now=183100;refresh();
+  assert.equal(globalThis.battleBlinkLoops,0,'Finishing stops blink');
+  assert.ok(find(n=>n.type==='Text'&&n.props.children.flat(Infinity).includes('Winner')));
+  assert.equal(find(n=>n.type==='Avatar'&&n.props.size===96).props.uid,1);
+  assert.deepEqual(globalThis.winnerPops.at(-1),{from:0.35,to:1.6,duration:320},'Winner grows beyond normal size before settling');
+  const popCount=globalThis.winnerPops.length;
+  const avatarScale=()=>Object.assign({},...find(n=>n.props.testID==='battle-winner-avatar').props.style).transform[0].scale.value;
+  assert.equal(avatarScale(),1,'Pop settles to full size');
+  assert.ok(globalThis.battleAnimationEvents.some(e=>e.from===1.6&&e.to===1&&e.duration===650),'Oversized avatar visibly shrinks back to normal');
+  props.now+=1000;refresh();refresh();assert.equal(globalThis.winnerPops.length,popCount,'Clock ticks and polls do not repeat pop');
+  globalThis.battleAppState('background');refresh();globalThis.battleAppState('active');refresh();
+  assert.equal(globalThis.winnerPops.length,popCount,'Foreground does not replay the same result');
+  props.now-=1000;refresh();
+  assert.equal(find(n=>n.props.testID==='battle-result').props.style.justifyContent,'center');
+  assert.equal(find(n=>n.props.testID==='battle-result').props.pointerEvents,'none');
+  globalThis.battleMotion(true);refresh();
+  props.party.battle.winnerUid=2;refresh();assert.equal(find(n=>n.type==='Avatar'&&n.props.size===96).props.uid,2);
+  assert.equal(globalThis.winnerPops.length,popCount,'Reduced Motion suppresses pop for a new winner');
+  assert.equal(avatarScale(),1);globalThis.battleMotion(false);refresh();
+  assert.equal(globalThis.winnerPops.length,popCount,'Toggling motion does not replay result');
+  props.party.battle.winnerUid=null;refresh();assert.equal(find(n=>n.type==='Avatar'&&n.props.size===96),undefined);
+  assert.ok(find(n=>n.type==='Text'&&n.props.children.flat(Infinity).includes('VS ends in a draw')));
+  props.now+=10000;refresh();assert.equal(find(n=>n.props.testID==='battle-result'),undefined,'Result expires after ten seconds');
+  props.now-=10000;props.party.battle.status='cancelled';refresh();assert.equal(find(n=>n.props.testID==='battle-result'),undefined,'Cancelled rounds never announce a winner');
+  assert.equal(find(n=>n.props.testID==='battle-score-marker'),undefined);
+  assert.equal(find(n=>n.props.testID==='battle-score-flow'),undefined,'Finished rounds stop flow');
+  props.channelId='first';props.now=100;
+  console.log('PASS: real/test blended winning edge, directional flow, no dot, ties, mirrored scores, reduced motion, background pause, countdown and winner (mocked).');
   props.party=null;refresh();assert.equal(panel(),undefined);assert.equal(restore(),undefined);
   reset();
   mock.timers.enable({apis:['Date','setTimeout'],now:10000});

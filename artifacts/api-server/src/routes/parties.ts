@@ -28,7 +28,7 @@ router.get("/streams/:channelId/party", async (req, res) => {
   if (party.status === "pending" && !isHost) return void res.json({ party: null, serverTime: Date.now() });
   if (!(await partyViewerAllowed(party, user.uid)).allowed) return void res.status(403).json({ error: "Party access denied" });
   let battle: Awaited<ReturnType<typeof latestBattle>> | null = await latestBattle(party.id);
-  const mustSettle = battle?.status === "active" && ((battle.endsAt?.getTime() ?? Infinity) <= Date.now() || !partyMediaReady(party))
+  const mustSettle = battle?.status === "active" && (battle.simulated || (battle.endsAt?.getTime() ?? Infinity) <= Date.now() || !partyMediaReady(party))
     || battle?.status === "pending" && battle.expiresAt.getTime() <= Date.now();
   if (mustSettle) battle = await db.transaction(async tx => {
     await lockParty(tx);
@@ -44,7 +44,7 @@ router.get("/streams/:channelId/party", async (req, res) => {
     participants: [first, second].map(s => ({ channelId: s.channelId, rtcChannelName: s.rtcChannelName ?? s.channelId, uid: s.hostUserId, name: s.hostName, avatarUrl: s.hostAvatarUrl })),
     battle: battle ? { id: battle.id, status: battle.status, requesterUid: battle.requesterUid, expiresAt: battle.expiresAt.getTime(),
       startsAt: battle.startsAt?.getTime() ?? null, endsAt: battle.endsAt?.getTime() ?? null,
-      firstScore: battle.firstScore, secondScore: battle.secondScore,
+      simulated: battle.simulated, firstScore: battle.firstScore, secondScore: battle.secondScore,
       winnerUid: battle.status === "finished" && battle.firstScore !== battle.secondScore ? hosts[battle.firstScore > battle.secondScore ? 0 : 1] : null,
     } : null,
   } });
@@ -116,7 +116,8 @@ router.post("/streams/:channelId/party", async (req, res) => {
       return {};
     }
     const battle = await settleBattle(p, tx);
-    if (action === "battle_request") {
+    if (action === "battle_request" || action === "battle_simulate") {
+      const simulated = action === "battle_simulate";
       if (!partyMediaReady(p)) return { status: 409, error: "Wait for both cameras to connect" };
       if (battle?.status === "active") return { status: 409, error: "A VS round is already pending or running" };
       const startsAt = new Date(Date.now() + 3000);
@@ -124,9 +125,9 @@ router.post("/streams/:channelId/party", async (req, res) => {
       // Either connected host starts the round. Also allow a pending request
       // left by an older server to enter the countdown without acceptance.
       if (battle?.status === "pending") {
-        await tx.update(liveBattlesTable).set({ status: "active", startsAt, endsAt }).where(eq(liveBattlesTable.id, battle.id));
+        await tx.update(liveBattlesTable).set({ status: "active", startsAt, endsAt, simulated }).where(eq(liveBattlesTable.id, battle.id));
       } else {
-        await tx.insert(liveBattlesTable).values({ id: randomUUID(), partyId: p.id, requesterUid: user.uid, status: "active", startsAt, endsAt, expiresAt: endsAt });
+        await tx.insert(liveBattlesTable).values({ id: randomUUID(), partyId: p.id, requesterUid: user.uid, status: "active", startsAt, endsAt, expiresAt: endsAt, simulated });
       }
       return {};
     }

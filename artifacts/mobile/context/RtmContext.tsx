@@ -1,4 +1,5 @@
 import { AppState } from "react-native";
+import { createDmSyncRunner } from "@/utils/dmSyncRunner";
 import React, {
   createContext,
   useCallback,
@@ -182,22 +183,28 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
     if (!uidStr) return;
     let active = true;
 
-    const syncMessages = async () => {
-      try {
-        if (AppState.currentState !== "active" || (typeof document !== "undefined" && document.hidden)) return;
+    const syncRunner = createDmSyncRunner(async (signal) => {
+        if (!active || signal.aborted || AppState.currentState !== "active" || (typeof document !== "undefined" && document.hidden)) return;
         const token = await getTokenRef.current();
+        if (!active || signal.aborted) return;
         const response = await fetch(`${BASE_URL}/api/dms/${encodeURIComponent(uidStr)}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          signal,
         });
-        if (!response.ok || !active) return;
+        if (!response.ok || !active || signal.aborted) return;
         const data = await response.json() as { messages?: PersistedDm[] };
+        if (!active || signal.aborted) return;
         for (const message of data.messages ?? []) {
           const unreadOnInitialSync = message.senderId !== uidStr && message.readAt == null;
           storePersistedMessage(message, initialSyncCompleteRef.current || unreadOnInitialSync);
         }
         initialSyncCompleteRef.current = true;
+    });
+    const syncMessages = async () => {
+      try {
+        await syncRunner.run();
       } catch (error) {
-        console.warn("[DM] sync error:", error);
+        if (active) console.warn("[DM] sync error:", error);
       }
     };
 
@@ -213,6 +220,8 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
     const interval = setInterval(() => void syncMessages(), 2_500);
     return () => {
       active = false;
+      syncRunner.cancel();
+      if (syncMessagesRef.current === syncMessages) syncMessagesRef.current = async () => {};
       clearInterval(interval);
       clearInterval(presenceInterval);
     };

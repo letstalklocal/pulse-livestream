@@ -869,5 +869,9 @@
   "Picture in picture": "صورة داخل صورة",
   "Picture in picture settings": "إعدادات صورة داخل صورة",
   "Return to live": "العودة إلى live",
-  "Tap to change size and show controls.": "اضغط لتغيير الحجم وإظهار عناصر التحكم."
+  "Tap to change size and show controls.": "اضغط لتغيير الحجم وإظهار عناصر التحكم.",
+  "Simulate battle": "محاكاة معركة",
+  "Test battle": "معركة تجريبية",
+  "100 test coins alternate every 5 seconds. No wallet or earnings changes.": "100 عملة تجريبية كل 5 ثوانٍ. تتبادل الجهتان التقدم دون تغيير رصيد المحفظة أو الأرباح.",
+  "Winner": "الفائز"
 }

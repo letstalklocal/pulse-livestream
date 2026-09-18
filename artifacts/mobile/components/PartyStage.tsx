@@ -1,10 +1,12 @@
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Modal, PanResponder, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Animated, AppState, Easing, Modal, PanResponder, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { LiveParty } from "@workspace/api-client-react";
 import { RtcSurfaceViewComponent, RtcTextureViewComponent, VideoSourceType } from "@/utils/agora";
+import { battleMotionFrame } from "../utils/battleMotion";
 import { Avatar } from "./Avatar";
 import { battleUsesSplitLayout, partyLayout } from "@/utils/partyLayout";
 
@@ -94,9 +96,111 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onWin
   const mineFirst = party?.participants[0]?.channelId === channelId;
   const myScore = (mineFirst ? battle?.firstScore : battle?.secondScore) ?? 0;
   const peerScore = (mineFirst ? battle?.secondScore : battle?.firstScore) ?? 0;
+  const myScorePercent = myScore + peerScore ? Math.max(5, Math.min(95, myScore / (myScore + peerScore) * 100)) : 50;
+  const bothScored = myScore > 0 && peerScore > 0;
+  const scoredTie = bothScored && myScore === peerScore;
+  const leading = myScore === peerScore ? null : myScore > peerScore ? "mine" : "peer";
+  const fadeColors = (side: "mine" | "peer") => side === "mine"
+    ? [PARTY_BATTLE_GOLD, "rgba(255,255,255,0.9)", "rgba(255,255,255,0)"] as const
+    : ["rgba(255,255,255,0)", "rgba(255,255,255,0.9)", PARTY_BATTLE_GOLD] as const;
+  const fadeLocations = (side: "mine" | "peer") => side === "mine" ? [0, 0.55, 1] as const : [0, 0.45, 1] as const;
+  const flow = useRef(new Animated.Value(-28)).current;
+  const flowOpacity = useRef(new Animated.Value(0)).current;
+  const [pushSide, setPushSide] = useState<"mine" | "peer">("mine");
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const [foreground, setForeground] = useState(AppState.currentState === "active");
+  useEffect(() => {
+    let mounted = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then(value => { if (mounted) setReducedMotion(value); }).catch(() => {});
+    const motion = AccessibilityInfo.addEventListener("reduceMotionChanged", setReducedMotion);
+    const app = AppState.addEventListener("change", state => setForeground(state === "active"));
+    return () => { mounted = false; motion.remove(); app.remove(); };
+  }, []);
+  const displayedPercent = useRef(new Animated.Value(myScorePercent)).current;
+  const mineStrength = useRef(new Animated.Value(leading === "mine" ? 1 : 0)).current;
+  const peerStrength = useRef(new Animated.Value(leading === "peer" ? 1 : 0)).current;
+  const tieStrength = useRef(new Animated.Value(scoredTie ? 1 : 0)).current;
+  const previousBar = useRef({ battleId: battle?.id, channelId, myScore, peerScore });
+  const trackWidth = Math.max(0, width - 92);
+  const animateFlow = battleActive && !vs && !reducedMotion && foreground;
+  useEffect(() => {
+    const previous = previousBar.current;
+    const reset = previous.battleId !== battle?.id || previous.channelId !== channelId;
+    const changed = previous.myScore !== myScore || previous.peerScore !== peerScore;
+    previousBar.current = { battleId: battle?.id, channelId, myScore, peerScore };
+    const targets = [[displayedPercent, myScorePercent], [mineStrength, leading === "mine" ? 1 : 0], [peerStrength, leading === "peer" ? 1 : 0], [tieStrength, scoredTie ? 1 : 0]] as const;
+    flowOpacity.setValue(0);
+    if (reset || !changed || !animateFlow) {
+      targets.forEach(([value, target]) => value.setValue(target));
+      return;
+    }
+    let active = true;
+    let animation: Animated.CompositeAnimation | undefined;
+    let removeMotionListener: (() => void) | undefined;
+    // Capture the current visual boundary, including an interrupted push.
+    displayedPercent.stopAnimation(currentPercent => {
+      if (!active) return;
+      const side = myScorePercent === currentPercent
+        ? (myScore - previous.myScore >= peerScore - previous.peerScore ? "mine" : "peer")
+        : myScorePercent > currentPercent ? "mine" : "peer";
+      setPushSide(side);
+      const motion = new Animated.Value(0);
+      // Capture strengths too, so a new score can blend from an interrupted result.
+      const strengths = [[mineStrength, leading === "mine" ? 1 : 0], [peerStrength, leading === "peer" ? 1 : 0], [tieStrength, scoredTie ? 1 : 0]] as const;
+      const starts = [0, 0, 0];
+      strengths.forEach(([value], index) => value.stopAnimation(current => { starts[index] = current; }));
+      const applyFrame = (progress: number) => {
+        if (!active) return;
+        const frame = battleMotionFrame(currentPercent, myScorePercent, trackWidth, side, progress);
+        displayedPercent.setValue(frame.percent);
+        flow.setValue(frame.flowX);
+        flowOpacity.setValue(frame.flowOpacity);
+        strengths.forEach(([value, target], index) => value.setValue(starts[index] + (target - starts[index]) * frame.merge));
+      };
+      applyFrame(0);
+      const listener = motion.addListener(({ value }) => applyFrame(value));
+      removeMotionListener = () => motion.removeListener(listener);
+      animation = Animated.timing(motion, {
+        toValue: 1, duration: 1050, easing: Easing.inOut(Easing.cubic), useNativeDriver: false, isInteraction: false,
+      });
+      animation.start(result => { removeMotionListener?.(); if (result.finished) applyFrame(1); });
+    });
+    return () => { active = false; animation?.stop(); removeMotionListener?.(); flowOpacity.setValue(0); };
+  }, [battle?.id, channelId, myScore, peerScore, myScorePercent, leading, scoredTie, animateFlow, trackWidth, displayedPercent, mineStrength, peerStrength, tieStrength, flow, flowOpacity]);
+  const mineWidth = displayedPercent.interpolate({ inputRange: [0, 100], outputRange: ["0%", "100%"] });
+  const peerWidth = displayedPercent.interpolate({ inputRange: [0, 100], outputRange: ["100%", "0%"] });
   const remaining = battle?.endsAt ? Math.max(0, Math.ceil((battle.endsAt - now) / 1000)) : 0;
   const countdown = battle?.startsAt ? Math.max(0, Math.ceil((battle.startsAt - now) / 1000)) : 0;
+  const clockOpacity = useRef(new Animated.Value(1)).current;
+  const urgent = battleActive && countdown === 0 && remaining > 0 && remaining <= 10;
+  useEffect(() => {
+    clockOpacity.setValue(1);
+    if (!urgent || reducedMotion || !foreground) return;
+    const animation = Animated.sequence([
+      Animated.timing(clockOpacity, { toValue: 0.3, duration: 500, useNativeDriver: true, isInteraction: false }),
+      Animated.timing(clockOpacity, { toValue: 1, duration: 500, useNativeDriver: true, isInteraction: false }),
+    ]);
+    animation.start();
+    return () => { animation.stop(); clockOpacity.setValue(1); };
+  }, [urgent, remaining, reducedMotion, foreground, battle?.id, clockOpacity]);
   const winner = party?.participants.find(p => p.uid === battle?.winnerUid);
+  const showResult = !!peer && battle?.status === "finished" && !!battle.endsAt && now >= battle.endsAt && now < battle.endsAt + 10000;
+  const winnerScale = useRef(new Animated.Value(1)).current;
+  const lastWinnerPop = useRef<string | null>(null);
+  const resultKey = showResult && winner ? `${battle?.id}:${winner.uid}` : null;
+  useEffect(() => {
+    const fresh = resultKey !== null && lastWinnerPop.current !== resultKey;
+    lastWinnerPop.current = resultKey;
+    winnerScale.setValue(1);
+    if (!fresh || reducedMotion || !foreground) return;
+    winnerScale.setValue(0.35);
+    const animation = Animated.sequence([
+      Animated.timing(winnerScale, { toValue: 1.6, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true, isInteraction: false }),
+      Animated.timing(winnerScale, { toValue: 1, duration: 650, easing: Easing.inOut(Easing.cubic), useNativeDriver: true, isInteraction: false }),
+    ]);
+    animation.start();
+    return () => { animation.stop(); winnerScale.setValue(1); };
+  }, [resultKey, reducedMotion, foreground, winnerScale]);
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       <View style={vs ? [styles.mainVs, { top, width: width / 2, height: panelHeight }] : StyleSheet.absoluteFill} pointerEvents="none">
@@ -180,13 +284,37 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onWin
       {battleActive && !vs && mine && peer ? (
         <View style={[styles.partyBattleBar, { top: insets.top + 54 }]} pointerEvents="none"
           accessible accessibilityLabel={t("{v0}: {v1} coins. {v2}: {v3} coins. {v4}", { v0: mine.name, v1: myScore.toLocaleString(appLocale()), v2: peer.name, v3: peerScore.toLocaleString(appLocale()), v4: countdown ? `Starts in ${countdown}` : `${remaining} seconds remaining` })}>
-          <View style={styles.partyBattleTrack} />
+          <View style={styles.partyBattleTrack}>
+            <Animated.View testID="battle-score-mine" style={[styles.partyBattleSegment, { width: mineWidth, opacity: bothScored || myScore > peerScore ? 1 : 0.25, backgroundColor: !bothScored && myScore > peerScore ? "transparent" : PARTY_BATTLE_GOLD }]} />
+            <Animated.View testID="battle-score-peer" style={[styles.partyBattleSegment, { width: peerWidth, opacity: bothScored || peerScore > myScore ? 1 : 0.25, backgroundColor: !bothScored && peerScore > myScore ? "transparent" : PARTY_BATTLE_GOLD }]} />
+            {(["mine", "peer"] as const).map(side => <Animated.View key={side} style={[styles.partyBattleLeading,
+              { opacity: side === "mine" ? mineStrength : peerStrength }, side === "mine"
+              ? { left: 0, width: mineWidth }
+              : { right: 0, width: peerWidth }]}>
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: PARTY_BATTLE_GOLD }, side === "mine" ? { right: 28 } : { left: 28 }]} />
+              <LinearGradient testID={side === leading ? "battle-score-tip" : undefined} colors={fadeColors(side)} locations={fadeLocations(side)}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={[styles.partyBattleTip, side === "mine" ? { right: 0 } : { left: 0 }]} />
+
+            </Animated.View>)}
+            <Animated.View testID="battle-score-tie" style={{ position: "absolute", left: mineWidth, marginLeft: -28, width: 56, height: "100%", opacity: tieStrength }}>
+              <LinearGradient colors={["rgba(255,255,255,0)", "rgba(255,255,255,0.9)", "rgba(255,255,255,0)"]}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+            </Animated.View>
+            {animateFlow ? <Animated.View testID="battle-score-flow" style={[styles.partyBattleFlow, {
+              opacity: flowOpacity, transform: [{ translateX: flow }],
+            }]}>
+              <LinearGradient colors={fadeColors(pushSide)} locations={fadeLocations(pushSide)}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+            </Animated.View> : null}
+          </View>
+          {battle?.simulated ? <Text style={[localizedTextStyle(), styles.simulationLabel]}>{t("Test battle")}</Text> : null}
           <View style={styles.partyBattleAvatarRing}>
             <Avatar uid={mine.uid} name={mine.name} avatarUri={mine.avatarUrl ?? undefined} size={32} />
           </View>
           <View style={styles.partyBattleLabels}>
             <Text style={styles.partyBattleCoins} numberOfLines={1} adjustsFontSizeToFit><Text style={styles.partyBattleCoinIcon}>🪙 </Text>{myScore.toLocaleString(appLocale())}</Text>
-            <Text style={[localizedTextStyle(), styles.partyBattleClock]}>{countdown ? t("Starts {v0}", { v0: countdown }) : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`}</Text>
+            <Animated.View testID="battle-countdown" style={[{ opacity: clockOpacity }, urgent && styles.urgentClockPill]}><Text style={[localizedTextStyle(), styles.partyBattleClock]}>{countdown ? t("Starts {v0}", { v0: countdown }) : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`}</Text></Animated.View>
             <Text style={[styles.partyBattleCoins, { textAlign: "right" }]} numberOfLines={1} adjustsFontSizeToFit><Text style={styles.partyBattleCoinIcon}>🪙 </Text>{peerScore.toLocaleString(appLocale())}</Text>
           </View>
           <View style={styles.partyBattleAvatarRing}>
@@ -197,7 +325,7 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onWin
       {vs ? <View style={[styles.scoreboard, { top: top + panelHeight }]} pointerEvents="none">
         <View style={styles.scores}>
           <Text style={[styles.score, { color: "#FF4E86" }]}>{myScore.toLocaleString(appLocale())}</Text>
-          <Text style={[localizedTextStyle(), styles.timer]}>{countdown ? t("Starts in {v0}", { v0: countdown }) : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`}</Text>
+          <Animated.View testID="battle-countdown" style={[{ opacity: clockOpacity }, urgent && styles.urgentClockPill]}><Text style={[localizedTextStyle(), styles.timer]}>{countdown ? t("Starts in {v0}", { v0: countdown }) : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`}</Text></Animated.View>
           <Text style={[styles.score, { color: "#44D7CD" }]}>{peerScore.toLocaleString(appLocale())}</Text>
         </View>
         <View style={styles.scoreTrack}>
@@ -205,17 +333,33 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onWin
           <View style={{ flex: myScore + peerScore ? peerScore : 1, backgroundColor: "#44D7CD" }} />
         </View>
       </View> : null}
-      {peer && battle?.status === "finished" && battle.endsAt && now < battle.endsAt + 10000 ? (
-        <View style={[styles.result, { top: insets.top + 54 }]} pointerEvents="none"><Text style={[localizedTextStyle(), styles.resultText]}>{winner ? t("{v0} wins VS", { v0: winner.name }) : t("VS ends in a draw")}</Text></View>
+      {showResult ? (
+        <View testID="battle-result" style={styles.result} pointerEvents="none" accessible
+          accessibilityLabel={winner ? t("{v0} wins VS", { v0: winner.name }) : t("VS ends in a draw")}>
+          {winner ? <>
+            <Animated.View testID="battle-winner-avatar" style={[styles.winnerAvatarRing, {
+              transform: [{ scale: winnerScale }],
+              opacity: winnerScale.interpolate({ inputRange: [0.35, 0.8], outputRange: [0, 1], extrapolate: "clamp" }),
+            }]}><Avatar uid={winner.uid} name={winner.name} avatarUri={winner.avatarUrl ?? undefined} size={96} /></Animated.View>
+            <Text style={[localizedTextStyle(), styles.winnerTitle]}>{t("Winner")}</Text>
+            <Text style={[styles.resultText, styles.winnerName]} numberOfLines={1}>{winner.name}</Text>
+          </> : <Text style={[localizedTextStyle(), styles.resultText]}>{t("VS ends in a draw")}</Text>}
+          {battle?.simulated ? <Text style={[localizedTextStyle(), styles.resultText]}>{t("Test battle")}</Text> : null}
+        </View>
       ) : null}
     </View>
   );
 }
 const styles = StyleSheet.create({
-  partyBattleBar: { position: "absolute", left: 12, right: 12, height: 36, flexDirection: "row", alignItems: "center", justifyContent: "space-between", zIndex: 4 },
-  partyBattleTrack: { position: "absolute", left: 34, right: 34, top: 17, height: 2, backgroundColor: PARTY_BATTLE_GOLD },
+  partyBattleBar: { position: "absolute", left: 12, right: 12, height: 52, flexDirection: "row", alignItems: "center", justifyContent: "space-between", zIndex: 4 },
+  simulationLabel: { position: "absolute", top: 32, left: 42, right: 42, textAlign: "center", color: PARTY_BATTLE_GOLD, fontSize: 10 },
+  partyBattleTrack: { position: "absolute", left: 34, right: 34, top: 23, height: 6, flexDirection: "row", overflow: "hidden" },
+  partyBattleSegment: { height: "100%", backgroundColor: PARTY_BATTLE_GOLD },
+  partyBattleLeading: { position: "absolute", top: 0, height: "100%", overflow: "hidden" },
+  partyBattleTip: { position: "absolute", top: 0, width: 28, height: "100%" },
+  partyBattleFlow: { position: "absolute", left: 0, top: 0, width: 28, height: "100%" },
   partyBattleAvatarRing: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: PARTY_BATTLE_GOLD, alignItems: "center", justifyContent: "center" },
-  partyBattleLabels: { position: "absolute", left: 42, right: 42, top: -3, flexDirection: "row", alignItems: "center", gap: 6 },
+  partyBattleLabels: { position: "absolute", left: 42, right: 42, top: -3, height: 16, flexDirection: "row", alignItems: "center", gap: 6 },
   partyBattleCoins: { flex: 1, color: "#FFF", fontSize: 12, lineHeight: 16, includeFontPadding: false, fontFamily: "Inter_700Bold" },
   partyBattleCoinIcon: { fontSize: 10 },
   partyBattleClock: { lineHeight: 16, color: "#FFF", fontSize: 12, fontFamily: "Inter_700Bold", textAlign: "center", minWidth: 56, includeFontPadding: false },
@@ -242,6 +386,10 @@ const styles = StyleSheet.create({
   score: { flex: 1, fontSize: 18, fontFamily: "Inter_700Bold", textAlign: "center" },
   timer: { color: "#FFF", fontSize: 14, fontFamily: "Inter_600SemiBold", minWidth: 84, textAlign: "center" },
   scoreTrack: { flexDirection: "row", height: 4, marginTop: 8 },
-  result: { position: "absolute", left: 16, right: 16, alignItems: "center", padding: 8, backgroundColor: "rgba(0,0,0,0.8)" },
+  urgentClockPill: { backgroundColor: "#FF1966", borderRadius: 8, paddingHorizontal: 6 },
+  result: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center", padding: 24, gap: 8, zIndex: 6 },
+  winnerAvatarRing: { width: 108, height: 108, borderRadius: 54, borderWidth: 3, borderColor: PARTY_BATTLE_GOLD, alignItems: "center", justifyContent: "center", backgroundColor: "#19191F", shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 10, elevation: 10 },
+  winnerName: { color: "#FFFFFF", textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
+  winnerTitle: { color: "#FFFFFF", fontSize: 30, fontFamily: "Inter_700Bold", textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
   resultText: { color: "#FFD700", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 });

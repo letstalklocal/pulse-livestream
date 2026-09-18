@@ -1,4 +1,4 @@
-import { integer, pgTable, text, timestamp, index } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, text, timestamp, index } from "drizzle-orm/pg-core";
 import { liveStreamSessionsTable } from "./live-stream-sessions";
 
 export const livePartiesTable = pgTable("live_parties", {
@@ -23,6 +23,7 @@ export const liveBattlesTable = pgTable("live_battles", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   startsAt: timestamp("starts_at", { withTimezone: true }),
   endsAt: timestamp("ends_at", { withTimezone: true }),
+  simulated: boolean("simulated").notNull().default(false),
   firstScore: integer("first_score").notNull().default(0),
   secondScore: integer("second_score").notNull().default(0),
 }, t => [index("live_battles_party_idx").on(t.partyId)]);

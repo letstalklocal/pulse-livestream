@@ -147,3 +147,8 @@ This explicitly supersedes chevron-as-stop while PiP is enabled; **Exit Live** r
 ### Device confirmation — September 17, 2026
 
 The user confirmed the complete PiP experience works in the TestFlight iPhone build and Android build, including drag, portrait sizing, anchored smooth expansion, controls, shrink, close, settings, and Premium Back behavior.
+
+
+## Menu chevrons — September 18, 2026
+
+User requirement across sheets: show a trailing navigation chevron only when a row opens another screen, submenu, or picker. Direct actions and actions that only request confirmation must not imply further navigation. Removed chevrons from host Start/End Battle and Leave Party; Simulate battle also has none. Retained Party and Beauty chevrons because they open sheets. Audited remaining sheet arrows: Live Viewers rows open management/profile, media chooser rows open device media/packs/create flows, and Premium Next opens viewer selection. Those remain appropriate. Preserve action handlers, confirmation dialogs, disabled/pending state and menu dismissal. Mobile types, localization and stream checks are automated; Android/iPhone visual checks remain pending.

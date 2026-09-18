@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db, livePartiesTable, liveBattlesTable, liveStreamSessionsTable } from "@workspace/db";
+import { chatStore, deletedMessages, MAX_MESSAGES } from "./liveChat";
 import { viewerModeration } from "./streamModeration";
 import { contactBlocked } from "./userSafety";
 
@@ -59,6 +60,24 @@ export async function settleBattle(party: Party, tx: PartyTx) {
   const battle = await latestBattle(party.id, tx);
   if (!battle) return null;
   const now = Date.now();
+  // Derive test awards from server time, so polling, retries and restarts cannot
+  // double-award. Simulation never writes a wallet, earnings or gift ledger.
+  if (battle.simulated && battle.status === "active" && battle.startsAt && battle.endsAt && partyMediaReady(party, now)) {
+    const elapsed = Math.max(0, Math.min(now, battle.endsAt.getTime() - 1) - battle.startsAt.getTime());
+    const awards = Math.floor(elapsed / 5000);
+    // A, B, B, A, A, B, B...: each 100-coin award either ties or
+    // changes the leader, so both directional effects can be tested.
+    const firstAwards = Math.floor(awards / 4) * 2 + (awards % 4 === 0 ? 0 : 1);
+    // One larger test award at one minute creates a decisive lead. Deriving
+    // it from elapsed time keeps retries and concurrent polls idempotent.
+    const firstScore = firstAwards * 100 + (elapsed >= 60_000 ? 1000 : 0);
+    const secondScore = (awards - firstAwards) * 100;
+    if (firstScore !== battle.firstScore || secondScore !== battle.secondScore) {
+      await tx.update(liveBattlesTable).set({ firstScore, secondScore }).where(eq(liveBattlesTable.id, battle.id));
+      battle.firstScore = firstScore;
+      battle.secondScore = secondScore;
+    }
+  }
   const status = battle.status === "active" && battle.endsAt && now >= battle.endsAt.getTime() ? "finished"
     : battle.status === "pending" && now >= battle.expiresAt.getTime() ? "cancelled"
     : battle.status === "active" && !partyMediaReady(party) ? "cancelled" : battle.status;
@@ -104,11 +123,39 @@ export async function scorePartyGift(tx: PartyTx, channelId: string | undefined,
   if (!recipient || recipient.hostUserId !== recipientUid) throw new Error("Party gifts must target the selected host's live");
   const battle = await settleBattle(party, tx);
   const now = Date.now();
-  if (!battle || battle.status !== "active" || !battle.startsAt || !battle.endsAt || now < battle.startsAt.getTime() || now >= battle.endsAt.getTime()) return null;
+  if (!battle || battle.simulated || battle.status !== "active" || !battle.startsAt || !battle.endsAt || now < battle.startsAt.getTime() || now >= battle.endsAt.getTime()) return null;
   if (senderUid === first?.hostUserId || senderUid === second?.hostUserId) return null;
   await tx.update(liveBattlesTable).set(recipientUid === first?.hostUserId
     ? { firstScore: sql`${liveBattlesTable.firstScore} + ${amount}` }
     : { secondScore: sql`${liveBattlesTable.secondScore} + ${amount}` })
     .where(eq(liveBattlesTable.id, battle.id));
   return battle.id;
+}
+
+// Read committed results into the ordinary stream chat, including rounds from
+// a Party that has since ended. Stable IDs preserve polling/removal semantics.
+export async function appendBattleResults(channelId: string) {
+  const results = await db.select({ battle: liveBattlesTable, party: livePartiesTable })
+    .from(liveBattlesTable).innerJoin(livePartiesTable, eq(liveBattlesTable.partyId, livePartiesTable.id))
+    .where(and(eq(liveBattlesTable.status, "finished"),
+      or(eq(livePartiesTable.firstChannelId, channelId), eq(livePartiesTable.secondChannelId, channelId))))
+    .orderBy(desc(liveBattlesTable.endsAt)).limit(MAX_MESSAGES);
+  for (const { battle, party } of results.reverse()) {
+    if (battle.firstScore === battle.secondScore || !battle.endsAt) continue;
+    const id = `battle:${battle.id}`;
+    const existing = chatStore.get(channelId) ?? [];
+    if (existing.some(message => message.id === id) || deletedMessages.get(channelId)?.includes(id)) continue;
+    if (existing.length >= MAX_MESSAGES && battle.endsAt.getTime() < existing[0].ts) continue;
+    const sessions = await partyStreams(party);
+    const winner = sessions[battle.firstScore > battle.secondScore ? 0 : 1];
+    if (!winner) continue;
+    // Recheck after the async lookup so concurrent chat polls cannot duplicate.
+    const current = chatStore.get(channelId) ?? [];
+    if (current.some(message => message.id === id) || deletedMessages.get(channelId)?.includes(id)) continue;
+    chatStore.set(channelId, [...current, {
+      id, senderName: "Pulse",
+      text: `Winner: ${winner.hostName}\n${Math.max(battle.firstScore, battle.secondScore).toLocaleString("en-US")} coins`,
+      color: "#FF1966", ts: Date.now(),
+    }].slice(-MAX_MESSAGES));
+  }
 }

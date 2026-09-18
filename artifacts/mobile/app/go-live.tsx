@@ -1383,7 +1383,6 @@ export default function GoLiveScreen() {
               >
                 <Ionicons name={party.battle?.status === "active" ? "stop-circle-outline" : "flash-outline"} size={21} color="#FF1966" />
                 <Text style={[localizedTextStyle(), { color: "#FFF", fontSize: 16, fontFamily: "Inter_500Medium", flex: 1 }]}>{t(party.battle?.status === "active" ? "End Battle" : "Start Battle")}</Text>
-                <Ionicons name="chevron-forward" size={17} color="#999" />
               </TouchableOpacity>
               <TouchableOpacity
                 style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 }}
@@ -1397,7 +1396,6 @@ export default function GoLiveScreen() {
               >
                 <Ionicons name="exit-outline" size={21} color="#FF759A" />
                 <Text style={[localizedTextStyle(), { color: "#FF759A", fontSize: 16, fontFamily: "Inter_500Medium", flex: 1 }]}>{t("Leave Party")}</Text>
-                <Ionicons name="chevron-forward" size={17} color="#999" />
               </TouchableOpacity>
             </> : (
               <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 }} onPress={() => { setShowLiveMenu(false); setShowParty(true); }} accessibilityLabel={t("Party")}>

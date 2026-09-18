@@ -37,6 +37,7 @@ const presence = (channelId, uid) => call(streams, "/streams/:channelId/presence
 const gift = (uid, recipientUid, channelId, key = randomUUID(), amount = 5) => call(coins, "/coins/spend", "post", uid, { uid, recipientUid, channelId, amount, giftName: "Heart", idempotencyKey: key });
 try {
   await pool.query(readFileSync(new URL("../../../lib/db/migrations/20260910_live_parties.sql", import.meta.url), "utf8"));
+  await pool.query(readFileSync(new URL("../../../lib/db/migrations/20260918_battle_simulation.sql", import.meta.url), "utf8"));
   for (const uid of [a, b, c, v, w]) await pool.query("insert into users(uid,clerk_id,name) values($1,$2,$3)", [uid, `${prefix}-${uid}`, `Party test ${uid}`]);
   for (let i = 0; i < channels.length; i++) await pool.query("insert into live_stream_sessions(channel_id,host_user_id,host_name,title,category) values($1,$2,$3,'Party test','Talk')", [channels[i], [a, b, c][i], `Host ${i}`]);
   await pool.query("insert into coin_balances(user_id,balance) values($1,1000),($2,1000)", [v, w]);
@@ -149,6 +150,7 @@ try {
     assert.equal(stopped.status, "active", "Party stays active");
     assert.equal(stopped.battle.status, "cancelled");
     assert.equal(stopped.battle.winnerUid, null);
+    assert.ok(!(await messages(ca,a)).body.messages.some(message => message.id === `battle:${early.id}`), "Cancelled rounds do not announce winners");
     assert.ok(stopped.battle.endsAt <= Date.now());
     assert.equal((await state(cb, b)).body.party.battle.status, "cancelled");
     const afterKey = randomUUID();
@@ -159,6 +161,57 @@ try {
     assert.equal((await pool.query("select battle_id from coin_transactions where idempotency_key=$1", [afterKey])).rows[0].battle_id, null);
     assert.equal((await pool.query("select count(*)::int as n from live_stream_sessions where channel_id=any($1) and ended_at is null", [[ca, cb]])).rows[0].n, 2);
   }
+  const simulation = { action: "battle_simulate", partyId: invitation.id };
+  assert.equal((await action(ca, null, simulation)).statusCode, 401);
+  assert.equal((await action(ca, v, simulation)).statusCode, 403);
+  assert.equal((await action(cc, c, simulation)).statusCode, 409);
+  await pool.query("update live_parties set first_ready_at=null where id=$1", [invitation.id]);
+  assert.equal((await action(ca, a, simulation)).statusCode, 409, "Simulation requires both cameras");
+  await action(ca, a, { action: "ready", partyId: invitation.id });
+  const money = async () => ({
+    balances: (await pool.query("select user_id,balance from coin_balances where user_id=any($1) order by user_id", [[a,b,v,w]])).rows,
+    ledger: (await pool.query("select id from coin_transactions where from_user_id=any($1) or to_user_id=any($1) order by id", [[a,b,v,w]])).rows,
+  });
+  const beforeSimulation = await money();
+  const simStarts = await Promise.all([action(ca, a, simulation), action(cb, b, simulation)]);
+  assert.deepEqual(simStarts.map(r => r.statusCode).sort(), [200,409], "Concurrent simulation starts create one round");
+  const sim = (await state(ca, a)).body.party.battle;
+  assert.equal(sim.simulated, true);
+  assert.equal(sim.firstScore, 0); assert.equal(sim.secondScore, 0);
+  assert.equal(sim.endsAt - sim.startsAt, 180000);
+  for (const [seconds, first, second] of [[6,100,0],[11,100,100],[16,100,200],[21,200,200],[26,300,200],[31,300,300],[36,300,400],[59,500,600],[60,1600,600],[66,1700,600]]) {
+    await pool.query("update live_battles set starts_at=now()-($2 * interval '1 second') where id=$1", [sim.id, seconds]);
+    const both = await Promise.all([state(ca,a),state(cb,b),state(ca,v)]);
+    for (const response of both) {
+      assert.equal(response.body.party.battle.firstScore, first);
+      assert.equal(response.body.party.battle.secondScore, second);
+    }
+  }
+  await pool.query("update live_battles set starts_at=now()-interval '181 seconds',ends_at=now()-interval '1 second' where id=$1", [sim.id]);
+  const simFinished = (await state(cb,b)).body.party.battle;
+  assert.equal(simFinished.status, "finished");
+  assert.equal(simFinished.firstScore, 2700); assert.equal(simFinished.secondScore, 1800);
+  assert.equal(simFinished.winnerUid, a);
+  const resultId = `battle:${sim.id}`;
+  const resultPolls = await Promise.all([messages(ca,a), messages(ca,v), messages(cb,b), messages(cb,w)]);
+  for (const response of resultPolls) {
+    const notices = response.body.messages.filter(message => message.id === resultId);
+    assert.equal(notices.length, 1);
+    assert.equal(notices[0].senderName, "Pulse");
+    assert.equal(notices[0].text, "Winner: Host 0\n2,700 coins");
+    assert.equal(notices[0].senderUid, undefined);
+    assert.equal(response.body.messages.filter(message => message.id === `battle:${battle.id}`).length, 1);
+    assert.equal(response.body.messages.find(message => message.id === `battle:${battle.id}`).text, "Winner: Host 1\n10 coins");
+  }
+  await call(chat, "/streams/:channelId/chat/:messageId", "delete", a, {}, { channelId: ca, messageId: resultId });
+  for (const channelId of [ca,cb]) assert.ok(!(await messages(channelId,v)).body.messages.some(message => message.id === resultId), "Removed result stays removed on repeated polls");
+
+  assert.deepEqual(await money(), beforeSimulation, "Test scores never touch balances or ledger");
+  assert.equal((await action(cb, b, simulation)).statusCode, 200, "Either host can simulate again");
+  const stopSim = (await state(ca,a)).body.party.battle;
+  await action(cb,b,{action:"battle_end",partyId:invitation.id,battleId:stopSim.id});
+  assert.equal((await state(ca,a)).body.party.battle.status,"cancelled");
+  console.log("PASS: simulation authorization, readiness, alternating server scores, shared state, concurrent starts, countdown, results, stop and wallet/ledger isolation.");
   assert.equal((await action(ca, a, { action: "battle_request", partyId: invitation.id })).statusCode, 200, "Rematch is allowed");
   const rematch = (await state(cb, b)).body.party.battle;
   assert.equal(rematch.status, "active");

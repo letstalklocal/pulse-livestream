@@ -17,6 +17,7 @@ export const PartyActionAction = {
   leave: 'leave',
   ready: 'ready',
   battle_request: 'battle_request',
+  battle_simulate: 'battle_simulate',
   battle_accept: 'battle_accept',
   battle_decline: 'battle_decline',
   battle_end: 'battle_end',

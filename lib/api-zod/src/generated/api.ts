@@ -1220,6 +1220,7 @@ export const GetStreamPartyResponse = zod.object({
   "expiresAt": zod.number(),
   "startsAt": zod.number().nullable(),
   "endsAt": zod.number().nullable(),
+  "simulated": zod.boolean().optional(),
   "firstScore": zod.number(),
   "secondScore": zod.number(),
   "winnerUid": zod.number().nullable()
@@ -1234,7 +1235,7 @@ export const ActOnStreamPartyParams = zod.object({
 })
 
 export const ActOnStreamPartyBody = zod.object({
-  "action": zod.enum(['invite', 'accept', 'decline', 'cancel', 'leave', 'ready', 'battle_request', 'battle_accept', 'battle_decline', 'battle_end']),
+  "action": zod.enum(['invite', 'accept', 'decline', 'cancel', 'leave', 'ready', 'battle_request', 'battle_simulate', 'battle_accept', 'battle_decline', 'battle_end']),
   "targetChannelId": zod.string().optional(),
   "partyId": zod.string().optional(),
   "battleId": zod.string().optional()

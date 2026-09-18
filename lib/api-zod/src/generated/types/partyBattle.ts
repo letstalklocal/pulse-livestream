@@ -14,6 +14,7 @@ export interface PartyBattle {
   expiresAt: number;
   startsAt: number | null;
   endsAt: number | null;
+  simulated?: boolean;
   firstScore: number;
   secondScore: number;
   winnerUid: number | null;

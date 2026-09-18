@@ -869,5 +869,9 @@
   "Picture in picture": "ピクチャ・イン・ピクチャ",
   "Picture in picture settings": "ピクチャ・イン・ピクチャ設定",
   "Return to live": "live に戻る",
-  "Tap to change size and show controls.": "タップしてサイズを変更し、操作ボタンを表示します。"
+  "Tap to change size and show controls.": "タップしてサイズを変更し、操作ボタンを表示します。",
+  "Simulate battle": "バトルをシミュレーション",
+  "Test battle": "テストバトル",
+  "100 test coins alternate every 5 seconds. No wallet or earnings changes.": "5秒ごとに100テストコインを加算。両者が交互にリードします。残高や収益は変わりません。",
+  "Winner": "勝者"
 }

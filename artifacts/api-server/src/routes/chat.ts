@@ -3,7 +3,7 @@ import { db, liveStreamSessionsTable, premiumStreamAdmissionsTable } from "@work
 import { authenticatedUser, viewerModeration } from "../lib/streamModeration";
 import { Router } from "express";
 import { requireChannelAccess } from "../lib/privateChannelAccess";
-import { findParty, partyChannels, partyStreams, partyViewerAllowed } from "../lib/liveParty";
+import { appendBattleResults, findParty, partyChannels, partyStreams, partyViewerAllowed } from "../lib/liveParty";
 
 const router = Router();
 
@@ -15,6 +15,7 @@ router.get("/streams/:channelId/chat", async (req, res) => {
   delete req.headers["if-modified-since"];
   const channelId = req.params["channelId"] ?? "";
   if (!await requireChannelAccess(req, res, channelId)) return;
+  await appendBattleResults(channelId);
   const since = parseInt(req.query["since"] as string ?? "0", 10) || 0;
   const all = chatStore.get(channelId) ?? [];
   const messages = since > 0 ? all.filter((m) => m.ts > since) : all;

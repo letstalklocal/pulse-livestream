@@ -869,5 +869,9 @@
   "Picture in picture": "Image dans l’image",
   "Picture in picture settings": "Réglages de l’image dans l’image",
   "Return to live": "Revenir au live",
-  "Tap to change size and show controls.": "Touchez pour changer la taille et afficher les commandes."
+  "Tap to change size and show controls.": "Touchez pour changer la taille et afficher les commandes.",
+  "Simulate battle": "Simuler une bataille",
+  "Test battle": "Bataille de test",
+  "100 test coins alternate every 5 seconds. No wallet or earnings changes.": "100 pièces de test toutes les 5 secondes. Chaque côté prend la tête à tour de rôle ; solde et gains inchangés.",
+  "Winner": "Vainqueur"
 }
