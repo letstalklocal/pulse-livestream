@@ -1,3 +1,5 @@
+import { confirmVideoBeforeLive } from "@/utils/confirmVideoBeforeLive";
+import { CreatorVideoSheet } from "@/components/CreatorVideoSheet";
 import { LiveReactions } from "@/components/LiveReactions";
 import { Image as CachedImage } from "expo-image";
 import { PremiumGiftRequestSheet } from "@/components/PremiumGiftRequestSheet";
@@ -191,6 +193,7 @@ export default function GoLiveScreen() {
   const [isPremium, setIsPremium] = useState(false);
   const [requiredGiftId, setRequiredGiftId] = useState<CreateStreamRequestRequiredGiftId>(null);
   const [draftRequiredGiftId, setDraftRequiredGiftId] = useState<CreateStreamRequestRequiredGiftId>(null);
+  const [showVideoSheet, setShowVideoSheet] = useState(false);
   const [showPremiumGiftSheet, setShowPremiumGiftSheet] = useState(false);
   const [showLivePremium, setShowLivePremium] = useState(false);
   const [showGiftRequest, setShowGiftRequest] = useState(false);
@@ -221,6 +224,8 @@ export default function GoLiveScreen() {
   const chatSending = useRef(false);
   const [sendingChat, setSendingChat] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  const startingRequestRef = useRef<AbortController | null>(null);
+  useEffect(() => () => { startingRequestRef.current?.abort(); }, [user?.uid]);
   const [isUploadingBackground, setIsUploadingBackground] = useState(false);
   const [backgroundToCrop, setBackgroundToCrop] = useState<BackgroundCropSource | null>(null);
   const [cameraReady, setCameraReady] = useState(!isNative);
@@ -734,7 +739,7 @@ export default function GoLiveScreen() {
   }, [isLive, user?.uid]);
 
   const startLive = useCallback(async (premiumGiftId?: CreateStreamRequestRequiredGiftId) => {
-    if (!title.trim()) return;
+    if (startingRequestRef.current || isLiveRef.current || !title.trim()) return;
     if (!user?.streamBackgroundImagePath) {
       Alert.alert(
         t("Background image required"),
@@ -749,6 +754,8 @@ export default function GoLiveScreen() {
     const confirmedGiftId = isPrivateInvite ? null : (premiumGiftId ?? requiredGiftId);
     if (isPremium && !confirmedGiftId) return;
 
+    const startupRequest = new AbortController();
+    startingRequestRef.current = startupRequest;
     setCameraError(null);
     setIsStarting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -758,8 +765,10 @@ export default function GoLiveScreen() {
 
     let activatedPrivate = false;
     let createdStream = false;
-    let startupStep = "Creating the stream";
+    let startupStep = t("Show in Discovery");
     try {
+      if (!await confirmVideoBeforeLive(getToken, t, startupRequest.signal)) return;
+      startupStep = "Creating the stream";
       // Create the durable private session first. Invitation activation then
       // atomically verifies this exact host/channel before releasing escrow.
       await createStream.mutateAsync({
@@ -822,9 +831,10 @@ export default function GoLiveScreen() {
         }
       }
     } finally {
-      setIsStarting(false);
+      if (startingRequestRef.current === startupRequest) startingRequestRef.current = null;
+      if (!startupRequest.signal.aborted) setIsStarting(false);
     }
-  }, [title, category, user, generateToken, createStream, cameraReady, invitationAction, isPrivateInvite, invitationChannelId, privateInvitationId, requiredGiftId]);
+  }, [title, category, user, generateToken, createStream, cameraReady, invitationAction, isPrivateInvite, invitationChannelId, privateInvitationId, requiredGiftId, getToken, t, isPremium]);
 
   const saveStreamBackground = useCallback(async (asset: { uri: string; mimeType?: string | null }) => {
     if (!user || isUploadingBackground) return;
@@ -1610,6 +1620,10 @@ export default function GoLiveScreen() {
           </View>
 
           <View style={styles.modeSelector}>
+            {!isPrivateInvite && <TouchableOpacity testID="stream-entry-video" style={[styles.modeSecondary, { borderColor: '#00D4D4' }]}
+              disabled={isStarting} onPress={() => { Keyboard.dismiss(); setShowVideoSheet(true); }} activeOpacity={0.8}>
+              <Text style={[localizedTextStyle(), styles.modeSecondaryText, { color: '#00D4D4' }]}>{t("Video")}</Text>
+            </TouchableOpacity>}
             {isPremium && requiredGiftId ? (
               <>
                 <TouchableOpacity
@@ -1669,6 +1683,7 @@ export default function GoLiveScreen() {
         </View>
       </KeyboardAvoidingView>
 
+      <CreatorVideoSheet key={user.uid} visible={showVideoSheet} onClose={() => setShowVideoSheet(false)} />
       <Modal
         visible={showPremiumGiftSheet}
         transparent
@@ -1908,11 +1923,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 20,
+    paddingHorizontal: 8,
   },
   modePrimaryText: {
     color: "#FFF",
-    fontSize: 17,
+    fontSize: 15,
     fontFamily: "Inter_700Bold",
   },
   modeSecondary: {
@@ -1923,14 +1938,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 7,
-    paddingHorizontal: 18,
+    paddingHorizontal: 8,
     backgroundColor: "rgba(0,0,0,0.34)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.18)",
   },
   modeSecondaryText: {
     color: "#FFF",
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: "Inter_600SemiBold",
   },
   setupRequirementText: {

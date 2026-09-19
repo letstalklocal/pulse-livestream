@@ -1,3 +1,4 @@
+import { disableVideoBeforeLive } from "./creator-videos";
 import { createPremiumGiftRequest, payPremiumGiftRequest, premiumGiftStatus, settlePremiumGiftRequests, PremiumGiftError } from "../lib/premiumGiftRequests";
 import { contactBlocked } from "../lib/userSafety";
 import { viewerModeration } from "../lib/streamModeration";
@@ -363,7 +364,9 @@ router.post("/streams", async (req, res) => {
   }
 
   const now = new Date();
-  const [session] = await db.insert(liveStreamSessionsTable).values({
+  const [session] = await db.transaction(async tx => {
+    await disableVideoBeforeLive(tx, hostUid);
+    return tx.insert(liveStreamSessionsTable).values({
     channelId,
     hostUserId: hostUid,
     hostName,
@@ -379,6 +382,7 @@ router.post("/streams", async (req, res) => {
     startedAt: now,
     lastHeartbeatAt: now,
   }).onConflictDoNothing().returning();
+  });
   if (!session) {
     res.status(400).json({ error: "Channel ID has already been used and cannot be reused" });
     return;

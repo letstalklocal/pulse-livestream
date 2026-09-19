@@ -1,3 +1,4 @@
+import creatorVideosRouter from "./creator-videos";
 import reactionPreferencesRouter from "./reaction-preferences";
 import purchasesRouter from "./purchases";
 import adminRouter from "./admin";
@@ -31,6 +32,7 @@ const router: IRouter = Router();
 
 router.use("/admin-data", adminRouter);
 router.use(healthRouter);
+router.use(creatorVideosRouter);
 router.use(verificationRouter);
 router.use(countryLocationRouter);
 router.use(privacyRouter);

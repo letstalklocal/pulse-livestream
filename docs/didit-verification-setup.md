@@ -1,5 +1,20 @@
 # Didit verification setup
 
+## Production configuration update — September 19, 2026
+
+User reports saving the live Didit configuration in Replit production secrets and starting publication after the final configuration reminder. Deployment is **in progress**, not yet verified.
+
+- Production origin: `https://chimbalivestream.replit.app`
+- Didit live webhook: `https://chimbalivestream.replit.app/api/verification/webhook`
+- Webhook events requested: `status.updated` and `data.updated`; user confirmed completing the webhook setup and secret step.
+- Required environment: `DIDIT_ENVIRONMENT=live`; `DIDIT_TEST_USER_IDS` is unnecessary in live mode.
+- Public origin setting: `VERIFICATION_PUBLIC_ORIGIN=https://chimbalivestream.replit.app`
+- Privacy setting: `PULSE_PRIVACY_URL=https://chimbalivestream.replit.app/api/site/privacy`
+- Use the live `DIDIT_API_KEY`, initial `DIDIT_WORKFLOW_ID`, upgrade `DIDIT_ID_WORKFLOW_ID` and live destination's `DIDIT_WEBHOOK_SECRET`. No secret values were read or recorded.
+
+Before this publication, an unsigned empty POST reached the production webhook and returned HTTP 503, `Verification is not configured.` That confirms endpoint reachability, not active live settings. After publication, recheck that an unsigned request returns 401, then validate real provider delivery and the live verification flow. A 401 alone will not prove that credentials, workflow IDs or the signing secret match Didit's live application. No successful live capture, account funding check or production sign-off is recorded here. Development sandbox settings were not changed.
+
+
 > **Current status (2026-09-14, rechecked):** The running development API is back on sandbox. The live workflow and webhook were prepared, but the complete live server settings must be saved and the API restarted before testing. Per the user's decision, both environments use only `DIDIT_API_KEY`; the separate `DIDIT_LIVE_API_KEY` is no longer read. Confirm prepaid credit; the last checked live balance was zero. No real capture or phone return has been verified. See [the current checkpoint and required settings](didit-workflow-decision-tree.md#paused--resume-testing-on-2026-09-15). This supersedes earlier environment and readiness checkpoints below.
 
 

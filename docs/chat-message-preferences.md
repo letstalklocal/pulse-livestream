@@ -223,4 +223,13 @@ Finished battles with an unequal score add a normal scrolling stream message fro
 
 ## Restore original DM navigation — September 18, 2026
 
+Investigation evidence, tested changes, rejected explanations, and pending device checks: [iPhone DM freeze investigation](iphone-dm-freeze-investigation.md).
+
 User requested restoring the original DM route configuration to investigate an iPhone conversation that receives new messages but does not respond to Back or composer taps. Use only `headerShown: false`, restoring the navigator's default stack presentation and transition. This supersedes the temporary animation-only test and the custom transparent-modal slide with a 40 ms duration. It is not a confirmed freeze fix. Device verification pending: reopen the affected conversation, type/send, return with Back, and compare a working conversation on iPhone and Android.
+
+
+## Private-message header identity from recorded video — September 19, 2026
+
+User reported the private-message header stays “User” with a missing avatar when opened from recorded video, even as messages arrive. The video entry now passes the expected peerName parameter. The DM header and empty-conversation identity use the shared profile cache for the latest name/photo, the route name immediately while loading, and the conversation name as a fallback. Profile/conversation completion updates identity independently of history and chat-permission/presence loading. Preserve the 40-point header, online dot/last-seen privacy, established-chat access, composer/keyboard behavior and message loading.
+
+Automated mobile types, header update/recipient isolation tests, recorded-video navigation tests, chat-status regression and localization passed. Native Android/iPhone identity/keyboard/navigation checks remain pending; message-history loading speed has not been diagnosed or claimed fixed. See replay-and-live-recording-ideas.md for the separate recorded player lifecycle repair and remaining device checks.

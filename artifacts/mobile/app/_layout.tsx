@@ -1,3 +1,4 @@
+import { VideoCacheMaintenance } from "@/components/VideoCacheMaintenance";
 import { LivePlaybackProvider } from "@/context/LivePlaybackContext";
 import { LivePictureInPicture } from "@/components/LivePictureInPicture";
 import { PurchasesProvider } from "@/context/PurchasesContext";
@@ -76,6 +77,8 @@ function RootLayoutNav() {
       <Stack.Screen name="message-settings" options={{ headerShown: false }} />
         <Stack.Screen name="my-vault" options={{ headerShown: false }} />
         <Stack.Screen name="privacy" options={{ headerShown: false }} />
+      <Stack.Screen name="video/[id]" options={{ headerShown: false, presentation: "card", animation: "none", gestureEnabled: false }} />
+        <Stack.Screen name="video-prototype" options={{ headerShown: false, presentation: "card", animation: "none", gestureEnabled: false }} />
       <Stack.Screen name="moments" options={{ headerShown: false }} />
       <Stack.Screen name="performance" options={{ headerShown: false }} />
       <Stack.Screen name="earnings" options={{ headerShown: false }} />
@@ -145,6 +148,7 @@ export default function RootLayout() {
                         <LivePlaybackProvider>
                           <RootLayoutNav />
                           <LivePictureInPicture />
+                          <VideoCacheMaintenance />
                           <InAppNotifications />
                         </LivePlaybackProvider>
                       </RtmProvider>

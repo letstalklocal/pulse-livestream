@@ -6,6 +6,7 @@ import { canAccessChannel } from "./privateChannelAccess";
 import { partyChannels } from "./liveParty";
 
 import { isReactionEmoji } from "./reactionEmoji";
+import { availableCreatorVideo } from "./creatorVideoAccess";
 const demos = new Set(["pulse-gaming-demo", "pulse-music-demo", "pulse-talk-demo", "pulse-art-demo"]);
 type Member = { channelId: string; clerkId: string | null; uid: number | null };
 const members = new Map<WebSocket, Member>();
@@ -15,6 +16,11 @@ export function validReaction(value: any): boolean {
 }
 
 async function allowed(member: Member) {
+  if (member.channelId.startsWith("creator-video:")) {
+    const id = member.channelId.slice("creator-video:".length);
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) return false;
+    return !!member.clerkId && member.uid != null && !!await availableCreatorVideo(id, member.uid);
+  }
   if (demos.has(member.channelId)) return true;
   if (!member.clerkId || member.uid == null || !await canAccessChannel(member.channelId, member.clerkId)) return false;
   if (member.channelId.startsWith("private-")) return true;
@@ -55,10 +61,11 @@ export function attachReactionSocket(ws: WebSocket) {
       }
       const member = members.get(ws);
       if (!member || !validReaction(msg) || Date.now() < nextSend) return;
+      if (member.channelId.startsWith("creator-video:") && msg.emoji !== "❤️") return;
       nextSend = Date.now() + 180;
       if (!await allowed(member)) { members.delete(ws); ws.close(1000, "Stream access changed"); return; }
       if (ws.readyState !== 1 || members.get(ws) !== member) return;
-      const channels = await partyChannels(member.channelId);
+      const channels = member.channelId.startsWith("creator-video:") ? [member.channelId] : await partyChannels(member.channelId);
       const payload = JSON.stringify({ type: "reaction", emoji: msg.emoji, count: msg.count });
       await Promise.all([...members].map(async ([target, recipient]) => {
         if (target === ws || target.readyState !== 1 || !channels.includes(recipient.channelId)) return;

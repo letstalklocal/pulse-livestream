@@ -1,4 +1,5 @@
 import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
+import { DiscoveryVideosSection, type VideoSectionHandle } from "@/components/DiscoveryVideosSection";
 import { FollowingActivity } from "@/components/FollowingActivity";
 import { Ionicons } from "@expo/vector-icons";
 import { usePathname, useRouter } from "expo-router";
@@ -40,6 +41,9 @@ export default function DiscoveryScreen() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [manualRefreshing, setManualRefreshing] = React.useState(false);
   const [visibleChannelIds, setVisibleChannelIds] = useState<Set<string>>(new Set());
+
+  const videoSectionRef = useRef<VideoSectionHandle>(null);
+  const streamListRef = useRef<FlatList<any>>(null);
 
   const VIEWABILITY_CONFIG = useRef<ViewabilityConfig>({
     itemVisiblePercentThreshold: 40,
@@ -158,6 +162,11 @@ export default function DiscoveryScreen() {
         </View>
       ) : (
         <FlatList
+          ref={streamListRef}
+          onScroll={() => videoSectionRef.current?.refreshVisibility()}
+          scrollEventThrottle={100}
+          onLayout={() => videoSectionRef.current?.refreshVisibility()}
+          onContentSizeChange={() => videoSectionRef.current?.refreshVisibility()}
           data={filtered}
           numColumns={2}
           keyExtractor={(item) => item.channelId}
@@ -176,6 +185,7 @@ export default function DiscoveryScreen() {
               tintColor={colors.primary}
             />
           }
+          ListFooterComponent={selectedFeed === "discover" ? <DiscoveryVideosSection ref={videoSectionRef} viewportRef={streamListRef} /> : null}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons

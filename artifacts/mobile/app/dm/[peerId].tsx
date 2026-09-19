@@ -33,7 +33,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 // @ts-ignore generated media-pack hooks
-import { getGetCoinBalanceQueryKey, useActOnPrivateStreamInvitation, useCreatePrivateStreamInvitation, useGetCoinBalance, useSpendCoins, useGetMediaPacks, useSendMediaPack } from "@workspace/api-client-react";
+import { getGetUserQueryKey, useGetUser, getGetCoinBalanceQueryKey, useActOnPrivateStreamInvitation, useCreatePrivateStreamInvitation, useGetCoinBalance, useSpendCoins, useGetMediaPacks, useSendMediaPack } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRtm, type DmMessage } from "@/context/RtmContext";
 import { useColors } from "@/hooks/useColors";
@@ -70,9 +70,23 @@ export default function DmScreen() {
 
   const { peerId, peerName } = useLocalSearchParams<{ peerId: string; peerName: string }>();
   const peerIdStr = peerId ?? "";
-  const name = peerName ?? "User";
   const safety = useAccountSafety(Number(peerIdStr));
   const contactBlocked = safety.data?.contactBlocked === true;
+  const peerUid = Number(peerIdStr);
+  const peerProfile = useGetUser(peerUid, {
+    query: {
+      queryKey: getGetUserQueryKey(peerUid),
+      enabled: Number.isSafeInteger(peerUid) && peerUid > 0 && !contactBlocked,
+      staleTime: 60_000,
+      retry: false,
+    },
+  });
+  // Reuse the video/profile avatar cache immediately; identity updates do not
+  // wait for messages or the separate presence/chat-permission request.
+  const profile = peerProfile.data?.user;
+  const name = profile?.name?.trim() || peerName?.trim() ||
+    conversations.find(conversation => conversation.peerId === peerIdStr)?.peerName?.trim() || "User";
+  const avatarUri = profile?.avatarImageUrl ?? undefined;
   const {getToken}=useClerkAuth();
   const peerStatus = useQuery({
     queryKey: ["message-peer", user?.uid, peerIdStr],
@@ -341,7 +355,7 @@ export default function DmScreen() {
           <Ionicons name="chevron-back" size={24} color={colors.foreground} />
         </TouchableOpacity>
         <View style={{ width: 40, height: 40 }}>
-          <Avatar uid={parseInt(peerIdStr)} name={name} size={40} />
+          <Avatar uid={peerUid} name={name} avatarUri={avatarUri} size={40} />
           {!contactBlocked && peerStatus.data?.online && <View accessibilityLabel={t("Online")} style={{ position: "absolute", bottom: 0, right: 1, width: 11, height: 11, borderRadius: 6, backgroundColor: "#22C55E", borderWidth: 2, borderColor: colors.background }} />}
         </View>
         <View style={{flex:1}}><Text style={[styles.headerName, { color: colors.foreground }]} numberOfLines={1}>{name}</Text>
@@ -444,7 +458,7 @@ export default function DmScreen() {
         }}
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
-            <Avatar uid={parseInt(peerIdStr)} name={name} size={64} />
+            <Avatar uid={peerUid} name={name} avatarUri={avatarUri} size={64} />
             <Text style={[styles.emptyName, { color: colors.foreground }]}>{name}</Text>
             <Text style={[localizedTextStyle(), [styles.emptySub, { color: colors.mutedForeground }]]}>
               {needsGift ? t("Send a Rose to activate this chat.") : t("Say hi to start the conversation!")}

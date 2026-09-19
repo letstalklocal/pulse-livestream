@@ -82,3 +82,7 @@ Migration `20260913_verification_fallback.sql` adds the unverified `id_required`
 ## Display name persistence
 
 The display name edited in Pulse is saved in `users.name`. Clerk supplies the initial name only when creating an account; subsequent sign-in/app-start synchronization must return the saved Pulse profile without overwriting its name. Regression: create an account, edit its name and bio, sync again with the original login name, then fetch the profile and confirm the edits and account UID persist.
+
+## Withdraw Money — Payoneer
+
+User decision (2026-09-19): Settings must provide **Withdraw Money**, where users connect Payoneer so staff can pay them from the admin. See [Payoneer withdrawal requirements and integration flow](payoneer-withdrawals.md). Integration and device verification are pending.

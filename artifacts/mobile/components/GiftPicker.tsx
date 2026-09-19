@@ -37,12 +37,14 @@ interface Props {
   onSend: (gift: Gift) => void;
   coins: number;
   hintText?: string;
+  /** Local animation preview only; never exposes purchases or a real wallet balance. */
+  preview?: boolean;
   recipients?: Array<{ uid: number; name: string; avatarUrl?: string | null }>;
   recipientUid?: number;
   onRecipientChange?: (uid: number) => void;
 }
 
-export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipientUid, onRecipientChange, hintText = "Tap a gift to send it live" }: Props) {
+export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipientUid, onRecipientChange, hintText = "Tap a gift to send it live", preview = false }: Props) {
   const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const insets = useSafeAreaInsets();
   const [buyingCoins, setBuyingCoins] = useState(false);
@@ -58,7 +60,7 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
     >
       <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
 
-      {buyingCoins ? <View style={styles.purchaseSheet}>
+      {buyingCoins && !preview ? <View style={styles.purchaseSheet}>
         <CoinStoreContent sheet onClose={() => setBuyingCoins(false)} />
       </View> : <View style={[styles.sheet, { paddingBottom: insets.bottom + (Platform.OS === "android" ? 32 : 16) }]}>
         {/* Handle */}
@@ -67,10 +69,10 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
         {/* Header */}
         <View style={styles.header}>
           <Text style={[localizedTextStyle(), styles.title]}>{t("Send a Gift")}</Text>
-          <TouchableOpacity style={styles.coinBadge} onPress={() => setBuyingCoins(true)}
-            accessibilityRole="button" accessibilityLabel={t("Buy Coins")} activeOpacity={0.75}>
+          <TouchableOpacity style={styles.coinBadge} disabled={preview} onPress={() => setBuyingCoins(true)}
+            accessibilityRole="button" accessibilityLabel={t(preview ? "Preview gifts" : "Buy Coins")} activeOpacity={0.75}>
             <Text style={styles.coinIcon}>🪙</Text>
-            <Text style={[styles.coinCount, localizedTextStyle()]}>{coins === 0 ? t("Buy Coins") : coins.toLocaleString(appLocale())}</Text>
+            <Text style={[styles.coinCount, localizedTextStyle()]}>{preview ? t("Preview gifts") : coins === 0 ? t("Buy Coins") : coins.toLocaleString(appLocale())}</Text>
           </TouchableOpacity>
         </View>
 
@@ -87,7 +89,7 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
           contentContainerStyle={styles.row}
         >
           {GIFTS.map((gift) => {
-            const canAfford = coins >= gift.coins;
+            const canAfford = preview || coins >= gift.coins;
             return (
               <TouchableOpacity
                 key={gift.id}
@@ -108,7 +110,7 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
           })}
         </ScrollView>
 
-        {coins === 0 && (
+        {!preview && coins === 0 && (
           <Text style={[localizedTextStyle(), styles.hintEmpty]}>{t("Tap Buy Coins to top up.")}</Text>
         )}
         <Text style={styles.hint}>{t(hintText)}</Text>

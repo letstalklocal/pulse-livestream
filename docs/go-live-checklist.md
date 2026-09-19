@@ -5,6 +5,8 @@ Status: Development in progress — no launch date committed
 
 Last status review: September 16, 2026
 
+**Didit update — September 19, 2026:** user reports live production secrets and live webhook setup completed; Replit publication is in progress at `https://chimbalivestream.replit.app`. Previous endpoint check returned configuration HTTP 503. Post-deployment configuration, signed delivery and live capture checks remain pending. See [production configuration update](didit-verification-setup.md#production-configuration-update--september-19-2026).
+
 ## Purpose and tracking
 
 This is the working development plan for getting Pulse ready for public launch. The first six workstreams are requested priorities. Additional items are proposed launch checks to review and scope; they are not a claim that every feature is missing or a decision to redesign approved behavior.
@@ -17,7 +19,7 @@ Use [Policy compliance checklist](policy-compliance-checklist.md) for detailed p
 |---|---|---|---|---|---|
 | A1 | In-app purchases (IAP) | Test Store integration built and sandbox credits recorded; real-store linkage, refund/reconciliation and production fulfillment open | TBD | TBD | [Purchase handoff](coins-premium-revenuecat.md); no production sign-off |
 | A2 | Google sign-in | Clerk browser OAuth built; Google enabled in Replit and user device login confirmed; language-switch investigation and release QA pending | TBD | TBD | [Signup screen](../artifacts/mobile/app/(auth)/sign-up.tsx) |
-| A3 | Age verification | Selfie/ID and new-account birthday/terms signup built; current API still sandbox; live capture, legacy accounts and access enforcement open | TBD | TBD | [Current Didit checkpoint](didit-workflow-decision-tree.md); no launch sign-off |
+| A3 | Age verification | Selfie/ID and onboarding built; live production settings saved per user, publication in progress; post-deployment verification, live capture and access enforcement open | TBD | TBD | [Current Didit checkpoint](didit-workflow-decision-tree.md); no launch sign-off |
 | A4 | Admin website | Staff access, real user directory/account details and overview built in development; operational sections, production MFA and domain open | TBD | TBD | [Admin evidence](admin-website.md) |
 | A5 | Policy website and app links | Public pages reachable; privacy and terms unfinished; launch domain and release-link checks open | TBD | TBD | [Public website](public-website.md); HTTP checked September 16 |
 | A6 | Moderation process | Reporting and host moderation controls exist; platform process, review queue, escalation, appeals and coverage remain open | TBD | TBD | [Strategy proposal](stream-filtering-strategy.md); user requirements still needed |

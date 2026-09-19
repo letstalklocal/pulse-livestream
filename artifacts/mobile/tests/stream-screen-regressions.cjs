@@ -16,6 +16,7 @@ const tests = [
   'artifacts/mobile/tests/live-viewers-sheet.test.cjs',
   'artifacts/mobile/tests/go-live-request-timeout.test.cjs',
   'artifacts/mobile/tests/go-live-startup.test.cjs',
+  'artifacts/mobile/tests/confirm-video-before-live.test.cjs',
   'artifacts/api-server/tests/viewer-premium-reconnect.test.mjs',
 ];
 for (const test of tests) {
