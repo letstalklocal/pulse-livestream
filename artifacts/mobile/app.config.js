@@ -4,8 +4,11 @@
 module.exports = ({ config }) => {
   const testFlightBuild = process.env.PULSE_TESTFLIGHT_BUILD === 'true'
     && (!process.env.EAS_BUILD_PLATFORM || process.env.EAS_BUILD_PLATFORM === 'ios');
+  const purchaseMode = process.env.EAS_BUILD_PLATFORM === 'android'
+    ? (process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_MODE ?? process.env.EXPO_PUBLIC_REVENUECAT_MODE)
+    : (process.env.EXPO_PUBLIC_REVENUECAT_IOS_MODE ?? process.env.EXPO_PUBLIC_REVENUECAT_MODE);
   if (process.env.EAS_BUILD_PROFILE === 'production'
-    && process.env.EXPO_PUBLIC_REVENUECAT_MODE === 'test'
+    && purchaseMode === 'test'
     && !testFlightBuild) {
     throw new Error('Production builds cannot use RevenueCat Test Store without an explicit iOS TestFlight opt-in. Use platform-specific public SDK keys for public release.');
   }

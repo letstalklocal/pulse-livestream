@@ -1,5 +1,25 @@
 # RevenueCat integration for Pulse
 
+## Temporary production-hosted sandbox coins — September 20, 2026
+
+User authorized the one-file backend change for coin testing, confirmed no paid customers, and requested an exact rollback record. In `artifacts/api-server/src/routes/purchases.ts`, `coinProductConfiguration()` now permits `SANDBOX` when running on production: removed only `process.env.NODE_ENV !== 'production' &&` from `enabled`. Server authorization, app allowlist, catalog, transaction ownership, duplicate protection and environment checks remain. `PRODUCTION` purchase fulfillment remains disabled even if the environment setting is changed to PRODUCTION. No production deployment performed here. Publish the server before device coin testing.
+
+**Exact backend rollback:** restore:
+
+```ts
+const enabled = process.env.NODE_ENV !== 'production' && environment === 'SANDBOX' && !!secret && secret.length >= 32 && appIds.length > 0 && products.length > 0;
+```
+
+Restore the comment explaining the production-runtime block, run purchase regressions, rebuild and publish. This re-disables production-hosted coin checkout; it does not enable real payments. Real coin release remains a separate implementation/sign-off including refunds and reconciliation. VIP has its own temporary helper override documented below: reverting one does not revert the other. Test coins enter the ordinary wallet; this change does not implement isolated test balances or payout eligibility. Record testing credits before any future paid launch reconciliation; do not silently delete balances on rollback.
+
+**Additional blocker found during the user's requested pre-build audit:** `CoinStoreContent.tsx` incorrectly treated every non-Test-Store SDK as PRODUCTION. Added `coinStoreAvailable()` in mobile `revenuecat-config.ts` and used it in coin checkout. It permits a ready SANDBOX backend with Apple/Google store SDKs, keeps Test Store restricted to SANDBOX and rejects disabled/unknown configurations. This is a permanent SDK-versus-purchase-environment correction, not part of the temporary backend rollback. Include it in the next native build; the backend change alone is insufficient for an older coin screen.
+
+Automated evidence: production-mode Apple sandbox fixture purchase credits 250 coins once across eight concurrent deliveries; real events are rejected, including when server config is PRODUCTION; VIP events do not credit coins. API typecheck/build and coin/VIP HTTP/database suites passed. See [combined next-build test checklist](next-purchase-test-build.md) for device and deployment checks.
+
+## Android development purchase-mode correction — September 20, 2026
+
+User reported Android test coin purchases disappeared after switching the shared `EXPO_PUBLIC_REVENUECAT_MODE` to `store` for Apple testing. Confirmed shared mode is `store` and no Android public SDK key is configured; prior selection therefore disabled Android purchases. `purchaseConfiguration()` now explicitly uses RevenueCat Test Store for Android development (`__DEV__`) even when the shared mode is `store`. iOS TestFlight remains Apple store mode; Android release builds still require a Google public SDK key in store mode and do not silently fall back to simulated purchases. No wallet/backend behavior or build profiles changed. Android development must fully reload the bundle to initialize the SDK with the restored configuration. Native device purchase confirmation remains pending. User requested separate settings: `EXPO_PUBLIC_REVENUECAT_IOS_MODE` and `EXPO_PUBLIC_REVENUECAT_ANDROID_MODE` now take priority over the legacy shared mode. Android development defaults to test even with shared store mode; explicitly setting Android mode to store enables future Play testing with a valid Google key. iOS mode falls back to the existing shared mode, currently store. No new secrets are required for the current configuration.
+
 ## Repeated unavailable-purchases message — September 20, 2026
 
 The user reported the same message after another TestFlight build. `PurchasesContext.tsx` shows this exact message only when the native module exists but `purchaseConfiguration().apiKey` is missing/invalid. `PULSE_TESTFLIGHT_BUILD` is a build guard for Test Store opt-in, not a runtime purchase-disable flag. Both root and mobile `eas.json` exist; the exact configuration/environment consumed by the installed Replit Publish build has not been established from build logs. Do not claim changing mobile EAS settings alone proved the installed binary received them.

@@ -62,7 +62,7 @@ try {
  grants=[grant];assert.equal((await call('/purchases/vip/sync',{active:false,userId:uid+1},headers)).body.active,true,'client cannot choose status or target account');
  assert.equal(await hasVipAccess(uid+1),false);
  assert.equal(await hasVipAccess(uid),true,'temporary override permits sandbox VIP on production server');
- assert.equal((await call('/purchases/coin-products',undefined,headers)).body.enabled,false,'production coin fulfillment stays disabled');
+ assert.equal((await call('/purchases/coin-products',undefined,headers)).body.enabled,true,'temporary production sandbox coin testing is enabled');
  assert.equal(Number((await pool.query('select count(*) from coin_transactions where from_user_id=$1 or to_user_id=$1',[uid])).rows[0].count),0);
  const logged=(await pool.query('select * from revenuecat_webhook_logs where event_id=any($1::text[]) order by received_at',[logEventIds])).rows;
  assert.ok(logged.some(r=>r.event_type==='RENEWAL' && r.outcome==='processed' && r.http_status===200));

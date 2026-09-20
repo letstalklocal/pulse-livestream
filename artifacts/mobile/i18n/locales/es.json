@@ -967,5 +967,10 @@
   "No videos in history yet.": "Aún no hay videos en el historial.",
   "Pulse VIP unlocks other users' followers and following lists.": "Pulse VIP desbloquea las listas de seguidores y seguidos de otros usuarios.",
   "Pulse VIP is active.": "Pulse VIP está activo.",
-  "VIP Unlocked": "VIP desbloqueado"
+  "VIP Unlocked": "VIP desbloqueado",
+  "Once": "Una vez",
+  "Active": "Activo",
+  "Manage subscription": "Gestionar suscripción",
+  "Request refund": "Solicitar reembolso",
+  "Refund request submitted. Apple will review your request.": "Solicitud de reembolso enviada. Apple revisará tu solicitud."
 }

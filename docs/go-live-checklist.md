@@ -1,5 +1,7 @@
 # Pulse go-live development checklist
 
+**September 20 purchase-test update:** temporary production-hosted sandbox coin readiness implemented locally in one backend source file; not deployed here. Before paid launch, restore/check both the coin readiness guard and the separate VIP environment override. [Exact coin rollback](revenuecat-integration.md#temporary-production-hosted-sandbox-coins--september-20-2026). Batch remaining app checks in [one purchase-test build](next-purchase-test-build.md); user explicitly requests avoiding one paid build per test.
+
 Created: September 11, 2026  
 Status: Development in progress — no launch date committed
 

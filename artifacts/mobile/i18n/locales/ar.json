@@ -967,5 +967,10 @@
   "No videos in history yet.": "لا توجد فيديوهات في السجل بعد.",
   "Pulse VIP unlocks other users' followers and following lists.": "يتيح Pulse VIP عرض قوائم متابعي المستخدمين الآخرين ومن يتابعونهم.",
   "Pulse VIP is active.": "Pulse VIP نشط.",
-  "VIP Unlocked": "تم فتح VIP"
+  "VIP Unlocked": "تم فتح VIP",
+  "Once": "مرة واحدة",
+  "Active": "نشط",
+  "Manage subscription": "إدارة الاشتراك",
+  "Request refund": "طلب استرداد المبلغ",
+  "Refund request submitted. Apple will review your request.": "تم إرسال طلب استرداد المبلغ. ستراجع Apple طلبك."
 }

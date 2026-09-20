@@ -95,6 +95,8 @@ try {
    // These additive header controls are separate from localization preservation.
    if(file.endsWith('/stream/[channelId].tsx')&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&['viewer-exit-live','viewer-premium-badge','viewer-choose-reaction'].includes(p.initializer?.text)))return;
    if(file.endsWith('/stream/[channelId].tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='person')return;
+   // Approved VIP visual redesign adds decorative Ionicons only; preserve package keys and payment identifiers.
+   if(file.endsWith('/app/subscriptions.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.parent?.parent?.tagName?.getText(a)==='Ionicons'&&n.initializer?.text!=='chevron-back')return;
    if(ts.isJsxAttribute(n)&&stableAttributes.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));
    if(ts.isPropertyAssignment(n)&&stableFields.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));
    ts.forEachChild(n,walk);

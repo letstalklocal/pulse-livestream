@@ -1,5 +1,9 @@
 # Android testing build workflow
 
+## Android development purchase-mode correction — September 20, 2026
+
+User reported Android test coin purchases disappeared after switching the shared `EXPO_PUBLIC_REVENUECAT_MODE` to `store` for Apple testing. Confirmed shared mode is `store` and no Android public SDK key is configured; prior selection therefore disabled Android purchases. `purchaseConfiguration()` now explicitly uses RevenueCat Test Store for Android development (`__DEV__`) even when the shared mode is `store`. iOS TestFlight remains Apple store mode; Android release builds still require a Google public SDK key in store mode and do not silently fall back to simulated purchases. No wallet/backend behavior or build profiles changed. Android development must fully reload the bundle to initialize the SDK with the restored configuration. Native device purchase confirmation remains pending. User requested separate settings: `EXPO_PUBLIC_REVENUECAT_IOS_MODE` and `EXPO_PUBLIC_REVENUECAT_ANDROID_MODE` now take priority over the legacy shared mode. Android development defaults to test even with shared store mode; explicitly setting Android mode to store enables future Play testing with a valid Google key. iOS mode falls back to the existing shared mode, currently store. No new secrets are required for the current configuration.
+
 User-confirmed requirement: 2026-09-15.
 
 Use the already-installed EAS CLI and the existing development profile:

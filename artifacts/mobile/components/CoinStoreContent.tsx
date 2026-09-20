@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getGetCoinBalanceQueryKey, useGetCoinBalance } from '@workspace/api-client-react';
 import { useAuth } from '@/context/AuthContext';
 import { usePurchases } from '@/context/PurchasesContext';
+import { coinStoreAvailable } from '@/lib/revenuecat-config';
 import { coinPackages } from '@/lib/revenuecat-session';
 import { useColors } from '@/hooks/useColors';
 import { useAppLanguage } from '@/i18n';
@@ -93,7 +94,7 @@ export function CoinStoreContent({ onClose, sheet = false }: { onClose?: () => v
   const coinsByProduct = Object.fromEntries((catalog.data?.products ?? []).map(p => [p.productId, p.coins]));
   const offering = purchases.offerings?.all.coins ?? purchases.offerings?.current;
   const packs = coinPackages(offering?.availablePackages ?? [], coinsByProduct);
-  const configured = catalog.data?.enabled && catalog.data.environment === (purchases.testStore ? 'SANDBOX' : 'PRODUCTION');
+  const configured = coinStoreAvailable(catalog.data, purchases.testStore);
   const disabled = !accountMatches || !purchases.ready || purchases.busy || starting || !!transactionId || !configured;
   const busy = purchases.busy || starting;
   const buy = async (pack: typeof packs[number]) => {

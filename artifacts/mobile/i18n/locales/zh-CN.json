@@ -967,5 +967,10 @@
   "No videos in history yet.": "历史记录中还没有视频。",
   "Pulse VIP unlocks other users' followers and following lists.": "Pulse VIP 可解锁其他用户的粉丝和关注列表。",
   "Pulse VIP is active.": "Pulse VIP 已激活。",
-  "VIP Unlocked": "VIP 已解锁"
+  "VIP Unlocked": "VIP 已解锁",
+  "Once": "一次性",
+  "Active": "已生效",
+  "Manage subscription": "管理订阅",
+  "Request refund": "申请退款",
+  "Refund request submitted. Apple will review your request.": "退款申请已提交。Apple 将审核您的申请。"
 }

@@ -33,6 +33,19 @@ test('test key used for native development only, platform keys for releases, web
   assert.equal(config.purchaseConfiguration('ios', false, { iosKey: 'secret_unsafe' }).apiKey, undefined);
   assert.equal(config.purchaseConfiguration('android', false, { androidKey: 'goog_public' }).apiKey, 'goog_public');
 });
+test('shared Apple store mode preserves Android development Test Store only', () => {
+  const android = config.purchaseConfiguration('android', true, { mode: 'store' });
+  assert.equal(android.testStore, true);
+  assert.equal(android.apiKey, config.REVENUECAT_TEST_KEY);
+  assert.equal(config.purchaseConfiguration('android', true, { mode: 'store', androidMode: 'test' }).apiKey, config.REVENUECAT_TEST_KEY);
+  assert.equal(config.purchaseConfiguration('android', true, { androidMode: 'store', androidKey: 'goog_public' }).apiKey, 'goog_public');
+  assert.equal(config.purchaseConfiguration('ios', false, { mode: 'test', iosMode: 'store' }).apiKey, config.REVENUECAT_IOS_KEY);
+  const ios = config.purchaseConfiguration('ios', false, { mode: 'store' });
+  assert.equal(ios.testStore, false);
+  assert.equal(ios.apiKey, config.REVENUECAT_IOS_KEY);
+  assert.equal(config.purchaseConfiguration('android', false, { mode: 'store' }).apiKey, undefined);
+  assert.equal(config.purchaseConfiguration('android', false, { mode: 'store', androidKey: 'goog_public' }).apiKey, 'goog_public');
+});
 test('configure once, sign out, and switch accounts without retaining another entitlement', async () => {
   const sdk = mock(), session = new RevenueCatSession(sdk, 'test_key');
   assert.equal(hasPulsePro(await session.identify('alice')), true);
@@ -85,6 +98,7 @@ function evaluateBuild(env, appConfig = { name: 'Pulse' }) {
 }
 test('production guard requires explicit iOS TestFlight opt-in for simulated payments', () => {
   const env = { EAS_BUILD_PROFILE: 'production', EXPO_PUBLIC_REVENUECAT_MODE: 'test' };
+  assert.throws(() => evaluateBuild({ EAS_BUILD_PROFILE: 'production', EXPO_PUBLIC_REVENUECAT_MODE: 'store', EXPO_PUBLIC_REVENUECAT_IOS_MODE: 'test' }), /cannot use RevenueCat Test Store/);
   assert.throws(() => evaluateBuild(env), /cannot use RevenueCat Test Store/);
   assert.throws(() => evaluateBuild({ ...env, PULSE_TESTFLIGHT_BUILD: 'false' }), /cannot use RevenueCat Test Store/);
   assert.throws(() => evaluateBuild({ ...env, PULSE_TESTFLIGHT_BUILD: 'true', EAS_BUILD_PLATFORM: 'android' }), /cannot use RevenueCat Test Store/);
@@ -107,4 +121,14 @@ test('saved TestFlight profile enables Apple store in a release bundle without c
   assert.equal(profile.android?.env?.EXPO_PUBLIC_REVENUECAT_MODE, undefined);
   assert.equal(profile.autoIncrement, true);
   assert.equal(eas.build.development.developmentClient, true);
+});
+
+test('store SDK coin checkout accepts sandbox readiness, Test Store rejects live backend', () => {
+  assert.equal(config.coinStoreAvailable({enabled:true,environment:'SANDBOX'},false),true);
+  assert.equal(config.coinStoreAvailable({enabled:true,environment:'SANDBOX'},true),true);
+  assert.equal(config.coinStoreAvailable({enabled:true,environment:'PRODUCTION'},false),true);
+  assert.equal(config.coinStoreAvailable({enabled:true,environment:'PRODUCTION'},true),false);
+  assert.equal(config.coinStoreAvailable({enabled:false,environment:'SANDBOX'},false),false);
+  assert.equal(config.coinStoreAvailable({enabled:true,environment:'unknown'},false),false);
+  assert.equal(config.coinStoreAvailable(undefined,false),false);
 });

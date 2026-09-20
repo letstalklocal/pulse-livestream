@@ -1,12 +1,14 @@
 import { useAuth } from '@clerk/expo';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { AppState, NativeModules, Platform } from 'react-native';
+import { AppState, Linking, NativeModules, Platform } from 'react-native';
 import type { CustomerInfo, PurchasesOfferings, PurchasesPackage } from 'react-native-purchases';
 import { purchaseConfiguration } from '@/lib/revenuecat-config';
 import { hasPulsePro, purchaseErrorMessage, RevenueCatSession } from '@/lib/revenuecat-session';
 
 const config = purchaseConfiguration(Platform.OS, __DEV__, {
   mode: process.env.EXPO_PUBLIC_REVENUECAT_MODE,
+  iosMode: process.env.EXPO_PUBLIC_REVENUECAT_IOS_MODE,
+  androidMode: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_MODE,
   iosKey: process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY,
   androidKey: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY,
 });
@@ -29,6 +31,8 @@ interface PurchaseState {
   purchase: (pkg: PurchasesPackage) => Promise<{ result: PurchaseResult; transactionId?: string }>;
   restore: () => Promise<void>;
   manage: () => Promise<void>;
+  manageSubscription: () => Promise<void>;
+  requestRefund: () => Promise<boolean>;
 }
 const Context = createContext<PurchaseState | null>(null);
 
@@ -144,6 +148,40 @@ export function PurchasesProvider({ children }: { children: React.ReactNode }) {
       });
     } catch { /* Error is shown by the screen. */ }
   };
+  const manageSubscription = async () => {
+    try {
+      await execute(async (session, id) => {
+        await session.run(id, async sdk => {
+          const Purchases = (require('react-native-purchases') as typeof import('react-native-purchases')).default;
+          if (Platform.OS === 'ios') await Purchases.showManageSubscriptions();
+          else {
+            const info = await sdk.getCustomerInfo();
+            if (!info.managementURL) throw new Error('No store management URL available.');
+            await Linking.openURL(info.managementURL);
+          }
+          await sdk.invalidateCustomerInfoCache();
+        });
+        await refresh();
+      });
+    } catch { /* Error is shown by the screen. */ }
+  };
+  const requestRefund = async () => {
+    try {
+      return await execute(async (session, id) => {
+        const submitted = await session.run(id, async sdk => {
+          const Purchases = (require('react-native-purchases') as typeof import('react-native-purchases')).default;
+          const info = await sdk.getCustomerInfo();
+          const vip = info.entitlements.active.pulse_pro;
+          if (Platform.OS !== 'ios' || config.testStore || !vip || vip.store !== 'APP_STORE') throw new Error('No eligible Apple purchase.');
+          const result = await Purchases.beginRefundRequestForEntitlement(vip);
+          await sdk.invalidateCustomerInfoCache();
+          return result === Purchases.REFUND_REQUEST_STATUS.SUCCESS;
+        });
+        await refresh();
+        return submitted;
+      }) ?? false;
+    } catch { return false; /* Error is shown by the screen. */ }
+  };
   const manage = async () => {
     try {
       await execute(async (session, id) => {
@@ -164,7 +202,7 @@ export function PurchasesProvider({ children }: { children: React.ReactNode }) {
       : !config.apiKey ? 'Purchases are not available in this build.' : '';
   return <Context.Provider value={{ ready, busy, error: unavailable || (current ? state.error : ''),
     customerInfo: current ? state.info : null, offerings: current ? state.offerings : null,
-    isPro: current && hasPulsePro(state.info), testStore: config.testStore, refresh, purchase, restore, manage }}>{children}</Context.Provider>;
+    isPro: current && hasPulsePro(state.info), testStore: config.testStore, refresh, purchase, restore, manage, manageSubscription, requestRefund }}>{children}</Context.Provider>;
 }
 
 export function usePurchases() {

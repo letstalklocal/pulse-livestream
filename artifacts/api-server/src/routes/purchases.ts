@@ -24,9 +24,9 @@ export function coinProductConfiguration() {
       products.push({ productId: value.productId, coins: value.coins });
     }
   } catch { products = []; }
-  // Production coin sales remain disabled until refund/reconciliation and real
-  // store QA are implemented. This integration currently enables sandbox only.
-  const enabled = process.env.NODE_ENV !== 'production' && environment === 'SANDBOX' && !!secret && secret.length >= 32 && appIds.length > 0 && products.length > 0;
+  // TEMPORARY pre-launch testing: allow sandbox coins on the production API.
+  // Real payments remain blocked. Rollback: docs/revenuecat-integration.md.
+  const enabled = environment === 'SANDBOX' && !!secret && secret.length >= 32 && appIds.length > 0 && products.length > 0;
   return { products, environment, appIds, secret, enabled };
 }
 function transactionKey(appId: string, store: string, environment: string, transactionId: string) {

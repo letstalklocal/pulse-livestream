@@ -967,5 +967,10 @@
   "No videos in history yet.": "履歴に動画はまだありません。",
   "Pulse VIP unlocks other users' followers and following lists.": "Pulse VIPでは他のユーザーのフォロワー・フォロー中リストを閲覧できます。",
   "Pulse VIP is active.": "Pulse VIPは有効です。",
-  "VIP Unlocked": "VIP アンロック"
+  "VIP Unlocked": "VIP アンロック",
+  "Once": "買い切り",
+  "Active": "有効",
+  "Manage subscription": "サブスクリプションを管理",
+  "Request refund": "返金をリクエスト",
+  "Refund request submitted. Apple will review your request.": "返金リクエストを送信しました。Appleがリクエストを審査します。"
 }

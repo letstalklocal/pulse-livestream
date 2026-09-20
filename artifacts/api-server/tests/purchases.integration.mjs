@@ -57,14 +57,24 @@ try {
   assert.equal(launchCatalog.enabled, true);
   assert.deepEqual(launchCatalog.products, [250, 500, 1000, 2000, 6000, 8000, 10000, 12000, 14000].map(coins => ({ productId: `coins_${coins}_v1`, coins })));
   process.env.NODE_ENV = 'production';
-  assert.equal((await call('/purchases/coin-products', undefined, auth)).body.enabled, false);
-  assert.equal((await send()).status, 503);
+  assert.equal((await call('/purchases/coin-products', undefined, auth)).body.enabled, true);
+  const apple = {store:'APP_STORE',product_id:'coins_250_v1',transaction_id:randomUUID()};
+  const appleResults = await Promise.all(Array.from({length:8},()=>send({...apple,id:randomUUID()})));
+  assert.ok(appleResults.every(r=>r.status===200));
+  assert.deepEqual((await call(`/purchases/coin-transactions/${apple.transaction_id}`,undefined,auth)).body,{status:'credited',coins:250,balance:1250});
+  assert.equal(Number((await pool.query("select count(*) from coin_transactions where to_user_id=$1 and type='purchase'",[uid])).rows[0].count),3);
+  assert.equal((await send({...apple,environment:'PRODUCTION'})).status,403);
+  process.env.REVENUECAT_ENVIRONMENT='PRODUCTION';
+  assert.equal((await call('/purchases/coin-products',undefined,auth)).body.enabled,false);
+  assert.equal((await send({...apple,environment:'PRODUCTION',transaction_id:randomUUID()})).status,503);
+  assert.equal(Number((await pool.query('select balance from coin_balances where user_id=$1',[uid])).rows[0].balance),1250);
+  process.env.REVENUECAT_ENVIRONMENT='SANDBOX';
   process.env.NODE_ENV = 'test';
   process.env.REVENUECAT_COIN_PRODUCTS = '[{"productId":"consumable","coins":-1}]';
   assert.equal((await call('/purchases/coin-products', undefined, auth)).body.enabled, false);
   assert.equal((await send()).status, 503);
   assert.equal(Number((await pool.query("select count(*) from revenuecat_webhook_logs where event_id=any($1::text[]) and outcome='processed'",[[...logEventIds]])).rows[0].count)>0,true);
-  console.log('PASS: sandbox purchase HTTP/database integration — auth, app/environment checks, immutable transaction ownership, concurrent idempotency, server-only amounts, subscription exclusion, account-scoped status and production guard.');
+  console.log('PASS: sandbox purchase HTTP/database integration — auth, app/environment checks, immutable transaction ownership, concurrent idempotency, server-only amounts, subscription exclusion, account-scoped status, production-hosted Apple sandbox credits exactly once, and real-payment guard.');
 } finally {
   if (server) await new Promise(resolve => server.close(resolve));
   await pool.query('delete from revenuecat_webhook_logs where event_id=any($1::text[])',[[...logEventIds]]);
