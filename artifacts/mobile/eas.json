@@ -16,7 +16,8 @@
       "ios": {
         "env": {
           "EXPO_PUBLIC_REVENUECAT_MODE": "store",
-          "PULSE_TESTFLIGHT_BUILD": "true"
+          "PULSE_TESTFLIGHT_BUILD": "true",
+          "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_KnVTELIQbHnPWUMdANcMDywzGxn"
         }
       }
     }

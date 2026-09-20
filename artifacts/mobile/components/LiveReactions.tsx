@@ -1,8 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
 import { isReactionEmoji } from "@/utils/reactionEmoji";
 import { useStreamSocket } from "@/hooks/useStreamSocket";
 import { t } from "@/i18n";
+
+export type LiveReactionsHandle = { sendReaction: () => void };
 
 type Particle = { id: number; emoji: string; drift: number };
 
@@ -21,7 +23,7 @@ function Floater({ particle, reduced, done }: { particle: Particle; reduced: boo
 }
 
 /** Owns its rendering so rapid tapping does not rerender live video or chat. */
-export function LiveReactions({ channelId, canSend = false, selectedEmoji = "❤️" }: { channelId: string; canSend?: boolean; selectedEmoji?: string }) {
+export function LiveReactions({ channelId, canSend = false, selectedEmoji = "❤️", ref }: { channelId: string; canSend?: boolean; selectedEmoji?: string; ref?: React.Ref<LiveReactionsHandle> }) {
   const selected = isReactionEmoji(selectedEmoji) ? selectedEmoji : "❤️";
   const [ready, setReady] = useState(false);
   const [particles, setParticles] = useState<Particle[]>([]);
@@ -55,7 +57,7 @@ export function LiveReactions({ channelId, canSend = false, selectedEmoji = "❤
     return () => { active = false; listener.remove(); clearTimeout(timer.current); pending.current = null; };
   }, []);
   const tap = (emoji: string) => {
-    if (!ready) return;
+    if (!canSend || !ready) return;
     spawn(emoji, 1);
     if (pending.current?.emoji === emoji) pending.current.count = Math.min(8, pending.current.count + 1);
     else pending.current = { emoji, count: 1 };
@@ -66,6 +68,7 @@ export function LiveReactions({ channelId, canSend = false, selectedEmoji = "❤
       if (batch) send({ type: "reaction", ...batch });
     }, 220);
   };
+  useImperativeHandle(ref, () => ({ sendReaction: () => tap(selected) }));
   return <View style={[styles.root, canSend && { height: 48 }]} pointerEvents="box-none">
     <View style={StyleSheet.absoluteFill} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       {particles.map(p => <Floater key={p.id} particle={p} reduced={reduced} done={done} />)}

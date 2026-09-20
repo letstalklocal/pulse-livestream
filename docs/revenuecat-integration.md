@@ -1,5 +1,11 @@
 # RevenueCat integration for Pulse
 
+## Apple SDK key missing from TestFlight build — September 20, 2026
+
+**Secret cleanup follow-up (user requested):** keep existing secrets for now. After the new TestFlight build successfully loads Apple products, check whether any other build/publish path reads `EXPO_PUBLIC_REVENUECAT_IOS_KEY` from Replit secrets. If none does, that duplicate secret can be removed because the public key is now explicitly supplied by `build.production.ios.env` in `artifacts/mobile/eas.json`. Likewise, review the duplicate `EXPO_PUBLIC_REVENUECAT_MODE` secret only after checking other build paths; the iOS profile explicitly sets `store`. Do not remove `REVENUECAT_ENVIRONMENT` as part of this cleanup: it controls backend webhook validation and is not replaced by mobile build configuration. Server API credentials and webhook authorization remain required. No secrets were removed by this note.
+
+User reported “Purchases are not available in this build.” This exact message is shown when the native purchase module exists but the platform public SDK key is absent or has an invalid prefix. The local session had a valid Apple public SDK key, but its presence locally did not establish availability in the remote build. Added `EXPO_PUBLIC_REVENUECAT_IOS_KEY` explicitly to `build.production.ios.env` in `artifacts/mobile/eas.json`, alongside store mode. This is RevenueCat's public mobile SDK key, intended for the app bundle, not a server credential. No server keys were added. This supersedes earlier instructions relying solely on a separately supplied build environment variable. Production API destination and webhook settings were not changed. A new build through Replit Publish and device verification are required; no build was started by this fix.
+
 ## Temporary Apple sandbox VIP on production — September 20, 2026
 
 **User decision:** there are no paid customers; Pulse is still being built and tested. TestFlight must remain connected to `https://chimbalivestream.replit.app` and the existing production Pulse account/database. Use a temporary one-file VIP helper change instead of implementing simultaneous sandbox/production VIP support or requiring a separate test account. “Sandbox” describes the purchase, not a separate Pulse account.

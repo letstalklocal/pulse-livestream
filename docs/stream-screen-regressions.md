@@ -152,3 +152,12 @@ The user confirmed the complete PiP experience works in the TestFlight iPhone bu
 ## Menu chevrons — September 18, 2026
 
 User requirement across sheets: show a trailing navigation chevron only when a row opens another screen, submenu, or picker. Direct actions and actions that only request confirmation must not imply further navigation. Removed chevrons from host Start/End Battle and Leave Party; Simulate battle also has none. Retained Party and Beauty chevrons because they open sheets. Audited remaining sheet arrows: Live Viewers rows open management/profile, media chooser rows open device media/packs/create flows, and Premium Next opens viewer selection. Those remain appropriate. Preserve action handlers, confirmation dialogs, disabled/pending state and menu dismissal. Mobile types, localization and stream checks are automated; Android/iPhone visual checks remain pending.
+
+
+## Viewer screen-tap reactions — September 20, 2026
+
+User requirement: repeated taps anywhere on the exposed live video send the selected emoji, without requiring the bottom-right button. In Party, preserve partner-window double-tap streamer switching. The button and bottom-right floating origin remain unchanged.
+
+The viewer has a full-screen tap surface behind the party stage and interactive overlays. Main video is touch-through; the partner window retains its existing single-tap resize, double-tap switch, long-press and swipe handlers. Chat, header and bottom controls retain their actions. The outer swipe responder can still take over movement. Screen-tap reactions are disabled while unfocused, not admitted, ended, minimized, typing, overlays hidden or transitioning. They use the existing reaction component, selected emoji, readiness checks, immediate feedback and bounded websocket batches. No backend/native change or deployment is involved.
+
+Automated verification: required stream regression suite passes, including mixed button/screen-handle batching, readiness/disconnect and receive-only guards. Device verification pending on both Android and iPhone; installed build numbers unknown. Check slow/rapid video tapping with the default and a changed emoji, party double-tap switching without reactions/resize, single-tap resize, partner long-press/hide/restore, vertical navigation and horizontal overlay swipes without accidental reactions, chat scrolling/composer, header/list controls, and required awake/admission cases. These automated checks do not establish native touch arbitration.

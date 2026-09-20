@@ -2,7 +2,7 @@ import { DemoVideo } from "@/components/DemoVideo";
 import { useLivePlayback } from "@/context/LivePlaybackContext";
 import { ReactionFavoritesChooser } from "@/components/ReactionFavoritesChooser";
 import { useReactionFavorites } from "@/hooks/useReactionFavorites";
-import { LiveReactions } from "@/components/LiveReactions";
+import { LiveReactions, type LiveReactionsHandle } from "@/components/LiveReactions";
 import { PremiumGiftPrompt } from "@/components/PremiumGiftPrompt";
 import { premiumGiftRequestKey } from "@/hooks/usePremiumGiftRequest";
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
@@ -34,6 +34,7 @@ import {
   Keyboard,
   Modal,
   PanResponder,
+  Pressable,
   Platform,
   Share,
   StyleSheet,
@@ -171,6 +172,7 @@ export default function StreamScreen() {
   const [showKebabMenu, setShowKebabMenu] = useState(false);
   const [showReactionChooser, setShowReactionChooser] = useState(false);
   const reactionFavorites = useReactionFavorites();
+  const liveReactionsRef = useRef<LiveReactionsHandle>(null);
   const [reactionEmoji, setReactionEmoji] = useState("❤️");
   const closeKebabMenu = () => {
     if (reactionFavorites.save.isPending) return;
@@ -695,6 +697,15 @@ export default function StreamScreen() {
       keyboardVerticalOffset={0}
       automaticOffset
     >
+      {/* Behind the stage/controls: party-window taps keep their own gestures. */}
+      {viewerFocused && canEnterStream && !streamEnded && !playback.minimized && !keyboardVisible && !overlaysHidden && !isTransitioning ? (
+        <Pressable
+          testID="viewer-screen-reaction"
+          style={StyleSheet.absoluteFill}
+          accessible={false}
+          onPress={() => liveReactionsRef.current?.sendReaction()}
+        />
+      ) : null}
       {/* Full-screen video area */}
       <PartyStage channelId={channelId ?? ""} mainName={stream?.hostName ?? "Host"} party={playback.minimized ? null : party} now={partyState.now} media={partyMedia} onWindowInteraction={active => { partyWindowTouchRef.current = active; }} onPartnerDoubleTap={target => navigateToStream(target, "up")} main={<>
         {!canEnterStream ? (
@@ -890,7 +901,7 @@ export default function StreamScreen() {
         </View>
         {viewerFocused && canEnterStream && !streamEnded ? (
           <View pointerEvents="box-none" style={{ position: "absolute", right: 8, bottom: bottomPad + 58, display: keyboardVisible ? "none" : "flex" }}>
-            <LiveReactions key={channelId} channelId={channelId ?? ""} canSend selectedEmoji={reactionEmoji} />
+            <LiveReactions ref={liveReactionsRef} key={channelId} channelId={channelId ?? ""} canSend selectedEmoji={reactionEmoji} />
           </View>
         ) : null}
       </Animated.View>

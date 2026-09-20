@@ -1,5 +1,11 @@
 # Apple / TestFlight fixes
 
+## Apple SDK key missing from TestFlight build — September 20, 2026
+
+**After device verification:** review redundant Replit mobile-key/mode secrets before removal; see the secret cleanup follow-up in [RevenueCat integration](revenuecat-integration.md#apple-sdk-key-missing-from-testflight-build--september-20-2026). Keep backend purchase secrets/settings. No secrets removed.
+
+User reported “Purchases are not available in this build.” This exact message is shown when the native purchase module exists but the platform public SDK key is absent or has an invalid prefix. The local session had a valid Apple public SDK key, but its presence locally did not establish availability in the remote build. Added `EXPO_PUBLIC_REVENUECAT_IOS_KEY` explicitly to `build.production.ios.env` in `artifacts/mobile/eas.json`, alongside store mode. This is RevenueCat's public mobile SDK key, intended for the app bundle, not a server credential. No server keys were added. This supersedes earlier instructions relying solely on a separately supplied build environment variable. Production API destination and webhook settings were not changed. A new build through Replit Publish and device verification are required; no build was started by this fix.
+
 Updated: 2026-09-16
 
 ## Build plan
