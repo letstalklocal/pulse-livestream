@@ -81,6 +81,149 @@ try {
     overview.body.newUsers.current,
   );
   assert.equal((await call("/overview?range=all")).status, 400);
+  // Both queues enforce staff authorization and expose only operational summaries.
+  for (const route of [
+    "/account-removals",
+    "/verification-reviews",
+    "/live-streams",
+    "/moderation",
+  ]) {
+    assert.equal((await call(route, null)).status, 401);
+    assert.equal((await call(route, other)).status, 403);
+    for (const query of [
+      "limit=0",
+      "limit=51",
+      "cursor=bad",
+      "cursor=2147483648",
+      "extra=x",
+    ])
+      assert.equal((await call(route + "?" + query)).status, 400);
+  }
+  for (const route of ["/live-streams", "/moderation"]) {
+    const result = await call(route);
+    assert.equal(result.status, 200);
+    assert.equal(result.headers.get("cache-control"), "no-store");
+    assert.ok(Array.isArray(result.body.rows));
+    assert.equal((await call(route + "?filter=bad")).status, 400);
+  }
+  const requestIds = [];
+  for (const status of ["pending", "completed", "cancelled", "rejected"]) {
+    const result = await pool.query(
+      "INSERT INTO account_deletion_requests(user_id,status,reason,review_notes,reviewed_at) VALUES($1,$2,$3,$4,CASE WHEN $2='pending' THEN NULL ELSE now() END) RETURNING id",
+      [uid, status, "<test reason>", "Internal test note"],
+    );
+    requestIds.push(result.rows[0].id);
+  }
+  for (const status of ["pending", "completed", "cancelled", "rejected"]) {
+    const result = await call("/account-removals?status=" + status);
+    assert.equal(result.status, 200);
+    assert.equal(result.headers.get("cache-control"), "no-store");
+    assert.ok(result.body.requests.every((r) => r.status === status));
+  }
+  let removalCursor,
+    seen = [];
+  do {
+    const page = await call(
+      "/account-removals?status=all&limit=2" +
+        (removalCursor ? "&cursor=" + removalCursor : ""),
+    );
+    seen.push(...page.body.requests.map((r) => r.id));
+    removalCursor = page.body.nextCursor;
+  } while (removalCursor);
+  assert.equal(seen.length, new Set(seen).size);
+  assert.ok(requestIds.every((id) => seen.includes(id)));
+  assert.equal((await call("/account-removals?status=deleted")).status, 400);
+  await pool.query(
+    "UPDATE identity_verifications SET upgrade_status='review_needed' WHERE user_id=$1",
+    [uid],
+  );
+  await pool.query(
+    "INSERT INTO identity_verifications(user_id,reference,environment,status) VALUES($1,$2,$3,'review_needed'),($4,$5,$3,'pending')",
+    [
+      uid + 1,
+      randomUUID(),
+      process.env.DIDIT_ENVIRONMENT === "live" ? "live" : "sandbox",
+      uid + 2,
+      randomUUID(),
+    ],
+  );
+  const reviews = await call("/verification-reviews");
+  assert.equal(reviews.status, 200);
+  assert.equal(reviews.headers.get("cache-control"), "no-store");
+  assert.ok(
+    reviews.body.reviews.some(
+      (r) => r.uid === uid && r.isVerified && r.method === "selfie",
+    ),
+  );
+  assert.ok(reviews.body.reviews.some((r) => r.uid === uid + 1));
+  assert.ok(!reviews.body.reviews.some((r) => r.uid === uid + 2));
+  assert.ok(
+    (await call("/verification-reviews?kind=initial")).body.reviews.every(
+      (r) => r.status === "review_needed",
+    ),
+  );
+  assert.ok(
+    (await call("/verification-reviews?kind=upgrade")).body.reviews.every(
+      (r) => r.upgradeStatus === "review_needed",
+    ),
+  );
+  const reviewPage = await call("/verification-reviews?limit=1");
+  assert.ok(reviewPage.body.nextCursor);
+  const nextReview = await call(
+    "/verification-reviews?limit=1&cursor=" + reviewPage.body.nextCursor,
+  );
+  assert.notEqual(
+    reviewPage.body.reviews[0].uid,
+    nextReview.body.reviews[0].uid,
+  );
+  assert.deepEqual(
+    Object.keys(reviews.body.reviews.find((r) => r.uid === uid)).sort(),
+    [
+      "checkedAt",
+      "isVerified",
+      "method",
+      "name",
+      "status",
+      "uid",
+      "updatedAt",
+      "upgradeCheckedAt",
+      "upgradeStatus",
+    ].sort(),
+  );
+  await pool.query(
+    "UPDATE identity_verifications SET environment=$2 WHERE user_id=$1",
+    [uid + 1, process.env.DIDIT_ENVIRONMENT === "live" ? "sandbox" : "live"],
+  );
+  assert.ok(
+    !(await call("/verification-reviews")).body.reviews.some(
+      (r) => r.uid === uid + 1,
+    ),
+  );
+  await pool.query(
+    "DELETE FROM identity_verifications WHERE user_id IN ($1,$2)",
+    [uid + 1, uid + 2],
+  );
+  await pool.query(
+    "UPDATE identity_verifications SET upgrade_status='pending' WHERE user_id=$1",
+    [uid],
+  );
+  for (const action of [
+    "account-removals.list",
+    "verification-reviews.list",
+    "live-streams.list",
+    "moderation.list",
+  ]) {
+    assert.ok(
+      Number(
+        (
+          await pool.query(
+            "SELECT count(*) FROM admin_audit_events WHERE actor_clerk_id=$1 AND action=$2",
+            [staff, action],
+          )
+        ).rows[0].count,
+      ) > 0,
+    );
+  }
   const first = await call("/users?q=" + prefix + "&limit=2");
   assert.equal(first.status, 200);
   assert.equal(first.headers.get("cache-control"), "no-store");
@@ -137,6 +280,18 @@ try {
     (await call("/session", staff, { "x-test-mfa": "yes" })).status,
     200,
   );
+  for (const route of [
+    "/account-removals",
+    "/verification-reviews",
+    "/live-streams",
+    "/moderation",
+  ]) {
+    assert.equal((await call(route)).status, 403);
+    assert.equal(
+      (await call(route, staff, { "x-test-mfa": "yes" })).status,
+      200,
+    );
+  }
   process.env.NODE_ENV = "test";
   await pool.query(
     "UPDATE admin_staff SET enabled=false WHERE clerk_user_id=$1",
@@ -147,6 +302,13 @@ try {
     403,
     "disabled staff immediately denied",
   );
+  for (const route of [
+    "/account-removals",
+    "/verification-reviews",
+    "/live-streams",
+    "/moderation",
+  ])
+    assert.equal((await call(route)).status, 403);
   const mobile = await fetch(base + "/mobile-probe", {
     headers: { "x-test-user": staff },
   });
@@ -181,6 +343,10 @@ try {
     [[staff, other]],
   );
   await pool.query("DELETE FROM admin_staff WHERE clerk_user_id=$1", [staff]);
+  await pool.query(
+    "DELETE FROM account_deletion_requests WHERE user_id BETWEEN $1 AND $2",
+    [uid, uid + 2],
+  );
   await pool.query("DELETE FROM users WHERE uid BETWEEN $1 AND $2", [
     uid,
     uid + 2,

@@ -1,3 +1,4 @@
+import { readAdminStreams, readAdminReports } from "../lib/adminOperations";
 import { readAdminOverview } from "../lib/adminOverview";
 import { Router, type RequestHandler } from "express";
 import { getAuth } from "@clerk/express";
@@ -108,15 +109,169 @@ router.get(
   "/overview",
   safe(async (req, res) => {
     if (Object.keys(req.query).length)
-      return void res
-        .status(400)
-        .json({
-          error:
-            "Overview uses the last seven UTC dates; query parameters are not supported.",
-        });
+      return void res.status(400).json({
+        error:
+          "Overview uses the last seven UTC dates; query parameters are not supported.",
+      });
     const overview = await readAdminOverview();
     await audit(res.locals.adminId, "overview.view");
     res.json(overview);
+  }),
+);
+
+for (const route of ["live-streams", "moderation"] as const) {
+  router.get(
+    "/" + route,
+    safe(async (req, res) => {
+      const {
+        filter = route === "live-streams" ? "all" : "stream",
+        status = "pending",
+        limit = "20",
+        cursor,
+      } = req.query;
+      if (
+        Object.keys(req.query).some(
+          (k) =>
+            !(
+              route === "live-streams"
+                ? ["filter", "limit", "cursor"]
+                : ["filter", "status", "limit", "cursor"]
+            ).includes(k),
+        ) ||
+        typeof filter !== "string" ||
+        !(
+          route === "live-streams"
+            ? ["all", "public", "private"]
+            : ["stream", "post", "user"]
+        ).includes(filter) ||
+        typeof status !== "string" ||
+        !["all", "pending"].includes(status) ||
+        typeof limit !== "string" ||
+        !/^\d+$/.test(limit) ||
+        Number(limit) < 1 ||
+        Number(limit) > 50 ||
+        (cursor !== undefined &&
+          (typeof cursor !== "string" ||
+            !/^[1-9]\d*$/.test(cursor) ||
+            Number(cursor) > 2147483647))
+      ) {
+        return void res.status(400).json({ error: "Invalid filter or page." });
+      }
+      const data =
+        route === "live-streams"
+          ? await readAdminStreams(
+              pool,
+              filter,
+              cursor ? Number(cursor) : null,
+              Number(limit),
+            )
+          : await readAdminReports(
+              pool,
+              filter as "stream" | "post" | "user",
+              status,
+              cursor ? Number(cursor) : null,
+              Number(limit),
+            );
+      await audit(res.locals.adminId, route + ".list");
+      res.json(data);
+    }),
+  );
+}
+
+router.get(
+  "/verification-reviews",
+  safe(async (req, res) => {
+    const { kind = "all", limit = "20", cursor } = req.query;
+    if (
+      Object.keys(req.query).some(
+        (key) => !["kind", "limit", "cursor"].includes(key),
+      ) ||
+      typeof kind !== "string" ||
+      !["all", "initial", "upgrade"].includes(kind) ||
+      typeof limit !== "string" ||
+      !/^\d+$/.test(limit) ||
+      Number(limit) < 1 ||
+      Number(limit) > 50 ||
+      (cursor !== undefined &&
+        (typeof cursor !== "string" ||
+          !/^[1-9]\d*$/.test(cursor) ||
+          Number(cursor) > 2147483647))
+    ) {
+      return void res
+        .status(400)
+        .json({ error: "Invalid review filter or page." });
+    }
+    const result = await pool.query(
+      `SELECT u.uid,u.name,v.status,
+      v.is_verified AS "isVerified",v.verification_type AS method,
+      v.upgrade_status AS "upgradeStatus",v.updated_at AS "updatedAt",
+      v.checked_at AS "checkedAt",v.upgrade_checked_at AS "upgradeCheckedAt"
+      FROM identity_verifications v JOIN users u ON u.uid=v.user_id
+      WHERE v.environment=$1 AND ($2::integer IS NULL OR u.uid<$2)
+        AND (($3 IN ('all','initial') AND v.status='review_needed')
+          OR ($3 IN ('all','upgrade') AND v.upgrade_status='review_needed'))
+      ORDER BY u.uid DESC LIMIT $4`,
+      [providerEnvironment(), cursor ?? null, kind, Number(limit) + 1],
+    );
+    const rows = result.rows.slice(0, Number(limit));
+    await audit(res.locals.adminId, "verification-reviews.list");
+    res.json({
+      reviews: rows,
+      nextCursor:
+        result.rows.length > Number(limit) ? String(rows.at(-1).uid) : null,
+      environment: providerEnvironment(),
+      asOf: new Date().toISOString(),
+    });
+  }),
+);
+
+// Request history is not an archive of erased profiles. Completed means an
+// operator recorded completion after manual removal; no removal action lives here.
+router.get(
+  "/account-removals",
+  safe(async (req, res) => {
+    const { status = "pending", limit = "20", cursor } = req.query;
+    const validId = (value: unknown) =>
+      typeof value === "string" &&
+      /^[1-9]\d*$/.test(value) &&
+      Number(value) <= 2147483647;
+    if (
+      Object.keys(req.query).some(
+        (key) => !["status", "limit", "cursor"].includes(key),
+      ) ||
+      typeof status !== "string" ||
+      !["all", "pending", "completed", "cancelled", "rejected"].includes(
+        status,
+      ) ||
+      typeof limit !== "string" ||
+      !/^\d+$/.test(limit) ||
+      Number(limit) < 1 ||
+      Number(limit) > 50 ||
+      (cursor !== undefined && !validId(cursor))
+    ) {
+      return void res
+        .status(400)
+        .json({ error: "Invalid removal status or page." });
+    }
+    const result = await pool.query(
+      `
+      SELECT r.id, r.user_id AS uid, u.name, r.status, r.reason,
+        r.requested_at AS "requestedAt", r.reviewed_at AS "reviewedAt",
+        r.review_notes AS "reviewNotes"
+      FROM account_deletion_requests r LEFT JOIN users u ON u.uid=r.user_id
+      WHERE ($1::text='all' OR r.status=$1)
+        AND ($2::integer IS NULL OR r.id<$2)
+      ORDER BY r.id DESC LIMIT $3`,
+      [status, cursor ?? null, Number(limit) + 1],
+    );
+    const rows = result.rows.slice(0, Number(limit));
+    await audit(res.locals.adminId, "account-removals.list");
+    res.json({
+      requests: rows,
+      nextCursor:
+        result.rows.length > Number(limit) ? String(rows.at(-1).id) : null,
+      asOf: new Date().toISOString(),
+    });
   }),
 );
 

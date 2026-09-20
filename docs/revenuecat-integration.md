@@ -1,5 +1,144 @@
 # RevenueCat integration for Pulse
 
+## Temporary Apple sandbox VIP on production — September 20, 2026
+
+**User decision:** there are no paid customers; Pulse is still being built and tested. TestFlight must remain connected to `https://chimbalivestream.replit.app` and the existing production Pulse account/database. Use a temporary one-file VIP helper change instead of implementing simultaneous sandbox/production VIP support or requiring a separate test account. “Sandbox” describes the purchase, not a separate Pulse account.
+
+**Status: temporary helper override implemented locally; development API rebuilt and restarted. Not published to production.** `vipEnvironment()` now returns `sandbox` in every runtime, with a comment pointing to this rollback. The Apple-connected TestFlight build and production webhook configuration remain to be completed/verified. This decision supersedes earlier proposals for a designated-account allowlist and simultaneous environment support during this testing phase.
+
+### Temporary setup and remaining configuration
+
+- In `artifacts/api-server/src/lib/vipAccess.ts`, temporarily make `vipEnvironment()` return `'sandbox'`. This shared helper drives the VIP webhook environment check, RevenueCat status fetching, database writes/reads and background reconciliation. Keep `NODE_ENV=production`; do not switch the server itself to development mode.
+- Set/confirm production `REVENUECAT_ENVIRONMENT=SANDBOX` so the general webhook check also accepts the event. This is server configuration, not a URL parameter or a second source-file change.
+- Configure/verify authenticated RevenueCat sandbox delivery to `https://chimbalivestream.replit.app/api/purchases/revenuecat/webhook`, with the existing Apple app ID `app1937357464` allowed. Preserve webhook authentication and other validation.
+- Use RevenueCat's Apple public SDK key and mobile store mode for the Apple sandbox TestFlight build. On September 20, the user approved and we changed the production iOS EAS profile from `test` to `store`; JSON validation confirmed this was its only configuration change. The Apple SDK key was format-checked in the local session, but its availability to the remote build remains to be verified. RevenueCat Test Store is a separate simulator and must not be mistaken for Apple sandbox. Keep the production API URL.
+- Test the helper change and purchase/renewal/expiry/restore flow; record automated, deployed-endpoint and device evidence separately. During this temporary setup only sandbox VIP is recognized. Do not enable real paid VIP sales in this state. Coin fulfillment safeguards are outside this change and remain intact.
+
+### When the user says “change it back” or prepares real purchases
+
+1. Revert only the temporary helper change in `artifacts/api-server/src/lib/vipAccess.ts` to its original implementation:
+
+   ```ts
+   export const vipEnvironment = () => process.env.NODE_ENV === 'production' ? 'production' : 'sandbox';
+   ```
+
+2. Set production `REVENUECAT_ENVIRONMENT=PRODUCTION` and configure/verify RevenueCat production webhook delivery to the same production URL, preserving authentication and the Apple app allowlist. Do not change the server's `NODE_ENV` or API URL.
+3. Keep the Apple public SDK key and mobile store mode; do not revert to RevenueCat Test Store. Apple determines sandbox versus real store transactions.
+4. Run the relevant VIP/purchase regression checks, rebuild/deploy the approved server change and verify the running endpoint. Confirm that production VIP reads production records and old sandbox records cannot grant paid access. Keep historical sandbox records/logs; no data deletion is required.
+5. Mark this temporary override removed in this document and the go-live checklist. After restoring the original helper, TestFlight sandbox VIP will again be rejected by production; simultaneous support would be a separate future change if needed.
+
+This rollback restores VIP environment selection only; it does not complete coin launch safeguards, Apple review requirements or other outstanding purchase checks. Verification: API typecheck/build and eight VIP snapshot tests passed. The HTTP/database VIP integration suite now runs with `NODE_ENV=production` and verifies sandbox grant, cancellation, renewal, duplicate/out-of-order delivery, expiry, lifetime/refund, authentication, logging and zero VIP coin credits; production coin readiness remains disabled. Development API health returned 200 after restart. An authenticated sandbox VIP event for a nonexistent fixture account passed environment validation and correctly returned 409 without changing any account. Actual TestFlight/Apple device testing and production deployment remain pending. The helper is the only application source file changed for this override; regression tests and documentation were updated too.
+
+## Persistent webhook logs and verified sandbox history — September 20, 2026
+
+User requested webhook log inspection and persistent logs when the old development log file was unavailable. Implemented `revenuecat_webhook_logs` via migration `20260920_revenuecat_webhook_logs.sql` (applied in development). Each authenticated delivery gets its own attempt row before processing; duplicate event IDs remain separate delivery attempts. Logs store bounded event/product/app/environment identifiers, hashed customer reference, event/expiry times, received/completed times, HTTP status, outcome and VIP before/after active/expiry snapshots. They do not store authorization headers, raw event bodies, emails or payment/identity details. Requests failing webhook authorization do not enter this authenticated audit table.
+
+Outcomes: `received`, `processed`, `ignored`, `rejected`, `failed`. A stuck `received` row indicates incomplete processing, not confirmed success. If audit writes fail, return 503 for retry; coin transaction idempotency and authoritative VIP synchronization protect retries even if a state change committed before final audit completion. The logs persist across API restarts. Admin log UI is deferred; inspect through authorized database tooling. No public log endpoint was added.
+
+Useful operational query:
+
+```sql
+SELECT received_at, event_type, product_id, environment, outcome,
+       http_status, reason, vip_changes
+FROM revenuecat_webhook_logs
+ORDER BY received_at DESC
+LIMIT 50;
+```
+
+Verified history (RevenueCat sandbox API, not reconstructed delivery receipts): `monthly` had two initial purchases at **2026-09-19 23:15:24 UTC** and **2026-09-20 00:04:40 UTC**, four renewal events per purchase, and an expiration event for each. The latest renewals extended provider expiry from 00:14:40 through 00:19:40 and 00:24:40 to **00:29:40 UTC**. Latest expiration event was recorded at **00:31:35 UTC**. Pulse's stored sandbox VIP record is inactive and its expiry matches **00:29:40.109 UTC**. Thus provider purchase/renewal/expiration and matching final backend state are confirmed. The user also reported VIP disappearing. Historical Pulse webhook receipt/status and each intermediate backend expiry cannot be proven because the old transient log file is gone; do not backfill invented delivery records or label these Apple StoreKit tests.
+
+Validation: server typecheck/build passed. Isolated VIP HTTP/database tests verify persistent processed/rejected/failed attempts and before/after changes; existing coin-purchase integration passed. The final development API was rebuilt/restarted with its original environment, health returned 200, and a manually sent TEST to the configured public development webhook returned 200 with an independently read back `processed` audit row at **2026-09-20 01:40:39 UTC**. This TEST proves public endpoint/audit operation, not actual provider-generated purchase delivery. Real future renewals can now be verified against saved delivery records.
+
+
+## VIP connection-list benefit — September 19, 2026
+
+Implemented the approved first benefit: VIP viewers can open other users' followers/following lists; own lists remain free. Mobile uses active `pulse_pro`; list endpoints read a server-maintained VIP flag/expiry with **no RevenueCat lookup when lists open**, per the user's explicit requirement. Authenticated RevenueCat webhooks, purchase/restore catch-up and background reconciliation maintain that record. Development sandbox and production are isolated. [Final architecture, required migration/settings, and verification](pulse-vip.md#first-vip-benefit-and-stored-access--september-19-2026). This supersedes earlier owner-only, undefined-benefits and per-list provider-check notes. Phone purchase-to-unlock testing remains pending.
+
+## Apple availability completed — September 19, 2026
+
+User relayed the other Codex session's confirmation: availability for the app, all three personal VIP products, and all nine coin products was saved, reopened and verified for the same 13 launch countries: **United Kingdom, Saudi Arabia, United States, Colombia, Russia, Spain, Canada, Australia, Venezuela, Mexico, Costa Rica, Argentina, and Brazil**. Apple accepted every selected country, including Russia. This is user-supplied verification from that session, not an independent dashboard check here. Nothing was submitted or released.
+
+This supersedes earlier unset/pending Apple availability notes. It confirms App Store Connect country configuration only; purchase testing, verification-provider country coverage and overall launch readiness remain separate. Review screenshots, reviewer details/access instructions, VIP benefits, RevenueCat metadata verification and sandbox purchases remain open.
+
+
+## Pulse VIP launch pricing decision — September 19, 2026
+
+User-approved customer-facing name: **Pulse VIP**. USD launch prices: **$9.99/month**, **$79.99/year**, and **$99.99 lifetime**. Monthly and annual launch subscribers retain their launch renewal price while subscribed; future higher prices apply to new subscribers. Returning subscribers pay the price available then, except for the explicitly accepted Apple preserved-price window described below. Lifetime is a one-time purchase with permanent access, not a recurring subscription. These are ongoing launch renewal prices, not first-period introductory discounts.
+
+Accepted Apple resubscription policy (user confirmed September 19, 2026): use Apple's standard price preservation. Subscribers may resubscribe at their preserved launch price within 60 days after subscription expiration; after that window, the current price applies. The window starts at expiration, not when auto-renewal is turned off. Cancellation does not end the already-paid access period. This exception is approved and is no longer an unresolved pricing decision; store configuration and transaction testing remain pending. Source: [Apple subscription pricing](https://developer.apple.com/help/app-store-connect/manage-subscriptions/manage-pricing-for-auto-renewable-subscriptions).
+
+**Approved coin-funded VIP model (September 19, 2026):** reuse existing coin packs for VIP gifting; do not create three separate cash gift products. Users can also buy VIP for themselves with their own spendable wallet coins. Both are one-time purchases, never automatic recurring wallet deductions. Add a **Gift VIP** badge/action on streamer profiles. Paid VIP time stacks: two one-month purchases add two months, including purchases from different senders. The recipient gets VIP access, not coins or withdrawable creator earnings. See [the implementation plan](pulse-vip.md).
+
+The previously discussed personal store subscriptions/lifetime products are not silently removed by this decision. Their coexistence with coin access needs explicit handling to avoid duplicate billing. Confirmed VIP coin prices for both self-purchases and gifts: **2,000 for one month**, **15,000 for one year**, and **20,000 for lifetime**. These are explicit coin prices, not a fixed conversion from the previously approved USD store prices.
+
+This records requirements only: no store price, product, entitlement identifier, app screen, or backend behavior changed. Existing internal `pulse_pro` identifiers remain unchanged; VIP benefits and their server gates still need definition. VIP remains separate from coins, Premium live admission, and age verification.
+
+## RevenueCat metadata and review follow-up — September 19, 2026
+
+User relayed the other session's recheck: all three personal VIP products still belong to `pulse_pro` and their existing default-offering packages; Test Store and nine coin records are preserved. Apple import returned “No new products were found”; no products were recreated. Reopened RevenueCat records still show Missing Metadata.
+
+That session reports RevenueCat staff's explanation that monthly/yearly subscription duration can remain null until a purchase is processed. The cited explanation URL was not supplied, so this is recorded as reported guidance, not an independently verified diagnosis. Lifetime has no subscription duration. Exact cause of missing indicative prices remains unresolved. This workspace's preceding API calls already explicitly used `?expand=indicative_price` and still received null for all three products; omission of expansion does not explain those results. No sandbox purchase or populated metadata was verified.
+
+Reported missing review material:
+
+- Genuine IAP review screenshots for all three VIP products and nine coin products.
+- Reviewer account username/password: Sign-in required is checked, both fields empty. Populate in App Store Connect; do not place passwords in these documents.
+- Reviewer contact name, phone and email.
+- Directions to VIP and coin purchasing screens and any access steps, based on the actual submitted build.
+- App Store marketing screenshots: inspected section showed 0 of 10.
+- Actual VIP benefits remain undefined; none were invented.
+
+The handoff did not confirm sales-country changes. Availability for the app, VIP and coin products remains unverified; confirm the requested launch countries separately. No review/release submission or purchase testing is claimed by this update.
+
+## Apple VIP saved-product handoff — September 19, 2026
+
+User relayed the other Codex session's confirmation that all three Apple records were saved and reopened for `com.chimba.livestream`:
+
+| Product ID | Apple numeric ID | Type / duration | Verified US price (reported) | Status (reported) |
+| --- | --- | --- | --- | --- |
+| `monthly` | `6813990002` | Auto-renewing / one month | $9.99/month | Prepare for Submission |
+| `yearly` | `6813990251` | Auto-renewing / one year | $79.99/year | Prepare for Submission |
+| `lifetime` | `6813990639` | Non-consumable / lifetime | $99.99 once | Prepare for Submission |
+
+Subscription group **Pulse VIP**, ID **22398059**, has monthly and yearly at level 1. English names and factual duration descriptions are reported saved. No introductory offers or future price changes were configured; personal subscriptions have one seat and Family Sharing remains off. Existing RevenueCat mappings, Test Store and coin products were reported preserved. Nothing was submitted for review or release.
+
+Independent RevenueCat API readback after this handoff confirmed the three catalog identifiers/types, but Apple subscription durations are still null and all three indicative prices are null. This does not disprove the Apple-side report; RevenueCat metadata synchronization and actual StoreKit product retrieval remain unverified. Do not report end-to-end readiness from catalog creation alone.
+
+Remaining: app/VIP sales-country availability (reported unset), genuine review screenshots and reviewer access instructions, actual VIP benefits and enforcement, RevenueCat/store metadata verification, and sandbox purchase/renewal/expiry/restore testing. Future price increases must explicitly preserve existing subscriber prices; the accepted Apple 60-day return window remains the policy. Coin-funded self-purchases/gifts and the later buyer recognition list remain separate work.
+
+## Personal VIP Apple catalog checkpoint — September 19, 2026
+
+Created and read back three Apple-app product records in RevenueCat app `app1937357464`; mapped them to existing default-offering packages and attached all three to `pulse_pro` (`entl41ad621812`). Existing Test Store associations and entitlement products were preserved. Coin products and the current offering were unchanged.
+
+| Apple product identifier | RevenueCat product ID | Package | Intended USD price / type |
+| --- | --- | --- | --- |
+| `monthly` | `prod04e3a2b319` | `$rc_monthly` / `pkge3b50913ec6` | $9.99, monthly auto-renewing |
+| `yearly` | `prod4959963ec8` | `$rc_annual` / `pkge1a582c845e` | $79.99, yearly auto-renewing |
+| `lifetime` | `prod351de29723` | `$rc_lifetime` / `pkgeebfbce27a5` | $99.99, non-consumable |
+
+These are RevenueCat catalog records only. App Store Connect creation, subscription group/durations, pricing, localization, availability and review metadata are not completed or verified by this action. RevenueCat currently reports null Apple subscription durations until store configuration is synchronized. The workspace has RevenueCat management access but no Apple management credentials configured. No create-in-store request, purchase, build or submission was performed. User requested a prompt for the other Codex session to complete the Apple side using the exact identifiers above. Use one Pulse VIP subscription group for monthly/yearly at the same service level; lifetime is a separate non-consumable. Launch prices are ongoing renewal prices, with preservation at future price increases and the approved Apple 60-day return window. Gifting remains coin-funded; create no separate gift products.
+
+## Apple app and package mapping checkpoint — September 19, 2026
+
+The other Codex session's user-supplied report confirms that Pulse's dedicated IAP key was saved/reopened and both Apple credentials show Valid credentials. Apple app ID: **6809048225**. RevenueCat Apple app: **app1937357464**. Bundle ID: **com.chimba.livestream**. Nine Apple consumables were created; nothing was submitted for review/release. Credential validity is attributed to that session, not independently revalidated through this API check.
+
+This workspace independently read RevenueCat project **proj2b054d16**, confirmed the Apple app and all nine consumables, then attached each Apple product to the matching existing package in offering **coins** (**ofrng03b8bc924d**). Readback confirmed all nine Apple associations and preservation of every Test Store product association. Package IDs, names, positions, default offering, subscriptions, entitlements and prices were not changed.
+
+| Store identifier / package key | Apple RevenueCat product ID |
+| --- | --- |
+| coins_250_v1 | prod329993157c |
+| coins_500_v1 | prodcd183a01ec |
+| coins_1000_v1 | proda42bf897a1 |
+| coins_2000_v1 | prod2c7187a420 |
+| coins_6000_v1 | prod57a30f52ed |
+| coins_8000_v1 | prode57c37b365 |
+| coins_10000_v1 | prodaf85e5dfb4 |
+| coins_12000_v1 | prod83227b5a68 |
+| coins_14000_v1 | prod79f0ffe5b1 |
+
+Still required: Apple availability and genuine review screenshots; Apple public SDK key and `EXPO_PUBLIC_REVENUECAT_MODE=store` in the next intended Apple sandbox build; inclusion of app1937357464 in the appropriate sandbox server app allowlist and matching webhook delivery; actual Apple sandbox purchases and wallet confirmation. Current checked-in TestFlight settings still explicitly select Test Store. This mapping task did not change build profiles, keys, API startup settings or webhooks and did not start a build/purchase. Real-store sandbox must remain separated from production balances. Production fulfillment is still disabled pending refund/debt handling, reconciliation/alerts, operational recovery and release checks. No end-to-end Apple purchase or production completion is claimed.
+
+
 Updated: 2026-09-15. Read [the purchase decisions](coin-purchases.md) before changing this flow.
 
 Shared change handoff: [coins, Premium gifts, and RevenueCat](coins-premium-revenuecat.md).

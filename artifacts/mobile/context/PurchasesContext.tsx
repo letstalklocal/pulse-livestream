@@ -33,7 +33,7 @@ interface PurchaseState {
 const Context = createContext<PurchaseState | null>(null);
 
 export function PurchasesProvider({ children }: { children: React.ReactNode }) {
-  const { userId, isLoaded } = useAuth();
+  const { userId, isLoaded, getToken } = useAuth();
   const [state, setState] = useState<{ userId: string | null; ready: boolean; info: CustomerInfo | null; offerings: PurchasesOfferings | null; error: string }>({ userId: null, ready: false, info: null, offerings: null, error: '' });
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
@@ -43,6 +43,30 @@ export function PurchasesProvider({ children }: { children: React.ReactNode }) {
   const session = getSession();
   const current = state.userId === userId;
   const ready = current && state.ready && !!userId;
+
+  const tokenGetter = useRef(getToken);
+  tokenGetter.current = getToken;
+  const syncSignature = useRef('');
+  const syncVip = useCallback(async (id: string, info: CustomerInfo, force = false) => {
+    const entitlement = info.entitlements.active.pulse_pro;
+    const signature = JSON.stringify([id, entitlement?.isActive, entitlement?.expirationDate, entitlement?.latestPurchaseDate]);
+    if (!force && syncSignature.current === signature) return;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    try {
+      const token = await tokenGetter.current();
+      if (!token || currentUser.current !== id) return;
+      const domain = process.env.EXPO_PUBLIC_DOMAIN;
+      const response = await fetch(`${domain ? `https://${domain}` : ''}/api/purchases/vip/sync`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
+      });
+      if (response.ok) {
+        const status = await response.json();
+        if (currentUser.current === id && status.active === !!entitlement?.isActive) syncSignature.current = signature;
+      }
+    } catch { /* Webhook delivery and subsequent refresh can retry independently. */ }
+    finally { clearTimeout(timeout); }
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!session || !userId) return;
@@ -54,18 +78,21 @@ export function PurchasesProvider({ children }: { children: React.ReactNode }) {
       if (!info) return;
       initializedUser.current = userId;
       if (currentUser.current !== userId) return;
+      await syncVip(userId, info);
+      if (currentUser.current !== userId) return;
       setState(s => ({ ...s, userId, info, ready: true, error: '' }));
       const offerings = await session.run(userId, sdk => sdk.getOfferings());
       if (currentUser.current === userId) setState(s => ({ ...s, offerings }));
     } catch (error) {
       if (currentUser.current === userId) setState(s => ({ ...s, error: purchaseErrorMessage(error) }));
     }
-  }, [session, userId]);
+  }, [session, userId, syncVip]);
 
   useEffect(() => {
     if (!isLoaded) return;
     let active = true;
     initializedUser.current = null;
+    syncSignature.current = "";
     setState({ userId: userId ?? null, ready: false, info: null, offerings: null, error: '' });
     if (!session) return;
     void session.identify(userId ?? null).then(async info => {
@@ -101,6 +128,7 @@ export function PurchasesProvider({ children }: { children: React.ReactNode }) {
     try {
       const result = await execute(async (session, id) => {
         const result = await session.run(id, sdk => sdk.purchasePackage(pkg));
+        if (hasPulsePro(result.customerInfo)) await syncVip(id, result.customerInfo, true);
         if (currentUser.current === id) setState(s => ({ ...s, info: result.customerInfo }));
         return result;
       });
@@ -111,6 +139,7 @@ export function PurchasesProvider({ children }: { children: React.ReactNode }) {
     try {
       await execute(async (session, id) => {
         const info = await session.run(id, sdk => sdk.restorePurchases());
+        await syncVip(id, info, true);
         if (currentUser.current === id) setState(s => ({ ...s, info }));
       });
     } catch { /* Error is shown by the screen. */ }

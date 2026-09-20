@@ -1,3 +1,5 @@
+import { beginWebhookLog, finishWebhookLog } from "../lib/revenuecatWebhookLog";
+import { syncVipAccess, hasVipAccess, vipEnvironment } from "../lib/vipAccess";
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { Router } from 'express';
 import { and, eq, inArray, sql } from 'drizzle-orm';
@@ -54,24 +56,66 @@ router.get('/purchases/coin-transactions/:transactionId', async (req, res) => {
   res.json({ status: rows[0] ? 'credited' : 'pending', coins: rows[0]?.amount ?? 0, balance });
 });
 
+// Authenticated purchase/restore/login catch-up; client cannot set access or expiry.
+router.post('/purchases/vip/sync', async (req, res) => {
+  const user = await authenticatedUser(req);
+  if (!user?.clerkId) return void res.status(401).json({ error: 'Authentication required' });
+  res.setHeader('Cache-Control', 'no-store');
+  try {
+    await syncVipAccess(user.uid, user.clerkId);
+    res.json({ active: await hasVipAccess(user.uid) });
+  } catch {
+    res.status(503).json({ error: 'VIP status could not be synchronized. Please try again.' });
+  }
+});
+
 router.post('/purchases/revenuecat/webhook', async (req, res) => {
   const config = coinProductConfiguration();
-  if (!config.enabled) return void res.status(503).json({ error: 'Coin purchases are not configured' });
+  if (!config.secret || config.secret.length < 32 || !config.appIds.length) return void res.status(503).json({ error: 'Purchases are not configured' });
   const received = Buffer.from(req.get('authorization') || '');
   const expected = Buffer.from(config.secret!);
   if (received.length !== expected.length || !timingSafeEqual(received, expected)) return void res.status(401).json({ error: 'Invalid authorization' });
   const event = req.body?.event;
-  if (!event || typeof event.type !== 'string') return void res.status(400).json({ error: 'Invalid event' });
-  if (event.type === 'TEST') return void res.json({ received: true });
-  if (event.environment !== config.environment || !config.appIds.includes(event.app_id)) return void res.status(403).json({ error: 'Wrong purchase environment or app' });
-  if (event.type !== 'NON_RENEWING_PURCHASE') return void res.json({ received: true, ignored: true });
+  let logId: string;
+  try { logId = await beginWebhookLog(event && typeof event === 'object' ? event : {}); }
+  catch { return void res.status(503).json({ error: 'Webhook logging unavailable; retry delivery' }); }
+  const vipChanges: unknown[] = [];
+  const reply = async (status: number, body: { error?: string; received?: boolean; ignored?: boolean }) => {
+    try { await finishWebhookLog(logId, status, body, vipChanges); }
+    catch { return void res.status(503).json({ error: 'Webhook result could not be logged; retry delivery' }); }
+    res.status(status).json(body);
+  };
+  if (!event || typeof event.type !== 'string') return await reply(400, { error: 'Invalid event' });
+  if (event.type === 'TEST') return await reply(200, { received: true });
+  if (event.environment !== config.environment || !config.appIds.includes(event.app_id)) return await reply(403, { error: 'Wrong purchase environment or app' });
+  const vipEvent = ['monthly', 'yearly', 'lifetime'].includes(event.product_id) || event.entitlement_ids?.includes('pulse_pro') || event.type === 'TRANSFER';
+  if (vipEvent) {
+    if (event.environment !== vipEnvironment().toUpperCase()) return await reply(403, { error: 'Wrong VIP environment' });
+    const ids = event.type === 'TRANSFER' ? [...(event.transferred_from ?? []), ...(event.transferred_to ?? [])] : [event.app_user_id];
+    if (!ids.length || ids.length > 100 || ids.some(id => typeof id !== 'string' || id.length > 1500)) return await reply(400, { error: 'Invalid VIP account' });
+    try {
+      const users = await db.select({ uid: usersTable.uid, clerkId: usersTable.clerkId }).from(usersTable).where(inArray(usersTable.clerkId, ids));
+      if (!users.length) return await reply(409, { error: 'Purchase account not found' });
+      // Re-read authoritative current state instead of applying potentially stale,
+      // duplicated or out-of-order event payloads. Synchronization is serialized.
+      for (const user of users) if (user.clerkId) {
+        const state = await syncVipAccess(user.uid, user.clerkId, true);
+        vipChanges.push({ userId: user.uid, before: state.previous, after: { active: state.active, expiresAt: state.expiresAt } });
+      }
+      return await reply(200, { received: true });
+    } catch {
+      return await reply(503, { error: 'VIP update could not be saved' });
+    }
+  }
+  if (!config.enabled) return await reply(503, { error: 'Coin purchases are not configured' });
+  if (event.type !== 'NON_RENEWING_PURCHASE') return await reply(200, { received: true, ignored: true });
   const product = config.products.find(p => p.productId === event.product_id);
   // Lifetime and subscriptions never credit coins merely by granting pulse_pro.
-  if (!product) return void res.json({ received: true, ignored: true });
+  if (!product) return await reply(200, { received: true, ignored: true });
   if (!['TEST_STORE', 'APP_STORE', 'PLAY_STORE'].includes(event.store) || typeof event.transaction_id !== 'string' ||
-    !event.transaction_id || event.transaction_id.length > 500 || typeof event.app_user_id !== 'string') return void res.status(400).json({ error: 'Invalid purchase' });
+    !event.transaction_id || event.transaction_id.length > 500 || typeof event.app_user_id !== 'string') return await reply(400, { error: 'Invalid purchase' });
   const user = (await db.select({ uid: usersTable.uid }).from(usersTable).where(eq(usersTable.clerkId, event.app_user_id)).limit(1))[0];
-  if (!user) return void res.status(409).json({ error: 'Purchase account not found' });
+  if (!user) return await reply(409, { error: 'Purchase account not found' });
   const key = transactionKey(event.app_id, event.store, event.environment, event.transaction_id);
   try {
     await db.transaction(async tx => {
@@ -88,10 +132,10 @@ router.post('/purchases/revenuecat/webhook', async (req, res) => {
       await tx.insert(coinTransactionsTable).values({ toUserId: user.uid, amount: product.coins, type: 'purchase',
         description: `RevenueCat ${event.product_id}`, idempotencyKey: key, balanceAfter: updated.balance });
     });
-    res.json({ received: true });
+    await reply(200, { received: true });
   } catch {
     // Non-2xx makes RevenueCat retry; never acknowledge a failed credit.
-    res.status(409).json({ error: 'Purchase could not be credited' });
+    await reply(409, { error: 'Purchase could not be credited' });
   }
 });
 export default router;

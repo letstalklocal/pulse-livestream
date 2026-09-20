@@ -2,7 +2,7 @@
 
 September 13, 2026: the user clarified that no previous admin website exists. Earlier references to a separate existing admin app were incorrect. The admin lives in `artifacts/admin`, shares the project backend, and will publish with the other project components. An admin subdomain is intended; the hostname and domain connection remain pending.
 
-Current status: staff access and the live user directory are implemented in development. See [the implementation checkpoint](#staff-access-and-live-directory--implemented-september-13-2026). The preview and phased plan below record the earlier design decisions.
+Current status: staff access, the live user directory, overview, account-removal request history, verification manual-review queue, current-live-stream list, and moderation report list are implemented in development. See [the implementation checkpoint](#staff-access-and-live-directory--implemented-september-13-2026). The preview and phased plan below record the earlier design decisions.
 
 ## First design preview
 
@@ -157,3 +157,34 @@ The browser refreshes the overview every 60 seconds while the Overview is visibl
 ## Payoneer payouts — requested 2026-09-19
 
 The user requested Payoneer account linking in Settings → Withdraw Money and the ability to pay linked users from the Pulse admin. This adds a future financial action beyond the earlier read-only wallet scope; it does not enable payouts today. Preserve the existing admin permissions and audited access. See [Payoneer withdrawal requirements and integration flow](payoneer-withdrawals.md) for provider behavior, implementation prerequisites and verification still required.
+
+
+## Account removals and verification manual review — September 20, 2026
+
+The user approved an admin section for pending deletion requests and completed removals, with separate filters, and requested Verification for items needing manual review. Live streams is intended to list current active broadcasts; its dedicated page remains a placeholder.
+
+- **Account removals:** new menu item using `GET /api/admin-data/account-removals`. Defaults to pending; also supports completed, cancelled, rejected, and all statuses. Shows request ID, Pulse UID/name where available, request/review dates, reason, and internal review notes. Bounded pagination orders newest request IDs first. Completed means the recorded request was marked completed after manual removal, not that the dashboard independently checked erasure. This is history of existing requests, not a recovered archive of accounts deleted outside the request process. No deletion executor, status changes, or new profile-retention scheme was added. Existing coin/payment resolution requirements remain mandatory before actual removal.
+- **Verification:** `GET /api/admin-data/verification-reviews` lists only `status=review_needed` or `upgrade_status=review_needed` in the configured Didit environment. Filters distinguish initial and ID-upgrade reviews, with bounded UID pagination, account details, established verification, update date, environment label, and refresh. Pending/in-progress/id-required states alone do not enter the queue. A verified account awaiting upgrade review keeps its established verification. The Overview's verification attention link now opens this queue.
+- Both queues are read-only, use the existing owner/MFA guard, return `no-store`, audit successful reads, escape user content, and clear private content on lost access. Provider sessions, documents, consent, and mature preferences remain excluded. Review decisions must be resolved in Didit and accepted through existing provider evidence validation; no manual verified toggle was added. Operator assignment, case decisions, and provider-review controls remain future work.
+
+Validation evidence is recorded below; these development additions do not complete production launch readiness.
+
+### September 20 validation
+
+- API type check and build passed. `admin.integration.mjs` passed against temporary database fixtures, including both new queues' 401/403 boundaries, production MFA, staff removal, filters, bounded cursor pagination, review environment isolation, preservation of established verification, audit events, and unchanged mobile profile. Fixtures were removed afterward.
+- `admin-queues.browser.cjs` passed in Chromium using network fixtures: removal/review filters, pagination, escaped content, empty/error/retry states, permission-loss clearing, and desktop/390px layouts. The longer removal breadcrumb initially caused phone-width header overflow; it now truncates within the available header space and the overflow assertion passes. Existing `admin.browser.cjs` also passed, covering users, overview, account details, and session-specific logout.
+- Development API was rebuilt/restarted preserving its environment. Served admin HTML/updated assets and health returned 200; both queue endpoints reject missing and forged tokens with 401. Authorized data behavior was verified in the database integration harness, not by signing in as the real owner.
+- Physical iPhone/Android and a real owner-authenticated browser session were not tested. The review workflow in Didit and actual account removal remain outside these read-only checks.
+
+
+## Live streams and moderation report list — September 20, 2026
+
+User requested replacing the remaining Live streams and Moderation placeholders.
+
+- **Live streams:** `GET /api/admin-data/live-streams` supplies a read-only, bounded, cursor-paginated list of current durable broadcasts. Shows host name/UID, broadcast ID, title/category, public/private visibility, start time and last heartbeat in UTC. Filters support all/public/private. Refreshes every 30 seconds while the page is visible, plus manual refresh. Empty/error states clear stale rows. Pagination is a refreshed live view, not a historical snapshot.
+- The Overview and list now share one SQL active predicate: no end time, started by refresh time, heartbeat within the preceding 60 seconds and not in the future, no demo suffix, and an active private invitation updated within 75 seconds for private streams. The list does not expose channel names, credentials, admission data, private viewing access, or an unverified viewer count. It reports heartbeat activity, not independently observed video delivery.
+- **Moderation:** `GET /api/admin-data/moderation` lists existing stream, post, and account/DM reports via a report-type selector, defaulting to stream reports. Each type supports pending (default) or all recorded statuses. Shows report and target IDs, target account UID where available, reason, submitted details, recorded status, and date. Pagination orders descending report IDs within the selected type. Rows are individual reports, not unique content/account totals or confirmed violations. Deleted post/account targets remain identifiable from retained report IDs where the schema supports it. No reporter identity, DM message body, private media, or provider evidence is returned.
+- Both endpoints use existing staff/MFA checks, no-store, allowlisted fields and audit events (`live-streams.list`, `moderation.list`). Both pages clear private content on lost access and escape report/title text. No stream mutation, host/viewer controls, message behavior, or mobile code changed.
+- Moderation is report visibility only. A6 workflow requirements, owners, enforcement, notices, appeals, and decision/audit controls remain open. The Overview now links to the report list without inventing an open-report count; a flagged-stream queue remains undefined.
+
+Validation for Live streams/Moderation: API type check/build and extended database-backed `admin-overview.integration.mjs`/`admin.integration.mjs` passed. Fixtures cover public/private/demo/stale/ended/future stream rules, consistency with overview, expiry, pagination and response field allowlists; report-source/status filtering, deleted-target summaries, staff authorization/removal, MFA and audits. `admin-queues.browser.cjs` and existing `admin.browser.cjs` passed in Chromium with network fixtures at desktop and 390px widths, including filters, pagination, escaped text, empty/error/retry, and clearing on permission loss. The API was rebuilt/restarted preserving its environment; both new running endpoints reject missing/forged credentials with 401, and local/public admin plus health return 200. Real owner-authenticated sessions, actual live broadcasting on phones and physical-device verification were not performed. Mobile stream screens and shared controls were not changed.

@@ -15,7 +15,7 @@ const people = [
 ];
 const edges = [{ followerId: 1, followedId: 2 }, { followerId: 3, followedId: 1 }];
 
-function fixture() {
+function fixture({ viewer = { uid: 1, clerkId: "user_test" }, vip = false, unavailable = false, blocked = [] } = {}) {
   let queries = 0;
   const db = { select(fields) {
     queries++;
@@ -35,6 +35,11 @@ function fixture() {
   } };
   const module = { exports: {} };
   new Function("require", "module", "exports", code)((id) => {
+    if (id === "../lib/vipAccess") return { hasVipAccess: async clerkId => { assert.equal(clerkId, viewer.uid); if (unavailable) throw new Error("offline"); return vip; } };
+    if (id === "../lib/streamModeration") return { authenticatedUser: async () => viewer };
+    if (id === "../lib/userSafety") return { contactBlocked: async (_, uid) => blocked.includes(uid) };
+    if (id === "../lib/privacy") return { canViewPosts: async () => true };
+    if (id === "../lib/signupEligibility" || id === "../lib/countryLocation") return {};
     if (id === "@workspace/db") return { db, usersTable, followsTable, streamHistoryTable: {} };
     if (id === "drizzle-orm") return { eq: (left, right) => ({ left, right }), sql: () => ({}) };
     if (id === "../lib/objectStorage") return { createPrivateGetUrl: async path => `signed:${path}` };
@@ -44,7 +49,7 @@ function fixture() {
     queries: () => queries,
     async get(direction, uid) {
       const handler = module.exports.default.stack.find(layer => layer.route?.path === `/users/:uid/${direction}`).route.stack[0].handle;
-      const res = { statusCode: 200, body: null, status(value) { this.statusCode = value; return this; }, json(value) { this.body = value; } };
+      const res = { setHeader() {}, statusCode: 200, body: null, status(value) { this.statusCode = value; return this; }, json(value) { this.body = value; } };
       await handler({ params: { uid } }, res);
       return res;
     },
@@ -61,7 +66,7 @@ test("followers returns incoming connections, not outgoing ones", async () => {
   assert.deepEqual(result.body.users, [{ uid: 3, name: "Casey", bio: "Art", avatarImageUrl: null }]);
 });
 test("a user with no connections gets an empty list", async () => {
-  assert.deepEqual((await fixture().get("following", "2")).body, { users: [] });
+  assert.deepEqual((await fixture({ viewer: { uid: 2 } }).get("following", "2")).body, { users: [] });
 });
 test("invalid profile IDs are rejected before querying", async () => {
   for (const uid of ["abc", "1junk", "0", "-1", "1.5"]) {
@@ -69,4 +74,29 @@ test("invalid profile IDs are rejected before querying", async () => {
     assert.equal((await f.get("followers", uid)).statusCode, 400);
     assert.equal(f.queries(), 0);
   }
+});
+
+for (const direction of ["followers", "following"]) {
+  test(`${direction}: unauthenticated callers denied`, async () => {
+    const f = fixture({ viewer: null });
+    assert.equal((await f.get(direction, "1")).statusCode, 401);
+    assert.equal(f.queries(), 0);
+  });
+  test(`${direction}: non-VIP cannot read another account`, async () => {
+    const f = fixture();
+    assert.equal((await f.get(direction, "2")).statusCode, 403);
+    assert.equal(f.queries(), 0);
+  });
+  test(`${direction}: VIP can read another account`, async () => {
+    assert.equal((await fixture({ vip: true }).get(direction, "2")).statusCode, 200);
+  });
+  test(`${direction}: stored-status read failure fails closed`, async () => {
+    const f = fixture({ unavailable: true });
+    assert.equal((await f.get(direction, "2")).statusCode, 503);
+    assert.equal(f.queries(), 0);
+    assert.equal((await f.get(direction, "1")).statusCode, 200);
+  });
+}
+test("blocked accounts are omitted from connection results", async () => {
+  assert.deepEqual((await fixture({ blocked: [2] }).get("following", "1")).body.users, []);
 });

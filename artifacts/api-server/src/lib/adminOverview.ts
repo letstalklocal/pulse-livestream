@@ -1,3 +1,4 @@
+import { activeAdminStream } from "./adminOperations";
 import { pool } from "@workspace/db";
 import { verificationEnvironment } from "./didit";
 
@@ -39,13 +40,7 @@ export async function readAdminOverview(
     )
     SELECT a.total, a.verified, a.current_new, a.previous_new, g.current_gifts, g.previous_gifts,
       (SELECT count(*) FROM live_stream_sessions s
-        WHERE s.ended_at IS NULL AND s.started_at <= p.as_of
-          AND s.last_heartbeat_at > p.as_of - interval '60 seconds' AND s.last_heartbeat_at <= p.as_of
-          AND right(s.channel_id, 5) <> '-demo'
-          AND (NOT s.is_private OR EXISTS (
-            SELECT 1 FROM private_stream_invitations i WHERE i.channel_id=s.channel_id
-              AND i.status='active' AND i.updated_at > p.as_of - interval '75 seconds'
-          ))) AS live_streams,
+        WHERE ${activeAdminStream}) AS live_streams,
       to_char(p.start_utc, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS range_start,
       to_char(p.previous_start, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS previous_start,
       (SELECT json_agg(daily ORDER BY date) FROM daily) AS growth

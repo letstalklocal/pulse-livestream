@@ -26,10 +26,10 @@ export default function SubscriptionsScreen() {
   return <View style={[styles.container, { backgroundColor: colors.background }]}>
     <View style={[styles.header, { paddingTop: (Platform.OS === 'web' ? 24 : insets.top) + 12, borderColor: colors.border }]}>
       <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('Back')} onPress={() => router.back()} style={styles.back}><Ionicons name="chevron-back" size={20} color={colors.foreground} /></TouchableOpacity>
-      <Text style={[styles.title, { color: colors.foreground }]}>Pulse Pro</Text><View style={styles.back} />
+      <Text style={[styles.title, { color: colors.foreground }]}>Pulse VIP</Text><View style={styles.back} />
     </View>
     <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
-      <Text style={[styles.text, localizedTextStyle(), { color: colors.foreground }]}>{purchases.isPro ? t('Pulse Pro is active.') : t('Subscriptions unlock special features.')}</Text>
+      <Text style={[styles.text, localizedTextStyle(), { color: colors.foreground }]}>{purchases.isPro ? t('Pulse VIP is active.') : t("Pulse VIP unlocks other users' followers and following lists.")}</Text>
       {!!expires && <Text style={[styles.text, localizedTextStyle(), { color: colors.mutedForeground }]}>{entitlement?.willRenew ? t('Renews on {v0}', { v0: expires }) : t('Access until {v0}', { v0: expires })}</Text>}
       {purchases.testStore && <Text style={[styles.text, localizedTextStyle(), { color: colors.mutedForeground }]}>{t('Test purchases — no real payment.')}</Text>}
       {!userId && action('Sign in', () => router.push('/(auth)/sign-in'), false)}

@@ -3,6 +3,8 @@ const icons = {
     '<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>',
   Users:
     '<circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 5"/>',
+  "Account removals":
+    '<path d="M5 7h14M9 7V4h6v3M7 7l1 14h8l1-14M10 10v7m4-7v7"/>',
   "Live streams":
     '<rect x="3" y="5" width="12" height="14" rx="3"/><path d="m15 10 6-4v12l-6-4"/>',
   Verification:
@@ -39,7 +41,33 @@ let section = "Overview",
   filter = "all",
   searchTimer,
   signInElement = null,
+  reviewFilter = "all",
+  reviewCursor = null,
+  reviewHistory = [],
+  reviewNext = null,
+  removalFilter = "pending",
+  removalCursor = null,
+  removalHistory = [],
+  removalNext = null,
   config;
+const operations = {
+  "Live streams": {
+    endpoint: "live-streams",
+    filter: "all",
+    status: "pending",
+    cursor: null,
+    history: [],
+    next: null,
+  },
+  Moderation: {
+    endpoint: "moderation",
+    filter: "stream",
+    status: "pending",
+    cursor: null,
+    history: [],
+    next: null,
+  },
+};
 const nav = document.querySelector("nav");
 nav.innerHTML = Object.keys(icons)
   .map(
@@ -88,7 +116,18 @@ function unmountSignIn() {
 function clearPrivate() {
   unmountSignIn();
   authorized = false;
+  Object.values(operations).forEach((s) => {
+    s.cursor = null;
+    s.history = [];
+    s.next = null;
+  });
   users = [];
+  removalCursor = null;
+  removalHistory = [];
+  removalNext = null;
+  reviewCursor = null;
+  reviewHistory = [];
+  reviewNext = null;
   requestVersion++;
   overviewVersion++;
   detailVersion++;
@@ -157,6 +196,180 @@ function table() {
     .join(
       "",
     )}</select></div><div class="table-scroll"><table><thead><tr><th>User</th><th>Country</th><th>Verification</th><th>Joined · UTC</th><th><span class="sr-only">Details</span></th></tr></thead><tbody><tr><td colspan="5" class="empty">Loading accounts…</td></tr></tbody></table></div><div class="table-footer"><span id="result-count" role="status">Loading…</span><div><button class="page-button" id="previous-page" disabled>← Previous</button><button class="page-button" id="next-page" disabled>Next →</button></div></div></section>`;
+}
+function operationsPage() {
+  const state = operations[section],
+    live = section === "Live streams";
+  state.cursor = null;
+  state.history = [];
+  state.next = null;
+  const choices = live
+    ? [
+        ["all", "All broadcasts"],
+        ["public", "Public"],
+        ["private", "Private"],
+      ]
+    : [
+        ["stream", "Stream reports"],
+        ["post", "Post reports"],
+        ["user", "Account / DM reports"],
+      ];
+  return `<section class="panel operations-panel"><div class="panel-heading"><div><h2>${live ? "Current live broadcasts" : "Submitted reports"}</h2><p>${live ? "Refreshes every 30 seconds while visible." : "Individual reports, not unique reported accounts or content."}</p></div><button id="refresh-operations" class="row-action">Refresh</button></div><div class="table-tools"><label>${live ? "Visibility" : "Report type"} <select id="operation-filter">${choices.map(([v, t]) => `<option value="${v}" ${v === state.filter ? "selected" : ""}>${t}</option>`).join("")}</select></label>${live ? "" : `<label>Status <select id="operation-status"><option value="pending" ${state.status === "pending" ? "selected" : ""}>Pending</option><option value="all" ${state.status === "all" ? "selected" : ""}>All statuses</option></select></label>`}</div><p class="removal-note">${live ? "Active broadcasts are based on recent host activity. Viewer counts and playback are not available here." : "Read-only review list. Reports are allegations; no enforcement action has been taken by this dashboard. Review decisions and moderation controls are not connected."}</p><div class="table-scroll"><table><thead><tr>${(live ? ["Host", "Title / category", "Visibility", "Started · UTC", "Last activity · UTC"] : ["Report / target", "Reason", "Details", "Status", "Reported · UTC"]).map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody></tbody></table></div><div class="table-footer"><span id="operation-count" role="status"></span><div><button class="page-button" id="previous-operations" disabled>← Previous</button><button class="page-button" id="next-operations" disabled>Next →</button></div></div></section>`;
+}
+const dateTime = (value) =>
+  new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "medium",
+    timeZone: "UTC",
+  }).format(new Date(value));
+async function loadOperations() {
+  if (!authorized || !operations[section]) return;
+  const state = operations[section],
+    live = section === "Live streams",
+    version = ++requestVersion;
+  const tbody = document.querySelector(".operations-panel tbody");
+  state.next = null;
+  tbody.innerHTML = '<tr><td colspan="5" class="empty">Loading…</td></tr>';
+  document.getElementById("operation-count").textContent = "Loading…";
+  document.getElementById("next-operations").disabled = true;
+  document.getElementById("previous-operations").disabled = true;
+  try {
+    const params = new URLSearchParams({ filter: state.filter, limit: "20" });
+    if (!live) params.set("status", state.status);
+    if (state.cursor) params.set("cursor", state.cursor);
+    const data = await api("/" + state.endpoint + "?" + params);
+    if (version !== requestVersion || !authorized) return;
+    state.next = data.nextCursor;
+    tbody.innerHTML =
+      data.rows
+        .map((r) =>
+          live
+            ? `<tr><td><button class="user-button" data-user="${esc(r.hostUid)}"><span>${esc(r.hostName)}<small>UID ${esc(r.hostUid)} · Broadcast #${esc(r.id)}</small></span></button></td><td class="removal-notes">${esc(r.title)}<p>${esc(r.category)}</p></td><td>${r.isPrivate ? "Private" : "Public"}</td><td>${esc(dateTime(r.startedAt))}</td><td>${esc(dateTime(r.lastHeartbeatAt))}</td></tr>`
+            : `<tr><td>Report #${esc(r.id)}<p>${esc(r.source)} #${esc(r.targetId)}</p><small>${r.ownerUid === null ? "Account unavailable" : "Account UID " + esc(r.ownerUid)}</small></td><td>${esc(r.reason.replaceAll("_", " "))}</td><td class="removal-notes">${esc(r.details || "No details provided")}</td><td>${esc(r.status)}</td><td>${esc(dateTime(r.createdAt))}</td></tr>`,
+        )
+        .join("") ||
+      `<tr><td colspan="5" class="empty">${live ? "No active broadcasts match this filter." : "No reports match these filters."}</td></tr>`;
+    document.getElementById("operation-count").textContent =
+      `${data.rows.length} ${live ? "broadcasts" : "reports"} on this page · Updated ${new Date(data.asOf).toLocaleTimeString()}`;
+    document.getElementById("next-operations").disabled = !state.next;
+    document.getElementById("previous-operations").disabled =
+      !state.history.length;
+  } catch (e) {
+    if (version !== requestVersion) return;
+    if (accessError(e)) return;
+    tbody.innerHTML = `<tr><td colspan="5" class="empty">${esc(e.message)} <button class="page-button" id="retry-operations">Retry</button></td></tr>`;
+    document.getElementById("operation-count").textContent =
+      "Unable to load records";
+    document.getElementById("previous-operations").disabled =
+      !state.history.length;
+  }
+}
+function reviews() {
+  reviewCursor = null;
+  reviewHistory = [];
+  reviewNext = null;
+  return `<section class="panel reviews-panel"><div class="panel-heading"><div><h2>Verification manual review</h2><p>Only checks flagged as needing review. Routine processing is excluded.</p></div><button class="row-action" id="refresh-reviews">Refresh</button></div><div class="table-tools"><label for="review-filter">Review type</label><select id="review-filter">${[
+    ["all", "All reviews"],
+    ["initial", "Initial verification"],
+    ["upgrade", "ID upgrade"],
+  ]
+    .map(
+      ([s, t]) =>
+        `<option value="${s}" ${s === reviewFilter ? "selected" : ""}>${t}</option>`,
+    )
+    .join(
+      "",
+    )}</select></div><p class="removal-note">Investigate and resolve evidence in Didit. This queue cannot approve verification. Accepted provider updates determine the account’s verification status.</p><div class="table-scroll"><table><thead><tr><th>Account</th><th>Needs review</th><th>Established verification</th><th>Last updated · UTC</th></tr></thead><tbody></tbody></table></div><div class="table-footer"><span id="review-count" role="status"></span><div><button class="page-button" id="previous-reviews" disabled>← Previous</button><button class="page-button" id="next-reviews" disabled>Next →</button></div></div></section>`;
+}
+async function loadReviews() {
+  if (!authorized || section !== "Verification") return;
+  const version = ++requestVersion;
+  const tbody = document.querySelector(".reviews-panel tbody");
+  reviewNext = null;
+  tbody.innerHTML =
+    '<tr><td colspan="4" class="empty">Loading reviews…</td></tr>';
+  document.getElementById("review-count").textContent = "Loading…";
+  document.getElementById("next-reviews").disabled = true;
+  document.getElementById("previous-reviews").disabled = true;
+  try {
+    const params = new URLSearchParams({ kind: reviewFilter, limit: "20" });
+    if (reviewCursor) params.set("cursor", reviewCursor);
+    const data = await api("/verification-reviews?" + params);
+    if (version !== requestVersion || !authorized || section !== "Verification")
+      return;
+    reviewNext = data.nextCursor;
+    tbody.innerHTML =
+      data.reviews
+        .map(
+          (r) =>
+            `<tr><td><button class="user-button" data-user="${esc(r.uid)}"><span>${esc(r.name)}<small>UID ${esc(r.uid)}</small></span></button></td><td>${[r.status === "review_needed" ? "Initial verification" : "", r.upgradeStatus === "review_needed" ? "ID upgrade" : ""].filter(Boolean).join(" · ")}</td><td>${r.isVerified ? `Verified · ${esc(r.method || "Method unavailable")}` : "Unverified"}</td><td>${esc(date(r.updatedAt))}</td></tr>`,
+        )
+        .join("") ||
+      '<tr><td colspan="4" class="empty">No verifications need manual review.</td></tr>';
+    document.getElementById("review-count").textContent =
+      `${data.reviews.length} accounts · ${data.environment} verification · Updated ${new Date(data.asOf).toLocaleTimeString()}`;
+    document.getElementById("next-reviews").disabled = !reviewNext;
+    document.getElementById("previous-reviews").disabled =
+      !reviewHistory.length;
+  } catch (e) {
+    if (version !== requestVersion) return;
+    if (accessError(e)) return;
+    tbody.innerHTML = `<tr><td colspan="4" class="empty">${esc(e.message)} <button class="page-button" id="retry-reviews">Retry</button></td></tr>`;
+    document.getElementById("review-count").textContent =
+      "Unable to load reviews";
+    document.getElementById("previous-reviews").disabled =
+      !reviewHistory.length;
+  }
+}
+function removals() {
+  removalCursor = null;
+  removalHistory = [];
+  removalNext = null;
+  return `<section class="panel removals-panel"><div class="panel-heading"><div><h2>Account removal requests</h2><p>Pending requests are still active accounts. Completed records are marked as removed after manual review.</p></div><button class="row-action" id="refresh-removals">Refresh</button></div><div class="table-tools"><label for="removal-filter">Request status</label><select id="removal-filter">${["pending", "completed", "cancelled", "rejected", "all"].map((s) => `<option value="${s}" ${s === removalFilter ? "selected" : ""}>${s === "all" ? "All statuses" : s[0].toUpperCase() + s.slice(1)}</option>`).join("")}</select></div><p class="removal-note">Read-only history of recorded requests. Accounts deleted outside this process may not appear. Remaining coins and unresolved payments must be resolved before removal.</p><div class="table-scroll"><table><thead><tr><th>Account</th><th>Status</th><th>Requested · UTC</th><th>Reviewed · UTC</th><th>Reason / review notes</th></tr></thead><tbody></tbody></table></div><div class="table-footer"><span id="removal-count" role="status"></span><div><button class="page-button" id="previous-removals" disabled>← Previous</button><button class="page-button" id="next-removals" disabled>Next →</button></div></div></section>`;
+}
+async function loadRemovals() {
+  if (!authorized || section !== "Account removals") return;
+  const version = ++requestVersion;
+  const tbody = document.querySelector(".removals-panel tbody");
+  removalNext = null;
+  tbody.innerHTML =
+    '<tr><td colspan="5" class="empty">Loading requests…</td></tr>';
+  document.getElementById("removal-count").textContent = "Loading…";
+  document.getElementById("next-removals").disabled = true;
+  document.getElementById("previous-removals").disabled = true;
+  try {
+    const params = new URLSearchParams({ status: removalFilter, limit: "20" });
+    if (removalCursor) params.set("cursor", removalCursor);
+    const data = await api("/account-removals?" + params);
+    if (
+      version !== requestVersion ||
+      !authorized ||
+      section !== "Account removals"
+    )
+      return;
+    removalNext = data.nextCursor;
+    tbody.innerHTML =
+      data.requests
+        .map(
+          (r) =>
+            `<tr><td>${esc(r.name ?? "Account unavailable")}<small>UID ${esc(r.uid)} · Request #${esc(r.id)}</small></td><td>${esc(r.status[0].toUpperCase() + r.status.slice(1))}</td><td>${esc(date(r.requestedAt))}</td><td>${r.reviewedAt ? esc(date(r.reviewedAt)) : "—"}</td><td class="removal-notes"><strong>Reason</strong><p>${esc(r.reason || "Not provided")}</p><strong>Review notes</strong><p>${esc(r.reviewNotes || "None")}</p></td></tr>`,
+        )
+        .join("") ||
+      '<tr><td colspan="5" class="empty">No removal requests match this status.</td></tr>';
+    document.getElementById("removal-count").textContent =
+      `${data.requests.length} requests · Updated ${new Date(data.asOf).toLocaleTimeString()}`;
+    document.getElementById("next-removals").disabled = !removalNext;
+    document.getElementById("previous-removals").disabled =
+      !removalHistory.length;
+  } catch (e) {
+    if (version !== requestVersion) return;
+    if (accessError(e)) return;
+    tbody.innerHTML = `<tr><td colspan="5" class="empty">${esc(e.message)} <button class="page-button" id="retry-removals">Retry</button></td></tr>`;
+    document.getElementById("removal-count").textContent =
+      "Unable to load requests";
+    document.getElementById("previous-removals").disabled =
+      !removalHistory.length;
+  }
 }
 const formatCount = (value) => new Intl.NumberFormat("en").format(value);
 function comparison(metric) {
@@ -230,12 +443,12 @@ function growthChart(data) {
 function overview() {
   return `<div class="overview-toolbar"><span id="overview-range">Last seven UTC dates · Today is partial</span><button class="page-button" id="refresh-overview">Refresh overview</button></div><p id="overview-feedback" role="status">Loading metrics…</p><div id="overview-metrics">${metricCards(null)}</div><div class="middle-grid"><section class="panel chart-panel" id="growth-panel"><div class="unconnected">Loading community growth…</div></section><section class="panel attention"><div class="panel-heading"><div><h2>Needs attention</h2><p>Queues will appear as each section is connected.</p></div></div>${[
     ["Verification", "Verification reviews", "amber"],
-    ["Moderation", "Open reports", "rose"],
+    ["Moderation", "Submitted reports", "rose"],
     ["Live streams", "Flagged live streams", "purple"],
   ]
     .map(
       ([name, title, color]) =>
-        `<a class="attention-row" href="#${name.toLowerCase().replaceAll(" ", "-")}"><span class="attention-icon ${color}">${icon(name)}</span><span><strong>${title}</strong><small>Not connected yet</small></span><span class="arrow">›</span></a>`,
+        `<a class="attention-row" href="#${name.toLowerCase().replaceAll(" ", "-")}"><span class="attention-icon ${color}">${icon(name)}</span><span><strong>${title}</strong><small>${name === "Verification" ? "Open manual-review queue" : name === "Moderation" ? "Open report list" : "Flagging queue not connected"}</small></span><span class="arrow">›</span></a>`,
     )
     .join("")}</section></div>${table()}`;
 }
@@ -294,9 +507,12 @@ function render() {
     else a.removeAttribute("aria-current");
   });
   document.getElementById("breadcrumb").textContent = section;
-  main.innerHTML = `<div class="page-heading"><div><div class="eyebrow">PULSE WORKSPACE</div><h1>${section}</h1><p>${section === "Overview" ? "Welcome back. Your community workspace." : section === "Users" ? "Find and review the people who make Pulse." : "Your space for " + section.toLowerCase() + "."}</p></div><div class="date-label">Read-only access</div></div>${section === "Overview" ? overview() : section === "Users" ? table() : `<section class="panel coming-soon"><span class="empty-icon">${icon(section)}</span><span class="tag">COMING NEXT</span><h2>${section}</h2><p>This section is not connected yet.</p><a class="primary-button" href="#users">Open user directory →</a></section>`}`;
+  main.innerHTML = `<div class="page-heading"><div><div class="eyebrow">PULSE WORKSPACE</div><h1>${section}</h1><p>${section === "Overview" ? "Welcome back. Your community workspace." : section === "Users" ? "Find and review the people who make Pulse." : "Your space for " + section.toLowerCase() + "."}</p></div><div class="date-label">Read-only access</div></div>${section === "Overview" ? overview() : section === "Users" ? table() : section === "Account removals" ? removals() : section === "Verification" ? reviews() : operations[section] ? operationsPage() : `<section class="panel coming-soon"><span class="empty-icon">${icon(section)}</span><span class="tag">COMING NEXT</span><h2>${section}</h2><p>This section is not connected yet.</p><a class="primary-button" href="#users">Open user directory →</a></section>`}`;
   if (section === "Users" || section === "Overview") loadUsers();
   if (section === "Overview") loadOverview();
+  if (section === "Account removals") loadRemovals();
+  if (section === "Verification") loadReviews();
+  if (operations[section]) loadOperations();
 }
 async function loadUsers() {
   const version = ++requestVersion;
@@ -468,6 +684,26 @@ document.addEventListener("input", (e) => {
   }
 });
 document.addEventListener("change", (e) => {
+  if (["operation-filter", "operation-status"].includes(e.target.id)) {
+    const state = operations[section];
+    state[e.target.id === "operation-filter" ? "filter" : "status"] =
+      e.target.value;
+    state.cursor = null;
+    state.history = [];
+    loadOperations();
+  }
+  if (e.target.id === "review-filter") {
+    reviewFilter = e.target.value;
+    reviewCursor = null;
+    reviewHistory = [];
+    loadReviews();
+  }
+  if (e.target.id === "removal-filter") {
+    removalFilter = e.target.value;
+    removalCursor = null;
+    removalHistory = [];
+    loadRemovals();
+  }
   if (e.target.id === "status-filter") {
     filter = e.target.value;
     cursor = null;
@@ -477,6 +713,41 @@ document.addEventListener("change", (e) => {
   }
 });
 document.addEventListener("click", (e) => {
+  if (operations[section]) {
+    const state = operations[section];
+    if (e.target.id === "next-operations" && state.next) {
+      state.history.push(state.cursor);
+      state.cursor = state.next;
+      loadOperations();
+    }
+    if (e.target.id === "previous-operations" && state.history.length) {
+      state.cursor = state.history.pop();
+      loadOperations();
+    }
+    if (["refresh-operations", "retry-operations"].includes(e.target.id))
+      loadOperations();
+  }
+  if (e.target.id === "next-reviews" && reviewNext) {
+    reviewHistory.push(reviewCursor);
+    reviewCursor = reviewNext;
+    loadReviews();
+  }
+  if (e.target.id === "previous-reviews" && reviewHistory.length) {
+    reviewCursor = reviewHistory.pop();
+    loadReviews();
+  }
+  if (["refresh-reviews", "retry-reviews"].includes(e.target.id)) loadReviews();
+  if (e.target.id === "next-removals" && removalNext) {
+    removalHistory.push(removalCursor);
+    removalCursor = removalNext;
+    loadRemovals();
+  }
+  if (e.target.id === "previous-removals" && removalHistory.length) {
+    removalCursor = removalHistory.pop();
+    loadRemovals();
+  }
+  if (["refresh-removals", "retry-removals"].includes(e.target.id))
+    loadRemovals();
   const user = e.target.closest("[data-user]");
   if (user && authorized) details(user.dataset.user);
   if (e.target.id === "next-page" && nextCursor) {
@@ -521,6 +792,8 @@ document.getElementById("sign-out").onclick = async () => {
 };
 setInterval(() => {
   if (window.Clerk?.session && !document.hidden) checkAccess();
+  if (authorized && section === "Live streams" && !document.hidden)
+    loadOperations();
 }, 30000);
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {

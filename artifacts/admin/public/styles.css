@@ -1001,3 +1001,36 @@ dd {
     margin-top: 6px;
   }
 }
+
+.removal-note {
+  padding: 0 24px 16px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.removals-panel td small {
+  display: block;
+  margin-top: 5px;
+}
+.removal-notes {
+  min-width: 230px;
+  max-width: 360px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.removal-notes p {
+  white-space: pre-wrap;
+  margin: 4px 0 12px;
+}
+@media (max-width: 720px) {
+  header {
+    gap: 12px;
+  }
+  .breadcrumb {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .header-right {
+    flex-shrink: 0;
+  }
+}

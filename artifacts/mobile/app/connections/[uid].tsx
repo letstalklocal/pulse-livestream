@@ -1,3 +1,4 @@
+import { usePurchases } from "@/context/PurchasesContext";
 import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
@@ -30,27 +31,29 @@ export default function ConnectionsScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { isPro } = usePurchases();
+  const canView = validUid && !!user && (user.uid === uid || isPro);
   const profile = useGetUser(uid, { query: { queryKey: getGetUserQueryKey(uid), enabled: validUid } });
-  const followers = useGetUserFollowers(uid, { query: { queryKey: getGetUserFollowersQueryKey(uid), enabled: validUid } });
-  const following = useGetUserFollowing(uid, { query: { queryKey: getGetUserFollowingQueryKey(uid), enabled: validUid } });
+  const followers = useGetUserFollowers(uid, { query: { queryKey: [...getGetUserFollowersQueryKey(uid), user?.uid, isPro], enabled: canView } });
+  const following = useGetUserFollowing(uid, { query: { queryKey: [...getGetUserFollowingQueryKey(uid), user?.uid, isPro], enabled: canView } });
   const myFollowing = useGetUserFollowing(user?.uid ?? 0, { query: { queryKey: getGetUserFollowingQueryKey(user?.uid ?? 0), enabled: !!user } });
   const follow = useFollowUser();
   const unfollow = useUnfollowUser();
   const active = tab === "followers" ? followers : following;
   const followedIds = new Set(myFollowing.data?.users.map(person => person.uid) ?? []);
   const term = search.trim().toLocaleLowerCase();
-  const people = (active.data?.users ?? []).filter(person =>
+  const people = (canView && !active.isError ? active.data?.users ?? [] : []).filter(person =>
     person.name.toLocaleLowerCase().includes(term) || String(person.uid).includes(term),
   );
   const title = profile.data?.user.name ?? params.name ?? t("Connections");
 
   useFocusEffect(useCallback(() => {
-    if (!validUid) return;
+    if (!canView) return;
     void followers.refetch();
     void following.refetch();
     void profile.refetch();
     if (user) void myFollowing.refetch();
-  }, [validUid, uid, user?.uid, followers.refetch, following.refetch, profile.refetch, myFollowing.refetch]));
+  }, [canView, uid, user?.uid, followers.refetch, following.refetch, profile.refetch, myFollowing.refetch]));
 
   const toggleFollow = async (person: FollowingUser) => {
     if (!user || person.uid === user.uid || pendingRef.current || !myFollowing.data) return;
@@ -86,7 +89,8 @@ export default function ConnectionsScreen() {
       </View>
       <View style={[styles.tabs, { borderBottomColor: colors.border }]}>
         {(["followers", "following"] as const).map(value => {
-          const count = (value === "followers" ? followers : following).data?.users.length;
+          const list = value === "followers" ? followers : following;
+          const count = canView && !list.isError ? list.data?.users.length : undefined;
           const selected = tab === value;
           return (
             <TouchableOpacity key={value} accessibilityRole="tab" accessibilityState={{ selected }}
@@ -110,9 +114,10 @@ export default function ConnectionsScreen() {
       </View>
       <FlatList data={people} keyExtractor={person => String(person.uid)} keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: insets.bottom + 24, flexGrow: 1 }}
-        refreshing={active.isRefetching} onRefresh={() => { void active.refetch(); if (user) void myFollowing.refetch(); }}
+        refreshing={active.isRefetching} onRefresh={() => { if (canView) void active.refetch(); if (user) void myFollowing.refetch(); }}
         ListEmptyComponent={<View style={styles.empty}>
           {!validUid ? <Text style={[localizedTextStyle(), { color: colors.mutedForeground }]}>{t("Profile not found.")}</Text>
+            : !canView ? <Text style={[localizedTextStyle(), { color: colors.mutedForeground }]}>{t("Pulse VIP unlocks other users' followers and following lists.")}</Text>
             : active.isLoading ? <ActivityIndicator color={colors.primary} />
             : active.isError ? <>
               <Text style={[localizedTextStyle(), { color: colors.mutedForeground }]}>{t("Couldn't load {v0}.", { v0: tab })}</Text>

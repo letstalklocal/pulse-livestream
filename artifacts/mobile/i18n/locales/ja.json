@@ -964,5 +964,8 @@
   "Show details": "詳細を表示",
   "Pause": "一時停止",
   "Open full screen": "全画面で開く",
-  "No videos in history yet.": "履歴に動画はまだありません。"
+  "No videos in history yet.": "履歴に動画はまだありません。",
+  "Pulse VIP unlocks other users' followers and following lists.": "Pulse VIPでは他のユーザーのフォロワー・フォロー中リストを閲覧できます。",
+  "Pulse VIP is active.": "Pulse VIPは有効です。",
+  "VIP Unlocked": "VIP アンロック"
 }

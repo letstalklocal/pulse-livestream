@@ -1,5 +1,12 @@
 # Coin purchases
 
+## Apple availability completed — September 19, 2026
+
+User relayed the other Codex session's confirmation: availability for the app, all three personal VIP products, and all nine coin products was saved, reopened and verified for the same 13 launch countries: **United Kingdom, Saudi Arabia, United States, Colombia, Russia, Spain, Canada, Australia, Venezuela, Mexico, Costa Rica, Argentina, and Brazil**. Apple accepted every selected country, including Russia. This is user-supplied verification from that session, not an independent dashboard check here. Nothing was submitted or released.
+
+This supersedes earlier unset/pending Apple availability notes. It confirms App Store Connect country configuration only; purchase testing, verification-provider country coverage and overall launch readiness remain separate. Review screenshots, reviewer details/access instructions, VIP benefits, RevenueCat metadata verification and sandbox purchases remain open.
+
+
 Shared change handoff: [coins, Premium gifts, and RevenueCat](coins-premium-revenuecat.md).
 
 ## Recorded user decisions — 2026-09-15
@@ -50,6 +57,10 @@ Before selecting the six packs, the user supplied this strategy from the earlier
 The $99.99 top-pack price supersedes the earlier illustrative $100 in-app price. The user explicitly selected the other five prices shown above; these supersede the assistant’s proportional-price calculation. Use these exact USD base prices; store-localized prices will be returned by RevenueCat. These are the initial in-app packs, with web purchasing still deferred.
 
 The latest addition expands the initial selection from six to nine packs. The user explicitly confirmed the three smaller `.99` prices. All nine prices in the table are approved.
+
+## Apple / RevenueCat follow-up — 2026-09-19
+
+User relayed the other Codex session's confirmation that Apple credentials were saved and valid, Apple app 6809048225 / bundle com.chimba.livestream was linked to RevenueCat app app1937357464, and nine consumables were added. This workspace then mapped and read back all nine Apple products in the existing coins packages, preserving Test Store associations. See [mapping evidence and remaining work](revenuecat-integration.md#apple-app-and-package-mapping-checkpoint--september-19-2026). Availability, review screenshots, native Apple sandbox testing and production fulfillment requirements remain open; no submission/release occurred.
 
 ## App Store Connect checkpoint — 2026-09-15
 

@@ -1,3 +1,4 @@
+import { hasVipAccess } from "../lib/vipAccess";
 import { getAuth } from "@clerk/express";
 import { signupEligibility, SIGNUP_TERMS_VERSION } from "../lib/signupEligibility";
 import { countryName } from "../lib/countryLocation";
@@ -234,7 +235,16 @@ for (const direction of ["following", "followers"] as const) {
     }
     const viewer = await authenticatedUser(req);
     if (!viewer) return void res.status(401).json({ error: "Sign in required" });
-    if (viewer.uid !== uid) return void res.status(403).json({ error: "Follower and following lists are private" });
+    res.setHeader("Cache-Control", "private, no-store");
+    if (viewer.uid !== uid) {
+      try {
+        if (!await hasVipAccess(viewer.uid)) {
+          return void res.status(403).json({ error: "Pulse VIP is required to view these lists", code: "VIP_REQUIRED" });
+        }
+      } catch {
+        return void res.status(503).json({ error: "VIP status could not be verified. Please try again.", code: "VIP_UNAVAILABLE" });
+      }
+    }
     const personId = direction === "following" ? followsTable.followedId : followsTable.followerId;
     const ownerId = direction === "following" ? followsTable.followerId : followsTable.followedId;
     const rows = await db
@@ -247,7 +257,9 @@ for (const direction of ["following", "followers"] as const) {
       .innerJoin(usersTable, eq(usersTable.uid, personId))
       .where(eq(ownerId, uid))
       .orderBy(usersTable.name, usersTable.uid);
-    const visibleRows = await Promise.all(rows.map(async row => ({ ...row, ...("postIds" in row && !await canViewPosts(row.uid, viewer.uid) ? { postIds: [] } : {}) })));
+    const unblocked = await Promise.all(rows.map(async row => await contactBlocked(viewer.uid, row.uid) ? null : row));
+    const allowedRows = unblocked.filter((row): row is NonNullable<typeof row> => row !== null);
+    const visibleRows = await Promise.all(allowedRows.map(async row => ({ ...row, ...("postIds" in row && !await canViewPosts(row.uid, viewer.uid) ? { postIds: [] } : {}) })));
     const users = await Promise.all(visibleRows.map(async ({ avatarImagePath, ...user }) => ({
       ...user,
       avatarImageUrl: avatarImagePath ? await createPrivateGetUrl(avatarImagePath) : null,

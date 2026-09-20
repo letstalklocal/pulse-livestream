@@ -15,7 +15,7 @@
       "autoIncrement": true,
       "ios": {
         "env": {
-          "EXPO_PUBLIC_REVENUECAT_MODE": "test",
+          "EXPO_PUBLIC_REVENUECAT_MODE": "store",
           "PULSE_TESTFLIGHT_BUILD": "true"
         }
       }

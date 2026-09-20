@@ -1,12 +1,15 @@
+import { usePurchases } from "@/context/PurchasesContext";
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { AccountSafetyMenu } from "@/components/AccountSafetyMenu";
 import { PhotoOptions } from "@/components/PhotoOptions";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  AccessibilityInfo,
+  Animated,
   Dimensions,
   Image,
   Platform,
@@ -82,7 +85,24 @@ export default function PublicProfileScreen() {
 
   const followerUid = currentUser?.uid;
   const canFollow = !!followerUid && followerUid !== uid;
-  const canViewConnections = followerUid === uid;
+  const { isPro } = usePurchases();
+  const canViewConnections = !!currentUser && (followerUid === uid || isPro);
+  const vipFloat = useRef(new Animated.Value(0)).current;
+  const openingConnections = useRef(false);
+  const [showVipUnlocked, setShowVipUnlocked] = useState<"followers" | "following" | null>(null);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then(value => { if (active) setReduceMotion(value); }).catch(() => {});
+    const listener = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => { active = false; listener.remove(); };
+  }, []);
+  useFocusEffect(useCallback(() => {
+    openingConnections.current = false;
+    setShowVipUnlocked(null);
+    vipFloat.setValue(0);
+    return () => { vipFloat.stopAnimation(); openingConnections.current = false; };
+  }, [vipFloat, uid, followerUid, isPro]));
 
   const { data: followStatusData, refetch: refetchFollowStatus } = useGetFollowStatus(
     uid,
@@ -107,6 +127,18 @@ export default function PublicProfileScreen() {
   const followersCount = profile?.followersCount ?? 0;
   const followingCount = profile?.followingCount ?? 0;
   const streamHistory = historyData?.streams ?? [];
+
+  const openConnections = (tab: 'followers' | 'following') => {
+    if (!canViewConnections || openingConnections.current) return;
+    const open = () => router.push({ pathname: '/connections/[uid]', params: { uid: String(uid), tab, name: displayName } });
+    if (!isPro) { open(); return; }
+    openingConnections.current = true;
+    vipFloat.setValue(0);
+    setShowVipUnlocked(tab);
+    Animated.timing(vipFloat, { toValue: 1, duration: 1300, useNativeDriver: true }).start(({ finished }) => {
+      if (finished) { setShowVipUnlocked(null); open(); }
+    });
+  };
 
   const invalidateUser = () => {
     if (followerUid) {
@@ -174,8 +206,16 @@ export default function PublicProfileScreen() {
 
               {/* Stats */}
               <View style={styles.statsRow}>
+
                 <TouchableOpacity disabled={!canViewConnections} style={styles.stat} accessibilityRole="button" accessibilityLabel={t("View followers")}
-                  onPress={() => router.push({ pathname: "/connections/[uid]", params: { uid: String(uid), tab: "followers", name: displayName } })}>
+                  onPress={() => openConnections("followers")}>
+                {showVipUnlocked === "followers" && <Animated.View pointerEvents="none" accessibilityLiveRegion="polite"
+                  style={[styles.vipUnlocked, {
+                    opacity: vipFloat.interpolate({ inputRange: [0, 0.15, 0.65, 1], outputRange: [0, 1, 1, 0] }),
+                    transform: [{ translateY: reduceMotion ? 0 : vipFloat.interpolate({ inputRange: [0, 1], outputRange: [0, -32] }) }],
+                  }]}>
+                  <Text style={[styles.vipUnlockedText, localizedTextStyle(), { color: "#FFD700" }]}>{t("VIP Unlocked")}</Text>
+                </Animated.View>}
                   <Text style={[styles.statValue, { color: colors.foreground }]}>
                     {fmtCount(followersCount)}
                   </Text>
@@ -183,7 +223,14 @@ export default function PublicProfileScreen() {
                 </TouchableOpacity>
                 <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
                 <TouchableOpacity disabled={!canViewConnections} style={styles.stat} accessibilityRole="button" accessibilityLabel={t("View following")}
-                  onPress={() => router.push({ pathname: "/connections/[uid]", params: { uid: String(uid), tab: "following", name: displayName } })}>
+                  onPress={() => openConnections("following")}>
+                {showVipUnlocked === "following" && <Animated.View pointerEvents="none" accessibilityLiveRegion="polite"
+                  style={[styles.vipUnlocked, {
+                    opacity: vipFloat.interpolate({ inputRange: [0, 0.15, 0.65, 1], outputRange: [0, 1, 1, 0] }),
+                    transform: [{ translateY: reduceMotion ? 0 : vipFloat.interpolate({ inputRange: [0, 1], outputRange: [0, -32] }) }],
+                  }]}>
+                  <Text style={[styles.vipUnlockedText, localizedTextStyle(), { color: "#FFD700" }]}>{t("VIP Unlocked")}</Text>
+                </Animated.View>}
                   <Text style={[styles.statValue, { color: colors.foreground }]}>
                     {fmtCount(followingCount)}
                   </Text>
@@ -376,6 +423,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 6,
   },
+  vipUnlocked: { position: 'absolute', top: -28, left: -55, right: -55, alignItems: 'center', zIndex: 20 },
+  vipUnlockedText: { fontSize: 14, fontFamily: 'Inter_700Bold', textAlign: 'center' },
   stat: { flex: 1, alignItems: "center", gap: 2 },
   statDivider: { width: 1, height: 30, marginHorizontal: 12 },
   statValue: { fontSize: 18, fontWeight: "700", fontFamily: "Inter_700Bold" },

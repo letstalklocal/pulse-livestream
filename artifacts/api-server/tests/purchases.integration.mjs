@@ -15,6 +15,7 @@ process.env.NODE_ENV = 'test';
 await build({ stdin: { contents: `import express from 'express';import router from './src/routes/purchases';export {pool} from '@workspace/db';export function testApp(){const app=express();app.use(express.json());app.use((req,res,next)=>{req.auth=()=>({userId:req.get('x-test-auth')||null});next();});app.use('/api',router);return app;}`, resolveDir: dir }, outfile: output, bundle: true, platform: 'node', format: 'cjs', external: ['pg-native'], logLevel: 'silent' });
 const { pool, testApp } = createRequire(import.meta.url)(output);
 const clerkId = `rc-test-${randomUUID()}`, otherClerk = `rc-other-${randomUUID()}`;
+const logEventIds = new Set();
 const uid = 1800000000 + Math.floor(Math.random() * 10000000);
 let server;
 try {
@@ -28,14 +29,14 @@ try {
   };
   const webhook = '/purchases/revenuecat/webhook';
   const event = { id: randomUUID(), type: 'NON_RENEWING_PURCHASE', app_id: 'app_test_pulse', store: 'TEST_STORE', environment: 'SANDBOX', app_user_id: clerkId, product_id: 'consumable', transaction_id: randomUUID(), price: 4.99 };
-  const send = (overrides = {}, auth = key) => call(webhook, { event: { ...event, ...overrides } }, { Authorization: auth });
+  const send = (overrides = {}, auth = key) => {const value={...event,...overrides};logEventIds.add(value.id);return call(webhook, { event: value }, { Authorization: auth });};
   const auth = { 'x-test-auth': clerkId };
   assert.equal((await call('/purchases/coin-products')).status, 401);
   assert.equal((await call('/purchases/coin-products', undefined, auth)).body.products[0].coins, 500);
   assert.equal((await send({}, 'wrong')).status, 401);
   assert.equal((await send({ environment: 'PRODUCTION' })).status, 403);
   assert.equal((await send({ app_id: 'other_app' })).status, 403);
-  assert.equal((await send({ product_id: 'lifetime' })).body.ignored, true);
+  assert.equal((await send({ product_id: 'unknown_non_coin' })).body.ignored, true);
   assert.equal((await send({ type: 'INITIAL_PURCHASE' })).body.ignored, true);
   assert.equal((await send({ type: 'TEST' })).status, 200);
   assert.equal((await send({ app_user_id: 'unknown_account' })).status, 409);
@@ -62,9 +63,11 @@ try {
   process.env.REVENUECAT_COIN_PRODUCTS = '[{"productId":"consumable","coins":-1}]';
   assert.equal((await call('/purchases/coin-products', undefined, auth)).body.enabled, false);
   assert.equal((await send()).status, 503);
+  assert.equal(Number((await pool.query("select count(*) from revenuecat_webhook_logs where event_id=any($1::text[]) and outcome='processed'",[[...logEventIds]])).rows[0].count)>0,true);
   console.log('PASS: sandbox purchase HTTP/database integration — auth, app/environment checks, immutable transaction ownership, concurrent idempotency, server-only amounts, subscription exclusion, account-scoped status and production guard.');
 } finally {
   if (server) await new Promise(resolve => server.close(resolve));
+  await pool.query('delete from revenuecat_webhook_logs where event_id=any($1::text[])',[[...logEventIds]]);
   await pool.query('delete from coin_transactions where to_user_id=any($1::int[])', [[uid, uid+1]]);
   await pool.query('delete from coin_balances where user_id=any($1::int[])', [[uid, uid+1]]);
   await pool.query('delete from users where clerk_id=any($1::text[])', [[clerkId, otherClerk]]);

@@ -4,6 +4,8 @@ Updated: 2026-09-16
 
 ## Build plan
 
+**Current purchase mode (2026-09-20):** user approved changing `build.production.ios.env.EXPO_PUBLIC_REVENUECAT_MODE` in `artifacts/mobile/eas.json` from `test` to `store`; implemented and JSON verified. This supersedes earlier Test Store build instructions. The Apple public SDK key must be supplied as `EXPO_PUBLIC_REVENUECAT_IOS_KEY` in the build environment. Keep the existing production API connection and Replit Publish workflow. No native build or deployment was started by this edit; Apple sandbox device testing remains pending.
+
 **Current Apple build workflow (2026-09-16):** The user starts Apple/iPhone builds through the **Publish tool in Replit**. Use this workflow when giving Apple build instructions; the EAS CLI commands recorded below are historical. TestFlight uses the Replit production environment. Android continues to use its [documented development build command](android-build-workflow.md).
 
 **Previous build decision (2026-09-15):** The user resumed testing builds and explicitly approved RevenueCat Test Store configuration for the next TestFlight build. This supersedes the earlier hold while fixes were collected. Use the installed EAS CLI and existing production profile; see the approved TestFlight configuration below. The assistant has not started a build.

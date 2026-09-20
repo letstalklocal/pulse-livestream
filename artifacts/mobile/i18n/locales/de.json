@@ -964,5 +964,8 @@
   "Show details": "Details anzeigen",
   "Pause": "Pausieren",
   "Open full screen": "Im Vollbild öffnen",
-  "No videos in history yet.": "Noch keine Videos im Verlauf."
+  "No videos in history yet.": "Noch keine Videos im Verlauf.",
+  "Pulse VIP unlocks other users' followers and following lists.": "Pulse VIP schaltet die Follower- und Gefolgt-Listen anderer Nutzer frei.",
+  "Pulse VIP is active.": "Pulse VIP ist aktiv.",
+  "VIP Unlocked": "VIP freigeschaltet"
 }

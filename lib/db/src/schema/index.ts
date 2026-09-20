@@ -30,3 +30,7 @@ export * from "./user-onboarding";
 export * from "./reaction-preferences";
 
 export * from "./creator-videos";
+
+export * from "./vip-access";
+
+export * from "./revenuecat-webhook-logs";

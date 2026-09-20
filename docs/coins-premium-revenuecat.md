@@ -118,3 +118,8 @@ Implementation: `LiveViewersSheet.tsx`, the audience `GiftLeaderboard.tsx` wrapp
 
 
 Live Viewers auto-close requirement: close the list after 10 seconds without interaction on both host and audience. Touch, search edits and scrolling reset the deadline. Pause it in the selected-viewer moderation panel and during pending moderation; cancel it when the sheet unmounts. See [mandatory stream regression checks](stream-screen-regressions.md).
+
+
+## Pulse VIP coin purchases and gifting — September 19, 2026
+
+Approved: buy VIP for yourself or gift it to streamers using wallet coins, with a **Gift VIP** profile badge/action and additive paid time (two one-month gifts add two months). VIP purchases pay Pulse and must not credit streamer coins/earnings or enter ordinary gift scoring. Coin purchases do not auto-renew. Reuse existing coin packs instead of adding separate cash gift products. Confirmed VIP prices for self-purchases and gifts: **2,000 coins/month of access**, **15,000 coins/year of access**, and **20,000 coins/lifetime**; all are one-time coin charges. See [approved decisions, implementation plan, and verification requirements](pulse-vip.md). This is recorded scope, not implemented functionality.

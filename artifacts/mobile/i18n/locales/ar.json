@@ -964,5 +964,8 @@
   "Show details": "عرض التفاصيل",
   "Pause": "إيقاف مؤقت",
   "Open full screen": "فتح بملء الشاشة",
-  "No videos in history yet.": "لا توجد فيديوهات في السجل بعد."
+  "No videos in history yet.": "لا توجد فيديوهات في السجل بعد.",
+  "Pulse VIP unlocks other users' followers and following lists.": "يتيح Pulse VIP عرض قوائم متابعي المستخدمين الآخرين ومن يتابعونهم.",
+  "Pulse VIP is active.": "Pulse VIP نشط.",
+  "VIP Unlocked": "تم فتح VIP"
 }

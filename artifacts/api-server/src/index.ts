@@ -1,3 +1,4 @@
+import { startVipReconciliation } from "./lib/vipReconciliation";
 import { loadEnvFile } from 'node:process';
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -75,5 +76,6 @@ server.listen(port, (err?: Error) => {
     process.exit(1);
   }
 
+  startVipReconciliation();
   logger.info({ port }, "Server listening");
 });
