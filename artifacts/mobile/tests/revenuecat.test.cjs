@@ -25,7 +25,10 @@ function mock() {
 test('test key used for native development only, platform keys for releases, web unsupported', () => {
   assert.equal(config.purchaseConfiguration('ios', true, {}).apiKey, config.REVENUECAT_TEST_KEY);
   assert.equal(config.purchaseConfiguration('android', false, { mode: 'test' }).apiKey, config.REVENUECAT_TEST_KEY);
-  assert.equal(config.purchaseConfiguration('ios', false, {}).apiKey, undefined);
+  assert.equal(config.purchaseConfiguration('ios', false, {}).apiKey, config.REVENUECAT_IOS_KEY);
+  assert.ok(config.REVENUECAT_IOS_KEY.startsWith('appl_'));
+  assert.equal(config.purchaseConfiguration('ios', false, { mode: 'store', iosKey: '' }).apiKey, config.REVENUECAT_IOS_KEY);
+  assert.equal(config.purchaseConfiguration('ios', false, { mode: 'store', iosKey: 'appl_override' }).apiKey, 'appl_override');
   assert.equal(config.purchaseConfiguration('web', true, {}).apiKey, undefined);
   assert.equal(config.purchaseConfiguration('ios', false, { iosKey: 'secret_unsafe' }).apiKey, undefined);
   assert.equal(config.purchaseConfiguration('android', false, { androidKey: 'goog_public' }).apiKey, 'goog_public');
@@ -87,7 +90,7 @@ test('production guard requires explicit iOS TestFlight opt-in for simulated pay
   assert.throws(() => evaluateBuild({ ...env, PULSE_TESTFLIGHT_BUILD: 'true', EAS_BUILD_PLATFORM: 'android' }), /cannot use RevenueCat Test Store/);
   assert.deepEqual(evaluateBuild({ ...env, EXPO_PUBLIC_REVENUECAT_MODE: 'store' }), { name: 'Pulse' });
 });
-test('saved TestFlight profile enables the test SDK in a release bundle without changing Android settings', () => {
+test('saved TestFlight profile enables Apple store in a release bundle without changing Android settings', () => {
   const eas = JSON.parse(readFileSync(`${__dirname}/../eas.json`, 'utf8'));
   const profile = eas.build.production;
   const env = { ...profile.env, ...profile.ios.env, EAS_BUILD_PROFILE: 'production' };
@@ -95,7 +98,11 @@ test('saved TestFlight profile enables the test SDK in a release bundle without 
   for (const platform of [undefined, 'ios']) {
     assert.deepEqual(evaluateBuild({ ...env, EAS_BUILD_PLATFORM: platform }), { name: 'Pulse' });
   }
-  assert.equal(config.purchaseConfiguration('ios', false, { mode: env.EXPO_PUBLIC_REVENUECAT_MODE }).apiKey, config.REVENUECAT_TEST_KEY);
+  assert.equal(env.EXPO_PUBLIC_REVENUECAT_MODE, 'store');
+  assert.equal(env.EXPO_PUBLIC_REVENUECAT_IOS_KEY, config.REVENUECAT_IOS_KEY);
+  const result = config.purchaseConfiguration('ios', false, { mode: env.EXPO_PUBLIC_REVENUECAT_MODE });
+  assert.equal(result.apiKey, config.REVENUECAT_IOS_KEY);
+  assert.equal(result.testStore, false);
   assert.equal(profile.env?.EXPO_PUBLIC_REVENUECAT_MODE, undefined);
   assert.equal(profile.android?.env?.EXPO_PUBLIC_REVENUECAT_MODE, undefined);
   assert.equal(profile.autoIncrement, true);

@@ -1,5 +1,13 @@
 # Apple / TestFlight fixes
 
+## Repeated unavailable-purchases message — September 20, 2026
+
+The user reported the same message after another TestFlight build. `PurchasesContext.tsx` shows this exact message only when the native module exists but `purchaseConfiguration().apiKey` is missing/invalid. `PULSE_TESTFLIGHT_BUILD` is a build guard for Test Store opt-in, not a runtime purchase-disable flag. Both root and mobile `eas.json` exist; the exact configuration/environment consumed by the installed Replit Publish build has not been established from build logs. Do not claim changing mobile EAS settings alone proved the installed binary received them.
+
+Added the existing Apple public SDK key as `REVENUECAT_IOS_KEY` in `artifacts/mobile/lib/revenuecat-config.ts`. Release iOS uses that bundled fallback when the environment key is missing/empty; explicit environment keys still override it and invalid prefixes still fail closed. Development Test Store behavior, Android configuration and production API destination are preserved. No server credentials were bundled. Updated purchase configuration tests cover absent/empty environment values, explicit key override, invalid keys and the store-mode profile. All eight purchase tests passed. A new installed build/device check is still required; the exact prior build failure mechanism remains unconfirmed.
+
+Secret-cleanup follow-up remains deferred until device success and checking other build paths; a missing mobile key secret no longer disables release iOS because of the bundled fallback. Backend secrets/settings remain required.
+
 ## Apple SDK key missing from TestFlight build — September 20, 2026
 
 **After device verification:** review redundant Replit mobile-key/mode secrets before removal; see the secret cleanup follow-up in [RevenueCat integration](revenuecat-integration.md#apple-sdk-key-missing-from-testflight-build--september-20-2026). Keep backend purchase secrets/settings. No secrets removed.

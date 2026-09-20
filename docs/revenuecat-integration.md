@@ -1,5 +1,13 @@
 # RevenueCat integration for Pulse
 
+## Repeated unavailable-purchases message — September 20, 2026
+
+The user reported the same message after another TestFlight build. `PurchasesContext.tsx` shows this exact message only when the native module exists but `purchaseConfiguration().apiKey` is missing/invalid. `PULSE_TESTFLIGHT_BUILD` is a build guard for Test Store opt-in, not a runtime purchase-disable flag. Both root and mobile `eas.json` exist; the exact configuration/environment consumed by the installed Replit Publish build has not been established from build logs. Do not claim changing mobile EAS settings alone proved the installed binary received them.
+
+Added the existing Apple public SDK key as `REVENUECAT_IOS_KEY` in `artifacts/mobile/lib/revenuecat-config.ts`. Release iOS uses that bundled fallback when the environment key is missing/empty; explicit environment keys still override it and invalid prefixes still fail closed. Development Test Store behavior, Android configuration and production API destination are preserved. No server credentials were bundled. Updated purchase configuration tests cover absent/empty environment values, explicit key override, invalid keys and the store-mode profile. All eight purchase tests passed. A new installed build/device check is still required; the exact prior build failure mechanism remains unconfirmed.
+
+Secret-cleanup follow-up remains deferred until device success and checking other build paths; a missing mobile key secret no longer disables release iOS because of the bundled fallback. Backend secrets/settings remain required.
+
 ## Apple SDK key missing from TestFlight build — September 20, 2026
 
 **Secret cleanup follow-up (user requested):** keep existing secrets for now. After the new TestFlight build successfully loads Apple products, check whether any other build/publish path reads `EXPO_PUBLIC_REVENUECAT_IOS_KEY` from Replit secrets. If none does, that duplicate secret can be removed because the public key is now explicitly supplied by `build.production.ios.env` in `artifacts/mobile/eas.json`. Likewise, review the duplicate `EXPO_PUBLIC_REVENUECAT_MODE` secret only after checking other build paths; the iOS profile explicitly sets `store`. Do not remove `REVENUECAT_ENVIRONMENT` as part of this cleanup: it controls backend webhook validation and is not replaced by mobile build configuration. Server API credentials and webhook authorization remain required. No secrets were removed by this note.
