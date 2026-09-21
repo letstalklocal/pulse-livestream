@@ -24,4 +24,7 @@ try{
  assert.equal((await call({...input,contentType:'image/jpeg',idempotencyKey:randomUUID()})).statusCode,400,'MIME validation remains');
  for(const durationMs of [undefined,null])assert.equal((await call({...input,mediaType:'image',contentType:'image/jpeg',durationMs,price:0,idempotencyKey:randomUUID()})).statusCode,201);
  console.log('PASS: fractional iOS DM duration persists rounded once, paid price preserved, retries deduplicated, conflicts/invalid metadata rejected, photos/auth/chat access preserved.');
-}finally{await pool.query('delete from direct_messages where from_user_id=any($1::int[]) or to_user_id=any($1::int[])',[[uid,peer]]);await pool.query('delete from users where uid=any($1::int[])',[[uid,peer]]);await pool.end();unlinkSync(output);}
+}finally{await pool.query('delete from direct_messages where from_user_id=any($1::int[]) or to_user_id=any($1::int[])',[[uid,peer]]);await pool.query('delete from follows where follower_id=any($1::int[]) or followed_id=any($1::int[])',[[uid,peer]]);await pool.query('delete from users where uid=any($1::int[])',[[uid,peer]]);await pool.end();unlinkSync(output);}
+
+// Imported stream modules start maintenance timers; fixtures and pool are already closed.
+process.exit(0);
