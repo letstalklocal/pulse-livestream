@@ -2,6 +2,7 @@ const { spawnSync } = require('node:child_process');
 const { resolve } = require('node:path');
 const root = resolve(__dirname, '../../..');
 const tests = [
+  'artifacts/mobile/tests/back-handler-platform.test.cjs',
   'artifacts/mobile/tests/live-stickers.test.cjs',
   'artifacts/mobile/tests/media-pack-gift.test.cjs',
   'artifacts/mobile/tests/media-pack-message.test.cjs',

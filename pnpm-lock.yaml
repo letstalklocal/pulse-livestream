@@ -259,6 +259,9 @@ importers:
 
   artifacts/mobile:
     dependencies:
+      '@revenuecat/purchases-js-hybrid-mappings':
+        specifier: 18.37.0
+        version: 18.37.0
       expo-application:
         specifier: ~57.0.2
         version: 57.0.2(expo@57.0.20)

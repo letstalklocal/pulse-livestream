@@ -642,6 +642,7 @@ export default function StreamScreen() {
     else router.replace("/(tabs)");
   }, [canEnterStream, streamEnded, isTransitioning, playback.minimize, channelId, router]);
   useFocusEffect(useCallback(() => {
+    if (Platform.OS !== "android") return;
     const back = BackHandler.addEventListener("hardwareBackPress", () => { leaveViewer(); return true; });
     return () => back.remove();
   }, [leaveViewer]));

@@ -267,3 +267,7 @@ Verification for this follow-up: mobile/API typechecks, required stream regressi
 ### Simulation hidden — September 18, 2026
 
 User approved the two-line Pulse winner message and requested hiding Simulate battle. Remove its broadcaster menu entry; retain Start/End Battle and the simulation backend for existing test coverage. Real battles use the same shared bar, countdown, winner animation and Pulse result formatting; actual eligible gifts determine scores instead of timed test awards. Automated checks are separate from end-to-end real-gift verification on Android/iPhone, which remains pending.
+
+### Simulation restored — September 21, 2026
+
+User explicitly requested unhiding **Simulate Battle** (title only, no additional text) in the broadcaster's three-dot menu, superseding the September 18 hiding decision. Restore it beside Start Battle for an active Party when no battle is active, disabled until both hosts are ready or while an action is pending. It calls the existing `battle_simulate` action and closes the menu, with no trailing chevron. End Battle and all existing simulation/payment rules remain unchanged. Mobile typechecking, localization and required stream regression checks are automated verification; Android/iPhone menu and simulation checks remain pending. No backend change or native build is needed for this source change; an already-started build may not include it.

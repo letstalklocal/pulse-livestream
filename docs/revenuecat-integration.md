@@ -1,5 +1,29 @@
 # RevenueCat integration for Pulse
 
+## Android Test Store webhook routing restored — September 21, 2026
+
+User reported Android pending coin confirmation. Readback confirmed the only webhook pointed all sandbox apps at production. Created development integration `whintgr66ceccfa2b` (Pulse development Test Store), sandbox/all events, app filter `app0722e3199f`, current Replit dev API webhook URL, existing validated development Authorization. Scoped existing production integration `whintgrdc2cdf5bb3` to Apple app `app1937357464`; its URL/environment/auth remain unchanged. Readback verified both routes; authenticated no-purchase TEST against development returned 200. This keeps Apple sandbox -> production and RevenueCat Test Store -> development. No native build required.
+
+Pending recovery: user identifies one.espana account and says 2,000 coins. Recent provider history for local Javilo profile (uid 61079) instead shows an owned 250-coin Test Store transaction on September 21 at 03:05:53.147 UTC, absent from local ledger. Its September 15 2,000-coin transaction already has one credit. Asked user to confirm Android profile before recovering the mismatched amount. No new coin credit was made during routing repair. New provider-originated development delivery remains unverified.
+
+## Provider-originated retry confirmed — September 21, 2026
+
+User relayed the other Codex's RevenueCat dashboard verification: event `bf9707d5-fb1d-4794-9f82-93be11e10ee6` was retried successfully, Sent, attempt 4 of 6, September 21 at 04:51:37 UTC, HTTP 200 with `{"received":true}`. Authorization was unchanged after the correction. This confirms a provider-originated retry reached and was acknowledged by production; it is distinct from our earlier manual recovery. It does not yet establish that a new purchase succeeds automatically on its first delivery.
+
+Duplicate credit remains unverified on production. Check the production coin ledger for Apple sandbox transaction `2000001239337842`: exactly one purchase credit of 250 coins for that transaction, despite manual recovery plus provider retry. HTTP 200 alone does not distinguish first credit from idempotent duplicate acknowledgement. Existing automated idempotency tests passed, but production ledger evidence is still required. No additional purchase or wallet mutation was performed while recording this report.
+
+## Production webhook Authorization corrected — September 21, 2026
+
+User relayed dashboard inspection from the other Codex: the exact Apple 250-coin event was retrying with HTTP 401 / Invalid authorization and the integration Authorization field was empty. This explains automatic delivery failing while our authenticated manual recovery succeeded.
+
+Using the existing environment/local development authorization value, first confirmed production accepts it via a no-purchase TEST event (HTTP 200). Then updated only `authorization_header` on RevenueCat integration `whintgrdc2cdf5bb3` via the official v2 API (HTTP 200). Readback confirmed production URL, sandbox environment, app filter and event filters unchanged. No credential printed or sent in chat; no new value generated; no purchase replay in this step. Other Codex should retry the existing failed event and verify automatic delivery HTTP 200 plus no additional wallet credit. API update success and our TEST response are not yet proof of a successful provider-originated retry.
+
+## Apple 250-coin pending purchase recovery — September 21, 2026
+
+User on TestFlight build 21 reported the 250-coin purchase succeeded but wallet stayed pending. RevenueCat's customer-event history and purchase API independently confirmed the same store transaction: APP_STORE sandbox, owned, quantity 1, mapped to Apple app app1937357464 / coins_250_v1. The account does not exist in this session's local development database, so local ledger/logs cannot establish production delivery. Clerk email lookup was unavailable (403); do not claim independently verified email mapping. Recovery used the exact provider transaction/account identifiers, not an email-derived substitute.
+
+Production authenticated TEST check returned 200. RevenueCat webhook configuration readback points to production, sandbox environment, all events. Reprocessed the verified existing transaction through the production authenticated handler, retaining provider event ID, transaction ID and account ID and supplying event type/app mapping verified from API records. The handler returned 200 `received:true` (not ignored); existing transaction-key idempotency protects against double credit if original delivery/retry also succeeds. No new purchase or direct wallet edit was made. User balance/confirmation refresh remains to be checked. This is manual recovery evidence, not proof that automatic RevenueCat delivery is healthy. Inspect provider delivery attempts/production audit logs to establish the original failure; neither was available through this session's local DB.
+
 ## Production coin readiness blocker — September 21, 2026
 
 User reports coin packs still unavailable in TestFlight. Read-only/unauthenticated production probes: `/api/healthz` returned 200; `/api/purchases/coin-products` correctly returned 401 without a user token; an empty unauthenticated POST to `/api/purchases/revenuecat/webhook` returned 503 with `Purchases are not configured`. This route checks configuration before authentication, so the response establishes missing/short `REVENUECAT_WEBHOOK_AUTH` or empty `REVENUECAT_APP_IDS` (cannot distinguish which from this response). The same configuration disables coin checkout. No valid event was submitted and no account was modified.
@@ -402,3 +426,5 @@ eas build --platform ios --profile production
 ```
 
 Verification: the installed EAS profile parser resolves both flags for iOS and neither for Android. Eight purchase/configuration tests pass, including release-bundle selection of the public Test Store key, local/cloud Expo config evaluation, rejection without the explicit opt-in, and preservation of real-store mode. No new native build or device payment check was performed by the assistant. The already-built binary cannot gain these flags without a new build.
+
+Android recovery follow-up, September 21: user confirmed Javilo and that a 250-coin purchase was also made. Revalidated the exact RevenueCat purchase as owned/Test Store/sandbox/quantity 1 and product mapping coins_250_v1; reprocessed that existing event to development. HTTP 200 received:true. Independent local DB readback confirmed exactly one +250 ledger credit and balance 43,602 -> 43,852; no preexisting credit for that transaction. No new purchase was created. This verifies manual recovery/idempotent ledger result; new automatic Test Store delivery remains to be device-tested after the routing correction.

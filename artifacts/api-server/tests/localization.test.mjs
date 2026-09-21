@@ -49,6 +49,8 @@ try {
   const a=ts.createSourceFile(file,source,99,true,4),result=[];
   function walk(n){
    // Individual DM videos now use a real player in the existing modal; focused playback tests cover its gate and close behavior.
+   // DM retries retain their original send key and freeze pricing; tested in dm-upload-retry.test.cjs.
+   if(file.endsWith('/components/MediaChooser.tsx')&&((ts.isPropertyAssignment(n)&&n.name.getText(a)==='idempotencyKey')||(ts.isJsxAttribute(n)&&n.name.getText(a)==='editable')))return;
    if(file.endsWith('/components/DirectMediaMessage.tsx')&&ts.isJsxElement(n)&&n.openingElement.tagName.getText(a)==='Modal'&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='visible'&&p.initializer?.getText(a)==='{fullScreen}'))return;
    // Selected gift now sets the price; the old manual price input was explicitly removed.
    if(file.endsWith('/app/media-packs.tsx')&&ts.isJsxSelfClosingElement(n)&&n.tagName.getText(a)==='TextInput'&&n.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='value'&&p.initializer?.getText(a)==='{price}'))return;
@@ -58,6 +60,8 @@ try {
    // Approved gift selection is additive to pack creation; focused tests verify its saved value.
    if(file.endsWith('/app/media-packs.tsx')&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&p.initializer?.text==='pack-gift-options'))return;
    // Preview and summary need distinct sibling keys while retaining user/video remounting.
+   // Pinned upload feedback adds only a test identifier; keep checking all existing controls.
+   if(file.endsWith('/components/CreatorVideoSheet.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='testID'&&n.initializer?.text==='creator-video-upload-status')return;
    if(file.endsWith('/components/CreatorVideoSheet.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='key'&&['VideoManagementPreview','VideoManagementSummary'].includes(n.parent.parent.tagName?.getText(a)))return;
    // Pack messages now share the corrected gallery used by live stickers; keep comparing the message card and checkout.
    if(file.endsWith('/components/MediaPackMessage.tsx')&&ts.isJsxElement(n)&&n.openingElement.tagName.getText(a)==='Modal'&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='visible'&&p.initializer?.getText(a)==='{gallery}'))return;
@@ -99,6 +103,8 @@ try {
    if(file.endsWith('/app/verification.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='chevron-back')return;
    // The new signup route is intentional; compare the existing email form after its move.
    if(file.endsWith('/(auth)/_layout.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='sign-up-email')return;
+   // Coin credit animation remounts for each account; preserve payment identifiers.
+   if(file.endsWith('/components/CoinStoreContent.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='key'&&n.initializer?.getText(a)==='{userId}'&&n.parent.parent.tagName?.getText(a)==='RollingCoinBalance')return;
    // Approved coin-card redesign replaces the decorative ellipse with gold SVG artwork.
    if(file.endsWith('/components/CoinStoreContent.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='ellipse')return;
    // Requested post gifting adds this action; payment behavior has dedicated post-gifts tests.
@@ -111,6 +117,8 @@ try {
    // These additive header controls are separate from localization preservation.
    if(file.endsWith('/stream/[channelId].tsx')&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&['viewer-exit-live','viewer-premium-badge','viewer-choose-reaction'].includes(p.initializer?.text)))return;
    if(file.endsWith('/stream/[channelId].tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='person')return;
+   // User restored the host's existing simulation action; its icon is an intentional addition.
+   if(file.endsWith('/app/go-live.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='flask-outline')return;
    // Approved VIP visual redesign adds decorative Ionicons only; preserve package keys and payment identifiers.
    if(file.endsWith('/app/subscriptions.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.parent?.parent?.tagName?.getText(a)==='Ionicons'&&n.initializer?.text!=='chevron-back')return;
    if(ts.isJsxAttribute(n)&&stableAttributes.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));

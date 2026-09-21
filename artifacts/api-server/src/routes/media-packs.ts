@@ -4,12 +4,22 @@ import { StickerError } from "../lib/liveStickers";
 import { pushEarnings } from "../lib/wsHub";
 import { requireChatAllowed } from "../lib/messagePreferences";
 import { requireContactAllowed } from "../lib/userSafety";
-import { Router } from "express";
+import { Router, type ErrorRequestHandler } from "express";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, coinTransactionsTable, directMessagesTable, mediaPackItemsTable, mediaPackPurchasesTable, mediaPacksTable, usersTable } from "@workspace/db";
-import { createPrivateGetUrl, createPrivateUploadUrl } from "../lib/objectStorage";
+import { createPrivateGetUrl, createPrivateUploadUrl, createPrivateResumableUpload } from "../lib/objectStorage";
 
 const router = Router();
+// iOS ImagePicker reports fractional milliseconds; PostgreSQL stores whole milliseconds.
+function normalizeDurations(items: unknown) {
+  if (!Array.isArray(items)) return;
+  for (const item of items) {
+    if (item && typeof item.durationMs === "number" && Number.isFinite(item.durationMs)
+      && item.durationMs >= 0 && item.durationMs <= 2147483647) item.durationMs = Math.round(item.durationMs);
+  }
+}
+const validDuration = (value: unknown) => value == null || (typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 2147483647);
+
 const key = (value: unknown) => typeof value === "string" && value.length > 0 && value.length <= 200 ? value : null;
 async function currentUser(req: any) {
   const clerkId = req.auth?.()?.userId;
@@ -39,9 +49,9 @@ const packResponse = async (pack: typeof mediaPacksTable.$inferSelect, includeUr
 
 router.post("/media-packs/uploads", async (req, res): Promise<any> => {
   if (!await requireUser(req, res)) return;
-  const { contentType } = req.body ?? {};
+  const { contentType, resumable } = req.body ?? {};
   if (typeof contentType !== "string" || (!contentType.startsWith("image/") && !contentType.startsWith("video/"))) return res.status(400).json({ error: "A valid image/video content type is required" });
-  try { res.status(201).json(await createPrivateUploadUrl()); } catch (error) { res.status(500).json({ error: error instanceof Error ? error.message : "Upload URL could not be created" }); }
+  try { res.status(201).json(resumable === true ? await createPrivateResumableUpload(contentType) : await createPrivateUploadUrl()); } catch (error) { req.log?.error({ code: (error as any)?.code, operation: "media-upload-session" }, "Media upload session failed"); res.status(500).json({ error: "Upload failed. Please try again." }); }
 });
 router.get("/media-packs", async (req, res) => {
   const user = await requireUser(req, res); if (!user) return;
@@ -51,8 +61,9 @@ router.get("/media-packs", async (req, res) => {
 router.post("/media-packs", async (req, res): Promise<any> => {
   const user = await requireUser(req, res); if (!user) return;
   const { name, items, giftId } = req.body ?? {};
+  normalizeDurations(items);
   if (typeof giftId !== "string" || !Object.hasOwn(PREMIUM_GIFT_CATALOG, giftId)) return res.status(400).json({ error: "Choose a valid sticker gift" });
-  if (typeof name !== "string" || !name.trim() || name.trim().length > 80 || !Array.isArray(items) || items.length < 1 || items.length > 20 || items.some((x) => !x || typeof x.objectPath !== "string" || !x.objectPath.startsWith("/objects/") || typeof x.contentType !== "string" || (!x.contentType.startsWith("image/") && !x.contentType.startsWith("video/")) || !Number.isInteger(x.width) || !Number.isInteger(x.height))) return res.status(400).json({ error: "Invalid pack" });
+  if (typeof name !== "string" || !name.trim() || name.trim().length > 80 || !Array.isArray(items) || items.length < 1 || items.length > 20 || items.some((x) => !x || typeof x.objectPath !== "string" || !x.objectPath.startsWith("/objects/") || typeof x.contentType !== "string" || (!x.contentType.startsWith("image/") && !x.contentType.startsWith("video/")) || !Number.isInteger(x.width) || x.width <= 0 || x.width > 2147483647 || !Number.isInteger(x.height) || x.height <= 0 || x.height > 2147483647 || !validDuration(x.durationMs))) return res.status(400).json({ error: "Invalid pack" });
   const pack = await db.transaction(async (tx) => {
     const [created] = await tx.insert(mediaPacksTable).values({ ownerUserId: user.uid, name: name.trim(), coinPrice: PREMIUM_GIFT_CATALOG[giftId as keyof typeof PREMIUM_GIFT_CATALOG].coinCost, giftId }).returning();
     await tx.insert(mediaPackItemsTable).values(items.map((x: any, position: number) => ({ packId: created!.id, position, objectPath: x.objectPath, contentType: x.contentType, width: x.width, height: x.height, durationMs: x.durationMs ?? null })));
@@ -65,6 +76,7 @@ router.put("/media-packs/:packId", async (req, res): Promise<any> => {
   const user = await requireUser(req, res); if (!user) return;
   const id = Number(req.params.packId);
   const { giftId, items } = req.body ?? {};
+  normalizeDurations(items);
   if (!Number.isSafeInteger(id) || id <= 0 || id > 2147483647 || typeof giftId !== "string" || !Object.hasOwn(PREMIUM_GIFT_CATALOG, giftId) || !Array.isArray(items) || items.length < 1 || items.length > 20) return res.status(400).json({ error: "Invalid pack" });
   const retainedIds: number[] = [];
   for (const item of items) {
@@ -72,7 +84,7 @@ router.put("/media-packs/:packId", async (req, res): Promise<any> => {
     if (item.id !== undefined) {
       if (typeof item.id !== "string" || !/^[1-9][0-9]*$/.test(item.id) || !Number.isSafeInteger(Number(item.id)) || retainedIds.includes(Number(item.id))) return res.status(400).json({ error: "Invalid pack item" });
       retainedIds.push(Number(item.id));
-    } else if (typeof item.objectPath !== "string" || !item.objectPath.startsWith("/objects/") || typeof item.contentType !== "string" || (!item.contentType.startsWith("image/") && !item.contentType.startsWith("video/")) || !Number.isInteger(item.width) || item.width <= 0 || !Number.isInteger(item.height) || item.height <= 0 || (item.durationMs != null && (!Number.isInteger(item.durationMs) || item.durationMs < 0))) {
+    } else if (typeof item.objectPath !== "string" || !item.objectPath.startsWith("/objects/") || typeof item.contentType !== "string" || (!item.contentType.startsWith("image/") && !item.contentType.startsWith("video/")) || !Number.isInteger(item.width) || item.width <= 0 || !Number.isInteger(item.height) || item.height <= 0 || !validDuration(item.durationMs)) {
       return res.status(400).json({ error: "Invalid pack item" });
     }
   }
@@ -152,4 +164,11 @@ router.post("/media-packs/:packId/unlock", async (req, res): Promise<any> => {
     res.status(500).json({ error: "Pack could not be unlocked" });
   }
 });
+// Express otherwise returns an HTML error page for an unhandled async route failure.
+const packErrorHandler: ErrorRequestHandler = (error, req, res, next) => {
+  if (res.headersSent) return next(error);
+  req.log?.error({ code: error?.cause?.code ?? error?.code, operation: req.method, route: req.route?.path }, "Media pack request failed");
+  res.status(500).json({ error: "Please try again.", code: "MEDIA_PACK_REQUEST_FAILED" });
+};
+router.use(packErrorHandler);
 export default router;

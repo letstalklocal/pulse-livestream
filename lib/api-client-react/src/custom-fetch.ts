@@ -155,6 +155,9 @@ function buildErrorMessage(response: Response, data: unknown): string {
 
   if (typeof data === "string") {
     const text = data.trim();
+    // Proxy/server HTML pages are diagnostics, not user-facing messages.
+    if (response.headers.get("content-type")?.includes("text/html") || /<!doctype\s+html|<html[\s>]|<body[\s>]|<script[\s>]/i.test(text))
+      return `${prefix}: Please try again.`;
     return text ? `${prefix}: ${truncate(text)}` : prefix;
   }
 

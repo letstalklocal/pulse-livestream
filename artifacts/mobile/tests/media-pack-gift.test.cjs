@@ -5,9 +5,11 @@ const source = fs.readFileSync(require.resolve('../app/media-packs.tsx'), 'utf8'
 const start = source.indexOf('  const save = async () =>');
 const end = source.indexOf('\n  const packs =', start);
 const code = ts.transpileModule(source.slice(start, end), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
-async function run(giftId, { fail = false, returning = false, editing = false, retainedOnly = false, empty = false, duplicate = false } = {}) {
+async function run(giftId, { fail = false, returning = false, editing = false, retainedOnly = false, empty = false, duplicate = false, interrupted = false } = {}) {
+  let transferFailed = false;
   const state = { uploaded: 0, created: [], updated: [], error: null, gift: giftId, back: 0, invalidated: [], saving: false };
   const scope = {
+    AbortController, uploadSessions:{current:new Map()},uploadController:{current:null},setUploadProgress(){},uploadPrivateMedia:async()=>{if(interrupted&&!transferFailed){transferFailed=true;throw Error("interrupted");}},
     giftId, saving: false, busyRef: { current: false }, editingId: editing ? '7' : null, price: '299', name: 'My pack', assets: [{ uri: 'local-photo', mimeType: 'image/jpeg', type: 'image', width: 100, height: 100 }],
     returnToSticker: returning ? '1' : undefined, recipientId: undefined,
     setError: value => { state.error = value; }, setSaving: value => { state.saving = value; },
@@ -25,12 +27,13 @@ async function run(giftId, { fail = false, returning = false, editing = false, r
   if (empty) scope.assets = [];
   const save = new Function(...Object.keys(scope), code + '\nreturn save;')(...Object.values(scope));
   await Promise.all(duplicate ? [save(), save()] : [save()]);
+  if (interrupted) await save();
   return state;
 }
 (async () => {
   assert.doesNotMatch(source, /value=\{price\}|setPrice|price: coinPrice/, 'Manual pricing is removed');
   const hydration = {};
-  const scope = { busyRef: { current: false } };
+  const scope = { busyRef: { current: false }, uploadSessions: { current: new Map() } };
   for (const field of ['EditingId','Name','Price','GiftId','Error','Assets','Visible']) scope[`set${field}`] = value => { hydration[field] = value; };
   const editSource = source.slice(source.indexOf('  const openEdit ='), source.indexOf('  useEffect(', source.indexOf('  const openEdit =')));
   const editCode = ts.transpileModule(editSource, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
@@ -45,6 +48,9 @@ async function run(giftId, { fail = false, returning = false, editing = false, r
   scope.busyRef.current = false;
   editor.closeEditor();
   assert.equal(hydration.Visible, false, 'Cancel closes without a save');
+  const resumed = await run('rose', { interrupted: true });
+  assert.equal(resumed.uploaded, 1, 'Interrupted item reuses its upload session on save retry');
+  assert.equal(resumed.created.length, 1, 'Pack creation waits for completed media');
   const missing = await run(null);
   assert.equal(missing.uploaded, 0, 'No upload starts before gift selection');
   assert.equal(missing.created.length, 0);

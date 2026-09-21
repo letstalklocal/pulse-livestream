@@ -63,6 +63,16 @@ export function CreatorVideoSheet({
     return token;
   };
   const selected = library?.videos.find((v) => v.id === library.selectedId);
+  const pendingVideo = library?.videos.find(video => video.status === "processing" || video.status === "uploading");
+  const pendingProgress = pendingVideo ? encodingProgress[pendingVideo.id] : null;
+  const statusLabel = progress !== null
+    ? progress < 100 ? t("Uploading: {v0}%", { v0: progress }) : t("Processing video…")
+    : pendingVideo
+      ? pendingVideo.status === "uploading" ? t("Uploading…")
+        : pendingProgress === 100 ? t("Finalizing video…")
+          : pendingProgress != null ? t("Processing video: {v0}%", { v0: pendingProgress })
+            : t("Processing video…")
+      : null;
   const load = async (signal?: AbortSignal) => {
     const version = generation.current;
     const data = await videoRequest<VideoLibrary>(
@@ -156,6 +166,7 @@ export function CreatorVideoSheet({
   const choose = () =>
     void run(async () => {
       const version = generation.current;
+      setProgress(0);
       const picked = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["videos"],
         allowsEditing: false,
@@ -270,6 +281,16 @@ export function CreatorVideoSheet({
               />
             </TouchableOpacity>
           </View>
+          {statusLabel && <View testID="creator-video-upload-status" accessibilityLiveRegion="polite"
+            style={[styles.uploadStatus, { backgroundColor: colors.card }]}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <ActivityIndicator color="#00D4D4" />
+              <Text style={{ color: colors.foreground, flex: 1 }}>{statusLabel}</Text>
+            </View>
+            {progress !== null && progress < 100 && <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${Math.max(0, Math.min(100, progress))}%` }]} />
+            </View>}
+          </View>}
           {!statsId && <>
             {selected && <View style={[styles.visibility, { backgroundColor: colors.card }]}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
@@ -378,10 +399,7 @@ export function CreatorVideoSheet({
                     <Ionicons name="cloud-upload-outline" size={19} color="#061E22" />
                     <Text style={{ color: "#061E22", fontSize: 14, fontWeight: "700" }}>{t(selected ? "Replace video" : "Upload Video")}</Text>
                   </TouchableOpacity>
-                  {progress !== null && <View style={{ gap: 7 }}>
-                    <Text style={{ color: colors.foreground }}>{t("Uploading: {v0}%", { v0: progress })}</Text>
-                    <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${Math.max(0, Math.min(100, progress))}%` }]} /></View>
-                  </View>}
+
                 </>}
                 {tab === "history" && library && !library.videos.some(video => video.status === "ready") &&
                   <View style={styles.emptyVideo}><Ionicons name="time-outline" size={32} color={colors.mutedForeground} /><Text style={{ color: colors.mutedForeground }}>{t("No videos in history yet.")}</Text></View>}
@@ -508,6 +526,7 @@ const styles = StyleSheet.create({
   videoCard: { borderWidth: 1, borderRadius: 20, padding: 14, gap: 14 },
   emptyVideo: { borderRadius: 20, padding: 24, minHeight: 150, alignItems: "center", justifyContent: "center", gap: 14 },
   uploadButton: { minHeight: 48, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#00D4D4" },
+  uploadStatus: { marginHorizontal: 18, marginBottom: 12, padding: 12, borderRadius: 12, gap: 8 },
   progressTrack: { height: 4, borderRadius: 2, backgroundColor: "#333", overflow: "hidden" },
   progressFill: { height: 4, backgroundColor: "#00D4D4" },
   button: {

@@ -1,12 +1,11 @@
+import { DirectVideoThumbnail } from "@/components/DirectVideoThumbnail";
 import { GoldCoinIcon } from "@/components/GoldCoinIcon";
 import { GIFTS } from "@/components/GiftPicker";
 import { CrownArtwork } from "@/components/CrownArtwork";
 import { useQueryClient } from "@tanstack/react-query";
 import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import { Ionicons } from "@expo/vector-icons";
-// @ts-ignore expo-file-system is added with the Expo dependency set
-import { File } from "expo-file-system";
-import { fetch } from "expo/fetch";
+import { uploadPrivateMedia, type MediaUploadSession } from "@/utils/resumableMediaUpload";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -72,8 +71,14 @@ export default function MediaPacksScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const uploadSessions = useRef(new Map<string, MediaUploadSession>());
+  const uploadController = useRef<AbortController | null>(null);
+  useEffect(() => () => { uploadController.current?.abort(); uploadSessions.current.clear(); }, []);
+
   const openCreate = () => {
     if (busyRef.current) return;
+    uploadSessions.current.clear();
     setEditingId(null);
     setName("");
     setGiftId(null);
@@ -83,6 +88,7 @@ export default function MediaPacksScreen() {
   };
   const openEdit = (pack: any) => {
     if (busyRef.current) return;
+    uploadSessions.current.clear();
     setEditingId(pack.id);
     setName(pack.name);
     setGiftId(pack.giftId ?? "rose");
@@ -149,31 +155,28 @@ export default function MediaPacksScreen() {
     busyRef.current = true;
     setSaving(true);
     setError(null);
+    setUploadProgress(0);
+    const controller = new AbortController();
+    uploadController.current = controller;
     try {
       const items: UpdateMediaPackRequest["items"] = [];
       for (let i = 0; i < assets.length; i += 1) {
         const asset = assets[i]!;
         if (asset.savedItemId) {
           items.push({ id: asset.savedItemId });
+          setUploadProgress(Math.floor((i + 1) / assets.length * 100));
           continue;
         }
         const contentType =
           asset.mimeType ??
           (asset.type === "video" ? "video/mp4" : "image/jpeg");
-        const upload = await requestUpload.mutateAsync({
-          data: {
-            contentType,
-          },
-        } as any);
-        const response = await fetch((upload as any).uploadUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": contentType,
-          },
-          body: new File(asset.uri) as any,
-        });
-        if (!response.ok)
-          throw new Error(`Upload ${i + 1} failed. Please try again.`);
+        let upload = uploadSessions.current.get(asset.uri);
+        if (!upload) {
+          upload = await requestUpload.mutateAsync({ data: { contentType, resumable: true } });
+          uploadSessions.current.set(asset.uri, upload);
+        }
+        await uploadPrivateMedia(asset.uri, contentType, upload, controller.signal,
+          percent => { if (!controller.signal.aborted) setUploadProgress(Math.floor((i + percent / 100) / assets.length * 100)); });
         items.push({
           mediaType:
             asset.type === "video" ? ("video" as const) : ("image" as const),
@@ -184,6 +187,8 @@ export default function MediaPacksScreen() {
           objectPath: (upload as any).objectPath,
         });
       }
+      if (controller.signal.aborted) return;
+      setUploadProgress(null);
       const selectedGift = giftId as UpdateMediaPackRequest["giftId"];
       const createdPack = editingId
         ? await update.mutateAsync({
@@ -245,6 +250,8 @@ export default function MediaPacksScreen() {
     } finally {
       busyRef.current = false;
       setSaving(false);
+      setUploadProgress(null);
+      if (uploadController.current === controller) uploadController.current = null;
     }
   };
   const packs = ((packsQuery.data as any)?.packs ??
@@ -498,7 +505,7 @@ export default function MediaPacksScreen() {
             >
               {assets.map((asset, index) => (
                 <View key={`${asset.uri}-${index}`} style={styles.thumb}>
-                  <Image source={{ uri: asset.uri }} style={styles.image} />
+                  {asset.type === "video" ? <DirectVideoThumbnail uri={asset.uri} style={styles.image} /> : <Image source={{ uri: asset.uri }} style={styles.image} />}
                   {asset.type === "video" && (
                     <Ionicons
                       name="videocam"
@@ -521,6 +528,12 @@ export default function MediaPacksScreen() {
               ))}
             </ScrollView>
             {error && <Text style={styles.error}>{t(error)}</Text>}
+            {saving && uploadProgress !== null && <View accessibilityLiveRegion="polite" style={{ gap: 8 }}>
+              <Text style={{ color: colors.foreground }}>{t("Uploading: {v0}%", { v0: uploadProgress })}</Text>
+              <View style={{ height: 4, backgroundColor: colors.border, borderRadius: 2, overflow: "hidden" }}>
+                <View style={{ height: 4, backgroundColor: colors.primary, width: `${uploadProgress}%` }} />
+              </View>
+            </View>}
             <TouchableOpacity
               onPress={save}
               disabled={saving || !giftId}
@@ -535,12 +548,7 @@ export default function MediaPacksScreen() {
             >
               <Text style={[localizedTextStyle(), styles.createText]}>
                 {saving
-                  ? editingId
-                    ? t("Saving…")
-                    : t("Uploading {v0} item{v1}…", {
-                        v0: assets.length,
-                        v1: assets.length === 1 ? "" : "s",
-                      })
+                  ? uploadProgress === null ? t("Saving…") : t("Uploading: {v0}%", { v0: uploadProgress })
                   : t(editingId ? "Save changes" : "Create media pack")}
               </Text>
             </TouchableOpacity>

@@ -165,3 +165,9 @@ Automated verification: required stream regression suite passes, including mixed
 ### Live gift and pack stickers — September 21, 2026
 
 Approved setup, purchase/ownership/dismissal behavior and the detailed automated/device matrix are in [live stickers](live-stickers.md). The fast stream suite includes mocked sticker UI checks. Sticker purchases must preserve the existing awake, navigation, PiP, header/list and keyboard/dock requirements. Android/iPhone placement, gesture, gallery and sleep checks remain pending until explicitly confirmed.
+
+### Web BackHandler warning — September 21, 2026
+
+User reported `BackHandler is not supported on web and should not be used` in the Expo web preview. The installed React Native Web BackHandler implementation logs that exact error when a listener is added. Code review found unguarded listeners in the viewer focus effect, live broadcaster and second-step email signup. Register all three only on Android. Preserve Android action handlers and subscription cleanup, broadcaster navigation-removal confirmation and existing explicit viewer/PiP navigation. The unsymbolicated supplied stack does not identify which of these three was mounted.
+
+The required stream suite includes executable effect tests for no registration on web/iOS and retained Android callbacks/cleanup. Mobile typechecking and stream regressions are automated checks; browser reload confirmation and Android/iPhone device navigation, keyboard, dock, header/list and awake cases remain pending. No backend or native dependency change was needed.

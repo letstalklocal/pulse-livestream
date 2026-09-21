@@ -7,9 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRequestMediaPackUpload, useSendMediaDm } from '@workspace/api-client-react';
-// @ts-ignore
-import { File } from 'expo-file-system';
-import { fetch } from 'expo/fetch';
+import { uploadPrivateMedia, type MediaUploadSession } from '@/utils/resumableMediaUpload';
 import { useRouter } from 'expo-router';
 
 interface MediaChooserProps {
@@ -79,6 +77,17 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [sending, setSending] = useState(false);
+  const transfer = useRef<AbortController | null>(null);
+  const pending = useRef<{ session?: MediaUploadSession; key: string; price: number } | null>(null);
+  const sendingNow = useRef(false);
+  useEffect(() => {
+    setUploading(false);
+    setSending(false);
+    return () => { transfer.current?.abort(); pending.current = null; };
+  }, [peerId, visible]);
+
   const handlePickMedia = async () => {
     if (Platform.OS === "web") {
       Alert.alert(t("Native app required"), t("Selecting and uploading media is available in the iOS or Android app."));
@@ -96,6 +105,7 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
     });
     
     if (!result.canceled && result.assets.length > 0) {
+      pending.current = null;
       setAsset(result.assets[0]!);
       setIsPaid(false);
       setPrice("");
@@ -125,47 +135,53 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
   };
 
   const performUpload = async (coinPrice: number) => {
-    if (!asset) return;
+    if (!asset || sendingNow.current) return;
+    sendingNow.current = true;
+    const controller = new AbortController();
+    transfer.current = controller;
+    const attempt = pending.current ??= { key: `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`, price: coinPrice };
     setUploading(true);
+    setSending(false);
     setError(null);
-    
     const contentType = asset.mimeType ?? (asset.type === "video" ? "video/mp4" : "image/jpeg");
     try {
-      const upload = await requestUpload.mutateAsync({
-        data: {
-          contentType
-        }
-      } as any);
-      
-      const response = await fetch((upload as any).uploadUrl, {
-        method: "PUT",
-        headers: { "Content-Type": contentType },
-        body: new File(asset.uri) as any
-      });
-      
-      if (!response.ok) throw new Error("Upload failed. Please try again.");
-      
+      if (!attempt.session) {
+        setUploadProgress(0);
+        attempt.session = await requestUpload.mutateAsync({ data: { contentType, resumable: true } });
+      }
+      await uploadPrivateMedia(asset.uri, contentType, attempt.session, controller.signal,
+        value => { if (!controller.signal.aborted) setUploadProgress(value); });
+      if (controller.signal.aborted) return;
+      setSending(true);
       await sendMediaDm.mutateAsync({
         data: {
           recipientId: Number(peerId),
-          objectPath: (upload as any).objectPath,
+          objectPath: attempt.session.objectPath,
           mediaType: asset.type === "video" ? "video" : "image",
           contentType,
           width: asset.width,
           height: asset.height,
           durationMs: asset.duration ?? undefined,
-          price: coinPrice,
-          idempotencyKey: `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`
+          price: attempt.price,
+          idempotencyKey: attempt.key
         } as any
       });
       
+      if (controller.signal.aborted) return;
+      pending.current = null;
       setAsset(null);
       setUploading(false);
       onMediaSent();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send media");
-      setUploading(false);
+      if (!controller.signal.aborted) setError(err instanceof Error ? err.message : "Failed to send media");
+    } finally {
+      sendingNow.current = false;
+      if (transfer.current === controller) {
+        setUploading(false);
+        setSending(false);
+        transfer.current = null;
+      }
     }
   };
 
@@ -186,6 +202,7 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
       }),
     ]).start(({ finished }) => {
       if (!finished) return;
+      pending.current = null;
       setAsset(null);
       setError(null);
       onClose();
@@ -250,14 +267,14 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
                   <TouchableOpacity
                     style={[styles.toggleBtn, !isPaid && [styles.toggleBtnActive, { backgroundColor: colors.card, borderColor: colors.border }]]}
                     onPress={() => setIsPaid(false)}
-                    disabled={uploading}
+                    disabled={uploading || !!pending.current}
                   >
                     <Text style={[localizedTextStyle(), [styles.toggleText, !isPaid && { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]]}>{t("Free")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.toggleBtn, isPaid && [styles.toggleBtnActive, { backgroundColor: colors.card, borderColor: colors.border }]]}
                     onPress={() => setIsPaid(true)}
-                    disabled={uploading}
+                    disabled={uploading || !!pending.current}
                   >
                     <Text style={[localizedTextStyle(), [styles.toggleText, isPaid && { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]]}>{t("Paid")}</Text>
                   </TouchableOpacity>
@@ -274,12 +291,21 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
                       onChangeText={setPrice}
                       keyboardType="number-pad"
                       testID="price-input"
-                      editable={!uploading}
+                      editable={!uploading && !pending.current}
                     />
                   </View>
                 )}
               </View>
 
+              {uploading && <View accessibilityLiveRegion="polite" style={{ gap: 8 }}>
+                <Text style={{ color: colors.foreground }}>{sending ? t("Sending…") : t("Uploading: {v0}%", { v0: uploadProgress })}</Text>
+                <View style={{ height: 4, backgroundColor: colors.border, borderRadius: 2, overflow: "hidden" }}>
+                  <View style={{ height: 4, backgroundColor: colors.primary, width: `${uploadProgress}%` }} />
+                </View>
+                {!sending && <TouchableOpacity onPress={() => transfer.current?.abort()}>
+                  <Text style={{ color: colors.foreground }}>{t("Cancel upload")}</Text>
+                </TouchableOpacity>}
+              </View>}
               <TouchableOpacity
                 style={[styles.sendButton, { backgroundColor: uploading ? colors.muted : colors.primary }]}
                 onPress={handleSend}
@@ -289,7 +315,7 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
                 {uploading ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (
-                  <Text style={[localizedTextStyle(), styles.sendButtonText]}>{t("Send")}</Text>
+                  <Text style={[localizedTextStyle(), styles.sendButtonText]}>{pending.current ? t("Retry") : t("Send")}</Text>
                 )}
               </TouchableOpacity>
             </View>

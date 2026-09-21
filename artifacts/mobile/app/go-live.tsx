@@ -1034,7 +1034,7 @@ export default function GoLiveScreen() {
   }, [stopLive]);
 
   useEffect(() => {
-    if (!isLive) return;
+    if (Platform.OS !== "android" || !isLive) return;
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
       if (!navigation.isFocused()) return false;
       if (showLiveMenu) { setShowLiveMenu(false); return true; }
@@ -1403,6 +1403,19 @@ export default function GoLiveScreen() {
                 <Ionicons name={party.battle?.status === "active" ? "stop-circle-outline" : "flash-outline"} size={21} color="#FF1966" />
                 <Text style={[localizedTextStyle(), { color: "#FFF", fontSize: 16, fontFamily: "Inter_500Medium", flex: 1 }]}>{t(party.battle?.status === "active" ? "End Battle" : "Start Battle")}</Text>
               </TouchableOpacity>
+              {party.battle?.status !== "active" ? <TouchableOpacity
+                style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20, opacity: !party.ready || partyState.mutation.isPending ? 0.45 : 1 }}
+                disabled={partyState.mutation.isPending || !party.ready}
+                onPress={() => {
+                  setShowLiveMenu(false);
+                  void partyState.act({ action: "battle_simulate", partyId: party.id }).catch(error => Alert.alert(t("Party"), error instanceof Error ? error.message : t("Could not start the battle.")));
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={t("Simulate Battle")}
+              >
+                <Ionicons name="flask-outline" size={21} color="#FF1966" />
+                <Text style={[localizedTextStyle(), { color: "#FFF", fontSize: 16, fontFamily: "Inter_500Medium", flex: 1 }]}>{t("Simulate Battle")}</Text>
+              </TouchableOpacity> : null}
               <TouchableOpacity
                 style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 }}
                 disabled={partyState.mutation.isPending}

@@ -62,6 +62,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
+    "@revenuecat/purchases-js-hybrid-mappings": "18.37.0",
     "expo-application": "~57.0.2",
     "expo-build-properties": "~57.0.17",
     "expo-dev-client": "~57.0.18",

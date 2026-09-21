@@ -8,4 +8,6 @@
 
 export interface MediaPackUploadRequest {
   contentType: string;
+  /** Request a private resumable upload session instead of a single PUT URL. */
+  resumable?: boolean;
 }

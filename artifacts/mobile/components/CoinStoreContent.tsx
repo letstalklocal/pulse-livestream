@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getGetCoinBalanceQueryKey, useGetCoinBalance } from '@workspace/api-client-react';
 import { useAuth } from '@/context/AuthContext';
+import { RollingCoinBalance } from '@/components/RollingCoinBalance';
 import { usePurchases } from '@/context/PurchasesContext';
 import { coinStoreAvailable } from '@/lib/revenuecat-config';
 import { coinPackages } from '@/lib/revenuecat-session';
@@ -45,6 +46,7 @@ export function CoinStoreContent({ onClose, sheet = false }: { onClose?: () => v
   const currentUser = useRef(userId);
   currentUser.current = userId;
   const [notice, setNotice] = useState('');
+  const [confirmedCredit, setConfirmedCredit] = useState<{ userId: string; id: string; balance: number; coins: number } | null>(null);
   const [starting, setStarting] = useState(false);
   const startLock = useRef(false);
   const transactionId = pending && pending.userId === userId ? pending.transactionId : undefined;
@@ -68,6 +70,7 @@ export function CoinStoreContent({ onClose, sheet = false }: { onClose?: () => v
   useEffect(() => {
     let active = true;
     setPending(null);
+    setConfirmedCredit(null);
     setNotice('');
     if (userId) void AsyncStorage.getItem(storageKey).then(value => {
       if (active && value) setPending({ userId, transactionId: value });
@@ -76,11 +79,13 @@ export function CoinStoreContent({ onClose, sheet = false }: { onClose?: () => v
   }, [userId, storageKey]);
   useEffect(() => {
     if (fulfillment.data?.status !== 'credited' || !accountMatches || !user || !transactionId) return;
+    setConfirmedCredit({ userId: userId!, id: transactionId, balance: fulfillment.data.balance, coins: fulfillment.data.coins });
+    queryClient.setQueryData(getGetCoinBalanceQueryKey({ uid: user.uid }), { balance: fulfillment.data.balance });
     void queryClient.invalidateQueries({ queryKey: getGetCoinBalanceQueryKey({ uid: user.uid }) });
     setNotice('Coins added to your wallet.');
     setPending(null);
     void AsyncStorage.removeItem(storageKey).catch(() => undefined);
-  }, [fulfillment.data, accountMatches, user, transactionId, queryClient, storageKey]);
+  }, [fulfillment.data, accountMatches, user, transactionId, queryClient, storageKey, userId]);
   useFocusEffect(React.useCallback(() => {
     if (accountMatches) {
       void catalog.refetch();
@@ -137,7 +142,7 @@ export function CoinStoreContent({ onClose, sheet = false }: { onClose?: () => v
           <View style={[styles.balanceIcon, { backgroundColor: `${colors.primary}18` }]}><CoinArtwork size={24} /></View>
           <Text style={[styles.label, localizedTextStyle(), { color: colors.mutedForeground }]}>{t('Coin balance')}</Text>
         </View>
-        <Text style={[styles.balance, { color: '#FFD54A' }]}>{accountMatches ? appNumber(balance.data?.balance ?? 0) : '—'}</Text>
+        {accountMatches ? <RollingCoinBalance key={userId} balance={balance.data?.balance} credit={confirmedCredit?.userId === userId ? confirmedCredit : undefined} /> : <Text style={[styles.balance, { color: '#FFD54A' }]}>—</Text>}
       </View>
       {purchases.testStore && <Text style={[styles.copy, localizedTextStyle(), { color: colors.mutedForeground }]}>{t('Test purchases — no real payment.')}</Text>}
       {!accountMatches && button('Sign in', () => router.push('/(auth)/sign-in'))}

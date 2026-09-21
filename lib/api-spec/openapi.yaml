@@ -1949,7 +1949,7 @@ components:
 
     MediaPackUploadRequest:
       type: object
-      properties: { contentType: { type: string } }
+      properties: { contentType: { type: string }, resumable: { type: boolean, description: "Request a private resumable upload session instead of a single PUT URL." } }
       required: [contentType]
     MediaPackUploadResponse:
       type: object

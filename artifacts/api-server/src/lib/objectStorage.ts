@@ -38,6 +38,13 @@ export async function createPrivateUploadUrl() {
   const name = `uploads/${randomUUID()}`;
   return { uploadUrl: await signed(`${privatePath()}/${name}`, "PUT"), objectPath: `/objects/${name}` };
 }
+export async function createPrivateResumableUpload(contentType: string) {
+  const name = `uploads/${randomUUID()}`;
+  const { bucketName, objectName: destination } = split(`${privatePath()}/${name}`);
+  const [uploadUrl] = await objectStorageClient.bucket(bucketName).file(destination)
+    .createResumableUpload({ metadata: { contentType } });
+  return { uploadUrl, objectPath: `/objects/${name}` };
+}
 export async function createPrivateGetUrl(path: string) {
   const cached = getUrlCache.get(path);
   if (cached && cached.refreshAt > Date.now()) return cached.url;

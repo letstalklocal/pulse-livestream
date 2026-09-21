@@ -16,7 +16,8 @@ User decision, September 20, 2026: builds cost money. Gather all known app chang
 - [ ] Production server settings: REVENUECAT_ENVIRONMENT=SANDBOX, Apple app app1937357464 allowed, valid webhook authorization and RevenueCat read secret. These settings were not all independently verified in production.
 - [ ] Confirm authenticated sandbox delivery to https://chimbalivestream.replit.app/api/purchases/revenuecat/webhook for all required events. Preserve development delivery for Android testing.
 - [ ] Confirm production authenticated coin catalog reports enabled and the nine expected products. Use the signed-in account; do not add an authentication bypass.
-- [ ] Capture production webhook receipt evidence; VIP unlocking on device does not prove webhook delivery because client catch-up also synchronizes access.
+- [x] Provider-originated coin retry receipt reported by other Codex: September 21, 04:51:37 UTC, attempt 4 of 6, HTTP 200 / received:true, event bf9707d5-fb1d-4794-9f82-93be11e10ee6.
+- [ ] Verify production ledger contains exactly one +250 credit for transaction 2000001239337842; fresh first-delivery success and VIP webhook evidence remain separate.
 
 ## Run on the same installed build
 
@@ -35,3 +36,8 @@ User decision, September 20, 2026: builds cost money. Gather all known app chang
 ## Release rollback
 
 Follow both temporary override rollback sections in revenuecat-integration.md. Keep the Apple public SDK key/store mode and the corrected mobile coin readiness logic. Do not roll back those permanent fixes. Test wallet credits and any resulting gift earnings need reconciliation before real payout operation; these changes do not create a separate test wallet. Real coin payments remain blocked and require their own launch work.
+
+
+### September 21 — native history labels
+
+User confirmed Apple already shows pack names and chose to keep the existing RevenueCat SDK/UI 10.9.1 rather than add a Test Store workaround. Proposed 10.10.0 update reverted; no custom history screen. Google Play product-name display remains a future device-test item. No extra build for this history decision. User confirmed Android rolling balance animation looks good; iPhone and Reduced Motion remain unverified.

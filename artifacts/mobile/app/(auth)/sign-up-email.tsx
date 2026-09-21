@@ -10,6 +10,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   BackHandler,
+  Platform,
   Keyboard,
   Pressable,
   ScrollView,
@@ -81,7 +82,7 @@ export default function EmailSignUpScreen() {
     signUp.missingFields.length === 0;
 
   useEffect(() => {
-    if (step !== 2 || needsEmailVerification) return;
+    if (Platform.OS !== "android" || step !== 2 || needsEmailVerification) return;
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
       if (fetchStatus !== "fetching") { Keyboard.dismiss(); setStep(1); }
       return true;

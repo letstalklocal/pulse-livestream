@@ -834,7 +834,8 @@ export const GetUserFollowersResponse = zod.object({
 
 
 export const RequestMediaPackUploadBody = zod.object({
-  "contentType": zod.string()
+  "contentType": zod.string(),
+  "resumable": zod.boolean().optional().describe('Request a private resumable upload session instead of a single PUT URL.')
 })
 
 

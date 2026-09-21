@@ -1,5 +1,20 @@
 # Coin purchases
 
+## Purchase history decision — September 21, 2026
+
+User requested avoiding a workaround for the generic RevenueCat Test Store history label after confirming Apple already shows the coin pack name. Reverted the proposed SDK upgrade: retain RevenueCat SDK/UI 10.9.1, native Customer Center, and the existing product names. No custom history view or historical migration. Preserve the rolling balance animation, confirmed working on Android.
+
+Google Play history is expected to use its configured store product names, like Apple does. Actual Google Play purchase/history verification remains pending; do not claim this has been device-tested or that Test Store labels were fixed. No build is required for this reverted SDK proposal.
+
+## Confirmed-credit animation and history request — September 21, 2026
+
+User requested a rolling wallet number followed by a brief expansion, and clarified that pack names belong in **Manage purchases → History**, not the success notice. Buy Coins now animates only after its authenticated fulfillment response reports credited: 1.1-second count-up for that pack, then a 1.12× pulse and settle. Reduced Motion shows the final balance without animation. Account changes reset feedback; ordinary refreshes do not replay a confirmed credit. Wallet crediting and payment handling are unchanged.
+
+History remains RevenueCat's native Customer Center. Readback found all nine packs already named with amounts in both Test Store (e.g. “250 coins”) and Apple (“250 Pulse Coins”). No product metadata or native history customization has been changed. User confirmed the Android Test Store row says “one time purchase - 14.99 test store” instead of the 2,000-coin pack. This matches a generic native history label; the exact installed-SDK fallback cause remains unconfirmed. User challenged the need for a custom history view. Correction: pinned React Native SDK 10.9.1 uses hybrid 18.37.0 / Android SDK 10.20.0, whose PurchaseInformation.determineTitle uses the store product title then the generic purchase-type label. Current upstream additionally supports transaction.displayName as a fallback. Therefore native history supports product names; a custom view is not established as necessary. No SDK upgrade or custom history view has been made. Do not mark the requested history change complete. Avoid renaming products or replacing Customer Center without evidence of the cause.
+
+Automated: mobile typecheck, ten purchase regressions, all ten localization catalogs (998 strings), and targeted diff-format checks passed. User confirmed the Android count-up/pulse works and looks nice. Reduced Motion, iPhone animation, and corrected history labels remain unverified. No native build, deployment, or backend changes for this UI work.
+
+
 ## Apple availability completed — September 19, 2026
 
 User relayed the other Codex session's confirmation: availability for the app, all three personal VIP products, and all nine coin products was saved, reopened and verified for the same 13 launch countries: **United Kingdom, Saudi Arabia, United States, Colombia, Russia, Spain, Canada, Australia, Venezuela, Mexico, Costa Rica, Argentina, and Brazil**. Apple accepted every selected country, including Russia. This is user-supplied verification from that session, not an independent dashboard check here. Nothing was submitted or released.
