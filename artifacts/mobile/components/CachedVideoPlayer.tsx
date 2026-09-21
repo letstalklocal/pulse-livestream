@@ -4,7 +4,7 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { useStreamKeepAwake } from '@/hooks/useStreamKeepAwake';
 
 function Awake() { useStreamKeepAwake(); return null; }
-/** Mounted only for focused, foreground playback, with no live session. */
+/** Mounted for focused, foreground playback; independent of the Agora live session. */
 export interface CachedVideoPlayerProps {
   uri: string;
   onError: () => void;

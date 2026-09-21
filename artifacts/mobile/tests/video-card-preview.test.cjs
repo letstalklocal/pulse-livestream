@@ -19,7 +19,7 @@ function harness() {
       if (id === 'react-native') return { AppState: { currentState: 'active' }, Platform: { OS: 'android' }, View: 'View', StyleSheet: { absoluteFill: {} } };
       if (id === 'expo') return { requireOptionalNativeModule: () => ({}) };
       if (id === 'expo-router') return { useIsFocused: () => true };
-      if (id === '@/context/LivePlaybackContext') return { useLivePlayback: () => ({ previewsBlocked: false }) };
+      if (id === '@/context/LivePlaybackContext') return { useLivePlayback: () => ({ previewsBlocked: true }) };
       if (id === './CachedVideoPlayer') return { default: 'Player' };
       if (id === '@/utils/videoCache/core') return { VIDEO_CACHE_TTL_MS: 86400000 };
       if (id === '@/utils/videoCache') return { videoCache: { acquire: (_key, _url, s) => { signal = s; return new Promise((yes, no) => { resolve = yes; rejects = no; }); } } };
@@ -27,7 +27,7 @@ function harness() {
     } });
   function render() { index = ri = 0; return mod.exports.PreviewSession({ url: 'https://test/clip.mp4' }); }
   render(); cleanup = effect();
-  return { render, timers, done: () => values[1], cleanup: () => cleanup(), signal: () => signal,
+  return { card: visible => { values.length = 0; index = ri = 0; return mod.exports.VideoCardPreview({ url: 'https://test/clip.mp4', isVisible: visible }); }, render, timers, done: () => values[1], cleanup: () => cleanup(), signal: () => signal,
     resolve: () => resolve({ uri: 'file:///clip.mp4', createdAt: Date.now(), release: async () => { releases++; } }),
     reject: () => rejects(Error('offline')), releases: () => releases };
 }
@@ -47,5 +47,8 @@ function harness() {
   h.resolve(); await Promise.resolve(); assert.equal(h.releases(), 1, 'late cache lease is released after scrolling away'); assert.equal(h.render(), null);
   h = harness(); h.reject(); await Promise.resolve(); await Promise.resolve(); assert.equal(h.done(), true); h.cleanup();
   h = harness(); assert.equal(h.done(), false, 'new visible entry gets a fresh preview'); h.cleanup();
+  h = harness(); h.cleanup();
+  assert.ok(h.card(true), 'cached video preview remains available while live PiP blocks Agora previews');
+  assert.equal(h.card(false), null, 'offscreen recorded previews remain stopped');
   console.log('PASS: preview waits for first frame, stays muted, stops after five seconds, releases on exit/late download/error and resets for a new entry.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

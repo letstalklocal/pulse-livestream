@@ -17,7 +17,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { useAppLanguage } from '@/i18n';
-import { useLivePlayback } from '@/context/LivePlaybackContext';
 import { VIDEO_PROTOTYPE_ENABLED, VIDEO_PROTOTYPE_SAMPLE } from '@/utils/videoPrototype';
 import { videoCache } from '@/utils/videoCache';
 import { VIDEO_CACHE_TTL_MS, type CacheEntry, type CacheLease } from '@/utils/videoCache/core';
@@ -58,7 +57,6 @@ export default function VideoPrototypeScreen() {
     composer.current?.focus();
   };
   const focused = useIsFocused();
-  const live = useLivePlayback();
   const [foreground, setForeground] = useState(AppState.currentState === 'active');
   const [url, setUrl] = useState(VIDEO_PROTOTYPE_SAMPLE);
   const [request, setRequest] = useState<{ url: string; id: number } | null>({ url: VIDEO_PROTOTYPE_SAMPLE, id: 0 });
@@ -71,7 +69,7 @@ export default function VideoPrototypeScreen() {
   const [maintenance, setMaintenance] = useState(false);
   const mounted = useRef(true);
   const operation = useRef(false);
-  const active = VIDEO_PROTOTYPE_ENABLED && !!Player && focused && foreground && !live.previewsBlocked;
+  const active = VIDEO_PROTOTYPE_ENABLED && !!Player && focused && foreground;
   const playbackActive = active && !showTools;
   useEffect(() => {
     if (!active) { setShowGifts(false); setFloatingGifts([]); }
@@ -178,8 +176,7 @@ export default function VideoPrototypeScreen() {
           <View style={styles.placeholder}>
             {busy ? <ActivityIndicator color="#FFF" size="large" /> : <Ionicons name="play-circle-outline" size={56} color="#FFF" />}
             <Text style={styles.message}>{!VIDEO_PROTOTYPE_ENABLED ? t('Prototype disabled in this build.') : !Player ?
-              t('Install a new Android or iPhone build to test video caching.') : live.previewsBlocked ?
-              t('Close your live player before testing videos.') : t(status)}</Text>
+              t('Install a new Android or iPhone build to test video caching.') : t(status)}</Text>
           </View>}
       </View>
     </View>
@@ -280,7 +277,6 @@ export default function VideoPrototypeScreen() {
           {button('Stop', () => { setRequest(null); setStatus('Stopped'); }, !request)}
           {button('Use sample', () => setUrl(VIDEO_PROTOTYPE_SAMPLE), !!request || maintenance)}
         </View>
-        {live.previewsBlocked && <Text style={{ color: colors.primary }}>{t('Close your live player before testing videos.')}</Text>}
         <Text accessibilityLiveRegion="polite" style={{ color: colors.foreground }}>{t(status)}</Text>
         {!!lastPlaybackStatus && <Text style={{ color: colors.mutedForeground }}>{t('Last playback: {v0}', { v0: t(lastPlaybackStatus) })}</Text>}
         <Text style={{ color: colors.mutedForeground }}>{t('Downloaded this play: {v0} MB', { v0: (downloaded / 1024 / 1024).toFixed(2) })}</Text>

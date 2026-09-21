@@ -26,7 +26,7 @@ function harness(owner, { canGoBack = true, failVisibility = false } = {}) {
       if (id === 'expo-crypto') return { randomUUID: () => String(++uuid) };
       if (id === '@workspace/api-client-react') return { useGetCoinBalance: () => ({ data: { balance: 100 }, refetch: async () => {} }), getGetCoinBalanceQueryKey: () => [], useGetFollowStatus: () => ({ data: { isFollowing: following }, refetch() {} }), getGetFollowStatusQueryKey: () => [], useFollowUser: () => ({ isPending: false, mutate: value => follows.push(value) }) };
       if (id === '@/context/AuthContext') return { useAuth: () => ({ user: { uid: owner ? 1 : 2, name: 'Test' } }) };
-      if (id === '@/context/LivePlaybackContext') return { useLivePlayback: () => ({ previewsBlocked: false }) };
+      if (id === '@/context/LivePlaybackContext') return { useLivePlayback: () => ({ previewsBlocked: true }) };
       if (id === '@/i18n') return { useAppLanguage: () => ({ t: x => x, appLocale: () => 'en' }) };
       if (id === '@/utils/creatorVideos') return { videoRequest: async (...args) => {
         requests.push(args);

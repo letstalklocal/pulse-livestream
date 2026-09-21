@@ -35,7 +35,6 @@ import {
   useFollowUser,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
-import { useLivePlayback } from "@/context/LivePlaybackContext";
 import { useAppLanguage } from "@/i18n";
 import { videoRequest, type CreatorVideo } from "@/utils/creatorVideos";
 import { videoCache } from "@/utils/videoCache";
@@ -103,12 +102,11 @@ export default function CreatorVideoViewer() {
     insets = useSafeAreaInsets();
   const { getToken, userId } = useClerkAuth(),
     { user } = useAuth(),
-    { t, appLocale } = useAppLanguage(),
-    live = useLivePlayback();
+    { t, appLocale } = useAppLanguage();
   const [foreground, setForeground] = useState(
     AppState.currentState === "active",
   );
-  const active = focused && foreground && !live.previewsBlocked;
+  const active = focused && foreground;
   const keyboard = useKeyboardState((s) => s.isVisible);
   const [lease, setLease] = useState<CacheLease | null>(null),
     [error, setError] = useState(""),

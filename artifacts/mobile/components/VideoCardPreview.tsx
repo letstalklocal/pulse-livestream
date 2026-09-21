@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Platform, StyleSheet, View } from 'react-native';
 import { requireOptionalNativeModule } from 'expo';
 import { useIsFocused } from 'expo-router';
-import { useLivePlayback } from '@/context/LivePlaybackContext';
 import { videoCache } from '@/utils/videoCache';
 import { type CacheLease, VIDEO_CACHE_TTL_MS } from '@/utils/videoCache/core';
 import type { CachedVideoPlayerProps } from './CachedVideoPlayer';
@@ -54,11 +53,10 @@ function PreviewSession({ url, cacheKey }: { url: string; cacheKey?: string }) {
 
 export function VideoCardPreview({ url, isVisible, cacheKey }: { url: string; isVisible: boolean; cacheKey?: string }) {
   const focused = useIsFocused();
-  const { previewsBlocked } = useLivePlayback();
   const [foreground, setForeground] = useState(AppState.currentState === 'active');
   useEffect(() => {
     const subscription = AppState.addEventListener('change', state => setForeground(state === 'active'));
     return () => subscription.remove();
   }, []);
-  return Player && isVisible && focused && foreground && !previewsBlocked ? <PreviewSession key={cacheKey ?? url} url={url} cacheKey={cacheKey} /> : null;
+  return Player && isVisible && focused && foreground ? <PreviewSession key={cacheKey ?? url} url={url} cacheKey={cacheKey} /> : null;
 }
