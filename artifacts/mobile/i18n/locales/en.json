@@ -996,5 +996,12 @@
   "Edit pack": "Edit pack",
   "Save changes": "Save changes",
   "Add a name and between 1 and 20 items.": "Add a name and between 1 and 20 items.",
-  "Pack price changed. Please reopen the pack and try again.": "Pack price changed. Please reopen the pack and try again."
+  "Pack price changed. Please reopen the pack and try again.": "Pack price changed. Please reopen the pack and try again.",
+  "Your video is processing. You can leave this screen. We'll notify you in the app when it's ready.": "Your video is processing. You can leave this screen. We'll notify you in the app when it's ready.",
+  "Your video is ready": "Your video is ready",
+  "Tap to preview your video and choose whether to show it in Discovery.": "Tap to preview your video and choose whether to show it in Discovery.",
+  "Open Your Video to remove it and try another upload.": "Open Your Video to remove it and try another upload.",
+  "Where would you like to go?": "Where would you like to go?",
+  "Stay on Go Live": "Stay on Go Live",
+  "Go to Discovery": "Go to Discovery"
 }

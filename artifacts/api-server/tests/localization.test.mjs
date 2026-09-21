@@ -62,6 +62,7 @@ try {
    // Preview and summary need distinct sibling keys while retaining user/video remounting.
    // Pinned upload feedback adds only a test identifier; keep checking all existing controls.
    if(file.endsWith('/components/CreatorVideoSheet.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='testID'&&n.initializer?.text==='creator-video-upload-status')return;
+   if(file.endsWith('/components/CreatorVideoSheet.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='value'&&n.initializer?.getText(a)==='{selected.stickers ?? []}')return;
    if(file.endsWith('/components/CreatorVideoSheet.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='key'&&['VideoManagementPreview','VideoManagementSummary'].includes(n.parent.parent.tagName?.getText(a)))return;
    // Pack messages now share the corrected gallery used by live stickers; keep comparing the message card and checkout.
    if(file.endsWith('/components/MediaPackMessage.tsx')&&ts.isJsxElement(n)&&n.openingElement.tagName.getText(a)==='Modal'&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='visible'&&p.initializer?.getText(a)==='{gallery}'))return;
@@ -121,6 +122,9 @@ try {
    if(file.endsWith('/app/go-live.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='flask-outline')return;
    // Approved VIP visual redesign adds decorative Ionicons only; preserve package keys and payment identifiers.
    if(file.endsWith('/app/subscriptions.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.parent?.parent?.tagName?.getText(a)==='Ionicons'&&n.initializer?.text!=='chevron-back')return;
+   // Approved prototype sticker controls, compact replacement action and processing bar.
+   if(file.endsWith('/app/video-prototype.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='value'&&n.initializer?.getText(a)==='{stickers}')return;
+   if(file.endsWith('/components/CreatorVideoSheet.tsx')&&ts.isJsxAttribute(n)&&((n.name.getText(a)==='name'&&n.initializer?.text==='swap-horizontal-outline')||(n.name.getText(a)==='testID'&&n.initializer?.text==='creator-video-progress-bar')))return;
    if(ts.isJsxAttribute(n)&&stableAttributes.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));
    if(ts.isPropertyAssignment(n)&&stableFields.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));
    ts.forEachChild(n,walk);

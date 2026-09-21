@@ -996,5 +996,12 @@
   "Edit pack": "Modifier le pack",
   "Save changes": "Enregistrer les modifications",
   "Add a name and between 1 and 20 items.": "Ajoutez un nom et entre 1 et 20 éléments.",
-  "Pack price changed. Please reopen the pack and try again.": "Le prix du pack a changé. Rouvrez-le et réessayez."
+  "Pack price changed. Please reopen the pack and try again.": "Le prix du pack a changé. Rouvrez-le et réessayez.",
+  "Your video is processing. You can leave this screen. We'll notify you in the app when it's ready.": "Votre vidéo est en cours de traitement. Vous pouvez quitter cet écran. Nous vous préviendrons dans l’application lorsqu’elle sera prête.",
+  "Your video is ready": "Votre vidéo est prête",
+  "Tap to preview your video and choose whether to show it in Discovery.": "Appuyez pour prévisualiser votre vidéo et choisir de l’afficher ou non dans Découvrir.",
+  "Open Your Video to remove it and try another upload.": "Ouvrez Votre vidéo pour la supprimer et essayer un autre envoi.",
+  "Where would you like to go?": "Où souhaitez-vous aller ?",
+  "Stay on Go Live": "Rester sur Go Live",
+  "Go to Discovery": "Aller à Découvrir"
 }

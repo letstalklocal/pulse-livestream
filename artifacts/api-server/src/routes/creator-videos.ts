@@ -6,6 +6,8 @@ import { authenticatedUser } from "../lib/streamModeration";
 import { contactBlocked } from "../lib/userSafety";
 import { availableCreatorVideo as available } from "../lib/creatorVideoAccess";
 import { createPrivateGetUrl } from "../lib/objectStorage";
+import { validateStickers, StickerError } from "../lib/liveStickers";
+import { purchaseMediaPack } from "../lib/mediaPackPurchase";
 import {
   bunnyConfig,
   bunnyRequest,
@@ -64,9 +66,26 @@ function present(row: any) {
     playbackUrl: row.playback_url,
     thumbnailUrl: row.thumbnail_url,
     durationSeconds: row.duration_seconds,
+    stickers: Array.isArray(row.stickers) ? row.stickers : [],
     createdAt: row.created_at,
   };
 }
+const stickerRows = async (video: any, uid: number) => {
+  const stickers = Array.isArray(video.stickers) ? video.stickers : [];
+  const rows = await Promise.all(stickers.map(async (sticker: any) => {
+    const gift = gifts[sticker.giftId];
+    if (!gift) return null;
+    if (sticker.kind === "gift") return { ...sticker, name: gift.name, price: gift.coins, videos: 0, pictures: 0, owned: false };
+    const pack = (await db.execute(sql`select p.id,p.name,p.coin_price,p.gift_id,
+      exists(select 1 from media_pack_purchases x where x.pack_id=p.id and x.buyer_user_id=${uid}) as owned,
+      count(i.id) filter(where i.content_type like 'video/%')::int as videos,
+      count(i.id) filter(where i.content_type like 'image/%')::int as pictures
+      from media_packs p left join media_pack_items i on i.pack_id=p.id
+      where p.id=${sticker.packId} and p.owner_user_id=${video.owner_user_id} group by p.id`)).rows[0] as any;
+    return pack ? { ...sticker, giftId: pack.gift_id, name: pack.name, price: pack.coin_price, videos: pack.videos, pictures: pack.pictures, owned: pack.owned } : null;
+  }));
+  return rows.filter(Boolean);
+};
 router.get(
   "/creator-videos/library",
   wrap(async (_req, res, user) => {
@@ -295,6 +314,37 @@ router.get(
     res.json({ videos: permitted });
   }),
 );
+router.get("/creator-videos/:id/stickers", wrap(async (req, res, user) => {
+  const video = await available(req.params.id, user.uid);
+  if (!video) return res.status(404).json({ error: "Video not found." });
+  res.json({ ownerUid: video.owner_user_id, stickers: await stickerRows(video, user.uid) });
+}));
+router.put("/creator-videos/:id/stickers", wrap(async (req, res, user) => {
+  const stickers = await db.transaction(async tx => {
+    await lockVideoOwner(tx, user.uid);
+    const row = (await tx.execute(sql`select * from creator_videos where id=${req.params.id} and owner_user_id=${user.uid} for update`)).rows[0] as any;
+    if (!row) return null;
+    const drafts = req.body?.stickers;
+    if (!Array.isArray(drafts) || drafts.filter((sticker: any) => sticker?.kind === "gift").length > 1 || drafts.filter((sticker: any) => sticker?.kind === "pack").length > 1)
+      throw new StickerError(400, "A video can have one gift sticker and one pack sticker");
+    const value = await validateStickers(drafts, user.uid);
+    await tx.execute(sql`update creator_videos set stickers=${JSON.stringify(value)}::jsonb where id=${row.id}`);
+    return value;
+  });
+  if (!stickers) return res.status(404).json({ error: "Video not found." });
+  res.json({ stickers });
+}));
+router.post("/creator-videos/:id/stickers/:stickerId/unlock", wrap(async (req, res, user) => {
+  const packId = Number(req.body?.packId), expectedPrice = req.body?.expectedPrice;
+  if (!Number.isSafeInteger(packId) || !Number.isSafeInteger(expectedPrice) || expectedPrice <= 0 || !uuid(req.body?.idempotencyKey)) return res.status(400).json({ error: "Invalid sticker purchase." });
+  try {
+    const result = await purchaseMediaPack(user, packId, req.body.idempotencyKey, undefined, expectedPrice, { videoId: req.params.id, stickerId: req.params.stickerId });
+    res.json({ balance: result.balance });
+  } catch (error) {
+    if (error instanceof StickerError) return res.status(error.status).json({ error: error.message });
+    throw error;
+  }
+}));
 router.get(
   "/creator-videos/:id",
   wrap(async (req, res, user) => {

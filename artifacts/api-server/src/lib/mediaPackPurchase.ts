@@ -19,6 +19,7 @@ export async function purchaseMediaPack(
   idempotencyKey: string,
   live?: { channelId: string; stickerId: string },
   expectedPrice?: number,
+  video?: { videoId: string; stickerId: string },
 ) {
   return db.transaction(async (tx) => {
     // Same ordering as normal gifts: party lock, request lock, session, wallets.
@@ -26,7 +27,15 @@ export async function purchaseMediaPack(
     await tx.execute(
       sql`select pg_advisory_xact_lock(hashtext(${idempotencyKey}))`,
     );
-    let session;
+    let session; let videoRow: any;
+    if (video) {
+      [videoRow] = (await tx.execute(sql`select v.* from creator_videos v join creator_video_settings s on s.owner_user_id=v.owner_user_id
+        where v.id=${video.videoId} and v.status='ready' and s.enabled and s.selected_video_id=v.id for update`)).rows as any[];
+      if (!videoRow) throw new StickerError(404, "Video not found");
+      if (await contactBlocked(user.uid, videoRow.owner_user_id)) throw new StickerError(403, "Contact with this account is unavailable");
+      const sticker = (videoRow.stickers ?? []).find((s: any) => s.id === video.stickerId && s.kind === "pack" && s.packId === packId);
+      if (!sticker) throw new StickerError(404, "Sticker unavailable");
+    }
     if (live) {
       [session] = await tx
         .select()
@@ -47,7 +56,7 @@ export async function purchaseMediaPack(
       .where(eq(mediaPacksTable.id, packId))
       .for("update");
     if (!pack) throw new StickerError(404, "Pack not found");
-    if (session && pack.ownerUserId !== session.hostUserId)
+    if ((session && pack.ownerUserId !== session.hostUserId) || (videoRow && pack.ownerUserId !== videoRow.owner_user_id))
       throw new StickerError(403, "Pack owner does not match this live");
     if (await contactBlocked(user.uid, pack.ownerUserId))
       throw new StickerError(403, "Contact with this account is unavailable");
@@ -60,7 +69,7 @@ export async function purchaseMediaPack(
           .limit(1)
       )[0]?.balance ?? 0;
     if (user.uid === pack.ownerUserId) {
-      if (live) throw new StickerError(403, "You cannot buy your own pack");
+      if (live || video) throw new StickerError(403, "You cannot buy your own pack");
       return { balance: await balance(), duplicate: true, channelId: null };
     }
     const [received] = await tx
@@ -138,7 +147,7 @@ export async function purchaseMediaPack(
         updatedAt: new Date(),
       })
       .where(eq(coinBalancesTable.userId, pack.ownerUserId));
-    await tx
+    const [transaction] = await tx
       .insert(coinTransactionsTable)
       .values({
         fromUserId: user.uid,
@@ -149,12 +158,13 @@ export async function purchaseMediaPack(
         channelId: live?.channelId ?? null,
         idempotencyKey,
         balanceAfter: spent.balance,
-      });
+      }).returning();
+    if (video) await tx.execute(sql`insert into creator_video_gifts(transaction_id,video_id) values(${transaction!.id},${video.videoId})`);
     await tx
       .insert(mediaPackPurchasesTable)
       .values({ packId, buyerUserId: user.uid, idempotencyKey });
     // A buyer-requested purchase receipt, not an unsolicited chat send. Blocking still applies.
-    if (live && !received)
+    if ((live || video) && !received)
       await tx
         .insert(directMessagesTable)
         .values({

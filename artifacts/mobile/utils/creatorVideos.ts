@@ -10,6 +10,7 @@ export interface CreatorVideo {
   thumbnailUrl: string | null;
   durationSeconds: number | null;
   encodingProgress?: number | null;
+  stickers?: { id: string; kind: "gift" | "pack"; giftId: string; packId?: number }[];
   createdAt: string;
   viewers?: number;
   coins?: number;

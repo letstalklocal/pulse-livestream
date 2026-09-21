@@ -17,3 +17,9 @@ pnpm --filter @workspace/api-server run build
 ```
 
 Push registration, OS permissions, APNs/FCM credentials, and background push delivery are intentionally deferred. Before release, test real foreground banners on signed-in devices, including navigation, app backgrounding, and full-screen live presentations.
+
+## Video processing completion — September 21, 2026
+
+User selected in-app completion alerts, not phone push. A signed-in app-wide monitor uses the existing owner-only video library/refresh endpoints every ten seconds while foregrounded, independent of the upload sheet. It tracks pending/new uploads, retries transient failures, ignores finished history at startup and deduplicates completion. Ready/failure alerts honor the master notification switch; tapping opens Your Video directly. No background push, auto-enabling Discovery or provider-side processing acceleration is implied. Checks resume on foreground return; an app restart starts a fresh baseline.
+
+The uploader explains that processing continues after leaving the screen and notification is in-app. Latest user decision supersedes conditional dismissal: closing the uploader from Go Live offers Stay on Go Live or Go to Discovery, regardless of the saved Discovery toggle. Opening full-screen video uses a separate dismiss callback so it does not trigger Discovery navigation. Automated monitor and sheet checks are separate from pending Android/iPhone banner and navigation verification.

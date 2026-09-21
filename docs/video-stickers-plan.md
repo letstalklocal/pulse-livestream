@@ -40,3 +40,25 @@ Recorded September 21, 2026. User approved implementation, then explicitly said 
 8. Report automated evidence separately from Android/iPhone device checks. Native placement, playback/audio/seek, keyboard, gestures, app background/focus and screen-awake verification remain pending until actually tested. Do not start native builds or production deployment without authorization.
 
 No new CDN work is needed for stickers. Read `docs/live-stickers.md`, `docs/stream-screen-regressions.md`, `docs/chat-message-preferences.md`, `docs/coins-premium-revenuecat.md`, and relevant recorded-video requirements before implementation. The previous DM/pack resumable upload work is separate and must be preserved.
+
+## Implementation — September 21, 2026
+
+Implemented in the development workspace. `creator_videos.stickers` stores up to two server-generated sticker records, with the migration `20260921_creator_video_stickers.sql` applied to the development database. Owner-only `PUT /api/creator-videos/:id/stickers` validates the existing gift catalog, owned packs and duplicate packs; viewers receive metadata-only status at `GET /api/creator-videos/:id/stickers`. Status is available only for an accessible, ready, selected, Discovery-enabled video.
+
+`VideoStickerOverlay` uses the approved live sticker cards over the opened recorded-video player, not Discovery thumbnails. Viewer cards hide with the keyboard; creators see the same cards but cannot charge themselves. Pack ownership displays View pack. Opening it fetches the existing authorized pack gallery, persists dismissal by account/video and pauses the recorded player; closing resumes it. A pack purchase uses the shared transaction with video/sticker identity, rechecks the currently selected enabled video and sticker under lock, honors expected price, and atomically debits/credits, records ownership, inserts one unlocked DM receipt and attributes the transaction through `creator_video_gifts`. Existing stats, top gifters and total queries therefore include the new sale exactly once.
+
+The Your Video management sheet now uses the existing add/replace/close sticker selector for its selected recorded video. History retains each video's saved stickers. This does not alter live sticker routes, Discovery cards, RevenueCat, pack pricing, DM purchase rules or uploads.
+
+Automated: development migration presence checked; API/mobile TypeScript and API build pass; development API rebuilt/restarted with its existing environment and protected endpoint authentication checked; localization and existing live sticker/stream regression suites pass. The isolated real-database test covers owner configuration, public metadata, pack price, purchase, one debit/receipt/purchase/video-attribution and already-owned access; it uses temporary accounts and no phone media. Android/iPhone checks remain pending for selector flow, 5:7 placement/contrast, video pause/resume/audio/seek, gallery dismissal, keyboard/dock, touch/scroll gestures, accessibility, background/foreground, paid/free/insufficient purchase and existing stream/DM regressions. No native build or production deployment was started.
+
+### One gift and one pack limit — September 21, 2026
+
+Latest correction: recorded videos allow at most one gift sticker and one pack sticker. The editor disables the add action for a kind already present and opens sticker options on a direct tap as well as double-tap. The API rejects duplicate gift or duplicate pack kinds, preserving the two distinct slots and existing replace/close behavior. API/mobile typechecks, live sticker regression and diff checks pass; the rebuilt development API was restarted and its protected video sticker endpoint verified. Device placement and gesture confirmation remain pending.
+
+### Original prototype restored at user request
+
+Restored the original `/video-prototype` screen, its route registration and its Discovery sample card under the existing development/explicit-build opt-in. It uses the original sample URL, `videoCache` and `CachedVideoPlayer`, including cache inspection controls. The recorded-video sticker overlay remains on `/video/[id]`. This supersedes the earlier request to remove the original prototype; it does not add stickers to the sample prototype or change the shared cache/player.
+
+### Working sample with stickers
+
+User clarified that the original prototype must show sample video and stickers together. The original cache acquisition, sample URL and CachedVideoPlayer remain; a Rose sticker is visible by default and the existing More sheet exposes the shared gift/pack selector. Select real owned packs, with one gift and one pack maximum. Gift taps use local prototype animations; pack taps preview owned media, pause the sample, dismiss the pack sticker and resume on close. Prototype actions do not charge coins. Real purchases remain in the regular recorded-video screen.

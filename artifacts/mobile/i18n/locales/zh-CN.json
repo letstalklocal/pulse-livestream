@@ -996,5 +996,12 @@
   "Edit pack": "编辑内容包",
   "Save changes": "保存更改",
   "Add a name and between 1 and 20 items.": "请添加名称和1至20个项目。",
-  "Pack price changed. Please reopen the pack and try again.": "内容包价格已更改。请重新打开内容包后重试。"
+  "Pack price changed. Please reopen the pack and try again.": "内容包价格已更改。请重新打开内容包后重试。",
+  "Your video is processing. You can leave this screen. We'll notify you in the app when it's ready.": "你的视频正在处理中。你可以离开此页面。视频准备好后，我们会在应用内通知你。",
+  "Your video is ready": "你的视频已准备好",
+  "Tap to preview your video and choose whether to show it in Discovery.": "点击预览视频，并选择是否在发现中展示。",
+  "Open Your Video to remove it and try another upload.": "打开你的视频，将其删除并尝试上传另一个视频。",
+  "Where would you like to go?": "你想前往哪里？",
+  "Stay on Go Live": "留在 Go Live",
+  "Go to Discovery": "前往发现"
 }

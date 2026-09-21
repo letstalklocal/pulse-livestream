@@ -5,6 +5,10 @@ import { GoldCoinIcon } from '@/components/GoldCoinIcon';
 import { LiveChatAvatar } from '@/components/LiveChatAvatar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GiftPicker, type Gift } from '@/components/GiftPicker';
+import { LiveStickerSetup } from '@/components/LiveStickerSetup';
+import { PrototypeStickerOverlay } from '@/components/PrototypeStickerOverlay';
+import type { StickerDraft } from '@/utils/liveStickers';
+import type { CachedVideoPlayerProps } from '@/components/CachedVideoPlayer';
 import { GiftFloater, type FloatingGift } from '@/components/GiftFloater';
 import { requireOptionalNativeModule } from 'expo';
 import { useIsFocused } from 'expo-router';
@@ -21,7 +25,7 @@ import { VIDEO_CACHE_TTL_MS, type CacheEntry, type CacheLease } from '@/utils/vi
 // Old binaries must still open Discovery safely; only load the player module when supported.
 function nativePlayer() {
   if (Platform.OS === 'web' || !requireOptionalNativeModule('ExpoVideo')) return null;
-  return require('@/components/CachedVideoPlayer').default as React.ComponentType<{ uri: string; onError: () => void; contentFit?: 'contain' | 'cover'; nativeControls?: boolean }>;
+  return require('@/components/CachedVideoPlayer').default as React.ComponentType<CachedVideoPlayerProps>;
 }
 const Player = nativePlayer();
 
@@ -30,6 +34,8 @@ export default function VideoPrototypeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const [stickers, setStickers] = useState<StickerDraft[]>([{ kind: 'gift', giftId: 'rose' }]);
+  const [galleryOpen, setGalleryOpen] = useState(false);
   const [showTools, setShowTools] = useState(false);
   const [showGifts, setShowGifts] = useState(false);
   const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
@@ -168,7 +174,7 @@ export default function VideoPrototypeScreen() {
     <View style={styles.videoBackground}>
       <View testID="video-portrait-stage" style={StyleSheet.absoluteFill}>
         {playbackActive && lease && Player ? <Player key={lease.file} uri={lease.uri} onError={onPlayerError}
-          contentFit="cover" nativeControls={false} /> :
+          contentFit="cover" nativeControls={false} paused={galleryOpen} /> :
           <View style={styles.placeholder}>
             {busy ? <ActivityIndicator color="#FFF" size="large" /> : <Ionicons name="play-circle-outline" size={56} color="#FFF" />}
             <Text style={styles.message}>{!VIDEO_PROTOTYPE_ENABLED ? t('Prototype disabled in this build.') : !Player ?
@@ -249,6 +255,8 @@ export default function VideoPrototypeScreen() {
         </View>
       </View>
     </StreamKeyboardAvoidingView>
+    <PrototypeStickerOverlay value={stickers} visible={playbackActive && !keyboardVisible} top={insets.top + 66}
+      onGift={previewGift} onGalleryChange={setGalleryOpen} />
     <GiftPicker visible={showGifts && active} preview coins={0} onClose={() => setShowGifts(false)} onSend={previewGift}
       hintText="Test gifts only. No coins are spent." />
     <Modal visible={showTools} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setShowTools(false)}>
@@ -262,6 +270,7 @@ export default function VideoPrototypeScreen() {
             </TouchableOpacity>
           </View>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 18, paddingBottom: insets.bottom + 24, gap: 12 }}>
+        <LiveStickerSetup value={stickers} onChange={setStickers} disabled={!active} />
         <Text style={{ color: colors.mutedForeground }}>{t('Sample playback only. Nothing is published to other viewers.')}</Text>
         <Text style={{ color: colors.mutedForeground }}>{t('Chat and follows are local tests on this phone.')}</Text>
         <TextInput accessibilityLabel={t('Video URL')} value={url} onChangeText={setUrl} autoCapitalize="none" autoCorrect={false}

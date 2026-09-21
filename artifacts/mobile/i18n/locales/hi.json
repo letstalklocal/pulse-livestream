@@ -996,5 +996,12 @@
   "Edit pack": "पैक संपादित करें",
   "Save changes": "बदलाव सहेजें",
   "Add a name and between 1 and 20 items.": "एक नाम और 1 से 20 आइटम जोड़ें।",
-  "Pack price changed. Please reopen the pack and try again.": "पैक की कीमत बदल गई है। कृपया पैक फिर से खोलें और दोबारा कोशिश करें।"
+  "Pack price changed. Please reopen the pack and try again.": "पैक की कीमत बदल गई है। कृपया पैक फिर से खोलें और दोबारा कोशिश करें।",
+  "Your video is processing. You can leave this screen. We'll notify you in the app when it's ready.": "आपका वीडियो प्रोसेस हो रहा है। आप इस स्क्रीन से जा सकते हैं। तैयार होने पर हम ऐप में आपको सूचित करेंगे।",
+  "Your video is ready": "आपका वीडियो तैयार है",
+  "Tap to preview your video and choose whether to show it in Discovery.": "वीडियो का प्रीव्यू देखने और डिस्कवर में दिखाने का विकल्प चुनने के लिए टैप करें।",
+  "Open Your Video to remove it and try another upload.": "इसे हटाने और दूसरा वीडियो अपलोड करने के लिए आपका वीडियो खोलें।",
+  "Where would you like to go?": "आप कहाँ जाना चाहते हैं?",
+  "Stay on Go Live": "Go Live पर रहें",
+  "Go to Discovery": "डिस्कवरी पर जाएँ"
 }

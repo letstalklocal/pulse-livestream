@@ -3,6 +3,7 @@ import {
   uuid,
   integer,
   text,
+  jsonb,
   timestamp,
   boolean,
   bigserial,
@@ -23,6 +24,7 @@ export const creatorVideosTable = pgTable(
     playbackUrl: text("playback_url"),
     thumbnailUrl: text("thumbnail_url"),
     durationSeconds: integer("duration_seconds"),
+    stickers: jsonb("stickers").$type<{ id: string; kind: "gift" | "pack"; giftId: string; packId?: number }[]>().notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

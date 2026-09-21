@@ -94,3 +94,10 @@ test("leaving Messages does not replay suppressed banners", () => {
     1,
   );
 });
+
+test("video processing alerts honor the master switch across app screens", () => {
+  const video = { ...event("videoProcessing"), route: "/go-live" };
+  assert.equal(canShowNotification(video, preferences, "/go-live"), true);
+  assert.equal(canShowNotification(video, preferences, "/chat"), true);
+  assert.equal(canShowNotification(video, { ...preferences, enabled: false }, "/"), false);
+});

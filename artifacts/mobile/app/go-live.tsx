@@ -1708,7 +1708,12 @@ export default function GoLiveScreen() {
         </View>
       </KeyboardAvoidingView>
 
-      <CreatorVideoSheet key={user.uid} visible={showVideoSheet} onClose={() => setShowVideoSheet(false)} />
+      <CreatorVideoSheet key={user.uid} visible={showVideoSheet}
+        onOpenPreview={() => setShowVideoSheet(false)}
+        onClose={() => Alert.alert(t("Where would you like to go?"), undefined, [
+          { text: t("Stay on Go Live"), onPress: () => setShowVideoSheet(false) },
+          { text: t("Go to Discovery"), onPress: () => { setShowVideoSheet(false); router.replace("/(tabs)"); } },
+        ])} />
       <Modal
         visible={showPremiumGiftSheet}
         transparent

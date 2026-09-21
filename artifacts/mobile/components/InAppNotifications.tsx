@@ -1,3 +1,6 @@
+import { CreatorVideoSheet } from './CreatorVideoSheet';
+import { videoRequest } from '@/utils/creatorVideos';
+import { createVideoProcessingMonitor } from '@/utils/videoProcessingMonitor';
 import { t, useAppLanguage } from "@/i18n";
 import { useAuth } from "@clerk/expo";
 import { Ionicons } from "@expo/vector-icons";
@@ -32,10 +35,40 @@ export function InAppNotifications() {
   const router = useRouter();
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const [showVideoSheet, setShowVideoSheet] = useState(false);
   const [owner, setOwner] = useState(userId);
   const [queue, setQueue] = useState<InAppNotification[]>([]);
   const state = useRef({ preferences, ready: isSuccess, pathname, getToken });
   state.current = { preferences, ready: isSuccess, pathname, getToken };
+
+  useEffect(() => {
+    setShowVideoSheet(false);
+    if (!userId || !isSuccess) return;
+    let stopped = false;
+    let active = AppState.currentState === "active";
+    let controller = new AbortController();
+    const check = createVideoProcessingMonitor(
+      (path, method, signal) => videoRequest(path, () => state.current.getToken(), method, method === "POST" ? {} : undefined, signal),
+      video => {
+        if (stopped || !active || !state.current.preferences.enabled) return;
+        setQueue(previous => [...previous, {
+          id: `video-processing:${video.id}`, category: "videoProcessing" as const,
+          title: video.status === "ready" ? "Your video is ready" : "Video processing failed.",
+          body: video.status === "ready" ? "Tap to preview your video and choose whether to show it in Discovery." : "Open Your Video to remove it and try another upload.",
+          route: "/go-live", createdAt: Date.now(),
+        }].slice(-5));
+      },
+    );
+    const poll = () => { if (active && !stopped) void check(controller.signal).catch(() => {}); };
+    const subscription = AppState.addEventListener("change", next => {
+      active = next === "active";
+      if (!active) controller.abort();
+      else { controller = new AbortController(); poll(); }
+    });
+    poll();
+    const timer = setInterval(poll, 10000);
+    return () => { stopped = true; controller.abort(); clearInterval(timer); subscription.remove(); };
+  }, [userId, isSuccess]);
 
   useEffect(() => {
     setQueue([]);
@@ -132,6 +165,7 @@ export function InAppNotifications() {
     const timeout = setTimeout(() => setQueue((items) => items.slice(1)), 6500);
     return () => clearTimeout(timeout);
   }, [event?.id]);
+  if (showVideoSheet && owner === userId && userId) return <CreatorVideoSheet visible onClose={() => setShowVideoSheet(false)} />;
   if (
     owner !== userId ||
     !userId ||
@@ -158,11 +192,12 @@ export function InAppNotifications() {
       >
         <TouchableOpacity
           accessibilityRole="button"
-          accessibilityLabel={`${event.title}. ${notificationBody(event, preferences.previews)}`}
+          accessibilityLabel={`${event.category === "videoProcessing" ? t(event.title) : event.title}. ${event.category === "videoProcessing" ? t(event.body) : notificationBody(event, preferences.previews)}`}
           style={styles.content}
           onPress={() => {
             dismiss();
-            router.push(event.route as never);
+            if (event.category === "videoProcessing") setShowVideoSheet(true);
+            else router.push(event.route as never);
           }}
         >
           <Ionicons
@@ -175,13 +210,13 @@ export function InAppNotifications() {
               style={[styles.title, { color: colors.foreground }]}
               numberOfLines={1}
             >
-              {event.title}
+              {event.category === "videoProcessing" ? t(event.title) : event.title}
             </Text>
             <Text
               style={[styles.body, { color: colors.mutedForeground }]}
               numberOfLines={2}
             >
-              {notificationBody(event, preferences.previews)}
+              {event.category === "videoProcessing" ? t(event.body) : notificationBody(event, preferences.previews)}
             </Text>
           </View>
         </TouchableOpacity>

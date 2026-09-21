@@ -103,11 +103,11 @@ export function LiveStickerSetup({
         {(["gift", "pack"] as const).map((kind) => (
           <TouchableOpacity
             key={kind}
-            disabled={disabled || value.length >= 2}
+            disabled={disabled || value.length >= 2 || value.some(sticker => sticker.kind === kind)}
             onPress={() => setEditing({ index: null, kind })}
             style={[
               styles.add,
-              (disabled || value.length >= 2) && { opacity: 0.4 },
+              (disabled || value.length >= 2 || value.some(sticker => sticker.kind === kind)) && { opacity: 0.4 },
             ]}
             accessibilityRole="button"
           >
@@ -139,6 +139,7 @@ export function LiveStickerSetup({
           <LiveStickerCard
             key={index}
             sticker={preview(draft, String(index), packs.data?.packs)}
+            onPress={() => manage(draft, index)}
             onDoublePress={() => manage(draft, index)}
             disabled={disabled}
           />
@@ -157,7 +158,7 @@ export function LiveStickerSetup({
           onSelect={(draft) => {
             if (editing.index !== null)
               onChange(value.map((s, i) => (i === editing.index ? draft : s)));
-            else if (value.length < 2) onChange([...value, draft]);
+            else if (value.length < 2 && !value.some(sticker => sticker.kind === draft.kind)) onChange([...value, draft]);
             setEditing(null);
           }}
         />

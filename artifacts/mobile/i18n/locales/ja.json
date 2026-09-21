@@ -996,5 +996,12 @@
   "Edit pack": "パックを編集",
   "Save changes": "変更を保存",
   "Add a name and between 1 and 20 items.": "名前と1〜20個のアイテムを追加してください。",
-  "Pack price changed. Please reopen the pack and try again.": "パックの価格が変更されました。パックを開き直して、もう一度お試しください。"
+  "Pack price changed. Please reopen the pack and try again.": "パックの価格が変更されました。パックを開き直して、もう一度お試しください。",
+  "Your video is processing. You can leave this screen. We'll notify you in the app when it's ready.": "動画を処理中です。この画面を閉じても構いません。準備ができたらアプリ内でお知らせします。",
+  "Your video is ready": "動画の準備ができました",
+  "Tap to preview your video and choose whether to show it in Discovery.": "タップして動画をプレビューし、発見に表示するかどうかを選んでください。",
+  "Open Your Video to remove it and try another upload.": "あなたの動画を開いて削除し、別の動画をアップロードしてください。",
+  "Where would you like to go?": "どこに移動しますか？",
+  "Stay on Go Live": "Go Live に留まる",
+  "Go to Discovery": "発見へ移動"
 }

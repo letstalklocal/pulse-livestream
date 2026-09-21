@@ -40,13 +40,14 @@ import { useAppLanguage } from "@/i18n";
 import { videoRequest, type CreatorVideo } from "@/utils/creatorVideos";
 import { videoCache } from "@/utils/videoCache";
 import { type CacheLease, VIDEO_CACHE_TTL_MS } from "@/utils/videoCache/core";
-import { GiftPicker, type Gift } from "@/components/GiftPicker";
+import { GiftPicker, GIFTS, type Gift } from "@/components/GiftPicker";
 import { GiftFloater, type FloatingGift } from "@/components/GiftFloater";
 import { GoldCoinIcon } from "@/components/GoldCoinIcon";
 import { LiveChatAvatar } from "@/components/LiveChatAvatar";
 import { LiveReactions } from "@/components/LiveReactions";
 import { VideoViewersSheet } from "@/components/VideoViewersSheet";
 import { CreatorVideoSheet } from "@/components/CreatorVideoSheet";
+import { VideoStickerOverlay } from "@/components/VideoStickerOverlay";
 import type { CachedVideoPlayerProps } from "@/components/CachedVideoPlayer";
 const Player =
   Platform.OS !== "web" && requireOptionalNativeModule("ExpoVideo")
@@ -112,7 +113,8 @@ export default function CreatorVideoViewer() {
   const [lease, setLease] = useState<CacheLease | null>(null),
     [error, setError] = useState(""),
     [retry, setRetry] = useState(0),
-    [playing, setPlaying] = useState(false);
+    [playing, setPlaying] = useState(false),
+    [stickersPaused, setStickersPaused] = useState(false);
   const [draft, setDraft] = useState(""),
     [sending, setSending] = useState(false),
     [showGifts, setShowGifts] = useState(false),
@@ -366,6 +368,7 @@ export default function CreatorVideoViewer() {
             nativeControls={false}
             onError={onError}
             onPlayingChange={onPlayingChange}
+            paused={stickersPaused}
           />
         ) : (
           <View style={styles.loading}>
@@ -620,6 +623,11 @@ export default function CreatorVideoViewer() {
           </View>
         </View>
       </KeyboardAvoidingView>
+      {video && !detail.isError && <VideoStickerOverlay
+        videoId={video.id} visible={active && !keyboard} top={insets.top + 66} isHost={owner}
+        onGift={(giftId) => { const gift = GIFTS.find(value => value.id === giftId); if (gift && !owner) void sendGift(gift); }}
+        onPause={() => setStickersPaused(true)} onResume={() => setStickersPaused(false)}
+      />}
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
         {gifts.map((g) => (
           <GiftFloater

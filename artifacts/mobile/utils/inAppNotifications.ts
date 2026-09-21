@@ -4,7 +4,7 @@ import type {
 } from "../hooks/useNotificationPreferences";
 export type InAppNotification = {
   id: string;
-  category: NotificationCategory;
+  category: NotificationCategory | "videoProcessing";
   title: string;
   body: string;
   route: string;
@@ -15,7 +15,9 @@ export function canShowNotification(
   preferences: NotificationPreferences,
   pathname: string,
 ) {
-  if (!preferences.enabled || !preferences[event.category]) return false;
+  if (!preferences.enabled) return false;
+  if (event.category === "videoProcessing") return true;
+  if (!preferences[event.category]) return false;
   if (
     ![
       "messages",

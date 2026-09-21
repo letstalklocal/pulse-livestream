@@ -14,6 +14,7 @@ const mod = { exports: {} };
 vm.runInNewContext(code, { module: mod, exports: mod.exports, AbortController,
   setInterval: fn => { tick = fn; return 1; }, clearInterval() {},
   require: id => {
+    if (id === './LiveStickerSetup') return { LiveStickerSetup: 'LiveStickerSetup' };
     if (id === './VideoManagementPreview') return { VideoManagementPreview: 'VideoManagementPreview' };
     if (id === './VideoManagementSummary') return { VideoManagementSummary: 'VideoManagementSummary' };
     if (id === 'react') return react;
@@ -43,7 +44,12 @@ function render() {
 const flush = () => new Promise(resolve => setImmediate(resolve));
 (async () => {
   render(); const cleanup = effect(); await flush();
-  resolveRefresh({ encodingProgress: 63 }); await flush();
+  resolveRefresh({ encodingProgress: 0 }); await flush();
+  assert.ok(render().some(n => n.type === 'Text' && n.props.children.includes('Processing video…')));
+  assert.ok(!render().some(n => n.type === 'Text' && n.props.children.includes('Processing video: 0%')), 'zero provider progress uses the indeterminate processing state');
+  assert.ok(!render().some(n => n.props?.testID === 'creator-video-progress-bar'));
+  tick(); await flush(); resolveRefresh({ encodingProgress: 63 }); await flush();
+  assert.equal(render().find(n => n.props?.testID === 'creator-video-progress-bar').props.accessibilityValue.now, 63);
   assert.ok(render().some(n => n.type === 'Text' && n.props.children.includes('Processing video: 63%')));
   let nodes = render();
   assert.ok(nodes.findIndex(n => n.props?.testID === 'creator-video-upload-status') < nodes.findIndex(n => n.type === 'ScrollView'), 'processing feedback stays outside scrolling content');

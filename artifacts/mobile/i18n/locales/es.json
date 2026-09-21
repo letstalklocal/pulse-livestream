@@ -996,5 +996,12 @@
   "Edit pack": "Editar paquete",
   "Save changes": "Guardar cambios",
   "Add a name and between 1 and 20 items.": "Añade un nombre y entre 1 y 20 elementos.",
-  "Pack price changed. Please reopen the pack and try again.": "El precio del paquete cambió. Vuelve a abrirlo e inténtalo de nuevo."
+  "Pack price changed. Please reopen the pack and try again.": "El precio del paquete cambió. Vuelve a abrirlo e inténtalo de nuevo.",
+  "Your video is processing. You can leave this screen. We'll notify you in the app when it's ready.": "Tu video se está procesando. Puedes salir de esta pantalla. Te avisaremos en la app cuando esté listo.",
+  "Your video is ready": "Tu video está listo",
+  "Tap to preview your video and choose whether to show it in Discovery.": "Toca para ver tu video y elegir si mostrarlo en Descubrir.",
+  "Open Your Video to remove it and try another upload.": "Abre Tu video para eliminarlo e intentar subir otro.",
+  "Where would you like to go?": "¿A dónde quieres ir?",
+  "Stay on Go Live": "Quedarme en Go Live",
+  "Go to Discovery": "Ir a Descubrir"
 }
