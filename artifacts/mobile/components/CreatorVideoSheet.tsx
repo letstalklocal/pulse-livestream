@@ -364,11 +364,11 @@ export function CreatorVideoSheet({
                 )}
                 {tab === "video" && <>
                   {selected ? <View style={[styles.videoCard, { borderColor: colors.border }]}>
-                    {visible && <VideoManagementPreview active={!busy} key={`${userId}:${selected.id}`} video={selected} onExpand={() => {
+                    {visible && <VideoManagementPreview active={!busy} key={`preview:${userId}:${selected.id}`} video={selected} onExpand={() => {
                       onClose(); router.push(`/video/${selected.id}` as any);
                     }} />}
                     <Text numberOfLines={2} style={{ color: colors.foreground, textAlign: "center", fontSize: 14, fontWeight: "600" }}>{selected.filename}</Text>
-                    {visible && <VideoManagementSummary key={`${userId}:${selected.id}`} videoId={selected.id} onDetails={() => showDetails(selected.id)} disabled={busy} />}
+                    {visible && <VideoManagementSummary key={`summary:${userId}:${selected.id}`} videoId={selected.id} onDetails={() => showDetails(selected.id)} disabled={busy} />}
                   </View> : <View style={[styles.emptyVideo, { backgroundColor: colors.card }]}>
                     <Ionicons name="videocam-outline" size={38} color="#00D4D4" />
                     <Text style={{ color: colors.mutedForeground, textAlign: "center", lineHeight: 20 }}>{t("Let viewers discover you while you’re offline.")}</Text>

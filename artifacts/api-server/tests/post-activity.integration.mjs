@@ -34,7 +34,7 @@ try {
   assert.equal((await activity('invalid', viewer)).statusCode, 400);
   assert.equal((await activity(2147483647, viewer)).statusCode, 404);
   await Promise.all([react(post, viewer, 'like', true), react(post, viewer, 'like', true)]);
-  assert.deepEqual((await activity(post, viewer)).body, { liked: true, saved: false, likeCount: 1, commentCount: 0 });
+  assert.deepEqual((await activity(post, viewer)).body, { liked: true, saved: false, likeCount: 1, commentCount: 0, giftCoins: 0 });
   assert.equal((await activity(post, other)).body.liked, false);
   await react(post, other, 'like', true);
   await react(post, viewer, 'like', false);

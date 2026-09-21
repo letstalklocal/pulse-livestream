@@ -1,3 +1,4 @@
+import { PostGiftTotal } from "@/components/PostGiftTotal";
 import SignedOutProfile from "@/components/SignedOutProfile";
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { usePrivacyPreferences } from "@/hooks/usePrivacyPreferences";
@@ -475,6 +476,7 @@ export default function ProfileScreen() {
 
                   <View style={styles.feedMedia}>
                     <Image source={{ uri: post.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="contain" />
+                    <PostGiftTotal postId={post.id} />
                   </View>
 
                   <PostFooter postId={post.id} ownerUid={post.ownerUserId} caption={post.caption} />

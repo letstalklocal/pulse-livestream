@@ -115,6 +115,11 @@ export interface AdminAuthConfig {
 export interface PostActivity {
   likeCount: number;
   commentCount: number;
+  /**
+     * Total gift coins credited to this post
+     * @minimum 0
+     */
+  giftCoins: number;
   liked: boolean;
   saved: boolean;
 }
@@ -377,6 +382,33 @@ export interface StreamResponse {
   stream: Stream;
 }
 
+export type CreateStreamRequestStickersItemKind = typeof CreateStreamRequestStickersItemKind[keyof typeof CreateStreamRequestStickersItemKind];
+
+
+export const CreateStreamRequestStickersItemKind = {
+  gift: 'gift',
+  pack: 'pack',
+} as const;
+
+export type CreateStreamRequestStickersItemGiftId = typeof CreateStreamRequestStickersItemGiftId[keyof typeof CreateStreamRequestStickersItemGiftId];
+
+
+export const CreateStreamRequestStickersItemGiftId = {
+  rose: 'rose',
+  heart: 'heart',
+  party: 'party',
+  diamond: 'diamond',
+  rocket: 'rocket',
+  crown: 'crown',
+} as const;
+
+export type CreateStreamRequestStickersItem = {
+  kind: CreateStreamRequestStickersItemKind;
+  giftId: CreateStreamRequestStickersItemGiftId;
+  /** @minimum 1 */
+  packId?: number;
+};
+
 /**
  * @nullable
  */
@@ -399,6 +431,8 @@ export interface CreateStreamRequest {
   hostAvatarUrl?: string | null;
   title: string;
   category: string;
+  /** @maxItems 2 */
+  stickers?: CreateStreamRequestStickersItem[];
   /** @nullable */
   requiredGiftId?: CreateStreamRequestRequiredGiftId;
 }
@@ -624,16 +658,53 @@ export interface MediaPackItemInput {
   durationMs?: number | null;
 }
 
+export type CreateMediaPackRequestGiftId = typeof CreateMediaPackRequestGiftId[keyof typeof CreateMediaPackRequestGiftId];
+
+
+export const CreateMediaPackRequestGiftId = {
+  rose: 'rose',
+  heart: 'heart',
+  party: 'party',
+  diamond: 'diamond',
+  rocket: 'rocket',
+  crown: 'crown',
+} as const;
+
 export interface CreateMediaPackRequest {
   /** @maxLength 80 */
   name: string;
-  /** @minimum 1 */
-  price: number;
+  giftId: CreateMediaPackRequestGiftId;
   /**
      * @minItems 1
      * @maxItems 20
      */
   items: MediaPackItemInput[];
+}
+
+export type UpdateMediaPackRequestGiftId = typeof UpdateMediaPackRequestGiftId[keyof typeof UpdateMediaPackRequestGiftId];
+
+
+export const UpdateMediaPackRequestGiftId = {
+  rose: 'rose',
+  heart: 'heart',
+  party: 'party',
+  diamond: 'diamond',
+  rocket: 'rocket',
+  crown: 'crown',
+} as const;
+
+export type UpdateMediaPackRequestItemsItem = {
+  /** @minLength 1 */
+  id: string;
+} | MediaPackItemInput;
+
+export interface UpdateMediaPackRequest {
+  giftId: UpdateMediaPackRequestGiftId;
+  /**
+     * @minItems 1
+     * @maxItems 20
+     */
+  items: UpdateMediaPackRequestItemsItem[];
 }
 
 export type MediaPackItemMediaType = typeof MediaPackItemMediaType[keyof typeof MediaPackItemMediaType];
@@ -660,6 +731,7 @@ export interface MediaPack {
   id: string;
   name: string;
   price: number;
+  giftId: string;
   itemCount: number;
   ownerUserId: string;
   unlocked: boolean;
@@ -682,6 +754,8 @@ export interface SendMediaPackRequest {
 
 export interface UnlockMediaPackRequest {
   idempotencyKey: string;
+  /** @minimum 1 */
+  expectedPrice?: number;
 }
 
 export type MediaPackMessageResponseMessage = { [key: string]: unknown };
@@ -997,6 +1071,28 @@ export const SetPostReactionBodyKind = {
 export type SetPostReactionBody = {
   kind: SetPostReactionBodyKind;
   active: boolean;
+};
+
+export type SendPostGiftBodyGiftId = typeof SendPostGiftBodyGiftId[keyof typeof SendPostGiftBodyGiftId];
+
+
+export const SendPostGiftBodyGiftId = {
+  rose: 'rose',
+  heart: 'heart',
+  party: 'party',
+  diamond: 'diamond',
+  rocket: 'rocket',
+  crown: 'crown',
+} as const;
+
+export type SendPostGiftBody = {
+  giftId: SendPostGiftBodyGiftId;
+  /**
+     * @minLength 16
+     * @maxLength 80
+     * @pattern ^[a-zA-Z0-9-]{16,80}$
+     */
+  requestId: string;
 };
 
 export type GetPostCommentsParams = {

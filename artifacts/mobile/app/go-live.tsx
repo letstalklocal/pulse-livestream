@@ -1,3 +1,6 @@
+import { LiveStickerSetup } from "@/components/LiveStickerSetup";
+import { LiveStickerOverlay } from "@/components/LiveStickerOverlay";
+import type { StickerDraft } from "@/utils/liveStickers";
 import { confirmVideoBeforeLive } from "@/utils/confirmVideoBeforeLive";
 import { CreatorVideoSheet } from "@/components/CreatorVideoSheet";
 import { LiveReactions } from "@/components/LiveReactions";
@@ -188,6 +191,8 @@ export default function GoLiveScreen() {
   const privateInvitationId = Number(invitationId);
   const isPrivateInvite = Number.isInteger(privateInvitationId) && !!invitationChannelId;
 
+  const [stickers, setStickers] = useState<StickerDraft[]>([]);
+  useEffect(() => { setStickers([]); }, [user?.uid]);
   const [title, setTitle] = useState("Join My Live");
   const [category, setCategory] = useState("Gaming");
   const [isPremium, setIsPremium] = useState(false);
@@ -780,6 +785,7 @@ export default function GoLiveScreen() {
           title: title.trim(),
           category,
           requiredGiftId: confirmedGiftId,
+          stickers: stickers as NonNullable<Parameters<typeof createStream.mutateAsync>[0]["data"]["stickers"]>,
         },
       });
       createdStream = true;
@@ -834,7 +840,7 @@ export default function GoLiveScreen() {
       if (startingRequestRef.current === startupRequest) startingRequestRef.current = null;
       if (!startupRequest.signal.aborted) setIsStarting(false);
     }
-  }, [title, category, user, generateToken, createStream, cameraReady, invitationAction, isPrivateInvite, invitationChannelId, privateInvitationId, requiredGiftId, getToken, t, isPremium]);
+  }, [stickers, title, category, user, generateToken, createStream, cameraReady, invitationAction, isPrivateInvite, invitationChannelId, privateInvitationId, requiredGiftId, getToken, t, isPremium]);
 
   const saveStreamBackground = useCallback(async (asset: { uri: string; mimeType?: string | null }) => {
     if (!user || isUploadingBackground) return;
@@ -938,6 +944,7 @@ export default function GoLiveScreen() {
     setChatText("");
     setChatMessages([]);
     setFloatingGifts([]);
+    setStickers([]);
     setDuration(0);
     setIsMuted(false);
     setCameraError(null);
@@ -1029,12 +1036,13 @@ export default function GoLiveScreen() {
   useEffect(() => {
     if (!isLive) return;
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (!navigation.isFocused()) return false;
       if (showLiveMenu) { setShowLiveMenu(false); return true; }
       confirmStopLive();
       return true;
     });
     return () => subscription.remove();
-  }, [isLive, confirmStopLive, showLiveMenu]);
+  }, [isLive, confirmStopLive, showLiveMenu, navigation]);
 
   useEffect(() => {
     return navigation.addListener("beforeRemove", (event) => {
@@ -1229,6 +1237,7 @@ export default function GoLiveScreen() {
               accessible={false}
             />
           )}
+          <LiveStickerOverlay channelId={activeChannelId} enabled={isLive} visible={!showChat} top={topPad + 94} isHost />
           <View style={[styles.liveTopDock, { top: topPad + 12 }]}>
             <View style={styles.liveTopBar}>
               <View style={styles.liveBadgeRow}>
@@ -1549,6 +1558,13 @@ export default function GoLiveScreen() {
         keyboardVerticalOffset={0}
       >
         <View style={[styles.setupBottomDock, { paddingBottom: bottomPad + 18 }]}>
+          <LiveStickerSetup
+            value={stickers}
+            onChange={setStickers}
+            disabled={isStarting}
+            onUploadVideo={isPrivateInvite ? undefined : () => { Keyboard.dismiss(); setShowVideoSheet(true); }}
+          />
+
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -1620,10 +1636,6 @@ export default function GoLiveScreen() {
           </View>
 
           <View style={styles.modeSelector}>
-            {!isPrivateInvite && <TouchableOpacity testID="stream-entry-video" style={[styles.modeSecondary, { borderColor: '#00D4D4' }]}
-              disabled={isStarting} onPress={() => { Keyboard.dismiss(); setShowVideoSheet(true); }} activeOpacity={0.8}>
-              <Text style={[localizedTextStyle(), styles.modeSecondaryText, { color: '#00D4D4' }]}>{t("Video")}</Text>
-            </TouchableOpacity>}
             {isPremium && requiredGiftId ? (
               <>
                 <TouchableOpacity

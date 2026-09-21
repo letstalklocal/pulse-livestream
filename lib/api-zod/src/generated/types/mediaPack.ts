@@ -11,6 +11,7 @@ export interface MediaPack {
   id: string;
   name: string;
   price: number;
+  giftId: string;
   itemCount: number;
   ownerUserId: string;
   unlocked: boolean;

@@ -7,6 +7,7 @@ export const mediaPacksTable = pgTable("media_packs", {
   ownerUserId: integer("owner_user_id").notNull().references(() => usersTable.uid, { onDelete: "cascade" }),
   name: text("name").notNull(),
   coinPrice: integer("coin_price").notNull(),
+  giftId: text("gift_id").notNull().default("rose"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [index("media_packs_owner_idx").on(t.ownerUserId, t.createdAt), check("media_packs_positive_price", sql`${t.coinPrice} > 0`)]);
 

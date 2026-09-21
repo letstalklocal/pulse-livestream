@@ -9,14 +9,14 @@ async function run(failure, allowed = true, premium = false) {
   const state = { starting: false, live: false, alerts: [], steps: [] };
   const scope = {
     AbortController, startingRequestRef: { current: null }, getToken: async () => "token", confirmVideoBeforeLive: async () => allowed,
-    useCallback: fn => fn, title: 'test', category: 'Music', user: { uid: 1, name: 'test', streamBackgroundImagePath: 'saved' },
+    stickers: [{ kind: 'gift', giftId: 'rose' }], useCallback: fn => fn, title: 'test', category: 'Music', user: { uid: 1, name: 'test', streamBackgroundImagePath: 'saved' },
     isNative: true, cameraReady: true, engineRef: { current: {} }, isPrivateInvite: false, isPremium: premium,
     requiredGiftId: premium ? "rose" : null, invitationChannelId: null, privateInvitationId: null,
     t: x => x, Alert: { alert: (...args) => state.alerts.push(args) },
     setCameraError: x => { state.error = x; }, setIsStarting: x => { state.starting = x; },
     Haptics: { impactAsync() {}, notificationAsync() {}, ImpactFeedbackStyle: {}, NotificationFeedbackType: {} },
     channelIdRef: {}, pendingJoinRef: {}, mediaChannelRef: {}, isLiveRef: {}, durationRef: {},
-    createStream: { mutateAsync: async () => { state.steps.push('create'); if (failure === 'create') throw new Error('timed out'); } },
+    createStream: { mutateAsync: async ({ data }) => { assert.deepEqual(data.stickers, scope.stickers, 'Setup stickers accompany the original create request'); state.steps.push('create'); if (failure === 'create') throw new Error('timed out'); } },
     generateToken: { mutateAsync: async () => { state.steps.push('token'); if (failure === 'token') throw new Error('timed out'); return { token: 'ok', channelName: 'rtc' }; } },
     invitationAction: {}, endStream: { mutateAsync: async () => { state.steps.push('cleanup'); throw new Error('cleanup timed out'); } },
     setShowPremiumGiftSheet() {}, setShowLivePremium() {}, setActiveChannelId() {}, setIsBroadcasting() {},

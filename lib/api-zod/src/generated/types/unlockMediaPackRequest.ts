@@ -8,4 +8,6 @@
 
 export interface UnlockMediaPackRequest {
   idempotencyKey: string;
+  /** @minimum 1 */
+  expectedPrice?: number;
 }

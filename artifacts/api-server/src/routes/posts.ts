@@ -1,7 +1,8 @@
+import { PREMIUM_GIFT_CATALOG } from "../lib/giftCatalog";
 import { canViewPosts } from "../lib/privacy";
 import { Router } from "express";
-import { and, desc, eq, lt, count, or } from "drizzle-orm";
-import { db, postsTable, usersTable, postReportsTable, postReactionsTable, postCommentsTable } from "@workspace/db";
+import { and, desc, eq, lt, count, or, sql } from "drizzle-orm";
+import { db, postsTable, usersTable, postReportsTable, postReactionsTable, postCommentsTable, coinBalancesTable, coinTransactionsTable } from "@workspace/db";
 import { contactBlocked } from "../lib/userSafety";
 import {
   createPrivateGetUrl,
@@ -62,8 +63,11 @@ router.get("/posts/:postId/activity", async (req, res) => {
   const post = await accessiblePost(req, res, user?.uid); if (!post) return;
   const [likes] = await db.select({ count: count() }).from(postReactionsTable).where(and(eq(postReactionsTable.postId, post.id), eq(postReactionsTable.kind, "like")));
   const [comments] = await db.select({ count: count() }).from(postCommentsTable).where(eq(postCommentsTable.postId, post.id));
+  const [gifts] = await db.select({ total: sql<string>`coalesce(sum(${coinTransactionsTable.amount}), 0)` }).from(coinTransactionsTable)
+    .where(and(eq(coinTransactionsTable.type, "gift"), eq(coinTransactionsTable.toUserId, post.ownerUserId),
+      eq(coinTransactionsTable.description, `Post ${post.id} gift`), sql`${coinTransactionsTable.idempotencyKey} like 'post-gift:%'`));
   const mine = user ? await db.select().from(postReactionsTable).where(and(eq(postReactionsTable.postId, post.id), eq(postReactionsTable.userId, user.uid))) : [];
-  res.set("Cache-Control", "no-store").json({ likeCount: likes.count, commentCount: comments.count, liked: mine.some(r => r.kind === "like"), saved: mine.some(r => r.kind === "save") });
+  res.set("Cache-Control", "no-store").json({ likeCount: likes.count, commentCount: comments.count, giftCoins: Number(gifts.total), liked: mine.some(r => r.kind === "like"), saved: mine.some(r => r.kind === "save") });
 });
 
 router.put("/posts/:postId/activity", async (req, res) => {
@@ -81,17 +85,64 @@ router.put("/posts/:postId/activity", async (req, res) => {
   res.json({ success: true });
 });
 
+// The ledger and comment commit together; deleting a notice never refunds a gift.
+router.post("/posts/:postId/gifts", async (req, res) => {
+  const user = await requireUser(req, res); if (!user) return;
+  const { giftId, requestId } = req.body ?? {};
+  if (typeof giftId !== "string" || !Object.hasOwn(PREMIUM_GIFT_CATALOG, giftId) ||
+      typeof requestId !== "string" || !/^[a-zA-Z0-9-]{16,80}$/.test(requestId)) {
+    return void res.status(400).json({ error: "Invalid gift request" });
+  }
+  const gift = PREMIUM_GIFT_CATALOG[giftId as keyof typeof PREMIUM_GIFT_CATALOG];
+  const post = await accessiblePost(req, res, user.uid); if (!post) return;
+  if (post.ownerUserId === user.uid) return void res.status(400).json({ error: "You cannot gift your own post" });
+  const key = `post-gift:${user.uid}:${requestId}`;
+  const description = `Post ${post.id} gift`;
+  const result = await db.transaction(async tx => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${key}))`);
+    if (!(await tx.select().from(postsTable).where(eq(postsTable.id, post.id)).for("share"))[0]) return { status: 404, error: "Photo is no longer available" };
+    const [existing] = await tx.select().from(coinTransactionsTable).where(eq(coinTransactionsTable.idempotencyKey, key));
+    if (existing) {
+      if (existing.fromUserId !== user.uid || existing.toUserId !== post.ownerUserId || existing.description !== description || existing.giftName !== gift.name || existing.amount !== gift.coinCost || existing.type !== "gift")
+        return { status: 409, error: "Gift request has already been used" };
+      const [wallet] = await tx.select().from(coinBalancesTable).where(eq(coinBalancesTable.userId, user.uid));
+      return { status: 200, balance: wallet?.balance ?? 0 };
+    }
+    // Consistent wallet lock ordering also handles simultaneous reciprocal gifts.
+    for (const uid of [user.uid, post.ownerUserId].sort((a, b) => a - b)) {
+      await tx.insert(coinBalancesTable).values({ userId: uid, balance: 0 }).onConflictDoNothing();
+      await tx.select().from(coinBalancesTable).where(eq(coinBalancesTable.userId, uid)).for("update");
+    }
+    const [debited] = await tx.update(coinBalancesTable)
+      .set({ balance: sql`${coinBalancesTable.balance} - ${gift.coinCost}`, updatedAt: new Date() })
+      .where(and(eq(coinBalancesTable.userId, user.uid), sql`${coinBalancesTable.balance} >= ${gift.coinCost}`)).returning();
+    if (!debited) return { status: 402, error: "Insufficient coins" };
+    await tx.update(coinBalancesTable).set({ balance: sql`${coinBalancesTable.balance} + ${gift.coinCost}`, updatedAt: new Date() }).where(eq(coinBalancesTable.userId, post.ownerUserId));
+    await tx.insert(coinTransactionsTable).values({ fromUserId: user.uid, toUserId: post.ownerUserId, amount: gift.coinCost, type: "gift", giftName: gift.name, description, idempotencyKey: key, balanceAfter: debited.balance });
+    await tx.insert(postCommentsTable).values({ postId: post.id, userId: user.uid, requestId: key,
+      text: `🪙 ${gift.coinCost} coins · ${gift.name}` });
+    return { status: 200, balance: debited.balance };
+  });
+  res.status(result.status).json(result.error ? { error: result.error } : { balance: result.balance });
+});
+
 router.get("/posts/:postId/comments", async (req, res) => {
   const user = await currentUser(req);
   const post = await accessiblePost(req, res, user?.uid); if (!post) return;
   if (req.query.before !== undefined && !validId(req.query.before)) return void res.status(400).json({ error: "Invalid cursor" });
-  const rows = await db.select({ id: postCommentsTable.id, uid: postCommentsTable.userId, name: usersTable.name, text: postCommentsTable.text, createdAt: postCommentsTable.createdAt })
+  const rows = await db.select({ id: postCommentsTable.id, uid: postCommentsTable.userId, name: usersTable.name, text: postCommentsTable.text, requestId: postCommentsTable.requestId, createdAt: postCommentsTable.createdAt })
     .from(postCommentsTable).innerJoin(usersTable, eq(usersTable.uid, postCommentsTable.userId))
     .where(and(eq(postCommentsTable.postId, post.id), req.query.before ? lt(postCommentsTable.id, Number(req.query.before)) : undefined))
     .orderBy(desc(postCommentsTable.id)).limit(31);
   const page = rows.slice(0, 30);
   const comments = [];
-  for (const row of page) if (!user || !await contactBlocked(user.uid, row.uid)) comments.push(row);
+  for (const { requestId, ...row } of page) {
+    if (user && await contactBlocked(user.uid, row.uid)) continue;
+    // Older gift notices repeated the author already displayed above the comment.
+    // Only normalize server-created gift records; ordinary comment text is untouched.
+    if (requestId.startsWith(`post-gift:${row.uid}:`)) row.text = row.text.replace(/^.* sent (?=🪙 \d+ coins · )/s, "");
+    comments.push(row);
+  }
   res.set("Cache-Control", "no-store").json({ comments, nextCursor: rows.length > 30 ? page[page.length - 1].id : null });
 });
 

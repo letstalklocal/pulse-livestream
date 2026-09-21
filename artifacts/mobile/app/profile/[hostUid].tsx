@@ -1,3 +1,4 @@
+import { PostGiftTotal } from "@/components/PostGiftTotal";
 import { usePurchases } from "@/context/PurchasesContext";
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { AccountSafetyMenu } from "@/components/AccountSafetyMenu";
@@ -372,6 +373,7 @@ export default function PublicProfileScreen() {
 
                   <View style={styles.feedMedia}>
                     <Image source={{ uri: post.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="contain" />
+                    <PostGiftTotal postId={post.id} />
                   </View>
 
                   <PostFooter postId={post.id} ownerUid={post.ownerUserId} caption={post.caption} />

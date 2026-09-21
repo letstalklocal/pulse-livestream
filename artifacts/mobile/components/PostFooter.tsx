@@ -1,3 +1,5 @@
+import * as Crypto from "expo-crypto";
+import { GiftPicker, type Gift } from "./GiftPicker";
 import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import React, { useRef, useState } from "react";
 import { Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -7,7 +9,7 @@ import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getPostActivity, setPostReaction } from "@workspace/api-client-react";
+import { sendPostGift, getGetCoinBalanceQueryKey, useGetCoinBalance, getPostActivity, setPostReaction } from "@workspace/api-client-react";
 import { PostCommentsSheet } from "./PostCommentsSheet";
 
 export function PostFooter({ postId, ownerUid, caption }: {
@@ -23,6 +25,11 @@ export function PostFooter({ postId, ownerUid, caption }: {
   const [showComments, setShowComments] = useState(false);
   const { user } = useAuth();
   const router = useRouter();
+  const [showGifts, setShowGifts] = useState(false);
+  const [sendingGift, setSendingGift] = useState(false);
+  const giftBusy = useRef(false);
+  const giftRequest = useRef<{ giftId: string; id: string } | null>(null);
+  const wallet = useGetCoinBalance({ uid: user?.uid ?? 0 }, { query: { queryKey: getGetCoinBalanceQueryKey({ uid: user?.uid ?? 0 }), enabled: !!user } });
   const client = useQueryClient();
   const busy = useRef(false);
   const key = ["post-activity", postId, user?.uid];
@@ -45,6 +52,24 @@ export function PostFooter({ postId, ownerUid, caption }: {
     } catch (error) { Alert.alert(t("Post action failed"), error instanceof Error ? error.message : t("Please try again.")); }
     finally { busy.current = false; }
   };
+  const sendGift = async (gift: Gift) => {
+    if (!user || giftBusy.current) return;
+    giftBusy.current = true;
+    setSendingGift(true);
+    if (giftRequest.current?.giftId !== gift.id) giftRequest.current = { giftId: gift.id, id: Crypto.randomUUID() };
+    try {
+      const data = await sendPostGift(postId, { giftId: gift.id as Parameters<typeof sendPostGift>[1]["giftId"], requestId: giftRequest.current.id });
+      giftRequest.current = null;
+      client.setQueryData(getGetCoinBalanceQueryKey({ uid: user.uid }), { balance: data.balance });
+      setShowGifts(false);
+      setShowComments(true);
+      void client.invalidateQueries({ queryKey: ["post-comments", postId] });
+      void client.invalidateQueries({ queryKey: ["post-activity", postId] });
+    } catch (error) {
+      Alert.alert(t("Post action failed"), error instanceof Error ? error.message : t("Please try again."));
+      void wallet.refetch();
+    } finally { giftBusy.current = false; setSendingGift(false); }
+  };
   return <>
     <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
       <View style={styles.actions}>
@@ -56,6 +81,11 @@ export function PostFooter({ postId, ownerUid, caption }: {
           <Ionicons name="chatbubble-outline" size={24} color={colors.foreground} />
         </TouchableOpacity>
         <Text style={[styles.count, { color: colors.foreground }]}>{activity.data && activity.data.commentCount > 0 ? activity.data.commentCount >= 1000 ? `${(activity.data.commentCount / 1000).toFixed(1)}k` : activity.data.commentCount : ""}</Text>
+        {user?.uid !== ownerUid ? <TouchableOpacity style={styles.iconButton} accessibilityRole="button" accessibilityLabel={t("Send a Gift")} disabled={sendingGift} onPress={() => {
+          if (!user) { router.push("/(auth)/sign-in"); return; }
+          void wallet.refetch();
+          setShowGifts(true);
+        }}><Ionicons name="gift-outline" size={25} color={colors.foreground} /></TouchableOpacity> : null}
         <View style={styles.spacer} />
         <TouchableOpacity style={styles.iconButton} accessibilityRole="button" accessibilityLabel={saved ? t("Unsave post") : t("Save post")} accessibilityState={{ selected: saved, disabled: reaction.isPending }} disabled={reaction.isPending} onPress={() => void react("save")}>
           <Ionicons name={saved ? "bookmark" : "bookmark-outline"} size={25} color={colors.foreground} />
@@ -69,6 +99,7 @@ export function PostFooter({ postId, ownerUid, caption }: {
         </TouchableOpacity> : null}
       </View>
     </View>
+    {showGifts ? <GiftPicker visible onClose={() => { if (!giftBusy.current) setShowGifts(false); }} onSend={gift => void sendGift(gift)} coins={wallet.data?.balance ?? 0} hintText={sendingGift ? "Sending…" : "Send a Gift"} /> : null}
     {showComments ? <PostCommentsSheet postId={postId} ownerUid={ownerUid} onClose={() => setShowComments(false)} /> : null}
     <Modal visible={expanded} transparent animationType="slide" onRequestClose={() => setExpanded(false)}>
       <View style={styles.backdrop}>

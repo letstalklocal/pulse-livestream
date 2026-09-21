@@ -217,6 +217,11 @@ export const ListStreamsResponse = zod.object({
  * Register a new live stream session
  * @summary Start a new live stream
  */
+
+export const createStreamBodyStickersMax = 2;
+
+
+
 export const CreateStreamBody = zod.object({
   "channelId": zod.string(),
   "hostUid": zod.number(),
@@ -224,6 +229,11 @@ export const CreateStreamBody = zod.object({
   "hostAvatarUrl": zod.string().nullish(),
   "title": zod.string(),
   "category": zod.string(),
+  "stickers": zod.array(zod.object({
+  "kind": zod.enum(['gift', 'pack']),
+  "giftId": zod.enum(['rose', 'heart', 'party', 'diamond', 'rocket', 'crown']),
+  "packId": zod.number().min(1).optional()
+})).max(createStreamBodyStickersMax).optional(),
   "requiredGiftId": zod.union([zod.literal('rose'),zod.literal('heart'),zod.literal('party'),zod.literal('diamond'),zod.literal('rocket'),zod.literal('crown'),zod.literal(null)]).nullish()
 })
 
@@ -456,7 +466,8 @@ export const GetUserResponse = zod.object({
 
 
 /**
- * @summary Create or update user profile
+ * Requires the authenticated owner. Updates an existing profile only; new accounts must complete birthday and terms onboarding through account sync.
+ * @summary Update the signed-in user profile
  */
 export const UpsertUserParams = zod.object({
   "uid": zod.coerce.number()
@@ -880,6 +891,7 @@ export const GetMediaPacksResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "price": zod.number(),
+  "giftId": zod.string(),
   "itemCount": zod.number(),
   "ownerUserId": zod.string(),
   "unlocked": zod.boolean(),
@@ -901,14 +913,13 @@ export const GetMediaPacksResponse = zod.object({
 
 export const createMediaPackBodyNameMax = 80;
 
-
 export const createMediaPackBodyItemsMax = 20;
 
 
 
 export const CreateMediaPackBody = zod.object({
   "name": zod.string().max(createMediaPackBodyNameMax),
-  "price": zod.number().min(1),
+  "giftId": zod.enum(['rose', 'heart', 'party', 'diamond', 'rocket', 'crown']),
   "items": zod.array(zod.object({
   "objectPath": zod.string(),
   "mediaType": zod.enum(['image', 'video']),
@@ -929,6 +940,55 @@ export const GetMediaPackResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "price": zod.number(),
+  "giftId": zod.string(),
+  "itemCount": zod.number(),
+  "ownerUserId": zod.string(),
+  "unlocked": zod.boolean(),
+  "isOwner": zod.boolean(),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "position": zod.number(),
+  "mediaType": zod.enum(['image', 'video']),
+  "contentType": zod.string(),
+  "width": zod.number().nullish(),
+  "height": zod.number().nullish(),
+  "durationMs": zod.number().nullish(),
+  "mediaUrl": zod.string().optional(),
+  "previewUrl": zod.string().optional()
+}))
+})
+})
+
+
+export const UpdateMediaPackParams = zod.object({
+  "packId": zod.coerce.number()
+})
+
+
+export const updateMediaPackBodyItemsMax = 20;
+
+
+
+export const UpdateMediaPackBody = zod.object({
+  "giftId": zod.enum(['rose', 'heart', 'party', 'diamond', 'rocket', 'crown']),
+  "items": zod.array(zod.union([zod.object({
+  "id": zod.string().min(1)
+}),zod.object({
+  "objectPath": zod.string(),
+  "mediaType": zod.enum(['image', 'video']),
+  "contentType": zod.string(),
+  "width": zod.number(),
+  "height": zod.number(),
+  "durationMs": zod.number().nullish()
+})])).min(1).max(updateMediaPackBodyItemsMax)
+})
+
+export const UpdateMediaPackResponse = zod.object({
+  "pack": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "price": zod.number(),
+  "giftId": zod.string(),
   "itemCount": zod.number(),
   "ownerUserId": zod.string(),
   "unlocked": zod.boolean(),
@@ -971,8 +1031,12 @@ export const UnlockMediaPackParams = zod.object({
   "packId": zod.coerce.number()
 })
 
+
+
+
 export const UnlockMediaPackBody = zod.object({
-  "idempotencyKey": zod.string()
+  "idempotencyKey": zod.string(),
+  "expectedPrice": zod.number().min(1).optional()
 })
 
 export const UnlockMediaPackResponse = zod.object({
@@ -1299,9 +1363,14 @@ export const GetPostActivityParams = zod.object({
   "postId": zod.coerce.number()
 })
 
+export const getPostActivityResponseGiftCoinsMin = 0;
+
+
+
 export const GetPostActivityResponse = zod.object({
   "likeCount": zod.number(),
   "commentCount": zod.number(),
+  "giftCoins": zod.number().min(getPostActivityResponseGiftCoinsMin).describe('Total gift coins credited to this post'),
   "liked": zod.boolean(),
   "saved": zod.boolean()
 })
@@ -1318,6 +1387,30 @@ export const SetPostReactionBody = zod.object({
 
 export const SetPostReactionResponse = zod.object({
   "success": zod.boolean()
+})
+
+
+/**
+ * Send a catalog gift to the post owner and atomically save its comment notice. Retries with the same request ID cannot charge twice.
+ */
+export const SendPostGiftParams = zod.object({
+  "postId": zod.coerce.number()
+})
+
+export const sendPostGiftBodyRequestIdMin = 16;
+export const sendPostGiftBodyRequestIdMax = 80;
+
+
+export const sendPostGiftBodyRequestIdRegExp = new RegExp('^[a-zA-Z0-9-]{16,80}$');
+
+
+export const SendPostGiftBody = zod.object({
+  "giftId": zod.enum(['rose', 'heart', 'party', 'diamond', 'rocket', 'crown']),
+  "requestId": zod.string().min(sendPostGiftBodyRequestIdMin).max(sendPostGiftBodyRequestIdMax).regex(sendPostGiftBodyRequestIdRegExp)
+})
+
+export const SendPostGiftResponse = zod.object({
+  "balance": zod.number()
 })
 
 

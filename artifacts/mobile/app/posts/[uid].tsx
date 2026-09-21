@@ -1,3 +1,4 @@
+import { PostGiftTotal } from "@/components/PostGiftTotal";
 import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Image, Text, TouchableOpacity, View } from "react-native";
@@ -46,6 +47,7 @@ function PhotoGallery({ posts, initialIndex, onIndexChange }: { posts: Photo[]; 
         }}
         renderItem={({ item }) => <View style={{ width: size.width, height: size.height }}>
           <Image source={{ uri: item.imageUrl }} resizeMode="contain" style={{ flex: 1, width: "100%" }} onLoad={() => setLoaded(current => current.has(item.id) ? current : new Set([...current, item.id]))} />
+          <PostGiftTotal postId={item.id} />
         </View>} /> : null}
     </View>
     {posts[visibleIndex] ? <PostFooter key={posts[visibleIndex].id} postId={posts[visibleIndex].id} ownerUid={posts[visibleIndex].ownerUserId} caption={posts[visibleIndex].caption} /> : null}

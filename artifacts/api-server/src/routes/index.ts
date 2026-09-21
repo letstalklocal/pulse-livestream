@@ -1,3 +1,4 @@
+import liveStickersRouter from "./live-stickers";
 import creatorVideosRouter from "./creator-videos";
 import reactionPreferencesRouter from "./reaction-preferences";
 import purchasesRouter from "./purchases";
@@ -46,6 +47,7 @@ router.use(translationRouter);
 router.use(moderationRouter);
 router.use(agoraRouter);
 router.use(streamsRouter);
+router.use(liveStickersRouter);
 router.use(chatRouter);
 router.use(directMessagesRouter);
 router.use(userSearchRouter);

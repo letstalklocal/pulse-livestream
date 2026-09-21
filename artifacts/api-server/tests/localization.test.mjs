@@ -48,6 +48,18 @@ try {
  const signatures=(file,source)=>{
   const a=ts.createSourceFile(file,source,99,true,4),result=[];
   function walk(n){
+   // Selected gift now sets the price; the old manual price input was explicitly removed.
+   if(file.endsWith('/app/media-packs.tsx')&&ts.isJsxSelfClosingElement(n)&&n.tagName.getText(a)==='TextInput'&&n.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='value'&&p.initializer?.getText(a)==='{price}'))return;
+   // Approved media-pack edit entry and locked name/price; save behavior has focused tests.
+   if(file.endsWith('/app/media-packs.tsx')&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&p.initializer?.getText(a).includes('pack-edit-')))return;
+   if(file.endsWith('/app/media-packs.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='editable')return;
+   // Approved gift selection is additive to pack creation; focused tests verify its saved value.
+   if(file.endsWith('/app/media-packs.tsx')&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&p.initializer?.text==='pack-gift-options'))return;
+   // Preview and summary need distinct sibling keys while retaining user/video remounting.
+   if(file.endsWith('/components/CreatorVideoSheet.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='key'&&['VideoManagementPreview','VideoManagementSummary'].includes(n.parent.parent.tagName?.getText(a)))return;
+   // Pack messages now share the corrected gallery used by live stickers; keep comparing the message card and checkout.
+   if(file.endsWith('/components/MediaPackMessage.tsx')&&ts.isJsxElement(n)&&n.openingElement.tagName.getText(a)==='Modal'&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='visible'&&p.initializer?.getText(a)==='{gallery}'))return;
+   if(file.endsWith('/components/MediaPackMessage.tsx')&&ts.isJsxSelfClosingElement(n)&&n.tagName.getText(a)==='MediaPackGallery')return;
    // Direct live-menu actions intentionally lose their decorative navigation chevrons.
    if(file.endsWith('/app/go-live.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='chevron-forward')return;
    // Both battle segments remain mounted for the approved smooth retreat.
@@ -57,7 +69,7 @@ try {
    // Approved score marker is additive; its real/test mapping is checked in party-window tests.
    if(file.endsWith('/components/PartyStage.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='testID'&&['battle-score-marker','battle-score-mine','battle-score-peer','battle-score-tip','battle-score-flow','battle-countdown','battle-result','battle-winner-avatar','battle-score-tie'].includes(n.initializer?.text))return;
    // User-approved additive live reactions; existing stream controls remain compared.
-   if((file.endsWith('/stream/[channelId].tsx')||file.endsWith('/app/go-live.tsx'))&&ts.isJsxSelfClosingElement(n)&&['LiveReactions','ReactionFavoritesChooser'].includes(n.tagName.getText(a)))return;
+   if((file.endsWith('/stream/[channelId].tsx')||file.endsWith('/app/go-live.tsx'))&&ts.isJsxSelfClosingElement(n)&&['LiveReactions','ReactionFavoritesChooser','LiveStickerSetup','LiveStickerOverlay'].includes(n.tagName.getText(a)))return;
    // The user approved this additional confirmation control; signup-flow tests cover its behavior.
    if(file.endsWith('/(auth)/sign-up.tsx')&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&p.initializer?.text==='confirm-password-field'))return;
    // Approved two-step signup remounts the scroller to reset its position; form state stays in the screen.
@@ -87,6 +99,8 @@ try {
    if(file.endsWith('/(auth)/_layout.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='sign-up-email')return;
    // Approved coin-card redesign replaces the decorative ellipse with gold SVG artwork.
    if(file.endsWith('/components/CoinStoreContent.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='ellipse')return;
+   // Requested post gifting adds this action; payment behavior has dedicated post-gifts tests.
+   if(file.endsWith('/components/PostFooter.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='gift-outline')return;
    // Approved move of the existing Refresh action to the coin-store header icon.
    if(file.endsWith('/components/CoinStoreContent.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='refresh')return;
    // Approved viewer menu reorder moves Report above Share; these decorative icon names may move.
@@ -108,6 +122,8 @@ try {
   // Approved replacement by the unified sheet is covered by live-viewers-sheet.test.cjs,
   // including search, moderation actions and preventing cached host-roster disclosure.
   if(['artifacts/mobile/components/ViewerManagementSheet.tsx','artifacts/mobile/components/GiftLeaderboard.tsx'].includes(path))continue;
+  // Approved 5:7 DM pack redesign is covered by media-pack-message.test.cjs, including locked assets and displayed-price checkout.
+  if(path==='artifacts/mobile/components/MediaPackMessage.tsx')continue;
   const before=execFileSync('git',['show',`HEAD:${path}`],{cwd:root,encoding:'utf8'});
   // Both signup routes now exist in HEAD; compare each screen against its own baseline.
   const currentPath=path;

@@ -1,9 +1,11 @@
+import { assertStickerAccess, StickerError } from "../lib/liveStickers";
+import { PREMIUM_GIFT_CATALOG } from "../lib/giftCatalog";
 import { requireContactAllowed } from "../lib/userSafety";
 import { lockParty, scorePartyGift, findParty, partyStreams } from "../lib/liveParty";
 import { Router } from "express";
 import { getAuth } from "@clerk/express";
 import { eq, sql, and, inArray } from "drizzle-orm";
-import { db, coinBalancesTable, coinTransactionsTable, usersTable } from "@workspace/db";
+import { db, coinBalancesTable, coinTransactionsTable, liveStreamSessionsTable, usersTable } from "@workspace/db";
 import * as wsHub from "../lib/wsHub";
 import { requireChannelAccess } from "../lib/privateChannelAccess";
 
@@ -146,6 +148,15 @@ router.post("/coins/spend", async (req, res) => {
       // requests arrive before either one inserts its ledger row.
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${idempotencyKey}))`);
 
+      if (req.body.stickerId !== undefined) {
+        if (typeof req.body.stickerId !== "string" || !channelId) throw new StickerError(400, "Invalid live sticker");
+        const [session] = await tx.select().from(liveStreamSessionsTable).where(eq(liveStreamSessionsTable.channelId, channelId)).for("update");
+        await assertStickerAccess(session, { uid, clerkId });
+        const sticker = session?.stickers.find(s => s.id === req.body.stickerId && s.kind === "gift");
+        const gift = sticker && PREMIUM_GIFT_CATALOG[sticker.giftId as keyof typeof PREMIUM_GIFT_CATALOG];
+        if (!gift || session.hostUserId !== recipientUid || uid === recipientUid || amount !== gift.coinCost || giftName !== gift.name) throw new StickerError(409, "Sticker unavailable or changed");
+      }
+
       const existing = await tx
         .select()
         .from(coinTransactionsTable)
@@ -222,6 +233,7 @@ router.post("/coins/spend", async (req, res) => {
       return { balance: updated[0].balance, duplicate: false };
     });
   } catch (error) {
+    if (error instanceof StickerError) { res.status(error.status).json({ error: error.message }); return; }
     if (error instanceof IdempotencyConflictError) {
       res.status(409).json({ error: "This idempotency key was already used for a different gift." });
       return;

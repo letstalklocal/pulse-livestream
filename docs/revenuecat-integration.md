@@ -1,5 +1,11 @@
 # RevenueCat integration for Pulse
 
+## Production coin readiness blocker — September 21, 2026
+
+User reports coin packs still unavailable in TestFlight. Read-only/unauthenticated production probes: `/api/healthz` returned 200; `/api/purchases/coin-products` correctly returned 401 without a user token; an empty unauthenticated POST to `/api/purchases/revenuecat/webhook` returned 503 with `Purchases are not configured`. This route checks configuration before authentication, so the response establishes missing/short `REVENUECAT_WEBHOOK_AUTH` or empty `REVENUECAT_APP_IDS` (cannot distinguish which from this response). The same configuration disables coin checkout. No valid event was submitted and no account was modified.
+
+Current local session has SANDBOX environment but lacks both webhook authorization and app allowlist; that alone does not prove which production secret is missing. Correct Replit production secrets: `REVENUECAT_APP_IDS` must include Apple app `app1937357464` (preserve other authorized app IDs), and `REVENUECAT_WEBHOOK_AUTH` must exactly match RevenueCat's configured Authorization value and meet the existing minimum length. Keep `REVENUECAT_ENVIRONMENT=SANDBOX`. Republish backend; an unauthenticated empty webhook request should then return 401 rather than configuration 503. Then verify authenticated catalog/delivery. No new native build is needed to resolve this configuration blocker; installed build number and whether products/prices display were requested separately.
+
 ## Temporary production-hosted sandbox coins — September 20, 2026
 
 User authorized the one-file backend change for coin testing, confirmed no paid customers, and requested an exact rollback record. In `artifacts/api-server/src/routes/purchases.ts`, `coinProductConfiguration()` now permits `SANDBOX` when running on production: removed only `process.env.NODE_ENV !== 'production' &&` from `enabled`. Server authorization, app allowlist, catalog, transaction ownership, duplicate protection and environment checks remain. `PRODUCTION` purchase fulfillment remains disabled even if the environment setting is changed to PRODUCTION. No production deployment performed here. Publish the server before device coin testing.

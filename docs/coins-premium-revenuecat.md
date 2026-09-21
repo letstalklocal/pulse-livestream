@@ -123,3 +123,9 @@ Live Viewers auto-close requirement: close the list after 10 seconds without int
 ## Pulse VIP coin purchases and gifting — September 19, 2026
 
 Approved: buy VIP for yourself or gift it to streamers using wallet coins, with a **Gift VIP** profile badge/action and additive paid time (two one-month gifts add two months). VIP purchases pay Pulse and must not credit streamer coins/earnings or enter ordinary gift scoring. Coin purchases do not auto-renew. Reuse existing coin packs instead of adding separate cash gift products. Confirmed VIP prices for self-purchases and gifts: **2,000 coins/month of access**, **15,000 coins/year of access**, and **20,000 coins/lifetime**; all are one-time coin charges. See [approved decisions, implementation plan, and verification requirements](pulse-vip.md). This is recorded scope, not implemented functionality.
+
+## Live sticker purchases — September 21, 2026
+
+User approved attributing a live sticker's pack purchase to that live's earnings and Top Gifters. The original pack ledger entry carries the durable channel ID; the buyer pays once and the creator is credited once. Existing ownership/View pack and separate DM purchases never add live credit. Gift stickers reuse normal gifting. Premium entry, timed requests, coin-store billing and RevenueCat remain separate. See [implementation and regression cases](live-stickers.md).
+
+Media packs now use the selected gift’s catalog coin price for creation and edits. The sticker shows that price, and current live/DM purchases reject a changed price before charging. Existing purchases and historical amounts remain unchanged. See [pack editing and gift-based pricing](live-stickers.md).

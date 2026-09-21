@@ -10,6 +10,7 @@ export const liveStreamSessionsTable = pgTable("live_stream_sessions", {
   hostAvatarUrl: text("host_avatar_url"),
   hostBackgroundImagePath: text("host_background_image_path"),
   title: text("title").notNull(),
+  stickers: jsonb("stickers").$type<Array<{ id: string; kind: "gift" | "pack"; giftId: string; packId?: number }>>().notNull().default([]),
   category: text("category").notNull(),
   rtcChannelName: text("rtc_channel_name"),
   premiumFreeViewerIds: jsonb("premium_free_viewer_ids").$type<number[]>().notNull().default([]),

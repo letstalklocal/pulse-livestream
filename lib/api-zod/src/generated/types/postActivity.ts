@@ -9,6 +9,11 @@
 export interface PostActivity {
   likeCount: number;
   commentCount: number;
+  /**
+     * Total gift coins credited to this post
+     * @minimum 0
+     */
+  giftCoins: number;
   liked: boolean;
   saved: boolean;
 }

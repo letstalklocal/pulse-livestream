@@ -1,0 +1,1 @@
+ALTER TABLE media_packs ADD COLUMN IF NOT EXISTS gift_id text NOT NULL DEFAULT 'rose';

@@ -233,3 +233,39 @@ User requested restoring the original DM route configuration to investigate an i
 User reported the private-message header stays “User” with a missing avatar when opened from recorded video, even as messages arrive. The video entry now passes the expected peerName parameter. The DM header and empty-conversation identity use the shared profile cache for the latest name/photo, the route name immediately while loading, and the conversation name as a fallback. Profile/conversation completion updates identity independently of history and chat-permission/presence loading. Preserve the 40-point header, online dot/last-seen privacy, established-chat access, composer/keyboard behavior and message loading.
 
 Automated mobile types, header update/recipient isolation tests, recorded-video navigation tests, chat-status regression and localization passed. Native Android/iPhone identity/keyboard/navigation checks remain pending; message-history loading speed has not been diagnosed or claimed fixed. See replay-and-live-recording-ideas.md for the separate recorded player lifecycle repair and remaining device checks.
+
+## Live sticker pack purchase receipts — September 21, 2026
+
+User approved buying a pack directly from a live sticker and delivering it **unlocked** in the creator's DM conversation using the same pack purchase code. This buyer-requested receipt is part of the purchase transaction and requires no additional Rose; existing account blocks still apply. Ordinary text/media/pack sends keep their current chat activation checks. A previously delivered pack message is reused; retries do not duplicate delivery or payment. Existing conversation-history rules apply after the receipt. See [live sticker requirements and test cases](live-stickers.md).
+
+Media-pack creation now requires saved sticker artwork; existing packs default to Rose. This does not change DM pack prices, delivery, ownership, chat activation or composer behavior. See the latest saved-gift requirement in [live stickers](live-stickers.md).
+
+## Gifts on profile posts — September 21, 2026
+
+User requested a gift icon on profile posts and a comment showing the gifter, coins and gift name, as in live streams. Other people's posts now have a gift action beside the existing like/comment controls, both in the profile feed and the opened photo view. It opens the existing gift drawer and wallet purchase content. Own posts do not offer self-gifting; signed-out senders go to sign-in.
+
+A successful gift credits the post owner and saves a comment in the same database transaction, using the server's sender identity and gift catalog. Latest user correction: the comment body is **🪙 500 coins · Crown**, without the repeated name or “sent”; the existing author line already identifies the gifter. Previously saved gift notices use the same shortened display. The notice persists through reload and counts as a comment. The drawer closes and comments open after success. Existing comment moderation applies; removing the notice does not refund or repeat the payment. Post gifts do not send a DM or pay live admission/request requirements.
+
+`POST /api/posts/:postId/gifts` takes `giftId` and `requestId`. It enforces authentication, post visibility/blocking, no self-gifting and sufficient funds. Request IDs are scoped to the sender and checked against the post/gift; concurrent retries cannot duplicate the transfer or notice. The client guards rapid taps and retains the request ID on failure for retry. No database migration is required; the existing ledger records the post in its description and the existing comments table stores the notice.
+
+Automated verification: API/mobile/library typechecks, API build, post-gift database integration tests (including forced notice-write failure rolling back both balances and ledger), existing post-activity tests, client rapid-tap/retry/cache tests, all ten localization catalogs and stream regression suite pass. The development API was rebuilt/restarted preserving its environment. HTTP checks confirm authentication is required on the gift endpoint and the running comments endpoint serves the committed gift notice. Authenticated transfers were tested through route handlers against the development database using temporary accounts; this is not an authenticated phone test.
+
+Android/iPhone device verification remains pending, with installed build numbers unknown: gift icon in profile feed/opened photo, drawer and coin-purchase return, successful send-to-comments transition, sender/amount/name with long names, reload and comment count, insufficient balance, rapid taps/retry, and comment scrolling/composer/keyboard dismissal. No native build or production deployment was started. Existing DM and live chat behavior remains unchanged.
+
+Media-pack editing preserves the pack identity and existing buyers’ access. The selected gift now determines its price; the separate price field is removed. Current DM/live checkout verifies the displayed price before a new charge. See [latest pack editing and pricing requirements](live-stickers.md).
+
+### Post gift totals — September 21, 2026
+
+User requested the total in the top-right corner of the post. Profile feed photos (own and other profiles) and opened/saved photo views now show a small translucent badge with the existing gold coin artwork and localized total. Show zero when no gifts have arrived; do not display a made-up zero while activity is loading. The badge is touch-through and leaves photo controls unchanged. Grid thumbnails remain compact.
+
+The activity endpoint returns `giftCoins`, summed from completed post-gift ledger entries for that post/owner. This is the cumulative amount credited, not the owner's current wallet balance or the number of gifts/comments. Deleting a notice cannot change the total. The badge shares the existing post-activity query, so a successful gift refreshes it along with comment activity. Existing gifts are included without a migration.
+
+Automated checks cover zero totals, isolation between posts, duplicate/failed payments and retention after comment deletion, plus API/mobile/library typechecks and localization. Android/iPhone visual verification remains pending for top-right placement, photo contrast, large totals/text sizes, swiping between posts and refreshing after gifting.
+
+## Portrait media-pack cards in DMs
+
+User explicitly selected DM pack cards for a 5:7 format: title first, then photo/video counts with icons, followed by media. Unlocked/owner media previews swipe horizontally with one bounded page at a time; tapping opens the previously confirmed full-screen shared gallery. Locked packs show only the blurred authorized preview, lock overlay and existing purchase action. Retain the displayed-price confirmation, existing ownership and in-card read double-check. Card width adapts to screen size, with a 280-point maximum. No automatic slideshow or changes to live stickers/pack-selection cards.
+
+Automated coverage tests title/count order, 5:7 sizing, page offsets on multiple screen widths, locked-preview privacy, gallery opening, checkout amount and read state. Stream regressions and localization pass. Android/iPhone visual sizing, horizontal swiping versus chat scrolling/reply gestures, large text and keyboard cases remain pending; no device/build identity was supplied.
+
+Latest size correction: DM pack cards use 60% of screen width (up to the existing 280-point cap), retaining 5:7 proportions and the approved title/counts/swipe layout. User confirmed liking the card design before this width reduction; device confirmation of the reduced width is pending.

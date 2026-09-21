@@ -24,14 +24,9 @@ import { PRIVATE_HEARTBEAT_TTL_MS } from "../lib/privateChannelAccess";
 
 const router = Router();
 
-export const PREMIUM_GIFT_CATALOG = {
-  rose: { id: "rose", name: "Rose", emoji: "🌹", coinCost: 1 },
-  heart: { id: "heart", name: "Heart", emoji: "❤️", coinCost: 5 },
-  party: { id: "party", name: "Party", emoji: "🎉", coinCost: 10 },
-  diamond: { id: "diamond", name: "Diamond", emoji: "💎", coinCost: 50 },
-  rocket: { id: "rocket", name: "Rocket", emoji: "🚀", coinCost: 100 },
-  crown: { id: "crown", name: "Crown", emoji: "👑", coinCost: 500 },
-} as const;
+import { PREMIUM_GIFT_CATALOG } from "../lib/giftCatalog";
+export { PREMIUM_GIFT_CATALOG } from "../lib/giftCatalog";
+import { validateStickers, StickerError } from "../lib/liveStickers";
 
 export type PremiumGift = (typeof PREMIUM_GIFT_CATALOG)[keyof typeof PREMIUM_GIFT_CATALOG];
 
@@ -336,6 +331,10 @@ router.post("/streams", async (req, res) => {
     return;
   }
 
+  let stickers;
+  try { stickers = await validateStickers(req.body?.stickers, hostUid); }
+  catch (error) { if (error instanceof StickerError) { res.status(error.status).json({ error: error.message }); return; } throw error; }
+
   const requiredGift = requiredGiftId ? PREMIUM_GIFT_CATALOG[requiredGiftId] : null;
   if (requiredGiftId && !requiredGift) {
     res.status(400).json({ error: "Invalid Premium gift" });
@@ -369,6 +368,7 @@ router.post("/streams", async (req, res) => {
     return tx.insert(liveStreamSessionsTable).values({
     channelId,
     hostUserId: hostUid,
+    stickers,
     hostName,
     hostAvatarUrl: hostAvatarUrl ?? null,
     hostBackgroundImagePath: host.streamBackgroundImagePath,

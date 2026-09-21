@@ -1,3 +1,4 @@
+import { LiveStickerOverlay } from "@/components/LiveStickerOverlay";
 import { DemoVideo } from "@/components/DemoVideo";
 import { useLivePlayback } from "@/context/LivePlaybackContext";
 import { ReactionFavoritesChooser } from "@/components/ReactionFavoritesChooser";
@@ -760,6 +761,7 @@ export default function StreamScreen() {
         accessibilityElementsHidden={overlaysHidden}
         importantForAccessibility={overlaysHidden ? "no-hide-descendants" : "auto"}
       >
+        <LiveStickerOverlay channelId={channelId} enabled={viewerFocused && canEnterStream && !streamEnded && !playback.minimized && !isTransitioning} visible={!keyboardVisible && !overlaysHidden} top={topPad + 94} />
         {/* Top bar */}
         <View style={styles.topBar} pointerEvents="auto">
           <View style={styles.hostControls}>

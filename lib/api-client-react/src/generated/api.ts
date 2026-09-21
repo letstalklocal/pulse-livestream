@@ -79,6 +79,7 @@ import type {
   SendChatMessageRequest,
   SendMediaDmRequest,
   SendMediaPackRequest,
+  SendPostGiftBody,
   SetPostReactionBody,
   SetUserBlock200,
   SetUserBlockBody,
@@ -95,6 +96,7 @@ import type {
   UnlockMediaDmRequest,
   UnlockMediaDmResponse,
   UnlockMediaPackRequest,
+  UpdateMediaPackRequest,
   UpdateStreamPresenceBody,
   UpsertUserRequest,
   UserResponse,
@@ -1632,7 +1634,8 @@ export const getUpsertUserUrl = (uid: number,) => {
 }
 
 /**
- * @summary Create or update user profile
+ * Requires the authenticated owner. Updates an existing profile only; new accounts must complete birthday and terms onboarding through account sync.
+ * @summary Update the signed-in user profile
  */
 export const upsertUser = async (uid: number,
     upsertUserRequest: UpsertUserRequest, options?: RequestInit): Promise<UserResponse> => {
@@ -1650,7 +1653,7 @@ export const upsertUser = async (uid: number,
 
 
 
-export const getUpsertUserMutationOptions = <TError = ErrorType<unknown>,
+export const getUpsertUserMutationOptions = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertUser>>, TError,{uid: number;data: BodyType<UpsertUserRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof upsertUser>>, TError,{uid: number;data: BodyType<UpsertUserRequest>}, TContext> => {
 
@@ -1679,12 +1682,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type UpsertUserMutationResult = NonNullable<Awaited<ReturnType<typeof upsertUser>>>
     export type UpsertUserMutationBody = BodyType<UpsertUserRequest>
-    export type UpsertUserMutationError = ErrorType<unknown>
+    export type UpsertUserMutationError = ErrorType<void>
 
     /**
- * @summary Create or update user profile
+ * @summary Update the signed-in user profile
  */
-export const useUpsertUser = <TError = ErrorType<unknown>,
+export const useUpsertUser = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertUser>>, TError,{uid: number;data: BodyType<UpsertUserRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof upsertUser>>,
@@ -3735,6 +3738,72 @@ export function useGetMediaPack<TData = Awaited<ReturnType<typeof getMediaPack>>
 
 
 
+export const getUpdateMediaPackUrl = (packId: number,) => {
+
+
+
+
+  return `/api/media-packs/${packId}`
+}
+
+export const updateMediaPack = async (packId: number,
+    updateMediaPackRequest: UpdateMediaPackRequest, options?: RequestInit): Promise<MediaPackResponse> => {
+
+  return customFetch<MediaPackResponse>(getUpdateMediaPackUrl(packId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateMediaPackRequest,)
+  }
+);}
+
+
+
+
+export const getUpdateMediaPackMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMediaPack>>, TError,{packId: number;data: BodyType<UpdateMediaPackRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMediaPack>>, TError,{packId: number;data: BodyType<UpdateMediaPackRequest>}, TContext> => {
+
+const mutationKey = ['updateMediaPack'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMediaPack>>, {packId: number;data: BodyType<UpdateMediaPackRequest>}> = (props) => {
+          const {packId,data} = props ?? {};
+
+          return  updateMediaPack(packId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMediaPackMutationResult = NonNullable<Awaited<ReturnType<typeof updateMediaPack>>>
+    export type UpdateMediaPackMutationBody = BodyType<UpdateMediaPackRequest>
+    export type UpdateMediaPackMutationError = ErrorType<void>
+
+    export const useUpdateMediaPack = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMediaPack>>, TError,{packId: number;data: BodyType<UpdateMediaPackRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMediaPack>>,
+        TError,
+        {packId: number;data: BodyType<UpdateMediaPackRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateMediaPackMutationOptions(options));
+    }
+
 export const getDeleteMediaPackUrl = (packId: number,) => {
 
 
@@ -5231,6 +5300,75 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getSetPostReactionMutationOptions(options));
+    }
+
+export const getSendPostGiftUrl = (postId: number,) => {
+
+
+
+
+  return `/api/posts/${postId}/gifts`
+}
+
+/**
+ * Send a catalog gift to the post owner and atomically save its comment notice. Retries with the same request ID cannot charge twice.
+ */
+export const sendPostGift = async (postId: number,
+    sendPostGiftBody: SendPostGiftBody, options?: RequestInit): Promise<CoinBalanceResponse> => {
+
+  return customFetch<CoinBalanceResponse>(getSendPostGiftUrl(postId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      sendPostGiftBody,)
+  }
+);}
+
+
+
+
+export const getSendPostGiftMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendPostGift>>, TError,{postId: number;data: BodyType<SendPostGiftBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendPostGift>>, TError,{postId: number;data: BodyType<SendPostGiftBody>}, TContext> => {
+
+const mutationKey = ['sendPostGift'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendPostGift>>, {postId: number;data: BodyType<SendPostGiftBody>}> = (props) => {
+          const {postId,data} = props ?? {};
+
+          return  sendPostGift(postId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendPostGiftMutationResult = NonNullable<Awaited<ReturnType<typeof sendPostGift>>>
+    export type SendPostGiftMutationBody = BodyType<SendPostGiftBody>
+    export type SendPostGiftMutationError = ErrorType<void>
+
+    export const useSendPostGift = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendPostGift>>, TError,{postId: number;data: BodyType<SendPostGiftBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendPostGift>>,
+        TError,
+        {postId: number;data: BodyType<SendPostGiftBody>},
+        TContext
+      > => {
+      return useMutation(getSendPostGiftMutationOptions(options));
     }
 
 export const getGetPostCommentsUrl = (postId: number,

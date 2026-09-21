@@ -5,13 +5,13 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CreateMediaPackRequestGiftId } from './createMediaPackRequestGiftId';
 import type { MediaPackItemInput } from './mediaPackItemInput';
 
 export interface CreateMediaPackRequest {
   /** @maxLength 80 */
   name: string;
-  /** @minimum 1 */
-  price: number;
+  giftId: CreateMediaPackRequestGiftId;
   /**
      * @minItems 1
      * @maxItems 20

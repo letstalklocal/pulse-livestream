@@ -25,6 +25,8 @@ function fixture(clerkId, senderUid) {
   const module = { exports: {} };
   new Function("require", "module", "exports", code)((id) => {
     if (id === "@workspace/db") return dbModule;
+    if (id === "../lib/liveStickers") return { StickerError: class extends Error {} };
+    if (id === "../lib/giftCatalog") return {};
     if (id === "../lib/wsHub") return {};
     if (id === "../lib/liveParty") return {};
     if (id === "../lib/userSafety") return { requireContactAllowed: async () => true };

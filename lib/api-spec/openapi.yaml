@@ -1015,6 +1015,11 @@ paths:
       operationId: getMediaPack
       tags: [media-packs]
       responses: { "200": { description: Pack, content: { application/json: { schema: { $ref: "#/components/schemas/MediaPackResponse" } } } } }
+    put:
+      operationId: updateMediaPack
+      tags: [media-packs]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/UpdateMediaPackRequest" } } } }
+      responses: { "200": { description: Updated pack, content: { application/json: { schema: { $ref: "#/components/schemas/MediaPackResponse" } } } }, "400": { description: Invalid pack }, "404": { description: Pack not found }, "409": { description: Pack items changed } }
     delete:
       operationId: deleteMediaPack
       tags: [media-packs]
@@ -1249,6 +1254,38 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SuccessResponse" }
+  /posts/{postId}/gifts:
+    parameters:
+      - { name: postId, in: path, required: true, schema: { type: integer } }
+    post:
+      operationId: sendPostGift
+      description: Send a catalog gift to the post owner and atomically save its comment notice. Retries with the same request ID cannot charge twice.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [giftId, requestId]
+              properties:
+                giftId: { type: string, enum: [rose, heart, party, diamond, rocket, crown] }
+                requestId: { type: string, minLength: 16, maxLength: 80, pattern: "^[a-zA-Z0-9-]{16,80}$" }
+      responses:
+        "200":
+          description: Gift sent, or already sent with this request ID
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoinBalanceResponse" }
+        "400":
+          description: Invalid gift or own post
+        "401":
+          description: Authentication required
+        "402":
+          description: Insufficient coins
+        "404":
+          description: Post missing or unavailable to this sender
+        "409":
+          description: Request ID already used for another gift or post
   /posts/{postId}/comments:
     parameters:
       - { name: postId, in: path, required: true, schema: { type: integer } }
@@ -1302,7 +1339,7 @@ components:
     AdminSession: {"type": "object", "required": ["role", "environment"], "properties": {"role": {"type": "string", "enum": ["owner"]}, "environment": {"type": "string"}}}
     AdminUserList: {"type": "object", "required": ["users", "nextCursor", "asOf", "environment"], "properties": {"users": {"type": "array", "items": {"$ref": "#/components/schemas/AdminUser"}}, "nextCursor": {"type": "string", "nullable": true}, "asOf": {"type": "string", "format": "date-time"}, "environment": {"type": "string"}}}
     AdminAuthConfig: {"type": "object", "required": ["publishableKey", "frontendApi"], "properties": {"publishableKey": {"type": "string"}, "frontendApi": {"type": "string", "format": "uri"}}}
-    PostActivity: { type: object, required: [likeCount, commentCount, liked, saved], properties: { likeCount: { type: integer }, commentCount: { type: integer }, liked: { type: boolean }, saved: { type: boolean } } }
+    PostActivity: { type: object, required: [likeCount, commentCount, giftCoins, liked, saved], properties: { likeCount: { type: integer }, commentCount: { type: integer }, giftCoins: { type: integer, minimum: 0, description: Total gift coins credited to this post }, liked: { type: boolean }, saved: { type: boolean } } }
     PostComment: { type: object, required: [id, uid, name, text, createdAt], properties: { id: { type: integer }, uid: { type: integer }, name: { type: string }, text: { type: string }, createdAt: { type: string, format: date-time } } }
     PostComments: { type: object, required: [comments, nextCursor], properties: { comments: { type: array, items: { $ref: "#/components/schemas/PostComment" } }, nextCursor: { type: integer, nullable: true } } }
     PartyParticipant: {"type":"object","required":["channelId","rtcChannelName","uid","name","avatarUrl"],"properties":{"channelId":{"type":"string"},"rtcChannelName":{"type":"string"},"uid":{"type":"integer"},"name":{"type":"string"},"avatarUrl":{"type":"string","nullable":true}}}
@@ -1500,6 +1537,16 @@ components:
           type: string
         category:
           type: string
+        stickers:
+          type: array
+          maxItems: 2
+          items:
+            type: object
+            required: [kind, giftId]
+            properties:
+              kind: { type: string, enum: [gift, pack] }
+              giftId: { type: string, enum: [rose, heart, party, diamond, rocket, crown] }
+              packId: { type: integer, minimum: 1 }
         requiredGiftId:
           type: ["string", "null"]
           enum: [rose, heart, party, diamond, rocket, crown, null]
@@ -1914,16 +1961,31 @@ components:
       required: [objectPath, mediaType, contentType, width, height]
     CreateMediaPackRequest:
       type: object
-      properties: { name: { type: string, maxLength: 80 }, price: { type: integer, minimum: 1 }, items: { type: array, minItems: 1, maxItems: 20, items: { $ref: "#/components/schemas/MediaPackItemInput" } } }
-      required: [name, price, items]
+      properties: { name: { type: string, maxLength: 80 }, giftId: { type: string, enum: [rose, heart, party, diamond, rocket, crown] }, items: { type: array, minItems: 1, maxItems: 20, items: { $ref: "#/components/schemas/MediaPackItemInput" } } }
+      required: [name, giftId, items]
+    UpdateMediaPackRequest:
+      type: object
+      properties:
+        giftId: { type: string, enum: [rose, heart, party, diamond, rocket, crown] }
+        items:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            oneOf:
+              - type: object
+                properties: { id: { type: string, minLength: 1 } }
+                required: [id]
+              - $ref: "#/components/schemas/MediaPackItemInput"
+      required: [giftId, items]
     MediaPackItem:
       type: object
       properties: { id: { type: string }, position: { type: integer }, mediaType: { type: string, enum: [image, video] }, contentType: { type: string }, width: { type: integer, nullable: true }, height: { type: integer, nullable: true }, durationMs: { type: integer, nullable: true }, mediaUrl: { type: string }, previewUrl: { type: string } }
       required: [id, position, mediaType, contentType]
     MediaPack:
       type: object
-      properties: { id: { type: string }, name: { type: string }, price: { type: integer }, itemCount: { type: integer }, ownerUserId: { type: string }, unlocked: { type: boolean }, isOwner: { type: boolean }, items: { type: array, items: { $ref: "#/components/schemas/MediaPackItem" } } }
-      required: [id, name, price, itemCount, ownerUserId, unlocked, isOwner, items]
+      properties: { id: { type: string }, name: { type: string }, price: { type: integer }, giftId: { type: string }, itemCount: { type: integer }, ownerUserId: { type: string }, unlocked: { type: boolean }, isOwner: { type: boolean }, items: { type: array, items: { $ref: "#/components/schemas/MediaPackItem" } } }
+      required: [id, name, price, giftId, itemCount, ownerUserId, unlocked, isOwner, items]
     MediaPackResponse:
       type: object
       properties: { pack: { $ref: "#/components/schemas/MediaPack" } }
@@ -1938,7 +2000,7 @@ components:
       required: [recipientId, idempotencyKey]
     UnlockMediaPackRequest:
       type: object
-      properties: { idempotencyKey: { type: string } }
+      properties: { idempotencyKey: { type: string }, expectedPrice: { type: integer, minimum: 1 } }
       required: [idempotencyKey]
     MediaPackMessageResponse:
       type: object
