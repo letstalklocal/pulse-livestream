@@ -357,6 +357,9 @@ export interface Stream {
   channelId: string;
   /** Protected media channel; logical stream and chat ID remain unchanged. */
   rtcChannelName?: string;
+  allowIncognito?: boolean;
+  viewerIncognito?: boolean;
+  viewerIncognitoChosen?: boolean;
   viewerMuted?: boolean;
   viewerRemoved?: boolean;
   viewerBlocked?: boolean;
@@ -433,11 +436,13 @@ export interface CreateStreamRequest {
   category: string;
   /** @maxItems 2 */
   stickers?: CreateStreamRequestStickersItem[];
+  allowIncognito?: boolean;
   /** @nullable */
   requiredGiftId?: CreateStreamRequestRequiredGiftId;
 }
 
 export interface StreamAdmissionRequest {
+  enterIncognito?: boolean;
   /**
      * @minLength 1
      * @maxLength 100
@@ -581,6 +586,7 @@ export interface SendChatMessageRequest {
 }
 
 export interface LeaderboardEntry {
+  isIncognito?: boolean;
   rank: number;
   uid: number;
   name: string;
@@ -884,6 +890,7 @@ export type GetStreamModeration200UsersItem = {
   name: string;
   /** @nullable */
   avatarImageUrl?: string | null;
+  isIncognito?: boolean;
   present: boolean;
   muted: boolean;
   removed: boolean;
@@ -931,6 +938,7 @@ export type ReportStreamBody = {
 
 export type ConvertStreamToPremiumBody = {
   requiredGiftId: string;
+  allowIncognito?: boolean;
   /** @maxItems 500 */
   freeViewerIds: number[];
 };

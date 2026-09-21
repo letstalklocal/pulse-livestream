@@ -1,3 +1,4 @@
+import { pushPrivateGift } from "./incognito";
 import { removeAgoraViewers } from "./agoraViewerRemoval";
 import { viewerModeration } from "./streamModeration";
 import { randomUUID } from "node:crypto";
@@ -380,7 +381,7 @@ export async function payPremiumGiftRequest(
         )[0]?.total ?? 0,
       );
       wsHub.pushEarnings(channelId, total);
-      wsHub.pushGift(channelId, payment.request.giftName, viewerName, total, {
+      await pushPrivateGift(channelId, payment.request.giftName, viewerName, total, {
         giftId: idempotencyKey,
         amount: payment.request.coinCost,
         senderUid: viewerUid,

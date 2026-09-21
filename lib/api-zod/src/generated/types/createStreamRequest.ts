@@ -17,6 +17,7 @@ export interface CreateStreamRequest {
   category: string;
   /** @maxItems 2 */
   stickers?: CreateStreamRequestStickersItem[];
+  allowIncognito?: boolean;
   /** @nullable */
   requiredGiftId?: CreateStreamRequestRequiredGiftId;
 }

@@ -195,6 +195,7 @@ export default function GoLiveScreen() {
   useEffect(() => { setStickers([]); }, [user?.uid]);
   const [title, setTitle] = useState("Join My Live");
   const [category, setCategory] = useState("Gaming");
+  const [allowIncognito, setAllowIncognito] = useState(true);
   const [isPremium, setIsPremium] = useState(false);
   const [requiredGiftId, setRequiredGiftId] = useState<CreateStreamRequestRequiredGiftId>(null);
   const [draftRequiredGiftId, setDraftRequiredGiftId] = useState<CreateStreamRequestRequiredGiftId>(null);
@@ -417,7 +418,7 @@ export default function GoLiveScreen() {
     })();
   }, [liveStreamData, isLive, activeChannelId, user?.uid, isMuted, mediaRetry]);
 
-  const convertLiveToPremium = async (giftId: string, freeViewerIds: number[]) => {
+  const convertLiveToPremium = async (giftId: string, freeViewerIds: number[], allowIncognito: boolean) => {
     const channelId = channelIdRef.current;
     const engine = engineRef.current;
     // Pause before committing access changes, including when the HTTP response is lost.
@@ -427,7 +428,7 @@ export default function GoLiveScreen() {
       if (result < 0) throw new Error("Could not pause the broadcast. Please try again.");
     }
     try {
-      const result = await convertStreamToPremium(channelId, { requiredGiftId: giftId, freeViewerIds });
+      const result = await convertStreamToPremium(channelId, { requiredGiftId: giftId, freeViewerIds, allowIncognito });
       if (!isLiveRef.current || isStoppingRef.current || channelIdRef.current !== channelId) return;
       queryClient.setQueryData(getGetStreamQueryKey(channelId), result);
       setRequiredGiftId(giftId as CreateStreamRequestRequiredGiftId);
@@ -785,6 +786,7 @@ export default function GoLiveScreen() {
           title: title.trim(),
           category,
           requiredGiftId: confirmedGiftId,
+          allowIncognito,
           stickers: stickers as NonNullable<Parameters<typeof createStream.mutateAsync>[0]["data"]["stickers"]>,
         },
       });
@@ -840,7 +842,7 @@ export default function GoLiveScreen() {
       if (startingRequestRef.current === startupRequest) startingRequestRef.current = null;
       if (!startupRequest.signal.aborted) setIsStarting(false);
     }
-  }, [stickers, title, category, user, generateToken, createStream, cameraReady, invitationAction, isPrivateInvite, invitationChannelId, privateInvitationId, requiredGiftId, getToken, t, isPremium]);
+  }, [allowIncognito, stickers, title, category, user, generateToken, createStream, cameraReady, invitationAction, isPrivateInvite, invitationChannelId, privateInvitationId, requiredGiftId, getToken, t, isPremium]);
 
   const saveStreamBackground = useCallback(async (asset: { uri: string; mimeType?: string | null }) => {
     if (!user || isUploadingBackground) return;
@@ -1779,6 +1781,7 @@ export default function GoLiveScreen() {
                 );
               })}
             </ScrollView>
+            <TouchableOpacity disabled={isStarting} style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12 }} accessibilityRole="checkbox" accessibilityState={{ checked: allowIncognito }} onPress={() => setAllowIncognito(value => !value)}><Ionicons name={allowIncognito ? "checkbox" : "square-outline"} size={24} color="#FF1966" /><Text style={[localizedTextStyle(), styles.giftSheetGiftName]}>{t("Allow incognito")}</Text></TouchableOpacity>
             <TouchableOpacity
               testID="go-premium-submit"
               style={[

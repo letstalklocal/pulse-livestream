@@ -9,7 +9,7 @@ export function mergeLiveViewers(viewers: GetStreamModeration200UsersItem[], gif
     const viewer = people.get(gift.uid);
     people.set(gift.uid, {
       uid: gift.uid, name: gift.name, present: false, muted: false, removed: false, blocked: false,
-      ...viewer, coins: gift.coins, rank: gift.rank,
+      ...viewer, isIncognito: gift.isIncognito || viewer?.isIncognito, coins: gift.coins, rank: gift.rank,
     });
   }
   return [...people.values()].sort((a, b) => b.coins - a.coins || a.name.localeCompare(b.name) || a.uid - b.uid);

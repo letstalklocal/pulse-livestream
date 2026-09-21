@@ -1,11 +1,12 @@
+import { pushPrivateGift } from "../lib/incognito";
 import { assertStickerAccess, StickerError } from "../lib/liveStickers";
 import { PREMIUM_GIFT_CATALOG } from "../lib/giftCatalog";
 import { requireContactAllowed } from "../lib/userSafety";
-import { lockParty, scorePartyGift, findParty, partyStreams } from "../lib/liveParty";
+import { lockParty, scorePartyGift, findParty, partyStreams, partyChannels } from "../lib/liveParty";
 import { Router } from "express";
 import { getAuth } from "@clerk/express";
 import { eq, sql, and, inArray } from "drizzle-orm";
-import { db, coinBalancesTable, coinTransactionsTable, liveStreamSessionsTable, usersTable } from "@workspace/db";
+import { db, coinBalancesTable, coinTransactionsTable, liveStreamSessionsTable, premiumIdentitiesTable, usersTable } from "@workspace/db";
 import * as wsHub from "../lib/wsHub";
 import { requireChannelAccess } from "../lib/privateChannelAccess";
 
@@ -46,7 +47,7 @@ router.get("/streams/:channelId/leaderboard", async (req, res) => {
     )
     .groupBy(coinTransactionsTable.fromUserId)
     .orderBy(sql`sum(${coinTransactionsTable.amount}) desc`)
-    .limit(10);
+    ;
 
   // Fetch names for all uids in one query
   const uids = rows.map((r) => r.uid).filter((u): u is number => u !== null);
@@ -56,14 +57,20 @@ router.get("/streams/:channelId/leaderboard", async (req, res) => {
     : [];
   const nameMap = new Map(userRows.map((u) => [u.uid, u.name]));
 
-  const entries = rows
-    .filter((r) => r.uid !== null)
-    .map((r, i) => ({
-      rank: i + 1,
-      uid: r.uid as number,
-      name: nameMap.get(r.uid as number) ?? "Viewer",
-      coins: Number(r.coins),
-    }));
+  const identityChannels = await partyChannels(channelId);
+  const identities = await db.select({ uid: premiumIdentitiesTable.viewerUserId }).from(premiumIdentitiesTable)
+    .innerJoin(liveStreamSessionsTable, eq(liveStreamSessionsTable.id, premiumIdentitiesTable.sessionId))
+    .where(and(inArray(liveStreamSessionsTable.channelId, identityChannels), eq(premiumIdentitiesTable.incognito, true)));
+  const anonymous = new Set(identities.map(identity => identity.uid));
+  const grouped = new Map<number, { uid: number; name: string; coins: number; isIncognito: boolean }>();
+  for (const row of rows) {
+    if (row.uid === null) continue;
+    const identity = { uid: row.uid, name: nameMap.get(row.uid) ?? "Viewer", isIncognito: anonymous.has(row.uid) };
+    const uid = identity.isIncognito ? 0 : identity.uid;
+    const prior = grouped.get(uid);
+    grouped.set(uid, { uid, name: identity.isIncognito ? "Incognito" : identity.name, coins: (prior?.coins ?? 0) + Number(row.coins), isIncognito: identity.isIncognito });
+  }
+  const entries = [...grouped.values()].sort((a,b) => b.coins-a.coins).slice(0,10).map((entry,i) => ({ ...entry, rank:i+1 }));
 
   res.json({ entries });
 });
@@ -268,10 +275,10 @@ router.post("/coins/spend", async (req, res) => {
       const recipient = participants.find(s => s?.hostUserId === effectiveRecipientUid);
       const displaySender = recipient ? `${senderName ?? "Viewer"} to ${recipient.hostName}` : senderName ?? "Viewer";
       const giftDetails = { giftId: idempotencyKey, amount, senderUid: uid, recipientUid: effectiveRecipientUid };
-      wsHub.pushGift(channelId, giftName ?? "", displaySender, total, giftDetails);
+      await pushPrivateGift(channelId, giftName ?? "", displaySender, total, giftDetails);
       if (party) {
         const other = party.firstChannelId === channelId ? party.secondChannelId : party.firstChannelId;
-        wsHub.pushPartyGift(other, giftName ?? "", displaySender, giftDetails);
+        await pushPrivateGift(other, giftName ?? "", displaySender, total, giftDetails, true);
       }
     } catch (error) {
       // The transfer is already committed. A notification failure must not

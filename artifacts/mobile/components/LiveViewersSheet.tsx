@@ -65,12 +65,12 @@ export function LiveViewersSheet({ channelId, onClose, onProfile, canManage = fa
         </View>
         {selected ? <>
           <View style={{ alignItems: "center", marginVertical: 12 }}>
-            <TouchableOpacity accessibilityRole="button" accessibilityLabel={t("View profile")} disabled={mutation.isPending} onPress={() => {
-              if (mutation.isPending) return;
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel={t("View profile")} disabled={mutation.isPending || selected.isIncognito} onPress={() => {
+              if (mutation.isPending || selected.isIncognito) return;
               onClose();
               onProfile(selected.uid, selected.name);
             }}>
-              <Avatar uid={selected.uid} name={selected.name} avatarUri={selected.avatarImageUrl ?? undefined} size={60} />
+              <Avatar uid={selected.isIncognito ? -1 : selected.uid} name={selected.name} avatarUri={selected.avatarImageUrl ?? undefined} size={60} />
             </TouchableOpacity>
             <Text style={[styles.text, { marginTop: 8 }]}>{selected.name}</Text>
           </View>
@@ -85,14 +85,15 @@ export function LiveViewersSheet({ channelId, onClose, onProfile, canManage = fa
           {canManage && leaderboard.isError ? <TouchableOpacity onPress={() => void leaderboard.refetch()}><Text style={styles.secondary}>{t("Couldn't load gift totals. Tap to retry.")}</Text></TouchableOpacity> : null}
           <ScrollView style={{ minHeight: 120 }} keyboardShouldPersistTaps="handled" onScroll={resetAutoClose} scrollEventThrottle={100}>
             {listQuery.isLoading ? <ActivityIndicator color="#FF1966" /> : listQuery.isError ? <TouchableOpacity onPress={() => void listQuery.refetch()}><Text style={[localizedTextStyle(), styles.secondary]}>{t("Couldn't load viewers. Tap to retry.")}</Text></TouchableOpacity> : people.map(person => <TouchableOpacity key={person.uid} style={styles.person} onPress={() => {
+                if (person.uid === 0 && person.isIncognito) return;
                 if (canManage) { Keyboard.dismiss(); setError(null); setSelectedUid(person.uid); }
-                else { onClose(); onProfile(person.uid, person.name); }
+                else if (!person.isIncognito && person.uid > 0) { onClose(); onProfile(person.uid, person.name); }
               }} accessibilityLabel={canManage ? t("Manage {v0}", { v0: person.name }) : person.name}>
               {person.rank ? <Text style={styles.medal}>{person.rank <= 3 ? ["🥇", "🥈", "🥉"][person.rank - 1] : person.rank}</Text> : null}
-              <Avatar uid={person.uid} name={person.name} avatarUri={person.avatarImageUrl ?? undefined} size={40} />
+              <Avatar uid={person.isIncognito ? -1 : person.uid} name={person.name} avatarUri={person.avatarImageUrl ?? undefined} size={40} />
               <View style={{ flex: 1 }}><Text style={styles.text} numberOfLines={1}>{person.name}</Text>{canManage ? <Text style={[localizedTextStyle(), styles.secondary]}>{[person.muted && "Chat muted", person.removed && "Removed", person.blocked && "Blocked"].filter(Boolean).join(" · ") || t(person.present ? "Watching" : "Not watching")}</Text> : null}</View>
               {person.coins > 0 ? <View style={styles.coinTotal}><GoldCoinIcon size={14} /><Text style={styles.text}>{person.coins.toLocaleString(appLocale())}</Text></View> : null}
-              <Ionicons name="chevron-forward" color="#888" size={18} />
+              {(!person.isIncognito || (canManage && person.uid < 0)) ? <Ionicons name="chevron-forward" color="#888" size={18} /> : null}
             </TouchableOpacity>)}
             {!listQuery.isLoading && !listQuery.isError && !people.length ? <Text style={[localizedTextStyle(), [styles.secondary, { paddingVertical: 24 }]]}>{search ? t("No matching viewers") : !canManage ? t("No gifts sent yet") : tab === "viewers" ? t("No viewers right now") : t("No restricted viewers")}</Text> : null}
           </ScrollView>

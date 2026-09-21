@@ -1,4 +1,5 @@
 import React from "react";
+import { Ionicons } from "@expo/vector-icons";
 import { Image, StyleSheet, Text, View } from "react-native";
 
 const AVATAR_COLORS = ["#FF1966", "#7B4FFF", "#00C896", "#FF8C00", "#4FC3F7"];
@@ -36,7 +37,7 @@ export function Avatar({ uid, name, avatarUri, size = 40, borderWidth = 0, borde
         },
       ]}
     >
-      {avatarUri ? (
+      {uid < 0 ? <Ionicons name="person" size={size * 0.5} color="#BBB" /> : avatarUri ? (
         <Image
           source={{ uri: avatarUri }}
           style={[styles.image, { borderRadius: radius }]}

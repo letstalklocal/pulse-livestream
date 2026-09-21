@@ -125,6 +125,14 @@ try {
    // Approved prototype sticker controls, compact replacement action and processing bar.
    if(file.endsWith('/app/video-prototype.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='value'&&n.initializer?.getText(a)==='{stickers}')return;
    if(file.endsWith('/components/CreatorVideoSheet.tsx')&&ts.isJsxAttribute(n)&&((n.name.getText(a)==='name'&&n.initializer?.text==='swap-horizontal-outline')||(n.name.getText(a)==='testID'&&n.initializer?.text==='creator-video-progress-bar')))return;
+   // Approved anonymous avatar uses a generic person icon instead of identifying initials.
+   if(file.endsWith('/components/Avatar.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='person')return;
+   // Approved Premium entry checkbox is additive; retain all existing admission controls.
+   if(file.endsWith('/stream/[channelId].tsx')&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&p.initializer?.text==='premium-enter-incognito'))return;
+   // Approved Premium host checkbox adds a decorative selection icon.
+   if((file.endsWith('/app/go-live.tsx')||file.endsWith('/components/LivePremiumSheet.tsx'))&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.getText(a)==='{allowIncognito ? "checkbox" : "square-outline"}')return;
+   // Approved VIP invisible-viewing preference adds one switch; all prior controls remain compared.
+   if(file.endsWith('/app/privacy.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='value'&&n.initializer?.getText(a)==='{isPro && privacy.preferences.invisibleViewing}')return;
    if(ts.isJsxAttribute(n)&&stableAttributes.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));
    if(ts.isPropertyAssignment(n)&&stableFields.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));
    ts.forEachChild(n,walk);

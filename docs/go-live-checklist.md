@@ -1,17 +1,51 @@
 # Pulse go-live development checklist
 
-**September 20 purchase-test update:** temporary production-hosted sandbox coin readiness implemented locally in one backend source file; not deployed here. Before paid launch, restore/check both the coin readiness guard and the separate VIP environment override. [Exact coin rollback](revenuecat-integration.md#temporary-production-hosted-sandbox-coins--september-20-2026). Batch remaining app checks in [one purchase-test build](next-purchase-test-build.md); user explicitly requests avoiding one paid build per test.
-
 Created: September 11, 2026  
 Status: Development in progress — no launch date committed
+Last status review: September 21, 2026
 
-Last status review: September 16, 2026
+## Current launch checkpoint — September 21, 2026
 
-**Didit update — September 19, 2026:** user reports live production secrets and live webhook setup completed; Replit publication is in progress at `https://chimbalivestream.replit.app`. Previous endpoint check returned configuration HTTP 503. Post-deployment configuration, signed delivery and live capture checks remain pending. See [production configuration update](didit-verification-setup.md#production-configuration-update--september-19-2026).
+This checkpoint supersedes older status statements below where they conflict. It combines recorded implementation, user device confirmations and provider readback; it is not a fresh production audit or full launch sign-off. Owners, dates and release approval remain unassigned.
 
-**Temporary VIP testing decision — September 20, 2026:** no paid customers yet. Keep TestFlight on the production API and existing account; use a temporary one-file `vipEnvironment()` sandbox override plus production `REVENUECAT_ENVIRONMENT=SANDBOX`. **Helper implemented and tested locally; development API rebuilt/restarted. Production publication, webhook configuration and Apple TestFlight device verification pending.** Before real payments, restore the helper and production webhook environment; see [exact setup and rollback](revenuecat-integration.md#temporary-apple-sandbox-vip-on-production--september-20-2026).
+### Completed or confirmed progress
 
-- [ ] Before enabling real paid VIP: remove the temporary sandbox helper override if applied, set/verify production purchase environment and webhook delivery, and verify production VIP access. Preserve separate coin launch requirements.
+- [x] Apple coin checkout and wallet credit tested: user confirmed a new 1,000-coin purchase credited automatically after the webhook authorization correction. User observed no duplicate 250-credit after the earlier retry; independent production-ledger duplicate verification remains open.
+- [x] Apple monthly VIP purchase unlocked followers/following on the user's device.
+- [x] Apple sandbox provider records confirm cancellation, expiration, resubscription (RENEWAL), then another cancellation. This is provider lifecycle evidence, not independent verification of each production database transition. [Event evidence](revenuecat-integration.md#apple-sandbox-cancellation-and-resubscription-readback--september-21-2026).
+- [x] Android Test Store coin credit and rolling balance/pulse confirmed by the user. Apple sandbox webhooks route to production; Test Store webhooks route to development.
+- [x] Translated birthday/Terms/email-code onboarding and Google/Apple login options implemented; user confirmed account creation and Google login. Broader release-device and Apple-login QA remain open.
+- [x] Apple availability for the app, three VIP products and nine coin packs confirmed by the other session for the agreed 13 countries.
+
+### Remaining launch work
+
+| Area | Work remaining | Tracking |
+|---|---|---|
+| Purchases / RevenueCat | Confirm refund event delivery and refunded VIP access removal; restore and remaining product tests; genuine Google Play billing tests; coin-refund/spent-coin rules and reconciliation; remove temporary sandbox overrides and verify real-payment readiness before paid launch. Restoring the old coin guard alone does not enable live coin fulfillment. | [Purchase integration](revenuecat-integration.md), [combined test build](next-purchase-test-build.md) |
+| Didit | Live secrets/webhook setup reported by user; confirm deployed configuration, provider funding, real selfie/ID fallback/upgrade, signed callbacks and phone return. | [Didit setup](didit-verification-setup.md) |
+| Verification and feed access | Finish backend-enforced Premium/media restrictions, eligible public-live trial and agreed public/mature distribution rules. Finalize unresolved preview/filtering decisions. | A3/A7 below; [feed proposal](stream-filtering-strategy.md) |
+| Sign-in / onboarding | Release-device checks for Google, Apple and email signup/login, account linking, recovery, birthday/Terms and translations. | [Onboarding](onboarding.md) |
+| Payoneer | Confirm Mass Payout program/API access; implement account linking, eligible earnings/reservations, audited admin payouts, status/history and reconciliation; test provider sandbox flow. Business account alone does not establish API access. | [Payoneer withdrawals](payoneer-withdrawals.md) |
+| Admin | Finish operational moderation actions, finance/payout tools, permissions/MFA and production domain/workflow. Existing directory, overview, removal/verification queues and live/report lists are development foundations. | [Admin website](admin-website.md) |
+| Moderation | Capture the user's process requirements; implement review, enforcement, escalation, appeals and audit records; assign staff coverage and exercise the complete process. | A6 below |
+| Website / policies | Finalize Terms/privacy and support/deletion information, choose launch domain and verify release app/store links. Current Replit host remains acceptable during development. | [Public website](public-website.md) |
+| Account deletion | Complete actual deletion/anonymization and provider erasure, with purchase/earnings resolution and confirmation. A request queue alone is insufficient. | B1 below |
+| Release readiness | Store screenshots and reviewer accounts/instructions; production settings, authorization/security, monitoring and backup recovery; integrated iPhone/Android QA and final rollout sign-off. | B2–B4 below |
+
+### Immediate next checks
+
+1. **Refund:** user submitted an Apple sandbox request. At the last provider readback, no refund event was present. Normal sandbox refund requests are automatically approved; no human approval/email is required. Confirm the actual result reaches RevenueCat, the production webhook and Pulse's access state. Do not equate request submission, cancellation or fixture tests with a completed refund. [Apple refund testing](https://developer.apple.com/documentation/storekit/testing-refund-requests).
+2. **Didit:** verify the complete production verification path and funding before marking setup complete.
+3. **Payoneer and moderation/access enforcement:** substantial development remains; collect the required provider access and user moderation decisions before final implementation.
+
+Batch outstanding native checks into the next planned builds; avoid one paid build per test. No build, deployment, environment change or store submission was performed for this documentation update.
+
+### Preserved deferrals and decisions
+
+- Coin-funded VIP self-purchases/gifting, Gift VIP profile action, time stacking, admin VIP grants and the streamer's VIP-buyer list remain deferred.
+- Agora alpha-transparency gift-recording investigation and low-priority iPhone Moments investigation remain deferred.
+- Retain RevenueCat SDK/UI 10.9.1 and native purchase history. Apple already displays pack names; Google Play names remain a future device check. The proposed Test Store label workaround/SDK upgrade was reverted. Preserve the confirmed rolling coin animation.
+- TestFlight continues to use the production API for Apple sandbox testing. Before paid launch, separately review the [VIP override](revenuecat-integration.md#temporary-apple-sandbox-vip-on-production--september-20-2026) and [coin readiness guard](revenuecat-integration.md#temporary-production-hosted-sandbox-coins--september-20-2026), provider environments and test-credit reconciliation.
 
 ## Purpose and tracking
 
@@ -23,13 +57,14 @@ Use [Policy compliance checklist](policy-compliance-checklist.md) for detailed p
 
 | ID | Workstream | Status | Owner | Target | Evidence / sign-off |
 |---|---|---|---|---|---|
-| A1 | In-app purchases (IAP) | Apple coin/VIP catalog and package mappings configured; VIP Apple save/reopen reported; 13-country Apple availability saved/reopened (reported); Test Store verified; Apple device purchases, refund/reconciliation and production fulfillment open | TBD | TBD | [Purchase handoff](coins-premium-revenuecat.md); no production sign-off |
-| A2 | Google sign-in | Clerk browser OAuth built; Google enabled in Replit and user device login confirmed; language-switch investigation and release QA pending | TBD | TBD | [Signup screen](../artifacts/mobile/app/(auth)/sign-up.tsx) |
-| A3 | Age verification | Selfie/ID and onboarding built; live production settings saved per user, publication in progress; post-deployment verification, live capture and access enforcement open | TBD | TBD | [Current Didit checkpoint](didit-workflow-decision-tree.md); no launch sign-off |
+| A1 | In-app purchases (IAP) | Apple coin/VIP catalog and package mappings configured; VIP Apple save/reopen reported; 13-country Apple availability saved/reopened (reported); Test Store verified; Apple coin/monthly VIP device purchases confirmed; refund/restore, Google Play and real-payment readiness open | TBD | TBD | [Purchase handoff](coins-premium-revenuecat.md); no production sign-off |
+| A2 | Google sign-in | Clerk browser OAuth built; Google enabled in Replit and user device login confirmed; Google browser language behavior discussed; release QA pending | TBD | TBD | [Signup screen](../artifacts/mobile/app/(auth)/sign-up.tsx) |
+| A3 | Age verification | Selfie/ID and onboarding built; live production settings saved per user; post-deployment verification, live capture and access enforcement open | TBD | TBD | [Current Didit checkpoint](didit-workflow-decision-tree.md); no launch sign-off |
 | A4 | Admin website | Staff access, user directory/account details, overview, removal history and verification review queue built in development; remaining operational sections, production MFA and domain open | TBD | TBD | [Admin evidence](admin-website.md) |
 | A5 | Policy website and app links | Public pages reachable; privacy and terms unfinished; launch domain and release-link checks open | TBD | TBD | [Public website](public-website.md); HTTP checked September 16 |
 | A6 | Moderation process | Reporting and host moderation controls exist; platform process, review queue, escalation, appeals and coverage remain open | TBD | TBD | [Strategy proposal](stream-filtering-strategy.md); user requirements still needed |
 | A7 | Public feed strategy and verification access | Premium badge/price exists; agreed verification gate and public/mature distribution rules not implemented | TBD | TBD | [Stream card](../artifacts/mobile/components/StreamCard.tsx); [onboarding requirements](onboarding.md) |
+| A8 | Payoneer withdrawals | Provider selected; Mass Payout API access, account linking and admin payout implementation/testing open | TBD | TBD | [Payoneer requirements](payoneer-withdrawals.md) |
 | B1 | Account lifecycle and support | Deletion request flow exists; actual deletion/provider erasure and support operations need completion | TBD | TBD | [Account settings](account-settings.md) |
 | B2 | Security and production operations | Release environment, authorization audit, monitoring, recovery and operational sign-off remain open | TBD | TBD | Requirements below; no production audit completed in this review |
 | B3 | Core app and device QA | Automated checks and selected user device confirmations recorded; integrated release-device checks remain open | TBD | TBD | [TestFlight checks](apple-testflight-fixes.md); [connectivity record](development-connectivity.md) |
@@ -314,7 +349,7 @@ Do not promise dates until owners review scope and dependencies. A6 remains a la
 
 ## Final go-live sign-off
 
-- [ ] A1–A7 completed with evidence and named reviewers.
+- [ ] A1–A8 completed with evidence and named reviewers, or an explicit approved launch-scope deferral recorded.
 - [ ] Proposed B items reviewed and all agreed launch blockers closed; any deferrals have an owner, reason, and target date.
 - [ ] Applicable policy checklist items reviewed and signed off by their responsible owners.
 - [ ] Engineering/QA confirms the exact release build and production environment tested.

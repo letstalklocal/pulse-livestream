@@ -36,9 +36,11 @@ function harness() {
   assert.equal(h.render(), null, 'poster remains while downloading');
   assert.ok(![...h.timers.values()].some(t => t.ms === 5000), 'download time does not consume preview');
   h.resolve(); await Promise.resolve();
+  assert.equal(h.render().props.style[1].opacity, 0, "cached file readiness must not hide the poster before the first decoded frame");
   const player = h.render().props.children[0];
   assert.equal(player.props.muted, true); assert.equal(player.props.keepAwake, false);
   player.props.onFirstFrame(); player.props.onFirstFrame();
+  assert.equal(h.render().props.style[1].opacity, 1, "first frame reveals the preview");
   const previewTimers = [...h.timers.values()].filter(t => t.ms === 5000);
   assert.equal(previewTimers.length, 1, 'looped frame callbacks cannot extend the preview');
   previewTimers[0].fn(); assert.equal(h.render(), null, 'five seconds returns to poster'); h.cleanup();

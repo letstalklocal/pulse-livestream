@@ -13,12 +13,14 @@ const Player = Platform.OS !== 'web' && requireOptionalNativeModule('ExpoVideo')
 function PreviewSession({ url, cacheKey }: { url: string; cacheKey?: string }) {
   const [lease, setLease] = useState<CacheLease | null>(null);
   const [done, setDone] = useState(false);
+  const [frameReady, setFrameReady] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const started = useRef(false);
   const finish = useCallback(() => setDone(true), []);
   const onFirstFrame = useCallback(() => {
     if (started.current) return;
     started.current = true;
+    setFrameReady(true);
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(finish, 5_000);
   }, [finish]);
@@ -45,7 +47,8 @@ function PreviewSession({ url, cacheKey }: { url: string; cacheKey?: string }) {
     };
   }, [url, cacheKey, done, finish]);
   if (done || !lease || !Player) return null;
-  return <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+  // Keep the existing poster visible while the mounted player decodes its first frame.
+  return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: frameReady ? 1 : 0 }]}>
     <Player uri={lease.uri} muted keepAwake={false} contentFit="cover" nativeControls={false}
       onFirstFrame={onFirstFrame} onError={finish} />
   </View>;

@@ -191,6 +191,9 @@ export const ListStreamsResponse = zod.object({
   "streams": zod.array(zod.object({
   "channelId": zod.string(),
   "rtcChannelName": zod.string().optional().describe('Protected media channel; logical stream and chat ID remain unchanged.'),
+  "allowIncognito": zod.boolean().optional(),
+  "viewerIncognito": zod.boolean().optional(),
+  "viewerIncognitoChosen": zod.boolean().optional(),
   "viewerMuted": zod.boolean().optional(),
   "viewerRemoved": zod.boolean().optional(),
   "viewerBlocked": zod.boolean().optional(),
@@ -234,6 +237,7 @@ export const CreateStreamBody = zod.object({
   "giftId": zod.enum(['rose', 'heart', 'party', 'diamond', 'rocket', 'crown']),
   "packId": zod.number().min(1).optional()
 })).max(createStreamBodyStickersMax).optional(),
+  "allowIncognito": zod.boolean().optional(),
   "requiredGiftId": zod.union([zod.literal('rose'),zod.literal('heart'),zod.literal('party'),zod.literal('diamond'),zod.literal('rocket'),zod.literal('crown'),zod.literal(null)]).nullish()
 })
 
@@ -250,6 +254,9 @@ export const GetStreamResponse = zod.object({
   "stream": zod.object({
   "channelId": zod.string(),
   "rtcChannelName": zod.string().optional().describe('Protected media channel; logical stream and chat ID remain unchanged.'),
+  "allowIncognito": zod.boolean().optional(),
+  "viewerIncognito": zod.boolean().optional(),
+  "viewerIncognitoChosen": zod.boolean().optional(),
   "viewerMuted": zod.boolean().optional(),
   "viewerRemoved": zod.boolean().optional(),
   "viewerBlocked": zod.boolean().optional(),
@@ -297,6 +304,7 @@ export const GetStreamModerationResponse = zod.object({
   "uid": zod.number(),
   "name": zod.string(),
   "avatarImageUrl": zod.string().nullish(),
+  "isIncognito": zod.boolean().optional(),
   "present": zod.boolean(),
   "muted": zod.boolean(),
   "removed": zod.boolean(),
@@ -352,6 +360,7 @@ export const convertStreamToPremiumBodyFreeViewerIdsMax = 500;
 
 export const ConvertStreamToPremiumBody = zod.object({
   "requiredGiftId": zod.string(),
+  "allowIncognito": zod.boolean().optional(),
   "freeViewerIds": zod.array(zod.number()).max(convertStreamToPremiumBodyFreeViewerIdsMax)
 })
 
@@ -359,6 +368,9 @@ export const ConvertStreamToPremiumResponse = zod.object({
   "stream": zod.object({
   "channelId": zod.string(),
   "rtcChannelName": zod.string().optional().describe('Protected media channel; logical stream and chat ID remain unchanged.'),
+  "allowIncognito": zod.boolean().optional(),
+  "viewerIncognito": zod.boolean().optional(),
+  "viewerIncognitoChosen": zod.boolean().optional(),
   "viewerMuted": zod.boolean().optional(),
   "viewerRemoved": zod.boolean().optional(),
   "viewerBlocked": zod.boolean().optional(),
@@ -409,6 +421,7 @@ export const admitToStreamBodyIdempotencyKeyMax = 100;
 
 
 export const AdmitToStreamBody = zod.object({
+  "enterIncognito": zod.boolean().optional(),
   "idempotencyKey": zod.string().min(1).max(admitToStreamBodyIdempotencyKeyMax)
 })
 
@@ -632,6 +645,9 @@ export const UpdateViewerCountResponse = zod.object({
   "stream": zod.object({
   "channelId": zod.string(),
   "rtcChannelName": zod.string().optional().describe('Protected media channel; logical stream and chat ID remain unchanged.'),
+  "allowIncognito": zod.boolean().optional(),
+  "viewerIncognito": zod.boolean().optional(),
+  "viewerIncognitoChosen": zod.boolean().optional(),
   "viewerMuted": zod.boolean().optional(),
   "viewerRemoved": zod.boolean().optional(),
   "viewerBlocked": zod.boolean().optional(),
@@ -724,6 +740,7 @@ export const GetStreamLeaderboardParams = zod.object({
 
 export const GetStreamLeaderboardResponse = zod.object({
   "entries": zod.array(zod.object({
+  "isIncognito": zod.boolean().optional(),
   "rank": zod.number(),
   "uid": zod.number(),
   "name": zod.string(),

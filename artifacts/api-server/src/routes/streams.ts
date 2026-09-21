@@ -1,8 +1,10 @@
+import { pushPrivateGift } from "../lib/incognito";
+import { choosePremiumIdentity, premiumIdentity, publicLiveIdentity, visibleLiveViewer, IncognitoError } from "../lib/incognito";
 import { disableVideoBeforeLive } from "./creator-videos";
 import { createPremiumGiftRequest, payPremiumGiftRequest, premiumGiftStatus, settlePremiumGiftRequests, PremiumGiftError } from "../lib/premiumGiftRequests";
 import { contactBlocked } from "../lib/userSafety";
 import { viewerModeration } from "../lib/streamModeration";
-import { closeStreamParty, findParty, partyStreams, expireParties } from "../lib/liveParty";
+import { closeStreamParty, findParty, partyStreams, expireParties, lockParty } from "../lib/liveParty";
 import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
@@ -34,6 +36,7 @@ export interface StreamRecord {
   sessionId?: number;
   rtcChannelName?: string;
   premiumFreeViewerIds?: number[];
+  allowIncognito?: boolean;
   channelId: string;
   hostUid: number;
   hostName: string;
@@ -70,6 +73,7 @@ function sessionToRuntime(session: typeof liveStreamSessionsTable.$inferSelect):
     sessionId: session.id,
     rtcChannelName: session.rtcChannelName ?? session.channelId,
     premiumFreeViewerIds: session.premiumFreeViewerIds ?? [],
+    allowIncognito: session.allowIncognito,
     channelId: session.channelId,
     hostUid: session.hostUserId,
     hostName: session.hostName,
@@ -297,6 +301,7 @@ router.get("/streams", async (_req, res) => {
 });
 
 router.post("/streams", async (req, res) => {
+  if (req.body?.allowIncognito !== undefined && typeof req.body.allowIncognito !== "boolean") return void res.status(400).json({ error: "Invalid incognito setting" });
   const parsed = CreateStreamBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request body" });
@@ -369,6 +374,7 @@ router.post("/streams", async (req, res) => {
     channelId,
     hostUserId: hostUid,
     stickers,
+    allowIncognito: req.body?.allowIncognito !== false,
     hostName,
     hostAvatarUrl: hostAvatarUrl ?? null,
     hostBackgroundImagePath: host.streamBackgroundImagePath,
@@ -390,6 +396,7 @@ router.post("/streams", async (req, res) => {
 
   const stream: StreamRecord = {
     sessionId: session.id,
+    allowIncognito: session.allowIncognito,
     channelId,
     hostUid,
     hostName,
@@ -451,16 +458,19 @@ router.get("/streams/:channelId/viewers", async (req, res) => {
   const ids = activeViewerIds(stream.channelId);
   const rows = ids.length ? await db.select({ uid: usersTable.uid, name: usersTable.name, avatarImagePath: usersTable.avatarImagePath })
     .from(usersTable).where(inArray(usersTable.uid, ids)).orderBy(usersTable.name) : [];
-  res.json({ users: await Promise.all(rows.map(async ({ avatarImagePath, ...person }) => ({
-    ...person, avatarImageUrl: avatarImagePath ? await createPrivateGetUrl(avatarImagePath) : null,
-  }))) });
+  const users = await Promise.all(rows.map(async ({ avatarImagePath, ...person }) => {
+    if (!await visibleLiveViewer(stream.channelId, person.uid)) return null;
+    const identity = await publicLiveIdentity(stream.channelId, person.uid, person.name);
+    return { ...identity, avatarImageUrl: !identity.isIncognito && avatarImagePath ? await createPrivateGetUrl(avatarImagePath) : null };
+  }));
+  res.json({ users: users.filter(Boolean) });
 });
 
 router.post("/streams/:channelId/premium", async (req, res) => {
   const host = await currentUser(req);
   if (!host) return void res.status(401).json({ error: "Authentication required" });
-  const { requiredGiftId, freeViewerIds = [] } = req.body ?? {};
-  if (typeof requiredGiftId !== "string" || !Object.hasOwn(PREMIUM_GIFT_CATALOG, requiredGiftId) ||
+  const { requiredGiftId, freeViewerIds = [], allowIncognito = true } = req.body ?? {};
+  if (typeof allowIncognito !== "boolean" || typeof requiredGiftId !== "string" || !Object.hasOwn(PREMIUM_GIFT_CATALOG, requiredGiftId) ||
       !Array.isArray(freeViewerIds) || freeViewerIds.length > 500 ||
       !freeViewerIds.every((id: unknown) => Number.isInteger(id) && Number(id) > 0)) {
     return void res.status(400).json({ error: "Choose a valid gift and viewer list" });
@@ -469,6 +479,7 @@ router.post("/streams/:channelId/premium", async (req, res) => {
   const ids = [...new Set<number>(freeViewerIds)].sort((a, b) => a - b);
   const channelId = req.params.channelId;
   const result = await db.transaction(async tx => {
+    await lockParty(tx);
     const session = (await tx.select().from(liveStreamSessionsTable)
       .where(and(eq(liveStreamSessionsTable.channelId, channelId), isNull(liveStreamSessionsTable.endedAt))).for("update"))[0];
     if (!session || session.lastHeartbeatAt.getTime() <= Date.now() - HEARTBEAT_TTL_MS) return { status: 404, error: "Active stream not found" };
@@ -477,7 +488,7 @@ router.post("/streams/:channelId/premium", async (req, res) => {
     const party = await findParty(channelId, tx, true);
     if (session.requiredGiftId) {
       // A lost response can be retried, but never change the price or invitees twice.
-      if (session.requiredGiftId === gift.id && JSON.stringify(session.premiumFreeViewerIds) === JSON.stringify(ids) && session.rtcChannelName) return { session };
+      if (session.requiredGiftId === gift.id && JSON.stringify(session.premiumFreeViewerIds) === JSON.stringify(ids) && session.allowIncognito === allowIncognito && session.rtcChannelName) return { session };
       return { status: 409, error: "This stream is already Premium" };
     }
     const activeChannels = party ? [party.firstChannelId, party.secondChannelId] : [channelId];
@@ -485,7 +496,7 @@ router.post("/streams/:channelId/premium", async (req, res) => {
     if (ids.some(id => !active.has(id))) return { status: 409, error: "A selected viewer has left. Refresh the viewer list and try again." };
     const premiumValues = {
       requiredGiftId: gift.id, requiredGiftName: gift.name, requiredGiftEmoji: gift.emoji,
-      requiredGiftCoinCost: gift.coinCost, premiumFreeViewerIds: ids,
+      requiredGiftCoinCost: gift.coinCost, premiumFreeViewerIds: ids, allowIncognito,
     };
     const partySessions = party ? (await partyStreams(party, tx)).filter((item): item is NonNullable<typeof item> => !!item) : [session];
     for (const partySession of partySessions) {
@@ -575,6 +586,8 @@ router.post("/streams/:channelId/gift-request/pay", premiumGiftEndpoint(async (r
 class AdmissionIdempotencyConflictError extends Error {}
 
 router.post("/streams/:channelId/admission", async (req, res) => {
+  if (req.body?.enterIncognito !== undefined && typeof req.body.enterIncognito !== "boolean") return void res.status(400).json({ error: "Invalid incognito choice" });
+  const enterIncognito = req.body?.enterIncognito === true;
   const parsed = AdmitToStreamBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request body" });
@@ -608,6 +621,8 @@ router.post("/streams/:channelId/admission", async (req, res) => {
   const moderation = await viewerModeration(stream.sessionId!, stream.hostUid, viewer.uid);
   if (moderation.removed || moderation.blocked) return void res.status(403).json({ error: "Stream access denied" });
   if ((stream.premiumFreeViewerIds ?? []).includes(viewer.uid)) {
+    try { await db.transaction(async tx => { for (const item of [...admissionSessions].sort((a,b) => a.id-b.id)) await choosePremiumIdentity(tx, item.id, viewer.uid, enterIncognito); }); }
+    catch (error) { if (error instanceof IncognitoError) return void res.status(error.status).json({ error: error.message }); throw error; }
     const balance = (await db.select({ balance: coinBalancesTable.balance }).from(coinBalancesTable)
       .where(eq(coinBalancesTable.userId, viewer.uid)).limit(1))[0]?.balance ?? 0;
     return void res.json({ admitted: true, charged: false, balance });
@@ -634,6 +649,7 @@ router.post("/streams/:channelId/admission", async (req, res) => {
           .from(coinBalancesTable)
           .where(eq(coinBalancesTable.userId, viewer.uid))
           .limit(1))[0]?.balance ?? 0;
+        for (const item of [...admissionSessions].sort((a,b) => a.id-b.id)) await choosePremiumIdentity(tx, item.id, viewer.uid, false);
         return { balance, charged: false };
       }
 
@@ -654,6 +670,7 @@ router.post("/streams/:channelId/admission", async (req, res) => {
         ))
         .returning();
       if (!debited[0]) return null;
+      for (const item of [...admissionSessions].sort((a,b) => a.id-b.id)) await choosePremiumIdentity(tx, item.id, viewer.uid, enterIncognito);
 
       await tx.insert(coinBalancesTable).values({ userId: stream.hostUid, balance: 0 }).onConflictDoNothing();
       await tx.update(coinBalancesTable)
@@ -690,6 +707,7 @@ router.post("/streams/:channelId/admission", async (req, res) => {
       return { balance: debited[0].balance, charged: true };
     });
   } catch (error) {
+    if (error instanceof IncognitoError) return void res.status(error.status).json({ error: error.message });
     if (error instanceof AdmissionIdempotencyConflictError) {
       res.status(409).json({ error: "This idempotency key was already used for a different admission." });
       return;
@@ -714,7 +732,7 @@ router.post("/streams/:channelId/admission", async (req, res) => {
         .from(coinTransactionsTable)
         .where(and(eq(coinTransactionsTable.channelId, channelId), eq(coinTransactionsTable.type, "gift"))))[0]?.total ?? 0);
       wsHub.pushEarnings(channelId, total);
-      wsHub.pushGift(channelId, gift.name, viewer.name, total, { giftId: idempotencyKey, amount: gift.coinCost, senderUid: viewer.uid, recipientUid: stream.hostUid });
+      await pushPrivateGift(channelId, gift.name, viewer.name, total, { giftId: idempotencyKey, amount: gift.coinCost, senderUid: viewer.uid, recipientUid: stream.hostUid });
     } catch (error) {
       req.log.warn({ err: error }, "Premium admission notification failed after commit");
     }
@@ -741,7 +759,8 @@ router.get("/streams/:channelId", async (req, res) => {
     !!(await db.select({ id: premiumStreamAdmissionsTable.id }).from(premiumStreamAdmissionsTable)
       .where(and(inArray(premiumStreamAdmissionsTable.sessionId, accessSessionIds), eq(premiumStreamAdmissionsTable.viewerUserId, viewer.uid))).limit(1))[0]
   );
-  res.json({ stream: { ...await toStreamResponse(stream), viewerAdmitted, viewerMuted: moderation.muted, viewerRemoved: moderation.removed, viewerBlocked: moderation.blocked } });
+  const identity = viewer ? await premiumIdentity(stream.channelId, viewer.uid) : null;
+  res.json({ stream: { ...await toStreamResponse(stream), viewerIncognito: identity?.incognito ?? false, viewerIncognitoChosen: !!identity, viewerAdmitted, viewerMuted: moderation.muted, viewerRemoved: moderation.removed, viewerBlocked: moderation.blocked } });
 });
 
 router.delete("/streams/:channelId", async (req, res) => {

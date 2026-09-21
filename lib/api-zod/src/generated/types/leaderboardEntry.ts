@@ -7,6 +7,7 @@
  */
 
 export interface LeaderboardEntry {
+  isIncognito?: boolean;
   rank: number;
   uid: number;
   name: string;

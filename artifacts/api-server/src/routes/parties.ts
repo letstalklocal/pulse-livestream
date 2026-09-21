@@ -100,6 +100,8 @@ router.post("/streams/:channelId/party", async (req, res) => {
     if (action === "accept") {
       if (isInviter) return { status: 403, error: "Only the invited host can accept" };
       if (p.status === "active") return {};
+      const members = await partyStreams(p, tx);
+      if (members.some(member => !member || member.requiredGiftId || member.isPrivate)) return { status: 409, error: "Party is available on public, free lives" };
       if (!(await partyViewerAllowed(p, user.uid)).allowed) return { status: 403, error: "Party access denied" };
       await tx.update(livePartiesTable).set({ status: "active", startedAt: new Date() }).where(eq(livePartiesTable.id, p.id));
       return {};

@@ -2,6 +2,7 @@ export interface ChatMessage {
   id: string;
   senderName: string;
   senderUid?: number;
+  isIncognito?: boolean;
   text: string;
   color: string;
   ts: number;
@@ -23,7 +24,7 @@ export function appendGiftChat(
   channelId: string,
   giftName: string,
   senderName: string,
-  gift: { giftId: string; amount: number; senderUid: number },
+  gift: { giftId: string; amount: number; senderUid: number; isIncognito?: boolean },
 ) {
   const messages = chatStore.get(channelId) ?? [];
   const id = `gift:${gift.giftId}`;
@@ -36,6 +37,7 @@ export function appendGiftChat(
     id,
     senderName,
     senderUid: gift.senderUid,
+    isIncognito: gift.isIncognito,
     text: `sent 🪙 ${gift.amount.toLocaleString("en-US")} coins · ${giftName}`,
     color: "#FFD76A",
     ts: Date.now(),

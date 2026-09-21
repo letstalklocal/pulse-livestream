@@ -83,7 +83,7 @@ export async function purchaseMediaPack(
         ),
       )
       .limit(1);
-    if (!live && !received)
+    if (!live && !video && !received)
       throw new StickerError(403, "Pack was not sent to you");
     const [old] = await tx
       .select()

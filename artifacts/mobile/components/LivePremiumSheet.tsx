@@ -10,7 +10,7 @@ import { GIFTS } from "./GiftPicker";
 
 export function LivePremiumSheet({ channelId, onClose, onConfirm }: {
   channelId: string; onClose: () => void;
-  onConfirm: (giftId: string, freeViewerIds: number[]) => Promise<void>;
+  onConfirm: (giftId: string, freeViewerIds: number[], allowIncognito: boolean) => Promise<void>;
 }) {
   const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const insets = useSafeAreaInsets();
@@ -18,6 +18,7 @@ export function LivePremiumSheet({ channelId, onClose, onConfirm }: {
   const [giftId, setGiftId] = useState<string | null>(null);
   const [selected, setSelected] = useState<number[]>([]);
   const [search, setSearch] = useState("");
+  const [allowIncognito, setAllowIncognito] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const viewers = useGetStreamViewers(channelId, { query: { queryKey: getGetStreamViewersQueryKey(channelId), refetchInterval: busy ? false : 10000 } });
@@ -62,11 +63,12 @@ export function LivePremiumSheet({ channelId, onClose, onConfirm }: {
               {viewers.data?.users.length === 0 ? <Text style={[localizedTextStyle(), styles.subtitle]}>{t("No current viewers. You can still go Premium.")}</Text> : null}
             </ScrollView>
           </>}
+          <TouchableOpacity disabled={busy} style={styles.viewer} accessibilityRole="checkbox" accessibilityState={{ checked: allowIncognito }} onPress={() => setAllowIncognito(value => !value)}><Ionicons name={allowIncognito ? "checkbox" : "square-outline"} size={24} color="#FF1966" /><Text style={[localizedTextStyle(), styles.giftName]}>{t("Allow incognito")}</Text></TouchableOpacity>
           {error ? <Text style={{ color: "#FF879E", marginTop: 10 }}>{t(error)}</Text> : null}
           <TouchableOpacity style={[styles.submit, (!giftId || busy || checkingViewers) && { opacity: 0.5 }]} disabled={!giftId || busy || checkingViewers} onPress={() => {
             if (nextIsViewers) { setStep("viewers"); return; }
             setBusy(true); setError(null);
-            void onConfirm(giftId!, noViewers ? [] : selected).catch(err => setError(err instanceof Error ? err.message : "Couldn't go Premium. Try again.")).finally(() => setBusy(false));
+            void onConfirm(giftId!, noViewers ? [] : selected, allowIncognito).catch(err => setError(err instanceof Error ? err.message : "Couldn't go Premium. Try again.")).finally(() => setBusy(false));
           }}>
             {busy || checkingViewers ? <ActivityIndicator color="#FFF" /> : <><Ionicons name={nextIsViewers ? "arrow-forward" : "lock-closed"} size={18} color="#FFF" /><Text style={[localizedTextStyle(), styles.submitText]}>{!giftId ? t("Choose a gift") : nextIsViewers ? t("Next") : t("Go Premium")}</Text></>}
           </TouchableOpacity>

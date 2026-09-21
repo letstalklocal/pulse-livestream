@@ -1003,5 +1003,13 @@
   "Open Your Video to remove it and try another upload.": "あなたの動画を開いて削除し、別の動画をアップロードしてください。",
   "Where would you like to go?": "どこに移動しますか？",
   "Stay on Go Live": "Go Live に留まる",
-  "Go to Discovery": "発見へ移動"
+  "Go to Discovery": "発見へ移動",
+  "Allow incognito": "匿名での参加を許可",
+  "Enter Premium": "Premiumに参加",
+  "Enter as incognito": "匿名で参加",
+  "Hide from the viewer list. Chat and gifts show your name.": "視聴者リストに表示されなくなります。チャットやギフトでは名前が表示されます。",
+  "Incognito": "匿名",
+  "Incognito not available": "匿名での参加は利用できません",
+  "Invisible viewing": "非表示で視聴",
+  "Requires an active VIP subscription.": "有効なVIPサブスクリプションが必要です。"
 }

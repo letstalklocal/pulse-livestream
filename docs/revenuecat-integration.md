@@ -1,5 +1,17 @@
 # RevenueCat integration for Pulse
 
+## Refund request test status — September 21, 2026
+
+User reports submitting the iPhone TestFlight refund request and seeing the pending/request-submitted message. Apple's official [refund testing documentation](https://developer.apple.com/documentation/storekit/testing-refund-requests) states normal sandbox requests are automatically approved and no emails are sent; Other → DECLINE deliberately tests rejection. Earlier conversation wording about waiting for human approval is superseded. At the last provider readback below, no refund event was present. Request submission is user-confirmed; actual refund event, production webhook receipt and access removal remain unverified. No later provider check is implied by this note. Track alongside the [current go-live checkpoint](go-live-checklist.md#current-launch-checkpoint--september-21-2026).
+
+
+## Apple sandbox cancellation and resubscription readback — September 21, 2026
+
+User said TestFlight test steps were already completed. RevenueCat readback for the Apple sandbox monthly customer confirms: cancellation September 20; expiration September 21 at 16:34:50 UTC; RENEWAL event `c848053e-7a2a-4041-9709-96ef9ea3aa24` September 21 at 17:30:44 UTC, new transaction `2000001239749349`; then CANCELLATION `e73f4062-8844-4150-8f8e-2e060f415a7b` at 17:32:23 UTC with reason UNSUBSCRIBE. Current subscription gives access, is active, will_not_renew, and ends 2026-09-22T17:30:36+00:00. This establishes provider-recorded resubscription after expiry and another cancellation, not a refund. No refund/CUSTOMER_SUPPORT event was present in the retrieved VIP history. Production webhook receipt and production DB access changes were not independently checked in this readback.
+
+Automated VIP snapshot tests (8) and isolated HTTP/database lifecycle regression suite also passed, including cancellation preserving access, expiration/revocation, lifetime refund and durable webhook logs. These simulated provider states are separate from the actual Apple device/provider evidence above. No real account was modified by the regression tests.
+
+
 ## Android Test Store webhook routing restored — September 21, 2026
 
 User reported Android pending coin confirmation. Readback confirmed the only webhook pointed all sandbox apps at production. Created development integration `whintgr66ceccfa2b` (Pulse development Test Store), sandbox/all events, app filter `app0722e3199f`, current Replit dev API webhook URL, existing validated development Authorization. Scoped existing production integration `whintgrdc2cdf5bb3` to Apple app `app1937357464`; its URL/environment/auth remain unchanged. Readback verified both routes; authenticated no-purchase TEST against development returned 200. This keeps Apple sandbox -> production and RevenueCat Test Store -> development. No native build required.

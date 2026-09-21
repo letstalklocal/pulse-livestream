@@ -129,3 +129,7 @@ Approved: buy VIP for yourself or gift it to streamers using wallet coins, with 
 User approved attributing a live sticker's pack purchase to that live's earnings and Top Gifters. The original pack ledger entry carries the durable channel ID; the buyer pays once and the creator is credited once. Existing ownership/View pack and separate DM purchases never add live credit. Gift stickers reuse normal gifting. Premium entry, timed requests, coin-store billing and RevenueCat remain separate. See [implementation and regression cases](live-stickers.md).
 
 Media packs now use the selected gift’s catalog coin price for creation and edits. The sticker shows that price, and current live/DM purchases reject a changed price before charging. Existing purchases and historical amounts remain unchanged. See [pack editing and gift-based pricing](live-stickers.md).
+
+## Invisible viewing and Premium incognito — September 21, 2026
+
+See [agreed behavior and completion tracker](incognito.md). VIP invisible viewing hides passive viewer entries while retaining the count and real-name chat/gifts. Premium incognito is a separate session identity available to everyone when allowed by the streamer; it masks names/photos/profile access, preserves the entry choice and alias through rejoin, and groups gifter stats into one Incognito total. Preserve these requirements in future viewer, gift, statistics and notification changes. Automated and Android/iPhone verification are tracked separately there.

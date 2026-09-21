@@ -1,4 +1,5 @@
 import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
+import { usePurchases } from "@/context/PurchasesContext";
 import { usePrivacyPreferences } from "@/hooks/usePrivacyPreferences";
 import { useAuth } from "@clerk/expo";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,7 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Avatar } from "@/components/Avatar";
 import { useColors } from "@/hooks/useColors";
 
-type BlockedAccount = { uid: number; name: string; avatarImageUrl: string | null };
+type BlockedAccount = { uid: number; name: string; avatarImageUrl: string | null; isIncognito?: boolean };
 type Page = { accounts: BlockedAccount[]; total: number; nextCursor: number | null };
 const base = process.env.EXPO_PUBLIC_DOMAIN ? `https://${process.env.EXPO_PUBLIC_DOMAIN}` : "";
 export default function PrivacyScreen() {
@@ -21,6 +22,7 @@ export default function PrivacyScreen() {
   const router = useRouter();
   const client = useQueryClient();
   const privacy = usePrivacyPreferences();
+  const { isPro } = usePurchases();
   const [choice, setChoice] = useState<"partyInvites" | "postsVisibility" | null>(null);
   const [showBlocked, setShowBlocked] = useState(false);
   const [selected, setSelected] = useState<BlockedAccount | null>(null);
@@ -53,6 +55,13 @@ export default function PrivacyScreen() {
         {privacy.save.isPending && <Text accessibilityLiveRegion="polite" style={[localizedTextStyle(), [styles.detail, { color: colors.mutedForeground }]]}>{t("Saving…")}</Text>}
         <Text style={[localizedTextStyle(), [styles.heading, { color: colors.mutedForeground }]]}>{t("PROFILE")}</Text>
         <View style={[styles.menuRow, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={{ flex: 1, gap: 5 }}><Text style={[localizedTextStyle(), [styles.label, { color: colors.foreground }]]}>{t("Hide Location")}</Text><Text style={[localizedTextStyle(), [styles.detail, { color: colors.mutedForeground }]]}>{t("Hide your country from your profile")}</Text></View><Switch accessibilityLabel={t("Hide Location")} value={privacy.preferences.hideLocation} disabled={!privacy.isSuccess || privacy.save.isPending} onValueChange={hideLocation => privacy.save.mutate({ hideLocation })} trackColor={{ false: colors.border, true: colors.primary }} thumbColor="#FFF" /></View>
+        <View style={[styles.menuRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={{ flex: 1, gap: 5 }}>
+            <Text style={[localizedTextStyle(), styles.label, { color: colors.foreground }]}>{t("Invisible viewing")}</Text>
+            <Text style={[localizedTextStyle(), styles.detail, { color: colors.mutedForeground }]}>{isPro ? t("Hide from the viewer list. Chat and gifts show your name.") : t("Requires an active VIP subscription.")}</Text>
+          </View>
+          <Switch accessibilityLabel={t("Invisible viewing")} value={isPro && privacy.preferences.invisibleViewing} disabled={!isPro || !privacy.isSuccess || privacy.save.isPending} onValueChange={invisibleViewing => privacy.save.mutate({ invisibleViewing })} trackColor={{ false: colors.border, true: colors.primary }} thumbColor="#FFF" />
+        </View>
         <View style={[styles.menuRow, { backgroundColor: colors.card, borderColor: colors.border, opacity: 0.55 }]}><View style={{ flex: 1, gap: 5 }}><Text style={[localizedTextStyle(), [styles.label, { color: colors.foreground }]]}>{t("Hide VIP Level")}</Text><Text style={[localizedTextStyle(), [styles.detail, { color: colors.mutedForeground }]]}>{t("Coming later")}</Text></View><Switch accessibilityLabel={t("Hide VIP Level, coming later")} disabled value={false} trackColor={{ false: colors.border }} /></View>
         <Text style={[localizedTextStyle(), [styles.heading, { color: colors.mutedForeground }]]}>{t("INVITES")}</Text>
         <TouchableOpacity accessibilityRole="button" disabled={!privacy.isSuccess || privacy.save.isPending} style={[styles.menuRow, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => setChoice("partyInvites")}><Text style={[localizedTextStyle(), [styles.label, { color: colors.foreground, flex: 1 }]]}>{t("Who can invite Party")}</Text><Text style={[localizedTextStyle(), { color: colors.mutedForeground }]}>{privacy.preferences.partyInvites === "friends" ? t("Friends") : t("Everyone")}</Text><Ionicons name="chevron-forward" size={17} color={colors.mutedForeground} /></TouchableOpacity>
@@ -67,7 +76,7 @@ export default function PrivacyScreen() {
         {list.isPending && <ActivityIndicator color={colors.primary} />}
         {list.isError && <TouchableOpacity accessibilityRole="button" onPress={() => { void list.refetch(); }}><Text style={[localizedTextStyle(), styles.error]}>{t("Couldn’t load this list. Tap to retry.")}</Text></TouchableOpacity>}
         {list.isSuccess && !people.length && <View style={styles.empty}><Ionicons name="shield-checkmark-outline" size={42} color={colors.mutedForeground} /><Text style={[localizedTextStyle(), [styles.label, { color: colors.foreground }]]}>{t("No blocked accounts")}</Text></View>}
-        {people.map(person => <View key={person.uid} style={[styles.person, { backgroundColor: colors.card, borderColor: colors.border }]}><Avatar uid={person.uid} name={person.name} avatarUri={person.avatarImageUrl ?? undefined} /><View style={{ flex: 1, gap: 4 }}><Text style={[styles.label, { color: colors.foreground }]}>{person.name}</Text><Text style={[localizedTextStyle(), [styles.detail, { color: colors.mutedForeground }]]}>{t("ID {v0}", { v0: person.uid })}</Text></View><TouchableOpacity accessibilityRole="button" accessibilityLabel={t("Unblock {v0}", { v0: person.name })} disabled={unblock.isPending} onPress={() => { unblock.reset(); setSelected(person); }} style={[styles.unblock, { borderColor: colors.border }]}><Text style={[localizedTextStyle(), { color: colors.primary, fontWeight: "600" }]}>{t("Unblock")}</Text></TouchableOpacity></View>)}
+        {people.map(person => <View key={person.uid} style={[styles.person, { backgroundColor: colors.card, borderColor: colors.border }]}><Avatar uid={person.uid} name={person.name} avatarUri={person.avatarImageUrl ?? undefined} /><View style={{ flex: 1, gap: 4 }}><Text style={[styles.label, { color: colors.foreground }]}>{person.name}</Text>{!person.isIncognito && <Text style={[localizedTextStyle(), [styles.detail, { color: colors.mutedForeground }]]}>{t("ID {v0}", { v0: person.uid })}</Text>}</View><TouchableOpacity accessibilityRole="button" accessibilityLabel={t("Unblock {v0}", { v0: person.name })} disabled={unblock.isPending} onPress={() => { unblock.reset(); setSelected(person); }} style={[styles.unblock, { borderColor: colors.border }]}><Text style={[localizedTextStyle(), { color: colors.primary, fontWeight: "600" }]}>{t("Unblock")}</Text></TouchableOpacity></View>)}
         {list.hasNextPage && <TouchableOpacity accessibilityRole="button" disabled={list.isFetchingNextPage} onPress={() => { void list.fetchNextPage(); }} style={{ padding: 20, alignItems: "center" }}><Text style={[localizedTextStyle(), { color: colors.primary }]}>{list.isFetchingNextPage ? t("Loading…") : t("Load more")}</Text></TouchableOpacity>}
       </>}
     </ScrollView>

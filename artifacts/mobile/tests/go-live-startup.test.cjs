@@ -11,7 +11,7 @@ async function run(failure, allowed = true, premium = false) {
     AbortController, startingRequestRef: { current: null }, getToken: async () => "token", confirmVideoBeforeLive: async () => allowed,
     stickers: [{ kind: 'gift', giftId: 'rose' }], useCallback: fn => fn, title: 'test', category: 'Music', user: { uid: 1, name: 'test', streamBackgroundImagePath: 'saved' },
     isNative: true, cameraReady: true, engineRef: { current: {} }, isPrivateInvite: false, isPremium: premium,
-    requiredGiftId: premium ? "rose" : null, invitationChannelId: null, privateInvitationId: null,
+    allowIncognito: true, requiredGiftId: premium ? "rose" : null, invitationChannelId: null, privateInvitationId: null,
     t: x => x, Alert: { alert: (...args) => state.alerts.push(args) },
     setCameraError: x => { state.error = x; }, setIsStarting: x => { state.starting = x; },
     Haptics: { impactAsync() {}, notificationAsync() {}, ImpactFeedbackStyle: {}, NotificationFeedbackType: {} },

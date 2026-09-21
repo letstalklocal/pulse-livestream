@@ -11,6 +11,6 @@ export function LiveChatAvatar({ senderUid, senderName }: { senderUid?: number; 
     query: { queryKey: getGetUserQueryKey(uid), enabled: uid > 0, staleTime: 60_000, retry: false },
   });
   return <View style={{ alignSelf: "center" }} pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-    <Avatar uid={uid} name={senderName} avatarUri={profile.data?.user.avatarImageUrl ?? undefined} size={26} borderWidth={1} borderColor="rgba(255,255,255,0.5)" />
+    <Avatar uid={senderUid !== undefined && senderUid < 0 ? senderUid : uid} name={senderName} avatarUri={profile.data?.user.avatarImageUrl ?? undefined} size={26} borderWidth={1} borderColor="rgba(255,255,255,0.5)" />
   </View>;
 }

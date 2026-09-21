@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { unlinkSync } from 'node:fs';
+import { readFileSync, unlinkSync } from 'node:fs';
 import { build } from 'esbuild';
 const dir = fileURLToPath(new URL('..', import.meta.url));
 const output = `${dir}/tests/.earnings-${randomUUID()}.cjs`;
@@ -17,6 +17,7 @@ const call = async (query, userId = prefix) => {
   return res;
 };
 try {
+  await pool.query(readFileSync(new URL('../../../lib/db/migrations/20260921_incognito.sql', import.meta.url), 'utf8'));
   process.env.TZ = 'America/New_York';
   const now = new Date(2026, 2, 8, 12);
   const day = earningsRange('day', 0, now);
@@ -52,10 +53,27 @@ try {
   assert.deepEqual(result.body.entries.map(e => [e.rank, e.uid, e.coins, e.transactions]), [[1, ids[2], 200, 1], [2, ids[1], 150, 2]]);
   const other = await call(range, `${prefix}-3`);
   assert.equal(other.body.coins, 700);
+  const channel = `${prefix}-premium`;
+  const session = (await pool.query("insert into live_stream_sessions(channel_id,host_user_id,host_name,title,category) values($1,$2,'Host','Test','Chat') returning id", [channel, ids[0]])).rows[0];
+  await pool.query('insert into premium_identities(session_id,viewer_user_id,incognito,alias_number) values($1,$2,true,1),($1,$3,true,2)', [session.id, ids[1], ids[2]]);
+  await pool.query("update coin_transactions set channel_id=$1 where description=$2 and to_user_id=$3 and type='gift'", [channel, prefix, ids[0]]);
+  const masked = (await call(range)).body;
+  assert.equal(masked.coins, 350);
+  assert.equal(masked.supporters, 2);
+  assert.deepEqual(masked.entries, [{rank:1,uid:0,name:'Incognito',coins:350,transactions:3,isIncognito:true}]);
+  await add(ids[1], ids[0], 25, 'gift', range.start);
+  const mixed = (await call(range)).body;
+  assert.equal(mixed.coins, 375);
+  assert.equal(mixed.supporters, 2);
+  assert.equal(mixed.entries.length, 2);
+  assert.equal(mixed.entries[0].name, 'Incognito');
+  assert.equal(mixed.entries[1].uid, ids[1]);
+  await pool.query('delete from live_stream_sessions where id=$1', [session.id]);
   console.log('PASS: calendar periods, DST, leap year, year rollover, authentication, invalid ranges, empty state, totals, ranking, date boundaries, grants excluded, outgoing gifts excluded, and account isolation.');
 } finally {
   if (ids.length) {
     await pool.query('delete from coin_transactions where description=$1', [prefix]);
+    await pool.query('delete from live_stream_sessions where host_user_id = any($1::int[])', [ids]);
     await pool.query('delete from users where uid = any($1::int[])', [ids]);
   }
   await pool.end();

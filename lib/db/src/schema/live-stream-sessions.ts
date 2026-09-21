@@ -14,6 +14,7 @@ export const liveStreamSessionsTable = pgTable("live_stream_sessions", {
   category: text("category").notNull(),
   rtcChannelName: text("rtc_channel_name"),
   premiumFreeViewerIds: jsonb("premium_free_viewer_ids").$type<number[]>().notNull().default([]),
+  allowIncognito: boolean("allow_incognito").notNull().default(true),
   requiredGiftId: text("required_gift_id"),
   requiredGiftName: text("required_gift_name"),
   requiredGiftEmoji: text("required_gift_emoji"),

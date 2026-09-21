@@ -11,6 +11,7 @@ export type GetStreamModeration200UsersItem = {
   name: string;
   /** @nullable */
   avatarImageUrl?: string | null;
+  isIncognito?: boolean;
   present: boolean;
   muted: boolean;
   removed: boolean;

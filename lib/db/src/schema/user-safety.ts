@@ -2,6 +2,8 @@ import { integer, pgTable, primaryKey, serial, text, timestamp, uniqueIndex } fr
 import { usersTable } from "./users";
 import { directMessagesTable } from "./direct-messages";
 export const userBlocksTable = pgTable("user_blocks", {
+  incognitoIdentityId: integer("incognito_identity_id"),
+  incognitoAlias: text("incognito_alias"),
   blockerUserId: integer("blocker_user_id").notNull().references(() => usersTable.uid, { onDelete: "cascade" }),
   blockedUserId: integer("blocked_user_id").notNull().references(() => usersTable.uid, { onDelete: "cascade" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -1,0 +1,104 @@
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+import { unlinkSync } from 'node:fs';
+import { build } from 'esbuild';
+const dir = fileURLToPath(new URL('..', import.meta.url));
+const output = `${dir}/tests/.incognito-test.cjs`;
+await build({ stdin: { contents: `export { default as streams } from './src/routes/streams'; export { default as chat } from './src/routes/chat'; export { default as coins } from './src/routes/coins'; export { default as parties } from './src/routes/parties'; export { default as moderation } from './src/routes/moderation'; export * from './src/lib/incognito'; export * from './src/lib/wsHub'; export { pool } from '@workspace/db';`, resolveDir: dir }, outfile: output, bundle: true, platform: 'node', format: 'cjs', external: ['pg-native'], plugins: [{ name:'offline-location', setup(b) { b.onResolve({filter:/^ip-location-api$/},()=>({path:'ip-location-api',namespace:'offline'})); b.onLoad({filter:/.*/,namespace:'offline'},()=>({contents:'export const lookup = async () => null;'})); }}], logLevel: 'silent' });
+// Synthetic fixtures must never invoke the live Agora ban service.
+process.env.AGORA_CUSTOMER_ID = '';
+process.env.AGORA_SECRET = '';
+process.env.AGORA_CUSTOMER_SECRET = '';
+const api = createRequire(import.meta.url)(output);
+const { pool, streams, chat, coins, moderation } = api;
+const base = 1750000000 + Math.floor(Math.random()*1000000);
+const [host, vip, one, two, free] = [0,1,2,3,4].map(n=>base+n);
+const ids = [host,vip,one,two,free];
+const channel = `test-incognito-${randomUUID()}`;
+const denied = `${channel}-denied`;
+const pairA = `${channel}-pair-a`, pairB = `${channel}-pair-b`;
+const channels = [channel,denied,pairA,pairB];
+const call = async (router, method, path, uid, body={}, channelId=channel) => {
+ const handler=router.stack.find(l=>l.route?.path===path&&l.route.methods[method]).route.stack[0].handle;
+ const res={statusCode:200,body:null,status(n){this.statusCode=n;return this;},json(v){this.body=v;return this;},set(){return this;}};
+ await handler({auth:()=>({userId:uid?`incognito-${uid}`:null}),headers:{},query:{},params:{channelId},body,log:{error(){},warn(){}}},res);return res;
+};
+try {
+ for(const uid of ids) await pool.query('insert into users(uid,clerk_id,name) values($1,$2,$3)',[uid,`incognito-${uid}`,`Real ${uid}`]);
+ await pool.query('insert into coin_balances(user_id,balance) select unnest($1::integer[]),100',[ids]);
+ await pool.query("insert into vip_store_access(user_id,environment,active,expires_at,checked_at) values($1,'sandbox',true,now()+interval '1 day',now())",[vip]);
+ for(const c of channels) await pool.query("insert into live_stream_sessions(channel_id,host_user_id,host_name,title,category) values($1,$2,'Host','Test','Talk')",[c,host]);
+ for(const uid of [vip,one,two,free]) assert.equal((await call(streams,'post','/streams/:channelId/presence',uid,{action:'join'})).statusCode,200);
+ let roster=await call(streams,'get','/streams/:channelId/viewers',host);
+ assert.ok(!roster.body.users.some(u=>u.uid===vip));
+ assert.equal((await call(streams,'get','/streams/:channelId',host)).body.stream.viewerCount,4);
+ await pool.query('insert into privacy_preferences(user_id,invisible_viewing) values($1,false)',[vip]);
+ assert.ok((await call(streams,'get','/streams/:channelId/viewers',host)).body.users.some(u=>u.uid===vip));
+ await pool.query('update privacy_preferences set invisible_viewing=true where user_id=$1',[vip]);
+ await pool.query("update vip_store_access set expires_at=now()-interval '1 second' where user_id=$1",[vip]);
+ assert.ok((await call(streams,'get','/streams/:channelId/viewers',host)).body.users.some(u=>u.uid===vip));
+ await pool.query("update vip_store_access set expires_at=now()+interval '1 day' where user_id=$1",[vip]);
+ assert.ok(!(await call(streams,'get','/streams/:channelId/viewers',host)).body.users.some(u=>u.uid===vip));
+
+ await pool.query("insert into coin_transactions(from_user_id,to_user_id,amount,type,gift_name,channel_id,idempotency_key,balance_after) values($1,$2,1,'gift','Rose',$3,$4,99)",[vip,host,channel,randomUUID()]);
+ roster=await call(streams,'get','/streams/:channelId/viewers',host);assert.ok(roster.body.users.some(u=>u.uid===vip));
+ assert.equal((await call(streams,'post','/streams/:channelId/premium',host,{requiredGiftId:'heart',freeViewerIds:[free],allowIncognito:true})).statusCode,200);
+ assert.equal((await call(streams,'post','/streams/:channelId/premium',host,{requiredGiftId:'heart',allowIncognito:false},denied)).statusCode,200);
+ const admit=(uid,incognito=true,c=channel)=>call(streams,'post','/streams/:channelId/admission',uid,{idempotencyKey:randomUUID(),enterIncognito:incognito},c);
+ const paid=await Promise.all([admit(one),admit(two)]);assert.ok(paid.every(r=>r.body.charged));
+ const identity=await api.premiumIdentity(channel,one);const other=await api.premiumIdentity(channel,two);assert.notEqual(identity.aliasNumber,other.aliasNumber);
+ assert.equal((await admit(one,false)).body.charged,false);assert.equal((await api.premiumIdentity(channel,one)).incognito,true);
+ assert.equal((await admit(free)).body.charged,false);assert.equal((await api.premiumIdentity(channel,free)).incognito,true);
+ assert.equal((await admit(one,true,denied)).statusCode,403);assert.equal(await api.premiumIdentity(denied,one),undefined);
+ const deniedLedger=await pool.query('select * from coin_transactions where channel_id=$1',[denied]);assert.equal(deniedLedger.rowCount,0);
+ const sent=await call(chat,'post','/streams/:channelId/chat',one,{text:'hello'});assert.equal(sent.body.message.senderUid,-identity.id);assert.equal(sent.body.message.isIncognito,true);assert.match(sent.body.message.senderName,/^Incognito /);
+ const messages=await call(chat,'get','/streams/:channelId/chat',host);assert.ok(!JSON.stringify(messages.body).includes(`Real ${one}`));
+ roster=await call(moderation,'get','/streams/:channelId/moderation',host);assert.ok(roster.body.users.some(u=>u.uid===-identity.id&&u.avatarImageUrl===null));assert.ok(!roster.body.users.some(u=>u.uid===one));
+ assert.equal((await call(moderation,'post','/streams/:channelId/moderation',host,{viewerUid:-identity.id,action:'mute'})).statusCode,200);
+ assert.equal((await call(chat,'post','/streams/:channelId/chat',one,{text:'muted'})).statusCode,403);
+ const stats=await call(coins,'get','/streams/:channelId/leaderboard',host);const group=stats.body.entries.find(e=>e.uid===0);assert.equal(group.name,'Incognito');assert.equal(group.coins,10);assert.ok(!stats.body.entries.some(e=>[one,two].includes(e.uid)));
+ const payloads=[];const ws={readyState:1,send(v){payloads.push(JSON.parse(v));}};api.subscribe(channel,ws,host);
+ await api.pushPrivateGift(channel,'Rose',`Real ${two}`,11,{giftId:randomUUID(),amount:1,senderUid:two,recipientUid:host});api.unsubscribe(channel,ws);
+ assert.equal(payloads[0].senderUid,-other.id);assert.equal(payloads[0].isIncognito,true);assert.match(payloads[0].senderName,/^Incognito /);
+ // Party admissions durably create one identity per room; ending Party never unmasks history.
+ const partyId=randomUUID();
+ await pool.query("update live_stream_sessions set host_user_id=$1 where channel_id=$2",[free,pairB]);
+ await pool.query("insert into live_parties(id,first_channel_id,second_channel_id,status,expires_at) values($1,$2,$3,'pending',now()+interval '1 hour')",[partyId,pairA,pairB]);
+ assert.equal((await call(streams,'post','/streams/:channelId/premium',host,{requiredGiftId:'heart',allowIncognito:true},pairA)).statusCode,200);
+ assert.equal((await call(api.parties,'post','/streams/:channelId/party',free,{action:'accept',partyId},pairB)).statusCode,409);
+ // Set up the existing Party -> Premium conversion path, not a new Premium Party.
+ await pool.query("update live_stream_sessions set required_gift_id=null where channel_id=$1",[pairA]);
+ await pool.query("update live_parties set status='active' where id=$1",[partyId]);
+ assert.equal((await call(streams,'post','/streams/:channelId/premium',host,{requiredGiftId:'heart',allowIncognito:true},pairA)).statusCode,200);
+ assert.equal((await admit(two,true,pairA)).body.charged,true);
+ const pairIdentity=await api.premiumIdentity(pairB,two);assert.equal(pairIdentity.incognito,true);
+ await pool.query("insert into coin_transactions(from_user_id,to_user_id,amount,type,gift_name,channel_id,idempotency_key,balance_after) values($1,$2,2,'gift','Rose',$3,$4,90)",[two,free,pairB,randomUUID()]);
+ await pool.query("update live_parties set status='ended' where id=$1",[partyId]);
+ const endedStats=await call(coins,'get','/streams/:channelId/leaderboard',free,{},pairB);assert.equal(endedStats.body.entries[0].name,'Incognito');assert.equal(endedStats.body.entries[0].coins,2);
+ assert.equal((await api.publicLiveIdentity(pairB,two,`Real ${two}`)).uid,-pairIdentity.id);
+ assert.equal((await call(moderation,'post','/streams/:channelId/moderation',host,{viewerUid:-identity.id,action:'block'})).statusCode,200);
+ const savedBlock=(await pool.query('select incognito_identity_id,incognito_alias from user_blocks where blocker_user_id=$1 and blocked_user_id=$2',[host,one])).rows[0];
+ assert.equal(savedBlock.incognito_identity_id,identity.id);assert.equal(savedBlock.incognito_alias,`Incognito ${identity.aliasNumber}`);
+ const laterRestricted=await call(moderation,'get','/streams/:channelId/moderation',host,{},denied);
+ assert.ok(laterRestricted.body.users.some(u=>u.uid===-identity.id&&u.name===`Incognito ${identity.aliasNumber}`&&u.avatarImageUrl===null));
+ assert.ok(!laterRestricted.body.users.some(u=>u.uid===one));
+ assert.equal((await call(moderation,'post','/streams/:channelId/moderation',host,{viewerUid:-identity.id,action:'unblock'},denied)).statusCode,200);
+ assert.equal((await pool.query('select 1 from user_blocks where blocker_user_id=$1 and blocked_user_id=$2',[host,one])).rowCount,0);
+
+ console.log('PASS incognito: VIP hidden/count retained/gift reveal, atomic paid/free choice, concurrent aliases, immutable retry, disabled rollback, masked chat/roster/gift websocket, opaque moderation, grouped all-gifter totals.');
+} finally {
+ await pool.query('delete from user_blocks where blocker_user_id=any($1) or blocked_user_id=any($1)',[ids]);
+ await pool.query('delete from creator_blocks where host_user_id=any($1) or viewer_user_id=any($1)',[ids]);
+ await pool.query('delete from stream_moderation where viewer_user_id=any($1)',[ids]);
+ await pool.query('delete from premium_stream_admissions where channel_id=any($1)',[channels]);
+ await pool.query('delete from coin_transactions where channel_id=any($1)',[channels]);
+ await pool.query('delete from coin_balances where user_id=any($1)',[ids]);
+ await pool.query('delete from privacy_preferences where user_id=any($1)',[ids]);
+ await pool.query('delete from vip_store_access where user_id=any($1)',[ids]);
+ await pool.query('delete from live_stream_sessions where channel_id=any($1)',[channels]);
+ await pool.query('delete from users where uid=any($1)',[ids]);
+ await pool.end();unlinkSync(output);
+}
+process.exit(0);

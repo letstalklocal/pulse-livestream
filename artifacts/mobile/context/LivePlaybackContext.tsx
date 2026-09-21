@@ -111,7 +111,7 @@ function usePlaybackController() {
   const invitationEnded = !!invitationQuery.data?.invitation && invitationQuery.data.invitation.status !== "active";
   const missingStream = !isDemo && ((streamQuery.isSuccess && !stream) || streamQuery.error?.status === 404);
   const ended = streamEnded || invitationEnded || missingStream;
-  const canEnterStream = !!channelId && !ended && !accessRestricted && (isDemo || !!stream) && (!stream?.requiredGift || !!session?.admitted || stream.viewerAdmitted === true);
+  const canEnterStream = !!channelId && !ended && !accessRestricted && (isDemo || !!stream) && (!stream?.requiredGift || !!session?.admitted || (stream.viewerAdmitted === true && stream.viewerIncognitoChosen !== false));
   const hostUid = stream?.hostUid ?? (Number(channelId.split("-")[1]) || null);
   useEffect(() => {
     if (ended) streamEndedRef.current = true;

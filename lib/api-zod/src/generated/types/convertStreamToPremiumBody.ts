@@ -8,6 +8,7 @@
 
 export type ConvertStreamToPremiumBody = {
   requiredGiftId: string;
+  allowIncognito?: boolean;
   /** @maxItems 500 */
   freeViewerIds: number[];
 };

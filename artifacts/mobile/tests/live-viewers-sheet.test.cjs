@@ -90,3 +90,26 @@ assert.equal(audience.calls.closes, 1);
 assert.equal(audience.calls.profiles[0][0], 1);
 assert.equal(audience.calls.actions.length, 0);
 console.log('PASS: host merged sheet, hidden/expanded search and reset, moderation action, audience cached-roster isolation and profile navigation.');
+
+// Anonymous identities remain actionable for host moderation, never profiles.
+const incognitoHost = fixture(true);
+incognitoHost.query.data.users = [{ uid: -17, name: 'Incognito 1', isIncognito: true, present: true, muted: false, removed: false, blocked: false }];
+incognitoHost.ranking.data.entries = [{ uid: 0, name: 'Incognito', isIncognito: true, coins: 500, rank: 1 }];
+tree = incognitoHost.render();
+assert.equal(nodes(tree).filter(n => n.type === 'Avatar' && n.props.uid === -1).length, 2);
+find(tree, 'Manage Incognito').props.onPress();
+assert.equal(incognitoHost.calls.autoClosePaused, false);
+find(tree, 'Manage Incognito 1').props.onPress();
+tree = incognitoHost.render();
+assert.equal(find(tree, 'View profile').props.disabled, true);
+find(tree, 'View profile').props.onPress();
+assert.equal(incognitoHost.calls.profiles.length, 0);
+nodes(tree).find(n => n.type === 'TouchableOpacity' && texts(n) === 'Mute chat for this stream').props.onPress();
+assert.equal(incognitoHost.calls.actions[0].data.viewerUid, -17);
+const incognitoAudience = fixture(false);
+incognitoAudience.ranking.data.entries = [{ uid: 0, name: 'Incognito', isIncognito: true, coins: 500, rank: 1 }];
+tree = incognitoAudience.render();
+find(tree, 'Incognito').props.onPress();
+assert.equal(incognitoAudience.calls.profiles.length, 0);
+assert.equal(incognitoAudience.calls.closes, 0);
+console.log('PASS: incognito generic avatars, grouped ranking has no profile/action, alias moderation stays opaque, and selected profile access is blocked.');

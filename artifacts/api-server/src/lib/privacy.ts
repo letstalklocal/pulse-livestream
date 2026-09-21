@@ -2,10 +2,10 @@ import { and, count, eq, or } from "drizzle-orm";
 import { db, followsTable, privacyPreferencesTable } from "@workspace/db";
 import { contactBlocked } from "./userSafety";
 type Reader = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
-export const privacyDefaults = { hideLocation: false, partyInvites: "everyone" as "everyone" | "friends", postsVisibility: "everyone" as "everyone" | "friends" };
+export const privacyDefaults = { invisibleViewing: true, hideLocation: false, partyInvites: "everyone" as "everyone" | "friends", postsVisibility: "everyone" as "everyone" | "friends" };
 export async function privacyPreferences(uid: number, reader: Reader = db) {
   const [row] = await reader.select().from(privacyPreferencesTable).where(eq(privacyPreferencesTable.userId, uid));
-  return row ? { hideLocation: row.hideLocation, partyInvites: row.partyInvites, postsVisibility: row.postsVisibility } : { ...privacyDefaults };
+  return row ? { invisibleViewing: row.invisibleViewing, hideLocation: row.hideLocation, partyInvites: row.partyInvites, postsVisibility: row.postsVisibility } : { ...privacyDefaults };
 }
 export async function areFriends(a: number, b: number, reader: Reader = db) {
   if (a === b) return true;

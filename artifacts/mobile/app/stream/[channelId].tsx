@@ -185,6 +185,7 @@ export default function StreamScreen() {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [streamEnded, setStreamEnded] = useState(false);
   const [countdown, setCountdown] = useState(10);
+  const [enterIncognito, setEnterIncognito] = useState(false);
   const [admitted, setAdmitted] = useState(false);
   const [admissionError, setAdmissionError] = useState<string | null>(null);
 
@@ -234,7 +235,7 @@ export default function StreamScreen() {
   // Demo streams have no persisted stream record. Every live channel waits for
   // its server details so a Premium requirement cannot be bypassed.
   const streamDetailsLoaded = isDemo || !!stream;
-  const hasAdmission = admitted || (playback.channelId === channelId && playback.session?.admitted) || stream?.viewerAdmitted === true;
+  const hasAdmission = admitted || (playback.channelId === channelId && playback.session?.admitted) || (stream?.viewerAdmitted === true && stream?.viewerIncognitoChosen !== false);
   const premiumGift = playback.premiumGift;
   const accessRestricted = (playback.channelId === channelId && playback.accessRestricted) || restrictedByEvent || !!stream?.viewerRemoved || !!stream?.viewerBlocked || premiumGift.removed || premiumGift.expired;
   useEffect(() => { setRestrictedByEvent(false); }, [channelId]);
@@ -260,6 +261,7 @@ export default function StreamScreen() {
     setStreamEnded(false);
     setCountdown(10);
     setAdmitted(false);
+    setEnterIncognito(false);
     setAdmissionError(null);
     admissionKeyRef.current = Crypto.randomUUID();
   }, [channelId]);
@@ -395,7 +397,7 @@ export default function StreamScreen() {
     try {
       const result = await admitToStream.mutateAsync({
         channelId,
-        data: { idempotencyKey: admissionKeyRef.current },
+        data: { idempotencyKey: admissionKeyRef.current, enterIncognito: stream?.allowIncognito !== false && enterIncognito },
       });
       if (!result.admitted) {
         setAdmissionError("Admission could not be confirmed. Please try again.");
@@ -986,6 +988,7 @@ export default function StreamScreen() {
             </View>
           </View>
           <Text style={[localizedTextStyle(), styles.admissionBalance]}>{t("Your balance: 🪙 {v0}", { v0: viewerCoins.toLocaleString(appLocale()) })}</Text>
+          {stream?.allowIncognito !== false ? <TouchableOpacity testID="premium-enter-incognito" disabled={admitToStream.isPending} accessibilityRole="checkbox" accessibilityState={{ checked: enterIncognito }} onPress={() => setEnterIncognito(value => !value)} style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12 }}><Ionicons name={enterIncognito ? "checkbox" : "square-outline"} size={24} color="#FFD700" /><Text style={[localizedTextStyle(), styles.admissionGiftName]}>{t("Enter as incognito")}</Text></TouchableOpacity> : <Text style={[localizedTextStyle(), styles.admissionBalance]}>{t("Incognito not available")}</Text>}
           {admissionError ? <Text style={styles.admissionError}>{t(admissionError)}</Text> : null}
           <TouchableOpacity
             testID="premium-admission-confirm"
@@ -994,7 +997,7 @@ export default function StreamScreen() {
             disabled={admitToStream.isPending}
             activeOpacity={0.85}
           >
-            {admitToStream.isPending ? <ActivityIndicator color="#111118" /> : <Text style={[localizedTextStyle(), styles.admissionConfirmText]}>{t("Send gift & enter")}</Text>}
+            {admitToStream.isPending ? <ActivityIndicator color="#111118" /> : <Text style={[localizedTextStyle(), styles.admissionConfirmText]}>{stream?.viewerAdmitted ? t("Enter Premium") : t("Send gift & enter")}</Text>}
           </TouchableOpacity>
           <TouchableOpacity
             testID="premium-admission-cancel"

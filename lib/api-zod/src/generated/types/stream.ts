@@ -11,6 +11,9 @@ export interface Stream {
   channelId: string;
   /** Protected media channel; logical stream and chat ID remain unchanged. */
   rtcChannelName?: string;
+  allowIncognito?: boolean;
+  viewerIncognito?: boolean;
+  viewerIncognitoChosen?: boolean;
   viewerMuted?: boolean;
   viewerRemoved?: boolean;
   viewerBlocked?: boolean;

@@ -31,9 +31,11 @@ router.get("/moments", async (req, res) => {
     return void res.status(401).json({ error: "Sign in to view Moments" });
   const rows = await db.execute(sql`
     select m.id, m.status, m.capture_mode as "captureMode", m.duration_ms as "durationMs", m.created_at as "createdAt",
-      t.idempotency_key as "giftId", t.amount, t.gift_name as "giftName", u.name as "senderName"
+      t.idempotency_key as "giftId", t.amount, t.gift_name as "giftName", case when pi.incognito then 'Incognito ' || pi.alias_number::text else u.name end as "senderName"
     from moments m join coin_transactions t on t.id=m.gift_transaction_id
     left join users u on u.uid=t.from_user_id
+    left join live_stream_sessions ls on ls.channel_id=t.channel_id
+    left join premium_identities pi on pi.session_id=ls.id and pi.viewer_user_id=t.from_user_id
     where m.owner_user_id=${user.uid} and m.status <> 'deleted' order by m.created_at desc limit 100
   `);
   res.json({ moments: rows.rows });

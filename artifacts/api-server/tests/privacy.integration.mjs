@@ -6,7 +6,7 @@ import { readFileSync, unlinkSync } from 'node:fs';
 import { build } from 'esbuild';
 const dir=fileURLToPath(new URL('..',import.meta.url));
 const output=`${dir}/tests/.privacy-${randomUUID()}.cjs`;
-await build({stdin:{contents:`export { default as privacy } from './src/routes/privacy'; export { default as safety } from './src/routes/user-safety'; export { default as users } from './src/routes/users'; export { default as posts } from './src/routes/posts'; export { canViewPosts, canInviteParty, redactProfileLocation } from './src/lib/privacy'; export { pool } from '@workspace/db'; export { contactBlocked } from './src/lib/userSafety'; export { viewerModeration } from './src/lib/streamModeration'; export { canAccessChannel } from './src/lib/privateChannelAccess';`,resolveDir:dir},outfile:output,bundle:true,platform:'node',format:'cjs',external:['pg-native'],logLevel:'silent'});
+await build({stdin:{contents:`export { default as privacy } from './src/routes/privacy'; export { default as safety } from './src/routes/user-safety'; export { default as users } from './src/routes/users'; export { default as posts } from './src/routes/posts'; export { canViewPosts, canInviteParty, redactProfileLocation } from './src/lib/privacy'; export { pool } from '@workspace/db'; export { contactBlocked } from './src/lib/userSafety'; export { viewerModeration } from './src/lib/streamModeration'; export { canAccessChannel } from './src/lib/privateChannelAccess';`,resolveDir:dir},outfile:output,bundle:true,platform:'node',format:'cjs',external:['pg-native','ip-location-api'],logLevel:'silent'});
 const {canViewPosts,canInviteParty,redactProfileLocation,privacy,safety,users,posts,pool,contactBlocked,viewerModeration,canAccessChannel}=createRequire(import.meta.url)(output);
 const prefix=`privacy-test-${randomUUID()}`;
 const a=1850000000+Math.floor(Math.random()*1000000),b=a+1,c=a+2;
@@ -20,17 +20,25 @@ const unblock=(uid,target)=>call(privacy,'/privacy/blocks/:uid','delete',uid,{},
 const block=(uid,target,blocked=true)=>call(safety,'/safety/users/:uid/block','post',uid,{blocked},{uid:String(target)});
 try {
  await pool.query(readFileSync(new URL('../../../lib/db/migrations/20260910_privacy_preferences.sql',import.meta.url),'utf8'));
+ await pool.query(readFileSync(new URL('../../../lib/db/migrations/20260921_invisible_viewing.sql',import.meta.url),'utf8'));
+ await pool.query(readFileSync(new URL('../../../lib/db/migrations/20260921_incognito_blocks.sql',import.meta.url),'utf8'));
  for(const uid of ids) await pool.query('insert into users(uid,clerk_id,name) values($1,$2,$3)',[uid,`${prefix}-${uid}`,`Person ${uid}`]);
  const prefs=(uid)=>call(privacy,'/privacy/preferences','get',uid);
  const save=(uid,body)=>call(privacy,'/privacy/preferences','patch',uid,body);
  assert.equal((await prefs(null)).statusCode,401);
  assert.equal((await save(null,{hideLocation:true})).statusCode,401);
- assert.deepEqual((await prefs(a)).body,{hideLocation:false,partyInvites:'everyone',postsVisibility:'everyone'});
- for(const body of [{},{hideLocation:'yes'},{postsVisibility:'nobody'},{userId:b}]) assert.equal((await save(a,body)).statusCode,400);
+ assert.deepEqual((await prefs(a)).body,{invisibleViewing:true,hideLocation:false,partyInvites:'everyone',postsVisibility:'everyone'});
+ for(const body of [{},{hideLocation:'yes'},{invisibleViewing:'yes'},{postsVisibility:'nobody'},{userId:b}]) assert.equal((await save(a,body)).statusCode,400);
  await save(a,{postsVisibility:'friends',partyInvites:'friends'});
  await save(a,{hideLocation:true});
- assert.deepEqual((await prefs(a)).body,{hideLocation:true,partyInvites:'friends',postsVisibility:'friends'});
+ assert.deepEqual((await prefs(a)).body,{invisibleViewing:true,hideLocation:true,partyInvites:'friends',postsVisibility:'friends'});
  assert.equal((await prefs(b)).body.hideLocation,false);
+ await save(a,{invisibleViewing:false});
+ assert.equal((await prefs(a)).body.invisibleViewing,false);
+ assert.equal((await prefs(a)).body.hideLocation,true);
+ assert.equal((await prefs(b)).body.invisibleViewing,true);
+ await save(a,{invisibleViewing:true});
+ assert.equal((await prefs(a)).body.invisibleViewing,true);
  assert.equal(await canViewPosts(a,null),false);
  assert.equal(await canViewPosts(a,a),true);
  assert.equal(await canViewPosts(a,b),false);
@@ -85,11 +93,21 @@ try {
  assert.equal(await contactBlocked(a,b),false);
  // Pages stay stable, contain only this user's blocks, and avoid duplicate entries.
  await pool.query('insert into user_blocks(blocker_user_id,blocked_user_id) select $1,unnest($2::int[])',[a,ids.slice(1)]);
+ // Opaque block identities must survive pagination and stay scoped to the blocker.
+ await pool.query("update user_blocks set incognito_identity_id=900001, incognito_alias='Incognito 1' where blocker_user_id=$1 and blocked_user_id=$2", [a, ids[50]]);
  const first=(await list(a)).body;
  assert.equal(first.total,54);assert.equal(first.accounts.length,50);
+ assert.equal(first.nextCursor,-900001);
+ const anonymous=first.accounts.find(p=>p.uid===-900001);
+ assert.deepEqual(anonymous,{uid:-900001,name:'Incognito 1',avatarImageUrl:null,isIncognito:true});
+ assert.equal((await list(b,{after:'-900001'})).statusCode,400);
+ await unblock(b,'-900001');
+ assert.equal((await list(a)).body.total,54);
  const second=(await list(a,{after:String(first.nextCursor)})).body;
  assert.equal(second.accounts.length,4);assert.equal(second.nextCursor,null);
  assert.equal(new Set([...first.accounts,...second.accounts].map(p=>p.uid)).size,54);
+ await unblock(a,'-900001');
+ assert.equal((await list(a)).body.total,53);
  console.log('Privacy passed: unified migration, both block entry points, paginated ownership, reciprocal blocks, content/live access, active media revocation, and universal unblocking.');
 } finally {
  await pool.query('delete from live_stream_sessions where channel_id=$1',[channel]);

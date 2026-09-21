@@ -1,3 +1,4 @@
+import { publicLiveIdentity } from "../lib/incognito";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db, liveStreamSessionsTable, premiumStreamAdmissionsTable } from "@workspace/db";
 import { authenticatedUser, viewerModeration } from "../lib/streamModeration";
@@ -47,10 +48,12 @@ router.post("/streams/:channelId/chat", async (req, res) => {
   const { text, color } = req.body ?? {};
   if (typeof text !== "string" || !text.trim() || text.length > 2000) return void res.status(400).json({ error: "Enter a message under 2,000 characters" });
 
+  const identity = await publicLiveIdentity(channelId, viewer.uid, viewer.name);
   const message: ChatMessage = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    senderName: viewer.name,
-    senderUid: viewer.uid,
+    senderName: identity.name,
+    senderUid: identity.uid,
+    isIncognito: identity.isIncognito,
     text: text.trim(),
     color: typeof color === "string" && /^#[0-9a-f]{6}$/i.test(color) ? color : "#FF1966",
     ts: Date.now(),
@@ -59,7 +62,9 @@ router.post("/streams/:channelId/chat", async (req, res) => {
   const destinations = party ? [party.firstChannelId, party.secondChannelId] : [channelId];
   for (const destination of destinations) {
     const existing = chatStore.get(destination) ?? [];
-    chatStore.set(destination, [...existing, message].slice(-MAX_MESSAGES));
+    const targetIdentity = await publicLiveIdentity(destination, viewer.uid, viewer.name);
+    const destinationMessage = { ...message, senderName: targetIdentity.name, senderUid: targetIdentity.uid, isIncognito: targetIdentity.isIncognito };
+    chatStore.set(destination, [...existing, destinationMessage].slice(-MAX_MESSAGES));
   }
 
   res.json({ message });

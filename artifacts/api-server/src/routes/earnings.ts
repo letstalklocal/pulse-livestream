@@ -44,10 +44,15 @@ router.get("/earnings", async (req, res) => {
     gte(ledger.createdAt, start),
     lt(ledger.createdAt, end),
   );
+  const anonymous = sql<boolean>`exists (
+    select 1 from premium_identities pi join live_stream_sessions ls on ls.id = pi.session_id
+    where ls.channel_id = ${ledger.channelId} and pi.viewer_user_id = ${ledger.fromUserId} and pi.incognito = true
+  )`;
   // One grouped query keeps the summary and ranking consistent during incoming gifts.
   const rows = await db
     .select({
       uid: ledger.fromUserId,
+      isIncognito: anonymous,
       name: usersTable.name,
       coins: sql<string>`sum(${ledger.amount})`,
       transactions: sql<string>`count(*)`,
@@ -55,19 +60,23 @@ router.get("/earnings", async (req, res) => {
     .from(ledger)
     .leftJoin(usersTable, eq(ledger.fromUserId, usersTable.uid))
     .where(filter)
-    .groupBy(ledger.fromUserId, usersTable.name)
+    .groupBy(ledger.fromUserId, usersTable.name, anonymous)
     .orderBy(sql`sum(${ledger.amount}) desc`, ledger.fromUserId);
-  const entries = rows.map((row, index) => ({
-    rank: index + 1,
-    uid: row.uid,
-    name: row.name ?? "Unknown supporter",
-    coins: Number(row.coins),
-    transactions: Number(row.transactions),
-  }));
+  const supporters = new Set(rows.filter(row => row.uid !== null).map(row => row.uid)).size;
+  const grouped = new Map<number | null, { uid: number | null; name: string; coins: number; transactions: number; isIncognito?: boolean }>();
+  for (const row of rows) {
+    const uid = row.isIncognito ? 0 : row.uid;
+    const entry = grouped.get(uid) ?? { uid, name: row.isIncognito ? "Incognito" : row.name ?? "Unknown supporter", coins: 0, transactions: 0, ...(row.isIncognito ? { isIncognito: true } : {}) };
+    entry.coins += Number(row.coins);
+    entry.transactions += Number(row.transactions);
+    grouped.set(uid, entry);
+  }
+  const entries = [...grouped.values()].sort((a, b) => b.coins - a.coins || (a.uid ?? 0) - (b.uid ?? 0))
+    .map((row, index) => ({ rank: index + 1, ...row }));
   res.json({
     coins: entries.reduce((total, row) => total + row.coins, 0),
     transactions: entries.reduce((total, row) => total + row.transactions, 0),
-    supporters: entries.filter((row) => row.uid !== null).length,
+    supporters,
     entries: entries.slice(0, 20),
   });
 });

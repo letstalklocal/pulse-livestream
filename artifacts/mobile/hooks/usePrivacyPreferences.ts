@@ -1,7 +1,7 @@
 import { useAuth } from "@clerk/expo";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-export type PrivacyPreferences = { hideLocation: boolean; partyInvites: "everyone" | "friends"; postsVisibility: "everyone" | "friends" };
-const defaults: PrivacyPreferences = { hideLocation: false, partyInvites: "everyone", postsVisibility: "everyone" };
+export type PrivacyPreferences = { invisibleViewing: boolean; hideLocation: boolean; partyInvites: "everyone" | "friends"; postsVisibility: "everyone" | "friends" };
+const defaults: PrivacyPreferences = { invisibleViewing: true, hideLocation: false, partyInvites: "everyone", postsVisibility: "everyone" };
 const base = process.env.EXPO_PUBLIC_DOMAIN ? `https://${process.env.EXPO_PUBLIC_DOMAIN}` : "";
 export function usePrivacyPreferences() {
   const { userId, getToken } = useAuth();

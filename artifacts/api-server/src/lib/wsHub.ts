@@ -37,7 +37,7 @@ export function pushEarnings(channelId: string, coins: number): void {
   broadcast(channelId, { type: "earnings", channelId, coins });
 }
 
-export type GiftDetails = { giftId: string; amount: number; senderUid: number; recipientUid: number | null };
+export type GiftDetails = { giftId: string; amount: number; senderUid: number; recipientUid: number | null; isIncognito?: boolean };
 
 export function pushGift(channelId: string, giftName: string, senderName: string, coins: number, details?: GiftDetails): void {
   if (details) appendGiftChat(channelId, giftName, senderName, details);

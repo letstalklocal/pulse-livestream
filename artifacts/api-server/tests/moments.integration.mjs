@@ -66,6 +66,7 @@ const call = async (path, method, body = {}, userId = prefix, id = 0) => {
   return res;
 };
 try {
+  await pool.query(readFileSync(new URL('../../../lib/db/migrations/20260921_incognito.sql', import.meta.url), 'utf8'));
   await pool.query(
     readFileSync(
       new URL(
@@ -317,6 +318,11 @@ try {
     0,
   );
   assert.equal((await call("/moments", "get")).body.moments[0].amount, 500);
+  const anonymousSession = (await pool.query("insert into live_stream_sessions(channel_id,host_user_id,host_name,title,category) values($1,$2,'Host','Test','Chat') returning id", [prefix, ids[0]])).rows[0];
+  await pool.query('insert into premium_identities(session_id,viewer_user_id,incognito,alias_number) values($1,$2,true,1)', [anonymousSession.id, ids[1]]);
+  await pool.query('update coin_transactions set channel_id=$1 where idempotency_key=$2', [prefix, prefix + 'valid']);
+  assert.equal((await call('/moments', 'get')).body.moments[0].senderName, 'Incognito 1');
+
   assert.equal(
     (await call("/moments/:id", "delete", {}, prefix + "-other", id))
       .statusCode,
@@ -385,6 +391,7 @@ try {
     await pool.query("delete from coin_transactions where description=$1", [
       prefix,
     ]);
+    await pool.query("delete from live_stream_sessions where host_user_id=any($1::int[])", [ids]);
     await pool.query("delete from users where uid=any($1::int[])", [ids]);
   }
   await pool.end();

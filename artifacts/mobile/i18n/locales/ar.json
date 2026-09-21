@@ -1003,5 +1003,13 @@
   "Open Your Video to remove it and try another upload.": "افتح الفيديو الخاص بك لإزالته ومحاولة رفع فيديو آخر.",
   "Where would you like to go?": "إلى أين تريد الذهاب؟",
   "Stay on Go Live": "البقاء في Go Live",
-  "Go to Discovery": "الانتقال إلى الاستكشاف"
+  "Go to Discovery": "الانتقال إلى الاستكشاف",
+  "Allow incognito": "السماح بوضع التخفي",
+  "Enter Premium": "الدخول إلى Premium",
+  "Enter as incognito": "الدخول بوضع التخفي",
+  "Hide from the viewer list. Chat and gifts show your name.": "إخفاء حسابك من قائمة المشاهدين. يظهر اسمك في الدردشة والهدايا.",
+  "Incognito": "متخفٍ",
+  "Incognito not available": "وضع التخفي غير متاح",
+  "Invisible viewing": "المشاهدة الخفية",
+  "Requires an active VIP subscription.": "يتطلب اشتراك VIP نشطًا."
 }
