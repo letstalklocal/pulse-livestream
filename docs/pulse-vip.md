@@ -110,3 +110,7 @@ Approved requirements and implementation plan recorded. Existing wallet/VIP code
 ## Sandbox lifecycle evidence — September 20, 2026
 
 RevenueCat history confirms two monthly Test Store purchase cycles with four renewals each and expiration for each. The latest provider expiry (00:29:40.109 UTC) matches Pulse's inactive stored VIP record. User reported VIP disappearing. This verifies provider renewal/expiration and matching final server status; historical webhook receipts and intermediate server expiry changes cannot be recovered from the missing transient API log. Persistent authenticated webhook attempt logs are now implemented and verified through the public dev endpoint. See [full evidence and log query](revenuecat-integration.md#persistent-webhook-logs-and-verified-sandbox-history--september-20-2026). Apple sandbox, refund and restore device tests remain separate.
+
+## Settings label — September 21, 2026
+
+User requested renaming the Settings item from **Pulse Pro** to **Pulse VIP**. The label is Pulse VIP in all ten interface catalogs and continues to open `/subscriptions`. Store products, entitlement identifiers and purchase behavior are unchanged.

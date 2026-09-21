@@ -1,5 +1,7 @@
+import { DirectVideoThumbnail } from "./DirectVideoThumbnail";
+import { DirectMessageVideo } from "./DirectMessageVideo";
 import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, SafeAreaView, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -19,6 +21,16 @@ export function DirectMediaMessage({ message, mine }: { message: DmMessage; mine
   const [localUnlocked, setLocalUnlocked] = useState(message.unlocked ?? false);
   const [localMediaUrl, setLocalMediaUrl] = useState(message.mediaUrl);
   const [fullScreen, setFullScreen] = useState(false);
+
+  useEffect(() => {
+    setLocalUnlocked(message.unlocked ?? false);
+    setLocalMediaUrl(message.mediaUrl);
+    setFullScreen(false);
+  }, [message.messageId]);
+  useEffect(() => {
+    if (message.mediaUrl) setLocalMediaUrl(message.mediaUrl);
+    if (message.unlocked) setLocalUnlocked(true);
+  }, [message.mediaUrl, message.unlocked]);
 
   const price = message.price ?? 0;
   const isFree = price === 0;
@@ -76,7 +88,9 @@ export function DirectMediaMessage({ message, mine }: { message: DmMessage; mine
       <TouchableOpacity activeOpacity={0.8} onPress={handlePress} accessibilityLabel={canView ? t("View media") : t("Unlock media for {v0} coins", { v0: price })} testID={`media-msg-${message.messageId}`}>
         {canView ? (
           <>
-            {localMediaUrl ? (
+            {message.mediaType === "video" ? (
+              localMediaUrl ? <DirectVideoThumbnail uri={localMediaUrl} style={styles.image} /> : <View style={[styles.image, styles.loading]} />
+            ) : localMediaUrl ? (
               <Image source={{ uri: localMediaUrl }} style={styles.image} contentFit="cover" />
             ) : (
               <View style={[styles.image, styles.loading]}>
@@ -97,7 +111,7 @@ export function DirectMediaMessage({ message, mine }: { message: DmMessage; mine
           </>
         ) : (
           <View style={styles.image}>
-            {message.previewUrl && (
+            {message.mediaType !== "video" && message.previewUrl && (
               <Image source={{ uri: message.previewUrl }} style={[styles.image, { position: "absolute" }]} contentFit="cover" blurRadius={28} />
             )}
             <View style={styles.lockedOverlay}>
@@ -116,13 +130,10 @@ export function DirectMediaMessage({ message, mine }: { message: DmMessage; mine
           <TouchableOpacity style={styles.closeButton} onPress={() => setFullScreen(false)} accessibilityLabel={t("Close full screen")}>
             <Ionicons name="close" size={30} color="#FFF" />
           </TouchableOpacity>
-          {localMediaUrl && (
-            <Image source={{ uri: localMediaUrl }} style={styles.fullScreenImage} contentFit="contain" />
-          )}
-          {message.mediaType === "video" && (
-            <View style={styles.videoOverlay} pointerEvents="none">
-              <Ionicons name="play-circle" size={80} color="rgba(255,255,255,0.7)" />
-            </View>
+          {fullScreen && canView && localMediaUrl && (
+            message.mediaType === "video"
+              ? <DirectMessageVideo key={localMediaUrl} uri={localMediaUrl} />
+              : <Image source={{ uri: localMediaUrl }} style={styles.fullScreenImage} contentFit="contain" />
           )}
         </SafeAreaView>
       </Modal>

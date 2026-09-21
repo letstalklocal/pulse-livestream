@@ -37,7 +37,7 @@ interface SettingsItem {
 const GENERAL_ITEMS: SettingsItem[] = [
   { label: "Account", icon: "person-outline" },
   { label: "Buy coins", icon: "wallet-outline" },
-  { label: "Pulse Pro", icon: "star-outline" },
+  { label: "Pulse VIP", icon: "star-outline" },
   { label: "Notifications", icon: "notifications-outline" },
   { label: "Privacy", icon: "shield-checkmark-outline" },
   { label: "Messages", icon: "chatbubble-outline" },
@@ -133,7 +133,7 @@ export default function SettingsScreen() {
               ? router.push("/account")
               : item.label === "General"
                 ? router.push("/general")
-              : item.label === "Pulse Pro"
+              : item.label === "Pulse VIP"
                 ? router.push("/subscriptions")
               : item.label === "Buy coins"
                 ? router.push("/coin-store")

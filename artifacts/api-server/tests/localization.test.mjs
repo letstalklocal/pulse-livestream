@@ -48,6 +48,8 @@ try {
  const signatures=(file,source)=>{
   const a=ts.createSourceFile(file,source,99,true,4),result=[];
   function walk(n){
+   // Individual DM videos now use a real player in the existing modal; focused playback tests cover its gate and close behavior.
+   if(file.endsWith('/components/DirectMediaMessage.tsx')&&ts.isJsxElement(n)&&n.openingElement.tagName.getText(a)==='Modal'&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='visible'&&p.initializer?.getText(a)==='{fullScreen}'))return;
    // Selected gift now sets the price; the old manual price input was explicitly removed.
    if(file.endsWith('/app/media-packs.tsx')&&ts.isJsxSelfClosingElement(n)&&n.tagName.getText(a)==='TextInput'&&n.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='value'&&p.initializer?.getText(a)==='{price}'))return;
    // Approved media-pack edit entry and locked name/price; save behavior has focused tests.

@@ -129,16 +129,17 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
     setUploading(true);
     setError(null);
     
+    const contentType = asset.mimeType ?? (asset.type === "video" ? "video/mp4" : "image/jpeg");
     try {
       const upload = await requestUpload.mutateAsync({
         data: {
-          contentType: asset.mimeType ?? (asset.type === "video" ? "video/mp4" : "image/jpeg")
+          contentType
         }
       } as any);
       
       const response = await fetch((upload as any).uploadUrl, {
         method: "PUT",
-        headers: { "Content-Type": asset.mimeType ?? "application/octet-stream" },
+        headers: { "Content-Type": contentType },
         body: new File(asset.uri) as any
       });
       
@@ -149,7 +150,7 @@ export function MediaChooser({ visible, peerId, onClose, onOpenPackPicker, onMed
           recipientId: Number(peerId),
           objectPath: (upload as any).objectPath,
           mediaType: asset.type === "video" ? "video" : "image",
-          contentType: asset.mimeType ?? "image/jpeg",
+          contentType,
           width: asset.width,
           height: asset.height,
           durationMs: asset.duration ?? undefined,

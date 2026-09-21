@@ -412,9 +412,12 @@ export default function DmScreen() {
         renderItem={({ item }) => {
           const isMe = item.senderId === myUidStr;
           const isGift = item.text.startsWith("🎁");
+          const extraBottomSpacing = (item.kind === "media" && item.mediaType === "video")
+            || (item.kind === "media_pack" && !!item.mediaPackId)
+            || (item.kind === "private_stream_invitation" && !!item.invitation);
           return (
             <SwipeToReply color={colors.primary} disabled={contactBlocked || needsGift || sendingMessage} onReply={() => { setReplyTo(item); inputRef.current?.focus(); void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}>
-            <View style={[styles.bubbleRow, isMe && styles.bubbleRowMe]}>
+            <View style={[styles.bubbleRow, extraBottomSpacing && styles.cardRowSpacing, isMe && styles.bubbleRowMe]}>
               {!isMe && (
                 <Avatar uid={parseInt(item.senderId)} name={item.senderName} size={28} />
               )}
@@ -658,6 +661,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     gap: 8,
   },
+  cardRowSpacing: { marginBottom: 16 },
   bubbleRowMe: {
     flexDirection: "row-reverse",
   },
