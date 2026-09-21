@@ -127,7 +127,12 @@ router.get("/dms/:uid", async (req, res): Promise<any> => {
 
 router.post("/dms/media", async (req, res): Promise<any> => {
   const sender = await requireUser(req, res); if (!sender) return;
-  const { recipientId, objectPath, mediaType, contentType, width, height, durationMs } = req.body ?? {};
+  const { recipientId, objectPath, mediaType, contentType, width, height } = req.body ?? {};
+  // iOS video picker durations can contain fractional milliseconds.
+  const rawDuration = req.body?.durationMs;
+  const durationMs = rawDuration == null ? undefined
+    : typeof rawDuration === "number" && Number.isFinite(rawDuration) && rawDuration >= 0 && rawDuration <= 2147483647
+      ? Math.round(rawDuration) : NaN;
   const price = req.body?.price ?? 0;
   const idempotencyKey = key(req.body?.idempotencyKey);
   if (!Number.isInteger(recipientId) || recipientId === sender.uid || typeof objectPath !== "string" || !objectPath.startsWith("/objects/") || (mediaType !== "image" && mediaType !== "video") || typeof contentType !== "string" || !contentType.startsWith(`${mediaType}/`) || !Number.isInteger(width) || width <= 0 || !Number.isInteger(height) || height <= 0 || (durationMs !== undefined && (!Number.isInteger(durationMs) || durationMs < 0)) || !Number.isInteger(price) || price < 0 || !idempotencyKey) return res.status(400).json({ error: "Invalid media DM" });
