@@ -268,8 +268,8 @@ export default function PublicProfileScreen() {
                         styles.followBtn,
                         {
                           backgroundColor: isFollowing ? "transparent" : colors.primary,
-                          borderColor: isFollowing ? colors.border : colors.primary,
-                          borderWidth: 1,
+                          borderColor: isFollowing ? "rgba(255,255,255,0.55)" : colors.primary,
+                          borderWidth: 1.5,
                           opacity: followPending ? 0.6 : 1,
                         },
                       ]}
@@ -285,7 +285,7 @@ export default function PublicProfileScreen() {
                   <TouchableOpacity
                     style={[
                       styles.messageBtn,
-                      { borderColor: colors.border, flex: canFollow ? undefined : 1 },
+                      { borderColor: "rgba(255,255,255,0.55)", borderWidth: 1.5, flex: canFollow ? undefined : 1 },
                     ]}
                     onPress={() => {
                       if (!followerUid) {
