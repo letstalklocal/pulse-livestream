@@ -486,6 +486,8 @@ export interface UserProfile {
   bio: string;
   avatarImagePath?: string | null;
   avatarImageUrl?: string | null;
+  profileBackgroundImagePath?: string | null;
+  profileBackgroundImageUrl?: string | null;
   streamBackgroundImagePath?: string | null;
   streamBackgroundImageUrl?: string | null;
   followersCount: number;
@@ -502,6 +504,7 @@ export interface UpsertUserRequest {
   name: string;
   bio?: string;
   avatarImagePath?: string | null;
+  profileBackgroundImagePath?: string | null;
   streamBackgroundImagePath?: string | null;
 }
 

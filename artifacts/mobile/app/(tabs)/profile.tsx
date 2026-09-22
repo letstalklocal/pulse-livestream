@@ -4,6 +4,7 @@ import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { usePrivacyPreferences } from "@/hooks/usePrivacyPreferences";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { fetch as expoFetch } from "expo/fetch";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -35,6 +36,7 @@ import {
   useGetUserPosts,
   useGetUserStreams,
   useRequestAvatarUpload,
+  useRequestProfileBackgroundUpload,
   useRequestPostUpload,
   useUpsertUser,
 } from "@workspace/api-client-react";
@@ -80,6 +82,7 @@ export default function ProfileScreen() {
   const [editName, setEditName] = useState(user?.name ?? "");
   const [editBio, setEditBio] = useState(user?.bio ?? "");
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [postImage, setPostImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [postCaption, setPostCaption] = useState("");
   const [isPublishingPost, setIsPublishingPost] = useState(false);
@@ -112,6 +115,7 @@ export default function ProfileScreen() {
   const coinBalance = coinData?.balance ?? 0;
 
   const requestAvatarUpload = useRequestAvatarUpload();
+  const requestProfileBackgroundUpload = useRequestProfileBackgroundUpload();
   const requestPostUpload = useRequestPostUpload();
   const createPost = useCreatePost();
   const deletePost = useDeletePost();
@@ -246,6 +250,73 @@ export default function ProfileScreen() {
     }
   };
 
+  const pickProfileCover = async () => {
+    if (!user || isUploadingCover || Platform.OS === "web") return;
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(t("Permission needed"), t("Allow photo access to update your profile background."));
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: false,
+      quality: 1,
+    });
+    const asset = result.canceled ? undefined : result.assets[0];
+    if (!asset) return;
+    setIsUploadingCover(true);
+    try {
+      const sourceWidth = asset.width;
+      const sourceHeight = asset.height;
+      const targetRatio = 16 / 9;
+      const cropWidth = sourceWidth / sourceHeight > targetRatio
+        ? sourceHeight * targetRatio
+        : sourceWidth;
+      const cropHeight = sourceWidth / sourceHeight > targetRatio
+        ? sourceHeight
+        : sourceWidth / targetRatio;
+      const image = await ImageManipulator.manipulate(asset.uri)
+        .crop({
+          originX: Math.round((sourceWidth - cropWidth) / 2),
+          originY: Math.round((sourceHeight - cropHeight) / 2),
+          width: Math.round(cropWidth),
+          height: Math.round(cropHeight),
+        })
+        .resize({ width: 1280, height: 720 })
+        .renderAsync();
+      const normalized = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.86 });
+      const upload = await requestProfileBackgroundUpload.mutateAsync({ uid: user.uid });
+      const sourceResponse = await expoFetch(normalized.uri);
+      const uploadResponse = await expoFetch(upload.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "image/jpeg" },
+        body: await sourceResponse.blob(),
+      });
+      if (!uploadResponse.ok) throw new Error(`Profile background upload failed (${uploadResponse.status}).`);
+      const updated = await upsertUser.mutateAsync({
+        uid: user.uid,
+        data: {
+          name: user.name,
+          bio: user.bio,
+          profileBackgroundImagePath: upload.objectPath,
+        },
+      });
+      updateUser({
+        profileBackgroundImagePath: updated.user.profileBackgroundImagePath,
+        profileBackgroundImageUrl: updated.user.profileBackgroundImageUrl,
+      });
+      await queryClient.invalidateQueries({ queryKey: getGetUserQueryKey(user.uid) });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      Alert.alert(
+        t("Background not saved"),
+        error instanceof Error ? error.message : t("Choose another image and try again."),
+      );
+    } finally {
+      setIsUploadingCover(false);
+    }
+  };
+
   const saveProfile = () => {
     if (!editName.trim()) {
       Alert.alert(t("Name required"), t("Please enter a display name."));
@@ -270,11 +341,19 @@ export default function ProfileScreen() {
       <StatusBar barStyle="light-content" />
       <ScrollView showsVerticalScrollIndicator={false}>
 
-        {/* Header */}
-        <View style={[styles.header, { paddingTop: topInset + 12 }]}>
+        <View style={styles.cover}>
+          <Image
+            source={profileData?.user.profileBackgroundImageUrl || user.profileBackgroundImageUrl
+              ? { uri: profileData?.user.profileBackgroundImageUrl ?? user.profileBackgroundImageUrl ?? undefined }
+              : require("@/assets/images/profile-cover-sunset.png")}
+            style={styles.absoluteFill}
+            resizeMode="cover"
+          />
+          <View style={styles.coverShade} />
+          <View style={[styles.header, { paddingTop: topInset + 12 }]}>
           <TouchableOpacity accessibilityRole="button" accessibilityLabel={t("Buy Coins")} onPress={() => router.push("/coin-store")} style={styles.headerCoinBalance}>
             <GoldCoinIcon />
-            <Text style={[styles.headerCoinAmount, { color: colors.foreground }]}>
+            <Text style={styles.headerCoinAmount}>
               {coinBalance === 0 ? t("Buy Coins") : coinBalance.toLocaleString(appLocale())}
             </Text>
           </TouchableOpacity>
@@ -303,17 +382,28 @@ export default function ProfileScreen() {
               accessibilityLabel={t("Open settings")}
               activeOpacity={0.8}
             >
-              <Ionicons name="menu-outline" size={28} color={colors.foreground} />
+              <Ionicons name="menu-outline" size={30} color="#FFF" />
             </TouchableOpacity>
           )}
+          </View>
+          <TouchableOpacity
+            style={styles.coverEditButton}
+            onPress={() => void pickProfileCover()}
+            disabled={isUploadingCover}
+            accessibilityRole="button"
+            accessibilityLabel={t("Update profile background")}
+          >
+            <Ionicons name={isUploadingCover ? "hourglass-outline" : "camera-outline"} size={17} color="#FFF" />
+          </TouchableOpacity>
+          {user.country && locationPrivacy.isSuccess && !locationPrivacy.preferences.hideLocation ? <View style={styles.coverLocation}><Ionicons name="location" size={16} color="#FFF" /><Text style={styles.coverLocationText}>{user.country}</Text></View> : null}
         </View>
 
         {/* Avatar + info */}
         <View style={styles.profileBlock}>
           <TouchableOpacity onPress={pickAvatar} activeOpacity={0.8} style={styles.avatarWrapper}>
-            <Avatar uid={user.uid} name={user.name} avatarUri={user.avatarUri} size={96} />
-            <View style={[styles.avatarEditBadge, { backgroundColor: colors.primary }]}>
-              <Ionicons name="camera" size={12} color="#FFF" />
+            <Avatar uid={user.uid} name={user.name} avatarUri={user.avatarUri} size={88} borderWidth={3} borderColor="#080A10" />
+            <View style={styles.avatarEditBadge}>
+              <Ionicons name="camera" size={15} color="#FFF" />
             </View>
           </TouchableOpacity>
 
@@ -339,25 +429,15 @@ export default function ProfileScreen() {
             </View>
           ) : (
             <>
-              <Text style={[styles.displayName, { color: colors.foreground }]}>{user.name}</Text>
-              {user.country && locationPrivacy.isSuccess && !locationPrivacy.preferences.hideLocation ? <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>{user.country}</Text> : null}
-              {user.bio ? (
-                <Text style={[styles.bio, { color: colors.mutedForeground }]}>{user.bio}</Text>
-              ) : null}
-              <View style={styles.profileActions}>
-                <TouchableOpacity
-                  style={[styles.editProfileBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-                  onPress={() => {
-                    setEditName(user.name ?? "");
-                    setEditBio(user.bio ?? "");
-                    setEditing(true);
-                  }}
-                  activeOpacity={0.75}
-                >
-                  <Ionicons name="pencil-outline" size={15} color={colors.foreground} />
-                  <Text style={[localizedTextStyle(), [styles.editProfileText, { color: colors.foreground }]]}>{t("Edit Profile")}</Text>
+              <View style={styles.nameRow}>
+                <Text style={styles.displayName}>{user.name}</Text>
+                <TouchableOpacity style={styles.nameEditButton} onPress={() => { setEditName(user.name ?? ""); setEditBio(user.bio ?? ""); setEditing(true); }} accessibilityRole="button" accessibilityLabel={t("Edit Profile")}>
+                  <Ionicons name="pencil" size={18} color="#FFF" />
                 </TouchableOpacity>
               </View>
+              {user.bio ? (
+                <Text style={styles.bio}>{user.bio}</Text>
+              ) : null}
             </>
           )}
 
@@ -365,26 +445,26 @@ export default function ProfileScreen() {
           <View style={styles.statsRow}>
             <TouchableOpacity style={styles.stat} accessibilityRole="button" accessibilityLabel={t("View followers")}
               onPress={() => router.push({ pathname: "/connections/[uid]", params: { uid: String(user.uid), tab: "followers", name: user.name } })}>
-              <Text style={[styles.statValue, { color: colors.foreground }]}>{profileData?.user.followersCount ?? user.followersCount}</Text>
-              <Text style={[localizedTextStyle(), [styles.statLabel, { color: colors.mutedForeground }]]}>{t("Followers")}</Text>
+              <Text style={styles.statValue}>{profileData?.user.followersCount ?? user.followersCount}</Text>
+              <Text style={[localizedTextStyle(), styles.statLabel]}>{t("Followers")}</Text>
             </TouchableOpacity>
-            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.statDivider} />
             <TouchableOpacity style={styles.stat} accessibilityRole="button" accessibilityLabel={t("View following")}
               onPress={() => router.push({ pathname: "/connections/[uid]", params: { uid: String(user.uid), tab: "following", name: user.name } })}>
-              <Text style={[styles.statValue, { color: colors.foreground }]}>{profileData?.user.followingCount ?? user.followingCount}</Text>
-              <Text style={[localizedTextStyle(), [styles.statLabel, { color: colors.mutedForeground }]]}>{t("Following")}</Text>
+              <Text style={styles.statValue}>{profileData?.user.followingCount ?? user.followingCount}</Text>
+              <Text style={[localizedTextStyle(), styles.statLabel]}>{t("Following")}</Text>
             </TouchableOpacity>
-            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.statDivider} />
             <View style={styles.stat}>
-              <Text style={[styles.statValue, { color: colors.foreground }]}>{streamHistory.length}</Text>
-              <Text style={[localizedTextStyle(), [styles.statLabel, { color: colors.mutedForeground }]]}>{t("Streams")}</Text>
+              <Text style={styles.statValue}>{streamHistory.length}</Text>
+              <Text style={[localizedTextStyle(), styles.statLabel]}>{t("Streams")}</Text>
             </View>
           </View>
 
         </View>
 
         {/* Grid divider */}
-        <View style={[styles.gridHeader, { borderColor: colors.border }]}>
+        <View style={styles.gridHeader}>
           <TouchableOpacity
             style={[
               styles.viewOption,
@@ -415,8 +495,22 @@ export default function ProfileScreen() {
               color={historyView === "feed" ? colors.primary : colors.mutedForeground}
             />
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.viewOption, historyView === "saved" && { borderBottomColor: colors.primary }]} onPress={() => setHistoryView("saved")} accessibilityLabel={t("Saved posts")} accessibilityRole="tab" accessibilityState={{ selected: historyView === "saved" }}>
-            <Ionicons name={historyView === "saved" ? "bookmark" : "bookmark-outline"} size={22} color={historyView === "saved" ? colors.primary : colors.mutedForeground} />
+          <TouchableOpacity
+            style={[
+              styles.viewOption,
+              historyView === "saved" && { borderBottomColor: colors.primary },
+            ]}
+            onPress={() => setHistoryView("saved")}
+            activeOpacity={0.7}
+            accessibilityLabel={t("Saved posts")}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: historyView === "saved" }}
+          >
+            <Ionicons
+              name={historyView === "saved" ? "bookmark" : "bookmark-outline"}
+              size={20}
+              color={historyView === "saved" ? colors.primary : colors.mutedForeground}
+            />
           </TouchableOpacity>
         </View>
 
@@ -440,7 +534,7 @@ export default function ProfileScreen() {
                 onLongPress={post.ownerUserId === user.uid ? () => confirmDeletePost(post.id) : undefined}
                 activeOpacity={0.85}
               >
-                <Image source={{ uri: post.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                <Image source={{ uri: post.imageUrl }} style={styles.absoluteFill} resizeMode="cover" />
               </TouchableOpacity>
             ))}
           </View>
@@ -475,7 +569,7 @@ export default function ProfileScreen() {
                   </View>
 
                   <View style={styles.feedMedia}>
-                    <Image source={{ uri: post.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="contain" />
+                    <Image source={{ uri: post.imageUrl }} style={styles.absoluteFill} resizeMode="contain" />
                     <PostGiftTotal postId={post.id} />
                   </View>
 
@@ -511,7 +605,7 @@ export default function ProfileScreen() {
               <Text style={[localizedTextStyle(), [styles.postModalTitle, { color: colors.foreground }]]}>{t("New Post")}</Text>
             </View>
             <View style={styles.postPreviewArea}>
-              {postImage ? <Image source={{ uri: postImage.uri }} style={StyleSheet.absoluteFill} resizeMode="contain" /> : null}
+              {postImage ? <Image source={{ uri: postImage.uri }} style={styles.absoluteFill} resizeMode="contain" /> : null}
             </View>
             <View style={[styles.postComposerControls, { borderTopColor: colors.border }]}>
               <TextInput
@@ -547,12 +641,16 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  absoluteFill: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
+  cover: { height: 178, position: "relative", overflow: "hidden", borderBottomLeftRadius: 14, borderBottomRightRadius: 14 },
+  coverShade: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(3,5,12,0.28)" },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingBottom: 16,
+    zIndex: 1,
   },
   headerTitle: { fontSize: 28, fontWeight: "700", fontFamily: "Inter_700Bold" },
   headerBtns: { flexDirection: "row", gap: 8 },
@@ -564,10 +662,11 @@ const styles = StyleSheet.create({
   headerCoinAmount: {
     fontSize: 16,
     fontFamily: "Inter_700Bold",
+    color: "#FFF",
   },
   headerMenuBtn: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -579,33 +678,37 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  profileBlock: { alignItems: "center", paddingHorizontal: 24, gap: 10, paddingBottom: 8 },
-  avatarWrapper: { position: "relative" },
+  coverEditButton: { position: "absolute", left: 16, bottom: 12, width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(8,10,16,0.72)", borderWidth: 1, borderColor: "rgba(255,255,255,0.35)" },
+  coverLocation: { position: "absolute", right: 16, bottom: 16, flexDirection: "row", alignItems: "center", gap: 4 },
+  coverLocationText: { color: "#FFF", fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  profileBlock: { alignItems: "center", paddingHorizontal: 24, gap: 6, paddingBottom: 10, marginTop: -42 },
+  avatarWrapper: { position: "relative", marginBottom: 1 },
   avatarEditBadge: {
     position: "absolute",
-    bottom: 2,
-    right: 2,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    bottom: 0,
+    right: -2,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#08080F",
+    borderWidth: 3,
+    borderColor: "#080A10",
+    backgroundColor: "#FF1966",
   },
-  displayName: { fontSize: 22, fontWeight: "700", fontFamily: "Inter_700Bold" },
-  bio: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
-  profileActions: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
-  editProfileBtn: {
-    height: 38,
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 1 },
+  displayName: { fontSize: 23, lineHeight: 28, color: "#FFF", fontFamily: "Inter_600SemiBold" },
+  nameEditButton: {
+    width: 32,
+    height: 32,
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
-    paddingHorizontal: 18,
-    borderRadius: 19,
+    justifyContent: "center",
+    borderRadius: 10,
     borderWidth: 1,
+    borderColor: "#44306D",
   },
-  editProfileText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  bio: { color: "#C2BDE9", fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
   newPostFab: {
     position: "absolute",
     right: 20,
@@ -628,11 +731,11 @@ const styles = StyleSheet.create({
     fontSize: 14, fontFamily: "Inter_400Regular",
     minHeight: 72, textAlignVertical: "top",
   },
-  statsRow: { flexDirection: "row", alignItems: "center", marginTop: 4 },
-  stat: { flex: 1, alignItems: "center", gap: 2 },
-  statDivider: { width: 1, height: 30, marginHorizontal: 12 },
-  statValue: { fontSize: 18, fontWeight: "700", fontFamily: "Inter_700Bold" },
-  statLabel: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  statsRow: { width: "92%", flexDirection: "row", alignItems: "center", marginTop: 8 },
+  stat: { flex: 1, alignItems: "center", gap: 3 },
+  statDivider: { width: 1, height: 32, marginHorizontal: 8, backgroundColor: "#5C4A85" },
+  statValue: { color: "#FFF", fontSize: 18, lineHeight: 22, fontFamily: "Inter_600SemiBold" },
+  statLabel: { color: "#BDB8E8", fontSize: 11, fontFamily: "Inter_400Regular" },
   goLiveBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -660,13 +763,14 @@ const styles = StyleSheet.create({
   gridHeader: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 32,
-    marginTop: 12,
-    borderTopWidth: 1,
+    gap: 36,
+    marginTop: 0,
+    borderTopWidth: 2,
     borderBottomWidth: 1,
+    borderColor: "#44306D",
   },
   viewOption: {
-    width: 52,
+    width: 56,
     height: 46,
     alignItems: "center",
     justifyContent: "center",

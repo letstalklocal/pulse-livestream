@@ -468,6 +468,8 @@ export const GetUserResponse = zod.object({
   "bio": zod.string(),
   "avatarImagePath": zod.string().nullish(),
   "avatarImageUrl": zod.string().nullish(),
+  "profileBackgroundImagePath": zod.string().nullish(),
+  "profileBackgroundImageUrl": zod.string().nullish(),
   "streamBackgroundImagePath": zod.string().nullish(),
   "streamBackgroundImageUrl": zod.string().nullish(),
   "followersCount": zod.number(),
@@ -490,6 +492,7 @@ export const UpsertUserBody = zod.object({
   "name": zod.string(),
   "bio": zod.string().optional(),
   "avatarImagePath": zod.string().nullish(),
+  "profileBackgroundImagePath": zod.string().nullish(),
   "streamBackgroundImagePath": zod.string().nullish()
 })
 
@@ -502,6 +505,8 @@ export const UpsertUserResponse = zod.object({
   "bio": zod.string(),
   "avatarImagePath": zod.string().nullish(),
   "avatarImageUrl": zod.string().nullish(),
+  "profileBackgroundImagePath": zod.string().nullish(),
+  "profileBackgroundImageUrl": zod.string().nullish(),
   "streamBackgroundImagePath": zod.string().nullish(),
   "streamBackgroundImageUrl": zod.string().nullish(),
   "followersCount": zod.number(),
@@ -516,6 +521,14 @@ export const UpsertUserResponse = zod.object({
  * @summary Request an upload URL for a stream background image
  */
 export const RequestStreamBackgroundUploadParams = zod.object({
+  "uid": zod.coerce.number()
+})
+
+
+/**
+ * @summary Request an upload URL for a profile background image
+ */
+export const RequestProfileBackgroundUploadParams = zod.object({
   "uid": zod.coerce.number()
 })
 

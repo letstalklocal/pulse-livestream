@@ -1,4 +1,5 @@
 import { MediaPackGallery } from "./MediaPackGallery";
+import { DirectVideoThumbnail } from "./DirectVideoThumbnail";
 import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -177,6 +178,13 @@ export function MediaPackMessage({
                     style={styles.asset}
                     contentFit="cover"
                   />
+                ) : item.mediaType === "video" && item.mediaUrl ? (
+                  <>
+                    <DirectVideoThumbnail uri={item.mediaUrl} style={styles.asset} />
+                    <View pointerEvents="none" style={styles.videoPreviewOverlay}>
+                      <Ionicons name="play-circle" size={38} color="#FFF" />
+                    </View>
+                  </>
                 ) : (
                   <View style={[styles.asset, styles.video]}>
                     <Ionicons name="videocam" size={30} color="#FFF" />
@@ -277,6 +285,7 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   asset: { width: "100%", height: "100%" },
+  videoPreviewOverlay: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.14)" },
   previewShade: {
     position: "absolute",
     top: 0,

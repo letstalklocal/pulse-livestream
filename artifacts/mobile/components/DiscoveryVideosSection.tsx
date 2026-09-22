@@ -30,6 +30,7 @@ import { useAuth } from "@clerk/expo";
 import { videoRequest, type CreatorVideo } from "@/utils/creatorVideos";
 import { Avatar } from "./Avatar";
 import { VideoCardPreview } from "./VideoCardPreview";
+import { getGetUserQueryKey, useGetUser } from "@workspace/api-client-react";
 
 export interface VideoSectionHandle {
   refreshVisibility: () => void;
@@ -152,6 +153,15 @@ const VideoDiscoveryCard = React.forwardRef<
   const { t } = useAppLanguage();
   const colors = useColors();
   const router = useRouter();
+  const ownerUid = video?.ownerUid ?? 0;
+  const ownerProfile = useGetUser(ownerUid, {
+    query: {
+      queryKey: getGetUserQueryKey(ownerUid),
+      enabled: ownerUid > 0,
+      staleTime: 60_000,
+      retry: false,
+    },
+  });
   return (
     <TouchableOpacity
       accessibilityRole="button"
@@ -195,12 +205,28 @@ const VideoDiscoveryCard = React.forwardRef<
           <Text style={styles.badgeText}>VIDEO</Text>
         </View>
         <View style={styles.identity}>
-          <Avatar
-            uid={video?.ownerUid ?? 0}
-            name={video?.ownerName ?? t("Video prototype")}
-            size={26}
-            borderWidth={1}
-          />
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t("View {v0}'s profile", { v0: ownerProfile.data?.user.name?.trim() ?? video?.ownerName ?? t("Video prototype") })}
+            disabled={ownerUid <= 0}
+            onPress={() => router.push({
+              pathname: "/profile/[hostUid]",
+              params: {
+                hostUid: String(ownerUid),
+                name: ownerProfile.data?.user.name?.trim() ?? video?.ownerName ?? "",
+                avatarUri: ownerProfile.data?.user.avatarImageUrl ?? "",
+              },
+            })}
+            activeOpacity={0.75}
+          >
+            <Avatar
+              uid={ownerUid}
+              name={ownerProfile.data?.user.name?.trim() ?? video?.ownerName ?? t("Video prototype")}
+              avatarUri={ownerProfile.data?.user.avatarImageUrl ?? undefined}
+              size={26}
+              borderWidth={1}
+            />
+          </TouchableOpacity>
           <Text style={styles.name} numberOfLines={1}>
             {video?.ownerName ?? t("Video prototype")}
           </Text>

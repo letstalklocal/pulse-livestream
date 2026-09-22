@@ -17,6 +17,28 @@ import { useRtm } from "@/context/RtmContext";
 import { useColors } from "@/hooks/useColors";
 import { Avatar } from "@/components/Avatar";
 import { AccountHeader } from "@/components/AccountHeader";
+import { getGetUserQueryKey, useGetUser } from "@workspace/api-client-react";
+
+function ConversationAvatar({ peerId, peerName }: { peerId: string; peerName: string }) {
+  const uid = Number(peerId);
+  const profile = useGetUser(uid, {
+    query: {
+      queryKey: getGetUserQueryKey(uid),
+      enabled: Number.isSafeInteger(uid) && uid > 0,
+      staleTime: 60_000,
+      retry: false,
+    },
+  });
+
+  return (
+    <Avatar
+      uid={uid}
+      name={profile.data?.user.name?.trim() || peerName}
+      avatarUri={profile.data?.user.avatarImageUrl ?? undefined}
+      size={46}
+    />
+  );
+}
 
 export default function ChatScreen() {
   const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
@@ -105,7 +127,7 @@ export default function ChatScreen() {
                 })}
                 activeOpacity={0.75}
               >
-                <Avatar uid={parseInt(item.peerId)} name={item.peerName} size={46} />
+                <ConversationAvatar peerId={item.peerId} peerName={item.peerName} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.convoInfo}

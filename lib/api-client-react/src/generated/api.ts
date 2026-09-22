@@ -1768,6 +1768,76 @@ export const useRequestStreamBackgroundUpload = <TError = ErrorType<ErrorRespons
       return useMutation(getRequestStreamBackgroundUploadMutationOptions(options));
     }
 
+export const getRequestProfileBackgroundUploadUrl = (uid: number,) => {
+
+
+
+
+  return `/api/users/${uid}/profile-background/upload`
+}
+
+/**
+ * @summary Request an upload URL for a profile background image
+ */
+export const requestProfileBackgroundUpload = async (uid: number, options?: RequestInit): Promise<MediaPackUploadResponse> => {
+
+  return customFetch<MediaPackUploadResponse>(getRequestProfileBackgroundUploadUrl(uid),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRequestProfileBackgroundUploadMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestProfileBackgroundUpload>>, TError,{uid: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestProfileBackgroundUpload>>, TError,{uid: number}, TContext> => {
+
+const mutationKey = ['requestProfileBackgroundUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestProfileBackgroundUpload>>, {uid: number}> = (props) => {
+          const {uid} = props ?? {};
+
+          return  requestProfileBackgroundUpload(uid,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestProfileBackgroundUploadMutationResult = NonNullable<Awaited<ReturnType<typeof requestProfileBackgroundUpload>>>
+
+    export type RequestProfileBackgroundUploadMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Request an upload URL for a profile background image
+ */
+export const useRequestProfileBackgroundUpload = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestProfileBackgroundUpload>>, TError,{uid: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestProfileBackgroundUpload>>,
+        TError,
+        {uid: number},
+        TContext
+      > => {
+      return useMutation(getRequestProfileBackgroundUploadMutationOptions(options));
+    }
+
 export const getRequestAvatarUploadUrl = (uid: number,) => {
 
 

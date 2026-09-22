@@ -22,6 +22,8 @@ export interface User {
   avatarUri?: string;
   avatarImagePath?: string | null;
   avatarImageUrl?: string | null;
+  profileBackgroundImagePath?: string | null;
+  profileBackgroundImageUrl?: string | null;
   streamBackgroundImagePath?: string | null;
   streamBackgroundImageUrl?: string | null;
   followersCount: number;
@@ -76,6 +78,7 @@ async function syncProfile(
   name: string,
   bio: string,
   avatarImagePath?: string | null,
+  profileBackgroundImagePath?: string | null,
   streamBackgroundImagePath?: string | null,
 ) {
   try {
@@ -90,6 +93,9 @@ async function syncProfile(
         name,
         bio,
         ...(avatarImagePath !== undefined ? { avatarImagePath } : {}),
+        ...(profileBackgroundImagePath !== undefined
+          ? { profileBackgroundImagePath }
+          : {}),
         ...(streamBackgroundImagePath !== undefined
           ? { streamBackgroundImagePath }
           : {}),
@@ -213,6 +219,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           fields.name !== undefined ||
           fields.bio !== undefined ||
           fields.avatarImagePath !== undefined ||
+          fields.profileBackgroundImagePath !== undefined ||
           fields.streamBackgroundImagePath !== undefined
         ) {
           void syncProfile(
@@ -221,6 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             updated.name,
             updated.bio,
             fields.avatarImagePath,
+            fields.profileBackgroundImagePath,
             fields.streamBackgroundImagePath,
           );
         }

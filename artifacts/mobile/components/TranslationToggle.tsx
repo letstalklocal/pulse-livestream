@@ -1,7 +1,7 @@
 import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import { confirmTranslation } from "@/utils/confirmTranslation";
 import React, { useState } from "react";
-import { ActivityIndicator, Alert, Text, TouchableOpacity } from "react-native";
+import { ActivityIndicator, Alert, Switch, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { getTranslationStatus } from "@workspace/api-client-react";
 import { useTranslationPreferences } from "@/hooks/useTranslationPreferences";
@@ -23,14 +23,23 @@ export function TranslationToggle({ peerId, color = "#FFF", menu = false, menuLa
     } catch { Alert.alert(t("Couldn't update translation"), t("Please try again.")); }
     finally { setBusy(false); }
   };
-  return <TouchableOpacity onPress={() => void toggle()} disabled={!ready || busy} hitSlop={menu ? undefined : 8}
-    accessibilityRole="switch" accessibilityState={{ checked: enabled, disabled: !ready || busy }}
-    accessibilityLabel={menu && menuLabel ? t(menuLabel) : peerId ? t("Auto-translate this conversation") : t("Translate live chat")}
-    style={menu ? { flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 } : { padding: 6 }}>
+  const content = <>
     {busy ? <ActivityIndicator size="small" color={color} /> : <Ionicons name="globe-outline" size={21} color={enabled ? "#FF1966" : color} />}
     {menu ? <>
       <Text style={[localizedTextStyle(), { color, fontSize: 16, fontFamily: "Inter_500Medium", flex: 1 }]}>{t(menuLabel ?? "Translate chat")}</Text>
-      <Text style={[localizedTextStyle(), { color: enabled ? "#FF1966" : "#999", fontSize: 13 }]}>{enabled ? t("On") : t("Off")}</Text>
+      <Switch
+        value={enabled}
+        onValueChange={() => void toggle()}
+        disabled={!ready || busy}
+        trackColor={{ false: "#52525D", true: "#FF1966" }}
+        thumbColor="#FFF"
+        accessibilityLabel={t(menuLabel ?? "Translate chat")}
+      />
     </> : null}
-  </TouchableOpacity>;
+  </>;
+  if (menu) return <View style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 }}>{content}</View>;
+  return <TouchableOpacity onPress={() => void toggle()} disabled={!ready || busy} hitSlop={8}
+    accessibilityRole="switch" accessibilityState={{ checked: enabled, disabled: !ready || busy }}
+    accessibilityLabel={peerId ? t("Auto-translate this conversation") : t("Translate live chat")}
+    style={{ padding: 6 }}>{content}</TouchableOpacity>;
 }

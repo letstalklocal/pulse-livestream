@@ -25,6 +25,9 @@ async function withUserImageUrls(user: typeof usersTable.$inferSelect) {
     avatarImageUrl: user.avatarImagePath
       ? await createPrivateGetUrl(user.avatarImagePath)
       : null,
+    profileBackgroundImageUrl: user.profileBackgroundImagePath
+      ? await createPrivateGetUrl(user.profileBackgroundImagePath)
+      : null,
     streamBackgroundImageUrl: user.streamBackgroundImagePath
       ? await createPrivateGetUrl(user.streamBackgroundImagePath)
       : null,
@@ -51,10 +54,11 @@ router.put("/users/:uid", async (req, res) => {
     res.status(400).json({ error: "Invalid uid" });
     return;
   }
-  const { name, bio, avatarImagePath, streamBackgroundImagePath } = req.body as {
+  const { name, bio, avatarImagePath, profileBackgroundImagePath, streamBackgroundImagePath } = req.body as {
     name?: string;
     bio?: string;
     avatarImagePath?: string | null;
+    profileBackgroundImagePath?: string | null;
     streamBackgroundImagePath?: string | null;
   };
   if (!name || typeof name !== "string") {
@@ -69,6 +73,7 @@ router.put("/users/:uid", async (req, res) => {
   const rows = await db.update(usersTable).set({
     name: name.trim(), bio: (bio ?? "").trim(),
     ...(avatarImagePath !== undefined ? { avatarImagePath } : {}),
+    ...(profileBackgroundImagePath !== undefined ? { profileBackgroundImagePath } : {}),
     ...(streamBackgroundImagePath !== undefined ? { streamBackgroundImagePath } : {}),
     updatedAt: new Date(),
   }).where(eq(usersTable.uid, uid)).returning();
@@ -98,6 +103,24 @@ router.post("/users/:uid/stream-background/upload", async (req, res) => {
     res.status(400).json({ error: "Invalid uid" });
     return;
   }
+  try {
+    res.status(201).json(await createPrivateUploadUrl());
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Upload URL could not be created",
+    });
+  }
+});
+
+router.post("/users/:uid/profile-background/upload", async (req, res) => {
+  const uid = parseInt(req.params["uid"] ?? "", 10);
+  if (isNaN(uid)) {
+    res.status(400).json({ error: "Invalid uid" });
+    return;
+  }
+  const actor = await authenticatedUser(req);
+  if (!actor) return void res.status(401).json({ error: "Authentication required" });
+  if (actor.uid !== uid) return void res.status(403).json({ error: "You can only update your own profile" });
   try {
     res.status(201).json(await createPrivateUploadUrl());
   } catch (error) {

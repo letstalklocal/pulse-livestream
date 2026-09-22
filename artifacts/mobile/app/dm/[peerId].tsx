@@ -6,7 +6,6 @@ import { useAuth as useClerkAuth } from "@clerk/expo";
 import { AccountSafetyMenu } from "@/components/AccountSafetyMenu";
 import { useAccountSafety } from "@/hooks/useAccountSafety";
 import { TranslatedMessage } from "@/components/TranslatedMessage";
-import { TranslationToggle } from "@/components/TranslationToggle";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as Crypto from "expo-crypto";
@@ -360,11 +359,10 @@ export default function DmScreen() {
         </View>
         <View style={{flex:1}}><Text style={[styles.headerName, { color: colors.foreground }]} numberOfLines={1}>{name}</Text>
         {!contactBlocked && !peerStatus.data?.online && peerStatus.data?.lastSeen != null && <Text style={{fontSize:11,color:colors.mutedForeground}}>{formatLastSeen(peerStatus.data.lastSeen, lastSeenNow, appLocale(), t)}</Text>}</View>
-        <TranslationToggle peerId={peerIdStr} color={colors.foreground} />
-        <TouchableOpacity onPress={() => setShowInviteComposer(true)} disabled={createInviteMutation.isPending || contactBlocked || needsGift} accessibilityLabel={t("Invite {v0} to a private live stream", { v0: name })}>
-          {createInviteMutation.isPending ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="videocam-outline" size={23} color={colors.primary} />}
+        <TouchableOpacity style={styles.privateInviteButton} onPress={() => setShowInviteComposer(true)} disabled={createInviteMutation.isPending || contactBlocked || needsGift} accessibilityLabel={t("Invite {v0} to a 1:1 private live stream", { v0: name })}>
+          {createInviteMutation.isPending ? <ActivityIndicator size="small" color="#FFF" /> : <><Ionicons name="videocam-outline" size={26} color="#FFF" /><Text style={styles.privateInviteLabel}>1:1</Text></>}
         </TouchableOpacity>
-        <AccountSafetyMenu uid={Number(peerIdStr)} source="dm" color={colors.foreground} />
+        <AccountSafetyMenu uid={Number(peerIdStr)} source="dm" color={colors.foreground} peerId={peerIdStr} />
       </View>
 
       {/* Messages */}
@@ -650,6 +648,8 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "Inter_600SemiBold",
   },
+  privateInviteButton: { width: 32, height: 32, alignItems: "center", justifyContent: "center" },
+  privateInviteLabel: { position: "absolute", color: "#FFF", fontSize: 7, lineHeight: 9, fontFamily: "Inter_700Bold", includeFontPadding: false, textAlign: "center", transform: [{ translateX: -5 }] },
   listContent: {
     paddingHorizontal: 16,
     paddingTop: 12,

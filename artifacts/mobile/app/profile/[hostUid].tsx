@@ -175,19 +175,27 @@ export default function PublicProfileScreen() {
 
       {/* Back button */}
       <View style={{ position: "absolute", right: 20, top: topInset + 16, zIndex: 10 }}>
-        <AccountSafetyMenu uid={uid} source="profile" color={colors.foreground} />
+        <AccountSafetyMenu uid={uid} source="profile" color="#FFF" />
       </View>
       <TouchableOpacity
         style={[styles.backBtn, { top: topInset + 10 }]}
         onPress={() => router.back()}
         activeOpacity={0.8}
       >
-        <Ionicons name="chevron-back" size={22} color={colors.foreground} />
+        <Ionicons name="chevron-back" size={22} color="#FFF" />
       </TouchableOpacity>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header space */}
-        <View style={{ height: topInset + 56 }} />
+        <View style={styles.cover}>
+          <Image
+            source={profile?.profileBackgroundImageUrl
+              ? { uri: profile.profileBackgroundImageUrl }
+              : require("@/assets/images/profile-cover-sunset.png")}
+            style={styles.absoluteFill}
+            resizeMode="cover"
+          />
+          <View style={styles.coverShade} />
+        </View>
 
         {userLoading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: 32 }} />
@@ -343,7 +351,7 @@ export default function PublicProfileScreen() {
             {posts.map((post) => (
               <TouchableOpacity key={post.id} style={styles.gridCell} activeOpacity={0.85} accessibilityLabel={t("Open photo")}
                 onPress={() => router.push({ pathname: "/posts/[uid]", params: { uid: String(uid), name: displayName, postId: String(post.id) } })}>
-                <Image source={{ uri: post.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                <Image source={{ uri: post.imageUrl }} style={styles.absoluteFill} resizeMode="cover" />
               </TouchableOpacity>
             ))}
           </View>
@@ -372,7 +380,7 @@ export default function PublicProfileScreen() {
                   </View>
 
                   <View style={styles.feedMedia}>
-                    <Image source={{ uri: post.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="contain" />
+                    <Image source={{ uri: post.imageUrl }} style={styles.absoluteFill} resizeMode="contain" />
                     <PostGiftTotal postId={post.id} />
                   </View>
 
@@ -392,6 +400,9 @@ export default function PublicProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  absoluteFill: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
+  cover: { height: 178, position: "relative", overflow: "hidden", borderBottomLeftRadius: 14, borderBottomRightRadius: 14 },
+  coverShade: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(3,5,12,0.28)" },
   backBtn: {
     position: "absolute",
     left: 16,
@@ -406,8 +417,9 @@ const styles = StyleSheet.create({
   profileBlock: {
     alignItems: "center",
     paddingHorizontal: 24,
-    gap: 10,
-    paddingBottom: 4,
+    gap: 8,
+    paddingBottom: 8,
+    marginTop: -42,
   },
   displayName: {
     fontSize: 22,

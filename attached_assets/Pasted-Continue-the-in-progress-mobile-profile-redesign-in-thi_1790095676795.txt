@@ -1,0 +1,25 @@
+Continue the in-progress mobile profile redesign in this workspace. Do not reset, discard, or revert existing uncommitted work.
+
+  First inspect:
+  - AGENTS.md
+  - artifacts/mobile/app/(tabs)/profile.tsx
+  - artifacts/mobile/assets/images/profile-cover-sunset.png
+  - git diff and git status
+
+  The current profile redesign is visually wrong because it is oversized. Fix the layout so it is compact and proportionate to the provided design reference:
+  - The cover should be a compact header treatment, not dominate the screen.
+  - Keep the avatar overlapping the cover, but use a medium size.
+  - Scale name, bio, edit control, follower/following stats, and grid/list tabs together at normal mobile-app proportions.
+  - The posts grid should begin high enough that the profile does not feel like one huge hero section.
+  - Preserve existing navigation, coin purchase behavior, profile editing, followers/following links, post views, and dark-theme styling.
+  - Do not remove unrelated approved chat, discovery, DM, stream, coin, or RevenueCat changes.
+
+  There is a current TypeScript issue in profile.tsx: this project’s React Native typings do not support StyleSheet.absoluteFillObject. Replace it with explicit absolute positioning styles.
+
+  Also complete profile-cover support:
+  - profile cover images must be cropped during upload to an exact 16:9 ratio and exported at a sensible fixed size such as 1280×720.
+  - keep stream-background cropping behavior unchanged; it currently uses 9:16.
+  - use the included profile-cover-sunset.png as the default fallback cover for accounts that have not uploaded one.
+  - add a separate persisted profile-background field/API upload route if needed; do not reuse stream background storage semantically.
+  - Follow AGENTS.md requirements for backend changes: apply migration, rebuild/restart the API, and verify the affected running endpoint.
+  - Run pnpm run typecheck and git diff --check. Clearly distinguish automated results from unperformed device visual testing.

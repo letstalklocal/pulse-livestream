@@ -10,5 +10,6 @@ export interface UpsertUserRequest {
   name: string;
   bio?: string;
   avatarImagePath?: string | null;
+  profileBackgroundImagePath?: string | null;
   streamBackgroundImagePath?: string | null;
 }

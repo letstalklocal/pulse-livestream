@@ -41,7 +41,7 @@ This document records the user's decisions from the chat-settings conversation a
 
 ## Chat header and reporting
 
-- Use the header's three-dot menu for reporting/blocking.
+- Use the header's three-dot menu for reporting/blocking and the direct-message Translate chat switch. It opens in a compact, centered iPhone-style dark action panel, not a native gray alert screen or a bottom sheet detached from the header action. Use a switch for binary settings, not “On”/“Off” text.
 - **No three-dot/report buttons beside individual messages.** The user explicitly rejected those controls. Do not restore them or substitute a new per-message reporting gesture without a request.
 - Header avatar is **40 px**. The 46 px version was rejected as too large; the original 34 px size was enlarged to the current 40 px.
 - Show a small green online dot at the avatar's bottom-right when the person is online. Current dot: 11 px with a 2 px outline matching the background.
@@ -50,6 +50,7 @@ This document records the user's decisions from the chat-settings conversation a
 - Last Seen uses elapsed time: under one minute “Last Seen just now”; under an hour “Last Seen 10 mins ago”; from one hour “Last Seen 1 hour ago”; from one day “Last Seen 1 day ago”. Use whole elapsed units and singular/plural correctly.
 - At seven days or older, show “Last Seen” followed by the device-local date, with no time. Refresh relative labels while the chat is open. This changes last-seen status only; message-bubble timestamps still show local time.
 - Hide online/last-seen information when privacy settings or blocking prohibit it.
+- The direct-message private-live invite control uses a 26 px white video-camera icon with a 7 px white **`1:1`** label positioned in the camera’s rectangular body, 5 points left of center to sit left of the lens.
 
 ## Messages Settings
 
@@ -264,7 +265,7 @@ Automated checks cover zero totals, isolation between posts, duplicate/failed pa
 
 ## Portrait media-pack cards in DMs
 
-User explicitly selected DM pack cards for a 5:7 format: title first, then photo/video counts with icons, followed by media. Unlocked/owner media previews swipe horizontally with one bounded page at a time; tapping opens the previously confirmed full-screen shared gallery. Locked packs show only the blurred authorized preview, lock overlay and existing purchase action. Retain the displayed-price confirmation, existing ownership and in-card read double-check. Card width adapts to screen size, with a 280-point maximum. No automatic slideshow or changes to live stickers/pack-selection cards.
+User explicitly selected DM pack cards for a 5:7 format: title first, then photo/video counts with icons, followed by media. Unlocked/owner media previews swipe horizontally with one bounded page at a time; video pages show an extracted authorized thumbnail frame with a play affordance, and tapping opens the previously confirmed full-screen shared gallery. Locked packs show only the blurred authorized preview, lock overlay and existing purchase action. Retain the displayed-price confirmation, existing ownership and in-card read double-check. Card width adapts to screen size, with a 280-point maximum. No automatic slideshow or changes to live stickers/pack-selection cards.
 
 Automated coverage tests title/count order, 5:7 sizing, page offsets on multiple screen widths, locked-preview privacy, gallery opening, checkout amount and read state. Stream regressions and localization pass. Android/iPhone visual sizing, horizontal swiping versus chat scrolling/reply gestures, large text and keyboard cases remain pending; no device/build identity was supplied.
 

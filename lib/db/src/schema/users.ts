@@ -9,6 +9,7 @@ export const usersTable = pgTable("users", {
   bio: text("bio").notNull().default(""),
   countryCode: text("country_code"),
   avatarImagePath: text("avatar_image_path"),
+  profileBackgroundImagePath: text("profile_background_image_path"),
   streamBackgroundImagePath: text("stream_background_image_path"),
   followersCount: integer("followers_count").notNull().default(0),
   followingCount: integer("following_count").notNull().default(0),
