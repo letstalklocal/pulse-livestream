@@ -195,6 +195,12 @@ export default function PublicProfileScreen() {
             resizeMode="cover"
           />
           <View style={styles.coverShade} />
+          {profile?.country ? (
+            <View style={styles.coverLocation}>
+              <Ionicons name="location" size={16} color="#FFF" />
+              <Text style={styles.coverLocationText}>{profile.country}</Text>
+            </View>
+          ) : null}
         </View>
 
         {userLoading ? (
@@ -208,7 +214,6 @@ export default function PublicProfileScreen() {
               <Text style={[styles.displayName, { color: colors.foreground }]}>
                 {displayName}
               </Text>
-              {profile?.country ? <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>{profile.country}</Text> : null}
               {bio ? (
                 <Text style={[styles.bio, { color: colors.mutedForeground }]}>{bio}</Text>
               ) : null}
@@ -403,6 +408,8 @@ const styles = StyleSheet.create({
   absoluteFill: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
   cover: { height: 232, position: "relative", overflow: "hidden", borderBottomLeftRadius: 14, borderBottomRightRadius: 14 },
   coverShade: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(3,5,12,0.28)" },
+  coverLocation: { position: "absolute", right: 16, bottom: 16, flexDirection: "row", alignItems: "center", gap: 4 },
+  coverLocationText: { color: "#FFF", fontSize: 10, fontFamily: "Inter_600SemiBold" },
   backBtn: {
     position: "absolute",
     left: 16,
