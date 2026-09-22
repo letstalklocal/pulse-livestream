@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 8,
     paddingBottom: 8,
-    marginTop: -58,
+    marginTop: -60,
   },
   displayName: {
     fontSize: 20,

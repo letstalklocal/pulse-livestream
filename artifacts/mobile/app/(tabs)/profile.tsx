@@ -708,7 +708,7 @@ const styles = StyleSheet.create({
   coverEditButton: { position: "absolute", left: 16, bottom: 12, width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(8,10,16,0.72)", borderWidth: 1, borderColor: "rgba(255,255,255,0.35)" },
   coverLocation: { position: "absolute", right: 16, bottom: 16, flexDirection: "row", alignItems: "center", gap: 4 },
   coverLocationText: { color: "#FFF", fontSize: 10, fontFamily: "Inter_600SemiBold" },
-  profileBlock: { alignItems: "center", paddingHorizontal: 24, gap: 6, paddingBottom: 10, marginTop: -58 },
+  profileBlock: { alignItems: "center", paddingHorizontal: 24, gap: 6, paddingBottom: 10, marginTop: -60 },
   avatarWrapper: { position: "relative", marginBottom: 1 },
   avatarEditBadge: {
     position: "absolute",
