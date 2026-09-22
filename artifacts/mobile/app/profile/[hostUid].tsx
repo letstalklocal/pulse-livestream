@@ -203,12 +203,12 @@ export default function PublicProfileScreen() {
           <>
             {/* Profile info */}
             <View style={styles.profileBlock}>
-              <Avatar uid={uid} name={displayName} avatarUri={profile?.avatarImageUrl ?? paramAvatarUri} size={88} />
+              <Avatar uid={uid} name={displayName} avatarUri={profile?.avatarImageUrl ?? paramAvatarUri} size={120} />
 
               <Text style={[styles.displayName, { color: colors.foreground }]}>
                 {displayName}
               </Text>
-              {profile?.country ? <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>{profile.country}</Text> : null}
+              {profile?.country ? <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>{profile.country}</Text> : null}
               {bio ? (
                 <Text style={[styles.bio, { color: colors.mutedForeground }]}>{bio}</Text>
               ) : null}
@@ -401,7 +401,7 @@ export default function PublicProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   absoluteFill: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
-  cover: { height: 178, position: "relative", overflow: "hidden", borderBottomLeftRadius: 14, borderBottomRightRadius: 14 },
+  cover: { height: 232, position: "relative", overflow: "hidden", borderBottomLeftRadius: 14, borderBottomRightRadius: 14 },
   coverShade: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(3,5,12,0.28)" },
   backBtn: {
     position: "absolute",
@@ -419,10 +419,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 8,
     paddingBottom: 8,
-    marginTop: -42,
+    marginTop: -58,
   },
   displayName: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "700",
     fontFamily: "Inter_700Bold",
   },

@@ -44,6 +44,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PostFooter } from "@/components/PostFooter";
 import { Avatar } from "@/components/Avatar";
 import { GoldCoinIcon } from "@/components/GoldCoinIcon";
+import {
+  ProfileBackgroundCropper,
+  type ProfileBackgroundCropSource,
+} from "@/components/ProfileBackgroundCropper";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { POST_ASPECT_RATIO } from "@/utils/postLayout";
@@ -83,6 +87,7 @@ export default function ProfileScreen() {
   const [editBio, setEditBio] = useState(user?.bio ?? "");
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const [profileBackgroundToCrop, setProfileBackgroundToCrop] = useState<ProfileBackgroundCropSource | null>(null);
   const [postImage, setPostImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [postCaption, setPostCaption] = useState("");
   const [isPublishingPost, setIsPublishingPost] = useState(false);
@@ -250,20 +255,8 @@ export default function ProfileScreen() {
     }
   };
 
-  const pickProfileCover = async () => {
-    if (!user || isUploadingCover || Platform.OS === "web") return;
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert(t("Permission needed"), t("Allow photo access to update your profile background."));
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: false,
-      quality: 1,
-    });
-    const asset = result.canceled ? undefined : result.assets[0];
-    if (!asset) return;
+  const saveProfileCover = async (asset: ProfileBackgroundCropSource) => {
+    if (!user || isUploadingCover) return;
     setIsUploadingCover(true);
     try {
       const sourceWidth = asset.width;
@@ -305,6 +298,7 @@ export default function ProfileScreen() {
         profileBackgroundImagePath: updated.user.profileBackgroundImagePath,
         profileBackgroundImageUrl: updated.user.profileBackgroundImageUrl,
       });
+      setProfileBackgroundToCrop(null);
       await queryClient.invalidateQueries({ queryKey: getGetUserQueryKey(user.uid) });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
@@ -315,6 +309,32 @@ export default function ProfileScreen() {
     } finally {
       setIsUploadingCover(false);
     }
+  };
+
+  const pickProfileCover = async () => {
+    if (!user || isUploadingCover || profileBackgroundToCrop || Platform.OS === "web") return;
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(t("Permission needed"), t("Allow photo access to update your profile background."));
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: Platform.OS !== "ios",
+      aspect: [16, 9],
+      quality: Platform.OS === "ios" ? 1 : 0.86,
+    });
+    const asset = result.canceled ? undefined : result.assets[0];
+    if (!asset) return;
+    if (Platform.OS === "ios") {
+      if (asset.width < 16 || asset.height < 9) {
+        Alert.alert(t("Background not saved"), t("Choose another image and try again."));
+        return;
+      }
+      setProfileBackgroundToCrop(asset);
+      return;
+    }
+    await saveProfileCover(asset);
   };
 
   const saveProfile = () => {
@@ -338,6 +358,13 @@ export default function ProfileScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {profileBackgroundToCrop ? (
+        <ProfileBackgroundCropper
+          source={profileBackgroundToCrop}
+          onCancel={() => setProfileBackgroundToCrop(null)}
+          onConfirm={saveProfileCover}
+        />
+      ) : null}
       <StatusBar barStyle="light-content" />
       <ScrollView showsVerticalScrollIndicator={false}>
 
@@ -401,7 +428,7 @@ export default function ProfileScreen() {
         {/* Avatar + info */}
         <View style={styles.profileBlock}>
           <TouchableOpacity onPress={pickAvatar} activeOpacity={0.8} style={styles.avatarWrapper}>
-            <Avatar uid={user.uid} name={user.name} avatarUri={user.avatarUri} size={88} borderWidth={3} borderColor="#080A10" />
+            <Avatar uid={user.uid} name={user.name} avatarUri={user.avatarUri} size={120} borderWidth={3} borderColor="#080A10" />
             <View style={styles.avatarEditBadge}>
               <Ionicons name="camera" size={15} color="#FFF" />
             </View>
@@ -432,7 +459,7 @@ export default function ProfileScreen() {
               <View style={styles.nameRow}>
                 <Text style={styles.displayName}>{user.name}</Text>
                 <TouchableOpacity style={styles.nameEditButton} onPress={() => { setEditName(user.name ?? ""); setEditBio(user.bio ?? ""); setEditing(true); }} accessibilityRole="button" accessibilityLabel={t("Edit Profile")}>
-                  <Ionicons name="pencil" size={18} color="#FFF" />
+                  <Ionicons name="pencil" size={14} color="#FFF" />
                 </TouchableOpacity>
               </View>
               {user.bio ? (
@@ -642,7 +669,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   absoluteFill: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
-  cover: { height: 178, position: "relative", overflow: "hidden", borderBottomLeftRadius: 14, borderBottomRightRadius: 14 },
+  cover: { height: 232, position: "relative", overflow: "hidden", borderBottomLeftRadius: 14, borderBottomRightRadius: 14 },
   coverShade: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(3,5,12,0.28)" },
   header: {
     flexDirection: "row",
@@ -680,8 +707,8 @@ const styles = StyleSheet.create({
   },
   coverEditButton: { position: "absolute", left: 16, bottom: 12, width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(8,10,16,0.72)", borderWidth: 1, borderColor: "rgba(255,255,255,0.35)" },
   coverLocation: { position: "absolute", right: 16, bottom: 16, flexDirection: "row", alignItems: "center", gap: 4 },
-  coverLocationText: { color: "#FFF", fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  profileBlock: { alignItems: "center", paddingHorizontal: 24, gap: 6, paddingBottom: 10, marginTop: -42 },
+  coverLocationText: { color: "#FFF", fontSize: 10, fontFamily: "Inter_600SemiBold" },
+  profileBlock: { alignItems: "center", paddingHorizontal: 24, gap: 6, paddingBottom: 10, marginTop: -58 },
   avatarWrapper: { position: "relative", marginBottom: 1 },
   avatarEditBadge: {
     position: "absolute",
@@ -697,7 +724,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FF1966",
   },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 1 },
-  displayName: { fontSize: 23, lineHeight: 28, color: "#FFF", fontFamily: "Inter_600SemiBold" },
+  displayName: { fontSize: 20, lineHeight: 25, color: "#FFF", fontFamily: "Inter_600SemiBold" },
   nameEditButton: {
     width: 32,
     height: 32,
