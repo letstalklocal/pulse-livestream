@@ -511,7 +511,9 @@ const gifts: Record<string, { name: string; coins: number }> = {
   rose: { name: "Rose", coins: 1 },
   heart: { name: "Heart", coins: 5 },
   party: { name: "Party", coins: 10 },
+  strawberry: { name: "Strawberry", coins: 49 },
   diamond: { name: "Diamond", coins: 50 },
+  lips: { name: "Lips", coins: 99 },
   rocket: { name: "Rocket", coins: 100 },
   crown: { name: "Crown", coins: 500 },
 };

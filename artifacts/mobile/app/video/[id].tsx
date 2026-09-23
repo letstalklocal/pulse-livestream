@@ -317,7 +317,6 @@ export default function CreatorVideoViewer() {
       });
       giftRequest.current = null;
       if (!alive.current) return;
-      setShowGifts(false);
       setGifts((old) => [
         ...old.slice(-7),
         {

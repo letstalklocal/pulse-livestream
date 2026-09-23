@@ -15,6 +15,12 @@ try{
  let stored=await pool.query('select duration_ms from media_pack_items where pack_id=$1',[id]);assert.equal(stored.rows[0].duration_ms,1235);
  const edited=await call('/media-packs/:packId','put',{giftId:'heart',items:[item(9000.125)]},{packId:id});assert.equal(edited.statusCode,200);
  stored=await pool.query('select duration_ms from media_pack_items where pack_id=$1',[id]);assert.equal(stored.rows[0].duration_ms,9000);
+ for (const [giftId, price] of [['lips',99],['strawberry',49],['heart',5]]) {
+  const result=await call('/media-packs/:packId','put',{giftId,items:[item(1000)]},{packId:id});
+  assert.equal(result.statusCode,200);
+  const priced=await pool.query('select gift_id,coin_price from media_packs where id=$1',[id]);
+  assert.deepEqual(priced.rows[0],{gift_id:giftId,coin_price:price});
+ }
  for(const bad of [-1,'1234',Infinity,NaN,2147483648]) {
   assert.equal((await call('/media-packs','post',{name:'Bad',giftId:'rose',items:[item(bad)]})).statusCode,400);
   assert.equal((await call('/media-packs/:packId','put',{giftId:'rose',items:[item(bad)]},{packId:id})).statusCode,400);

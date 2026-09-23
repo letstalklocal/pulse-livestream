@@ -4,6 +4,7 @@ const root = resolve(__dirname, '../../..');
 const tests = [
   'artifacts/mobile/tests/back-handler-platform.test.cjs',
   'artifacts/mobile/tests/live-stickers.test.cjs',
+  'artifacts/mobile/tests/gift-sheet-persistence.test.cjs',
   'artifacts/mobile/tests/media-pack-gift.test.cjs',
   'artifacts/mobile/tests/media-pack-message.test.cjs',
   'artifacts/mobile/tests/live-preview-pip.test.cjs',

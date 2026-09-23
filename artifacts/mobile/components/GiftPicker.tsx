@@ -1,3 +1,4 @@
+import { GiftImageArtwork, hasGiftImage } from "@/components/GiftImageArtwork";
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { CrownArtwork } from "./CrownArtwork";
 import React, { useEffect, useState } from "react";
@@ -26,9 +27,11 @@ export const GIFTS: Gift[] = [
   { id: "rose",    emoji: "🌹", name: "Rose",    coins: 1,   size: 36 },
   { id: "heart",   emoji: "❤️",  name: "Heart",   coins: 5,   size: 36 },
   { id: "party",   emoji: "🎉", name: "Party",   coins: 10,  size: 36 },
-  { id: "diamond", emoji: "💎", name: "Diamond", coins: 50,  size: 40 },
+  { id: "strawberry", emoji: "🍓", name: "Strawberry", coins: 49, size: 36 },
+  { id: "diamond", emoji: "💎", name: "Diamond", coins: 50,  size: 36 },
+  { id: "lips", emoji: "💋", name: "Lips", coins: 99, size: 36 },
   { id: "rocket",  emoji: "🚀", name: "Rocket",  coins: 100, size: 40 },
-  { id: "crown",   emoji: "👑", name: "Crown",   coins: 500, size: 44 },
+  { id: "crown",   emoji: "👑", name: "Crown",   coins: 500, size: 36 },
 ];
 
 interface Props {
@@ -44,11 +47,12 @@ interface Props {
   onRecipientChange?: (uid: number) => void;
 }
 
-export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipientUid, onRecipientChange, hintText = "Tap a gift to send it live", preview = false }: Props) {
+export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipientUid, onRecipientChange, hintText = "Select a gift, then tap Send.", preview = false }: Props) {
   const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const insets = useSafeAreaInsets();
   const [buyingCoins, setBuyingCoins] = useState(false);
-  useEffect(() => { if (!visible) setBuyingCoins(false); }, [visible]);
+  const [selectedGiftId, setSelectedGiftId] = useState<string | null>(null);
+  useEffect(() => { if (!visible) { setBuyingCoins(false); setSelectedGiftId(null); } }, [visible]);
 
   return (
     <Modal
@@ -68,8 +72,8 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
 
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[localizedTextStyle(), styles.title]}>{t("Send a Gift")}</Text>
-          <TouchableOpacity style={styles.coinBadge} disabled={preview} onPress={() => setBuyingCoins(true)}
+          <Text style={[localizedTextStyle(), styles.title]}>{t("Popular")}</Text>
+          <TouchableOpacity style={styles.coinBadge} hitSlop={8} disabled={preview} onPress={() => setBuyingCoins(true)}
             accessibilityRole="button" accessibilityLabel={t(preview ? "Preview gifts" : "Buy Coins")} activeOpacity={0.75}>
             <Text style={styles.coinIcon}>🪙</Text>
             <Text style={[styles.coinCount, localizedTextStyle()]}>{preview ? t("Preview gifts") : coins === 0 ? t("Buy Coins") : coins.toLocaleString(appLocale())}</Text>
@@ -82,30 +86,53 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
             <Text style={styles.recipientName} numberOfLines={1}>{person.name}</Text>
           </TouchableOpacity>)}
         </View> : null}
-        {/* Gift row */}
+        {/* Four columns; fit existing gifts, capped at three rows before scrolling. */}
         <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.row}
+          style={styles.gridViewport}
+          showsVerticalScrollIndicator
+          contentContainerStyle={styles.grid}
+          keyboardShouldPersistTaps="handled"
         >
           {GIFTS.map((gift) => {
             const canAfford = preview || coins >= gift.coins;
+            const selected = selectedGiftId === gift.id;
+            const canSend = selected && canAfford;
             return (
-              <TouchableOpacity
+              <View
                 key={gift.id}
-                style={[styles.giftCell, !canAfford && styles.giftCellDisabled]}
-                onPress={() => canAfford && onSend(gift)}
-                activeOpacity={0.7}
+                style={[styles.giftCell, selected && styles.selectedGift, !canAfford && styles.giftCellDisabled]}
               >
-                {gift.id === "crown" ? <CrownArtwork size={gift.size} style={{ height: 52 }} /> : <Text style={[styles.giftEmoji, { fontSize: gift.size }]}>{gift.emoji}</Text>}
-                <Text style={styles.giftName}>{gift.name}</Text>
+                <TouchableOpacity
+                  onPress={() => setSelectedGiftId(gift.id)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: selected }}
+                  accessibilityLabel={gift.name}
+                  style={styles.giftSelection}
+                  activeOpacity={0.8}
+                >
+                <View style={styles.artwork}>
+                  {gift.id === "crown" ? <CrownArtwork size={gift.size} /> : hasGiftImage(gift.id) ? <GiftImageArtwork gift={gift.id} size={gift.size} /> : <Text style={[styles.giftEmoji, { fontSize: gift.size }]}>{gift.emoji}</Text>}
+                </View>
+                <Text style={[styles.giftName, localizedTextStyle()]} numberOfLines={1}>{gift.name}</Text>
                 <View style={styles.giftCost}>
                   <Text style={styles.coinIconSm}>🪙</Text>
                   <Text style={[styles.giftCoins, !canAfford && styles.giftCoinsDisabled]}>
                     {gift.coins}
                   </Text>
                 </View>
-              </TouchableOpacity>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  testID={`send-gift-${gift.id}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t("Send")} ${gift.name}, ${gift.coins}`}
+                  disabled={!canSend}
+                  onPress={() => { if (canSend) onSend(gift); }}
+                  style={[styles.sendButton, !canSend && styles.sendDisabled]}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.sendText, localizedTextStyle()]}>{t("Send")}</Text>
+                </TouchableOpacity>
+              </View>
             );
           })}
         </ScrollView>
@@ -113,7 +140,9 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
         {!preview && coins === 0 && (
           <Text style={[localizedTextStyle(), styles.hintEmpty]}>{t("Tap Buy Coins to top up.")}</Text>
         )}
-        <Text style={styles.hint}>{t(hintText)}</Text>
+        {hintText !== "Select a gift, then tap Send." && (
+          <Text style={styles.hint}>{t(hintText)}</Text>
+        )}
       </View>}
     </Modal>
   );
@@ -127,13 +156,14 @@ const styles = StyleSheet.create({
   recipientName: { flex: 1, color: "#FFF", fontSize: 13, fontFamily: "Inter_500Medium" },
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "transparent",
   },
   sheet: {
+    maxHeight: "40%",
     backgroundColor: "#111118",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingTop: 12,
+    paddingTop: 6,
     paddingHorizontal: 20,
   },
   handle: {
@@ -142,28 +172,25 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: "rgba(255,255,255,0.2)",
     alignSelf: "center",
-    marginBottom: 16,
+    marginBottom: 6,
   },
   header: {
+    transform: [{ translateY: -4 }],
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 20,
+    marginBottom: 8,
   },
   title: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: "700",
     color: "#FFF",
     fontFamily: "Inter_700Bold",
   },
   coinBadge: {
-    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,215,0,0.15)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingVertical: 2,
     gap: 4,
   },
   coinIcon: { fontSize: 14 },
@@ -173,31 +200,73 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter_700Bold",
   },
-  row: {
+  gridViewport: {
+    maxHeight: 124 * Math.min(3, Math.ceil(GIFTS.length / 4)),
+    flexGrow: 0,
+    flexShrink: 1,
+    marginBottom: 12,
+  },
+  grid: {
     flexDirection: "row",
-    gap: 10,
-    paddingHorizontal: 2,
-    marginBottom: 16,
+    flexWrap: "wrap",
+    alignContent: "flex-start",
+    alignItems: "flex-start",
+    rowGap: 8,
   },
   giftCell: {
-    width: 78,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: "center",
-    gap: 5,
+    width: "25%",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "transparent",
+    borderRadius: 12,
+    overflow: "hidden",
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 0,
+    alignItems: "center",
+    gap: 1,
+  },
+  selectedGift: {
+    borderColor: "#FF4D85",
+    backgroundColor: "rgba(255,25,102,0.06)",
+  },
+  giftSelection: {
+    paddingHorizontal: 4,
+    alignSelf: "stretch",
+    alignItems: "center",
+    gap: 1,
+  },
+  sendDisabled: { opacity: 0.3 },
+  sendButton: {
+    minHeight: 20,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    backgroundColor: "#FF1966",
+    marginTop: 3,
+  },
+  sendText: {
+    color: "#FFF",
+    fontSize: 10,
+    fontFamily: "Inter_600SemiBold",
   },
   giftCellDisabled: {
     opacity: 0.4,
   },
+  artwork: {
+    height: 44,
+    alignItems: "center",
+    justifyContent: "flex-start",
+  },
   giftEmoji: {
-    lineHeight: 52,
+    lineHeight: 44,
+    includeFontPadding: false,
   },
   giftName: {
     color: "#FFF",
-    fontSize: 12,
+    fontSize: 10,
+    lineHeight: 12,
     fontWeight: "600",
     fontFamily: "Inter_600SemiBold",
   },

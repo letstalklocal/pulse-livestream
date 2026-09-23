@@ -144,7 +144,6 @@ export default function VideoPrototypeScreen() {
     setShowTools(true);
   };
   const previewGift = (gift: Gift) => {
-    setShowGifts(false);
     setGiftTotal(total => total + gift.coins);
     setFloatingGifts(previous => [...previous.slice(-7), {
       id: `video-preview-${++giftSequence.current}`, emoji: gift.emoji, name: gift.name,

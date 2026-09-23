@@ -22,6 +22,15 @@ try{for(const uid of [host,buyer])await pool.query('insert into users(uid,clerk_
  assert.equal((await call('/creator-videos/:id/stickers/:stickerId/unlock','post',buyer,{packId:pack,expectedPrice:1,idempotencyKey:randomUUID()},{id,stickerId:sticker.id})).statusCode,200,'owned users view instead of repaying');
  const wallets=await pool.query('select user_id,balance from coin_balances where user_id=any($1::int[])',[[host,buyer]]); assert.equal(wallets.rows.find(r=>r.user_id===host).balance,500); assert.equal(wallets.rows.find(r=>r.user_id===buyer).balance,500);
  assert.equal((await call('/creator-videos/:id/stickers','put',buyer,{stickers:[]},{id})).statusCode,404);
+ for (const [giftId, amount] of [['lips',99],['strawberry',49]]) {
+  const balance=async uid=>(await pool.query('select balance from coin_balances where user_id=$1',[uid])).rows[0]?.balance??0;
+  const beforeBuyer=await balance(buyer),beforeHost=await balance(host),requestId=randomUUID();
+  const sent=await call('/creator-videos/:id/gifts','post',buyer,{giftId,requestId},{id});
+  assert.equal(sent.statusCode,200,JSON.stringify(sent.body));
+  assert.equal(await balance(buyer),beforeBuyer-amount);assert.equal(await balance(host),beforeHost+amount);
+  const retry=await call('/creator-videos/:id/gifts','post',buyer,{giftId,requestId},{id});
+  assert.equal(retry.statusCode,200);assert.equal(await balance(buyer),beforeBuyer-amount);
+ }
  console.log('PASS: video sticker configuration/metadata, gift-price pack offer, exact-once purchase, wallet credit, one DM receipt, ownership and video earnings attribution.');
 }finally{await pool.query('delete from coin_transactions where from_user_id=any($1::int[]) or to_user_id=any($1::int[])',[[host,buyer]]);await pool.query('delete from coin_balances where user_id=any($1::int[])',[[host,buyer]]);await pool.query('delete from users where uid=any($1::int[])',[[host,buyer]]);await pool.end();unlinkSync(out);}
 

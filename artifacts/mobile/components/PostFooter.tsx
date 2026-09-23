@@ -61,8 +61,6 @@ export function PostFooter({ postId, ownerUid, caption }: {
       const data = await sendPostGift(postId, { giftId: gift.id as Parameters<typeof sendPostGift>[1]["giftId"], requestId: giftRequest.current.id });
       giftRequest.current = null;
       client.setQueryData(getGetCoinBalanceQueryKey({ uid: user.uid }), { balance: data.balance });
-      setShowGifts(false);
-      setShowComments(true);
       void client.invalidateQueries({ queryKey: ["post-comments", postId] });
       void client.invalidateQueries({ queryKey: ["post-activity", postId] });
     } catch (error) {
@@ -99,7 +97,7 @@ export function PostFooter({ postId, ownerUid, caption }: {
         </TouchableOpacity> : null}
       </View>
     </View>
-    {showGifts ? <GiftPicker visible onClose={() => { if (!giftBusy.current) setShowGifts(false); }} onSend={gift => void sendGift(gift)} coins={wallet.data?.balance ?? 0} hintText={sendingGift ? "Sending…" : "Send a Gift"} /> : null}
+    {showGifts ? <GiftPicker visible onClose={() => setShowGifts(false)} onSend={gift => void sendGift(gift)} coins={wallet.data?.balance ?? 0} hintText={sendingGift ? "Sending…" : "Send a Gift"} /> : null}
     {showComments ? <PostCommentsSheet postId={postId} ownerUid={ownerUid} onClose={() => setShowComments(false)} /> : null}
     <Modal visible={expanded} transparent animationType="slide" onRequestClose={() => setExpanded(false)}>
       <View style={styles.backdrop}>

@@ -33,7 +33,7 @@ const uids = [a, b, c];
 const partyId = `${prefix}-party`,
   battleId = `${prefix}-battle`;
 const channels = [`${prefix}-a`, `${prefix}-b`, `${prefix}-private`];
-const call = async (method, path, uid, body = {}, query = {}) => {
+const call = async (method, path, uid, body = {}, query = {}, params = {}) => {
   const handler = router.stack.find(
     (l) => l.route?.path === path && l.route.methods[method],
   ).route.stack[0].handle;
@@ -59,6 +59,7 @@ const call = async (method, path, uid, body = {}, query = {}) => {
       }),
       body,
       query,
+      params,
     },
     res,
   );
@@ -79,6 +80,7 @@ try {
       "utf8",
     ),
   );
+  await pool.query(readFileSync(new URL("../../../lib/db/migrations/20260923_notification_history.sql", import.meta.url), "utf8"));
   for (const uid of uids)
     await pool.query("insert into users(uid,clerk_id,name) values($1,$2,$3)", [
       uid,
@@ -279,12 +281,72 @@ try {
   assert.ok(next.some((e) => e.category === "privateInvitations"));
   await prefs(a, { enabled: false });
   assert.deepEqual((await feed(a)).body.notifications, []);
+  // History survives banner mute, source reads, fresh requests, and history-only deletion.
+  const history = (uid, query = {}) => call("get", "/notifications/history", uid, {}, query);
+  assert.equal((await history(null)).statusCode, 401);
+  assert.equal((await history(a, { before: "bad" })).statusCode, 400);
+  let saved = (await history(a)).body;
+  assert.equal(saved.notifications.length, events.length);
+  assert.equal(saved.unreadCount, events.length);
+  assert.ok(saved.notifications.every(item => !item.body.includes("secret")), "preview privacy applies to history");
+  const id = saved.notifications.find(item => item.category === "messages").id;
+  await call("patch", "/notifications/history/:id/read", b, {}, {}, { id: String(id) });
+  assert.equal((await history(a)).body.unreadCount, events.length, "other accounts cannot mark read");
+  await call("delete", "/notifications/history/:id", b, {}, {}, { id: String(id) });
+  assert.equal((await history(a)).body.notifications.length, events.length, "other accounts cannot delete");
+  await call("patch", "/notifications/history/:id/read", a, {}, {}, { id: String(id) });
+  await call("patch", "/notifications/history/:id/read", a, {}, {}, { id: String(id) });
+  assert.equal((await history(a)).body.unreadCount, events.length - 1);
+  await pool.query("update direct_messages set read_at=now() where to_user_id=$1", [a]);
+  assert.equal((await history(a)).body.notifications.length, events.length, "reading source does not discard history");
+  await pool.query("update direct_messages set read_at=null where to_user_id=$1", [a]);
+  await pool.query("insert into direct_messages(from_user_id,to_user_id,text) select $1,$2,'Muted history' from generate_series(1,55)", [c,a]);
+  saved = (await history(a)).body;
+  assert.equal(saved.notifications.length, 50);
+  assert.ok(saved.nextCursor);
+  const older = (await history(a, { before: String(saved.nextCursor) })).body;
+  assert.equal(new Set([...saved.notifications,...older.notifications].map(item=>item.id)).size, events.length+55);
+  await call("delete", "/notifications/history/:id", a, {}, {}, { id: String(id) });
+  assert.equal((await pool.query("select count(*)::int as n from direct_messages where to_user_id=$1", [a])).rows[0].n, 57);
+  await call("delete", "/notifications/history", a);
+  assert.deepEqual((await history(a)).body.notifications, []);
+  assert.equal((await history(a)).body.unreadCount, 0);
+  assert.ok((await history(b)).body.notifications.length, "clear is account scoped");
+  const conn = await pool.connect();
+  try {
+    await conn.query("BEGIN");
+    await conn.query("insert into direct_messages(from_user_id,to_user_id,text) values($1,$2,'rolled back')", [c,a]);
+    await conn.query("ROLLBACK");
+  } finally { conn.release(); }
+  assert.equal((await history(a)).body.notifications.length, 0, "uncommitted events never persist");
+  const videoId = randomUUID();
+  await pool.query("insert into creator_videos(id,owner_user_id,bunny_id,filename,status) values($1,$2,$3,'test.mp4','processing')", [videoId,a,prefix]);
+  await pool.query("update creator_videos set status='ready' where id=$1", [videoId]);
+  await pool.query("update creator_videos set status='ready' where id=$1", [videoId]);
+  assert.equal((await history(a)).body.notifications.length, 1, "video transition captured once while muted");
+  assert.equal((await history(a)).body.notifications[0].category, "videoProcessing");
+  await pool.query("delete from creator_videos where id=$1", [videoId]);
+  await call("delete", "/notifications/history", a);
+  // Payments can be committed before their purchase receipt, as in real unlock flows.
+  const lateReceipt = `${prefix}-late`;
+  const lateMessage = (await pool.query("insert into direct_messages(from_user_id,to_user_id,text,kind,media_price) values($1,$2,'Media','media',9) returning id", [a,b])).rows[0].id;
+  await pool.query("insert into coin_transactions(from_user_id,to_user_id,amount,type,idempotency_key) values($1,$2,9,'gift',$3)", [b,a,lateReceipt]);
+  assert.equal((await history(a)).body.notifications.length, 0);
+  await pool.query("insert into direct_media_purchases(message_id,buyer_user_id,idempotency_key) values($1,$2,$3)", [lateMessage,b,lateReceipt]);
+  assert.equal((await history(a)).body.notifications.length, 1);
+  assert.equal((await history(a)).body.notifications[0].category, "gifts");
+  await call("delete", "/notifications/history", a);
+  assert.equal((await history(a)).body.notifications.length, 0, "cleared payments do not reappear on reads");
+  // Remove only added pagination fixtures to preserve the original banner regression expectations.
+  await pool.query("delete from direct_messages where from_user_id=$1 and to_user_id=$2", [c,a]);
   await prefs(a, { enabled: true, messages: true });
   await pool.query(
     "insert into user_blocks(blocker_user_id,blocked_user_id) values($1,$2)",
     [b, a],
   );
   assert.deepEqual((await feed(a)).body.notifications, []);
+  await pool.query("insert into direct_messages(from_user_id,to_user_id,text) values($1,$2,'blocked')", [b,a]);
+  assert.equal((await history(a)).body.notifications.length, 0, "blocked event not recorded");
   await pool.query("delete from user_blocks where blocker_user_id=$1", [b]);
   await pool.query(
     "insert into creator_blocks(host_user_id,viewer_user_id) values($1,$2)",
@@ -325,6 +387,7 @@ try {
     0,
   );
 
+  console.log("History passed: muted capture, account isolation, reads, pagination, source-preserving deletion, rollback, video completion and both payment/receipt orderings.");
   console.log(
     "Notifications passed: every category, ownership, block rules, private live exclusion, settings persistence/concurrent saves, previews, master mute, and active-conversation suppression.",
   );

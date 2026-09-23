@@ -133,3 +133,74 @@ Media packs now use the selected gift’s catalog coin price for creation and ed
 ## Invisible viewing and Premium incognito — September 21, 2026
 
 See [agreed behavior and completion tracker](incognito.md). VIP invisible viewing hides passive viewer entries while retaining the count and real-name chat/gifts. Premium incognito is a separate session identity available to everyone when allowed by the streamer; it masks names/photos/profile access, preserves the entry choice and alias through rejoin, and groups gifter stats into one Incognito total. Preserve these requirements in future viewer, gift, statistics and notification changes. Automated and Android/iPhone verification are tracked separately there.
+
+## Rose gift artwork — September 23, 2026
+
+User supplied `downloads/gifts/rose.png` as the replacement Rose art. An identical transparent PNG is bundled at `artifacts/mobile/assets/gifts/rose.png`; `RoseArtwork` uses contained sizing in gift pickers, floating gifts, live/video stickers, pack gift selection, private invitation selection and Premium gift displays. Rose remains the same gift ID and one-coin price; text receipts and reaction emojis retain their existing text.
+
+Mobile types, localization, gift preview/pack checks and 19 of 20 required stream scripts pass. The existing media-pack-message test fails because its mock list omits `DirectVideoThumbnail`, already imported by the unchanged component in HEAD; this is separate from the rose change. Android/iPhone visual sizing remains unverified. No backend, dependency or native build change.
+
+## Heart, Lips and Strawberry gifts — September 23, 2026
+
+User-approved additions: **Lips costs 99 coins; Strawberry costs 49 coins**. Heart retains its existing ID and 5-coin price, with replacement artwork from `downloads/gifts/heart.png`. The supplied Lips and Strawberry files are bundled unchanged. `GiftImageArtwork` renders all four supplied gifts consistently in pickers, floating gifts, live/video stickers, pack selection, private invitation selection and Premium displays. Crown retains its existing artwork/effect. Existing text receipts and free reaction emojis are preserved.
+
+Mobile/server catalogs and OpenAPI/generated validators now accept `lips` and `strawberry`. Real-database tests verify exact 99/49 video gift debit and creator credit, retry deduplication, and gift-derived pack pricing (including unchanged Heart price). Workspace types, API build, localization for all ten languages, gift preview and sticker regressions pass. The required stream scripts pass 19/20; the unchanged media-pack-message harness still lacks its existing DirectVideoThumbnail mock. Android/iPhone appearance remains pending. Development API rebuilt/restarted preserving its environment; health returns 200 and running video-gift/pack endpoints reject unauthenticated requests with 401. Authenticated price checks use the actual router/database with temporary accounts. No production publication or native build was started.
+
+## Larger floating gifts and winner-style pop-in — September 23, 2026
+
+User requested doubling the live gift display and matching the battle winner pop-in. The shared floating gift renderer now uses 180-point art/font with a 220-point image/line box (previously 90/110). Its entrance follows the winner's scale sequence: 0.35 → 1.6 over 320 ms with cubic ease-out, then settles to 1 over 650 ms with cubic ease-in/out. The existing hold, upward exit and fade remain; unmount stops the animation. The shared video gift preview uses this renderer too. This changes floating gift presentation, not picker/sticker dimensions or the native Crown camera effect.
+
+Android/iPhone visual confirmation remains pending. Automated mobile types and gift/stream regression results are recorded separately from device behavior; the existing media-pack-message mock failure remains unrelated.
+
+Latest user refinement: reduce the floating gift entrance peak from 1.6× to 1.25× to avoid excessive enlargement and visible blur. Retain the doubled settled size, entrance timing, hold and exit. Device appearance remains pending.
+
+
+## Keep the gift sheet open — September 23, 2026
+
+User requested that sending a gift leave the sheet open until tapping outside or explicitly dismissing it. Applied to live streams, uploaded videos, the video prototype, DMs and posts. Post gifts no longer replace the picker with the comments sheet after sending; activity/comments still refresh. Live and DM sends use an immediate in-flight guard, then allow another deliberate send after completion. Existing video/post guards, coin updates, idempotency keys, animations, error reporting and screen-exit cleanup remain.
+
+Mobile types, localization and focused live/post/picker tests pass (successful/failed sends preserve the sheet; concurrent taps are guarded; wallet updates and subsequent sends work; backdrop dismisses). The required stream checks pass except the existing media-pack-message DirectVideoThumbnail mock failure. Android/iPhone modal touches, repeated sending, animation visibility behind the open sheet and navigation/keyboard/awake checks remain device-pending. No backend change or native build.
+
+## Four-column gift drawer with Send controls — September 23, 2026
+
+User requested a TikTok-style layout defined as four gifts per row, vertical scrolling and three visible rows, with Send text below each gift to prevent accidental sending. The shared drawer now renders four equal-width cells per row in a vertical scroll area sized for three 144-point rows. The current eight gifts fill two rows; no placeholder gifts are introduced. Short screens can shrink the scroll area to preserve the header, dismissal area and safe-area spacing.
+
+Artwork, name and price are display-only; each gift has its own Send button. Unaffordable sends are disabled, and normal balance/purchase behavior, party recipient selection, preview-only mode and stay-open-after-send behavior are preserved. Sending instructions now say “Tap Send below a gift.” in all ten languages. User's spacing refinement: reduce the header/grid gap to 8 points, remove top cell padding, and top-align artwork in its slot.
+
+Drawer tests exercise explicit Send actions, non-interactive cards, affordability, four-column/three-row geometry, vertical scrolling configuration, continued opening after send and backdrop dismissal. Android/iPhone actual scrolling, three-row fit, touch targets, large text, artwork spacing and visibility remain device-pending; mocked layout checks are not screenshots. No backend or native dependency change.
+
+Latest drawer sizing refinement: gift names use 10-point text with a 12-point line height, artwork slots shrink from 48 to 44 points and inter-item gaps to 1 point. Send buttons shrink from 40 to 28 points high. Rows shrink to 124 points and the viewport remains three rows tall. This preserves explicit Send-only behavior and the four-column layout. Phone visual verification remains pending.
+
+Latest user correction: the drawer was opening too tall. Fit its grid viewport to the available rows, capped at three; eight gifts therefore open with two rows (248 points) and no reserved empty third row. This supersedes the fixed three-row viewport while preserving vertical scrolling for future gifts.
+
+## Gift selection and transparent backdrop — September 23, 2026
+
+User refinement: tap a gift to select it, show a border, then enable Send. The artwork/name/price area now selects only; a pink border and subtle fill identify the selection. Only that gift's Send button is enabled when affordable (preview mode keeps its no-charge rules). Sending preserves the selection and open sheet for repeated gifts; closing/reopening clears the selection. The instruction is “Select a gift, then tap Send.” across all ten languages.
+
+User also rejected the screen darkening behind the drawer. Its outside touch surface is now fully transparent and still dismisses on tap; the drawer itself retains its dark background. Selection tests cover no send on select, one active affordable Send, border styling, switching gifts, reopening reset, preview/payment isolation, continued open state and transparent backdrop. Android/iPhone appearance and touch confirmation remain pending.
+
+Latest user height requirement: the gift drawer occupies no more than one-third of the screen. Its outer sheet is capped at 33% including its padding/safe-area space; the gift scroll area shrinks within that cap. Four columns, selection, explicit Send and transparent tap-to-dismiss backdrop remain. This supersedes the previous available-row height when it exceeds the cap. The separate Buy Coins purchase screen retains its existing layout. Phone sizing and scrolling verification remain pending.
+
+Latest explicit height adjustment: increase the gift drawer cap from 33% to **40%** of screen height. This supersedes the one-third limit; internal scrolling and all selection/send behavior remain.
+
+Latest drawer header refinement: remove the coin balance pill background, rounded box, horizontal padding and 44-point minimum height. Keep a compact tappable icon/count with extra invisible touch space for Buy Coins. Reduce the top padding to 6 points and handle-to-header gap to 6 points. The 40% drawer cap remains.
+
+Latest gift-container refinement: remove fixed cell height and bottom padding so the selected border wraps the content and ends directly below Send. Keep the 8-point row separation outside the containers; the scroll viewport now has a maximum instead of a forced height, still inside the 40% drawer cap. Phone layout confirmation remains pending.
+
+Latest Send button appearance: use the app pink (`#FF1966`) background and white text. Keep disabled buttons dimmed until the selected gift is affordable.
+
+Latest Send button sizing: reduce its minimum height from 28 to 24 points, retaining app pink, white text and content-fitting gift borders.
+
+Latest button geometry: Send spans the full gift-container width with square top corners. The container clips its lower corners to the shared 12-point radius; horizontal padding applies only to the gift selection area. The 24-point button height remains.
+
+Latest drawer header: replace “Send a Gift” with **Popular** and move the coin counter 8 points higher. Popular is the current category label; additional gift-category tabs are a planned follow-up, not implemented in this change. Preserve the compact 40% drawer and Buy Coins action.
+
+Latest category-label size: reduce Popular from 18 to 14 points.
+
+Latest header alignment: align Popular and the coin counter in the same centered row, shifted up 4 points. This raises Popular 4 points and lowers the previously raised coins 4 points.
+
+Latest footer refinement: remove the ordinary “Select a gift, then tap Send.” instruction and its text row; the user considers the selection/Send flow intuitive. Preserve preview-only and pending-send status messages.
+
+Latest Send sizing: reduce button minimum height from 24 to 20 points and label font from 12 to 10 points. Preserve the full-width pink button, white text and square top corners.
+
+Latest gift picker artwork sizing: Heart and Lips use 36-point artwork. Match Crown and Diamond to 36 points; Party already uses 36. Rocket remains 40. This is drawer artwork sizing, not floating gift or native Crown effect sizing.

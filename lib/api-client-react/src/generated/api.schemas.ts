@@ -227,7 +227,9 @@ export const CreatePrivateStreamInvitationRequestRequiredGiftId = {
   rose: 'rose',
   heart: 'heart',
   party: 'party',
+  strawberry: 'strawberry',
   diamond: 'diamond',
+  lips: 'lips',
   rocket: 'rocket',
   crown: 'crown',
 } as const;
@@ -400,7 +402,9 @@ export const CreateStreamRequestStickersItemGiftId = {
   rose: 'rose',
   heart: 'heart',
   party: 'party',
+  strawberry: 'strawberry',
   diamond: 'diamond',
+  lips: 'lips',
   rocket: 'rocket',
   crown: 'crown',
 } as const;
@@ -422,7 +426,9 @@ export const CreateStreamRequestRequiredGiftId = {
   rose: 'rose',
   heart: 'heart',
   party: 'party',
+  strawberry: 'strawberry',
   diamond: 'diamond',
+  lips: 'lips',
   rocket: 'rocket',
   crown: 'crown',
 } as const;
@@ -676,7 +682,9 @@ export const CreateMediaPackRequestGiftId = {
   rose: 'rose',
   heart: 'heart',
   party: 'party',
+  strawberry: 'strawberry',
   diamond: 'diamond',
+  lips: 'lips',
   rocket: 'rocket',
   crown: 'crown',
 } as const;
@@ -699,7 +707,9 @@ export const UpdateMediaPackRequestGiftId = {
   rose: 'rose',
   heart: 'heart',
   party: 'party',
+  strawberry: 'strawberry',
   diamond: 'diamond',
+  lips: 'lips',
   rocket: 'rocket',
   crown: 'crown',
 } as const;
@@ -1093,7 +1103,9 @@ export const SendPostGiftBodyGiftId = {
   rose: 'rose',
   heart: 'heart',
   party: 'party',
+  strawberry: 'strawberry',
   diamond: 'diamond',
+  lips: 'lips',
   rocket: 'rocket',
   crown: 'crown',
 } as const;

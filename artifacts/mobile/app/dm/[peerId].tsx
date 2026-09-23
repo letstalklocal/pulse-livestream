@@ -1,3 +1,4 @@
+import { GiftImageArtwork, hasGiftImage } from "@/components/GiftImageArtwork";
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { loadChatPeerStatus } from "@/utils/chatPeerStatus";
 import { formatLastSeen } from "@/utils/lastSeen";
@@ -142,6 +143,7 @@ export default function DmScreen() {
   const establishedChat = getMessages(peerIdStr).length > 0;
   const needsGift = !establishedChat && peerStatus.data?.needsGift === true;
   const [showGiftPicker, setShowGiftPicker] = useState(false);
+  const giftSending = useRef(false);
   const [showPackPicker, setShowPackPicker] = useState(false);
   const mediaChooserRef = useRef<{ open: () => void }>(null);
   const [showInviteComposer, setShowInviteComposer] = useState(false);
@@ -545,7 +547,7 @@ export default function DmScreen() {
       <GiftPicker
         visible={showGiftPicker && !contactBlocked}
         coins={viewerCoins}
-        hintText="Tap a gift to send it in chat"
+        hintText="Select a gift, then tap Send."
         onClose={() => setShowGiftPicker(false)}
         onSend={(gift: Gift) => {
           const recipientId = Number.parseInt(peerIdStr, 10);
@@ -554,7 +556,8 @@ export default function DmScreen() {
             return;
           }
 
-          setShowGiftPicker(false);
+          if (giftSending.current) return;
+          giftSending.current = true;
           setSendError(null);
           void (async () => {
             try {
@@ -587,6 +590,8 @@ export default function DmScreen() {
               }
             } catch {
               Alert.alert(t("Gift couldn't be sent"), t("You may not have enough coins. Try a smaller gift or top up from your profile."));
+            } finally {
+              giftSending.current = false;
             }
           })();
         }}
@@ -596,7 +601,7 @@ export default function DmScreen() {
            <View style={styles.pickerHead}><Text style={[localizedTextStyle(), [styles.pickerTitle, { color: colors.foreground }]]}>{t("Private live invite")}</Text><TouchableOpacity onPress={() => setShowInviteComposer(false)}><Ionicons name="close" size={23} color={colors.foreground} /></TouchableOpacity></View>
            <TouchableOpacity style={[styles.packOption, { borderColor: colors.border }, !inviteGiftId && styles.inviteChoice]} onPress={() => setInviteGiftId(null)}><Text style={[localizedTextStyle(), [styles.packOptionName, { color: colors.foreground }]]}>{t("Free")}</Text><Text style={[localizedTextStyle(), [styles.packOptionMeta, { color: colors.mutedForeground }]]}>{t("No gift required")}</Text></TouchableOpacity>
            <Text style={[localizedTextStyle(), [styles.packOptionMeta, { color: colors.mutedForeground }]]}>{t("Paid — recipient pays when accepting")}</Text>
-           {GIFTS.map((gift) => <TouchableOpacity key={gift.id} style={[styles.packOption, { borderColor: colors.border }, inviteGiftId === gift.id && styles.inviteChoice]} onPress={() => setInviteGiftId(gift.id)}><Text style={{ fontSize: 21 }}>{gift.emoji}</Text><Text style={[styles.packOptionName, { color: colors.foreground }]}>{gift.name}</Text><Text style={styles.price}>🪙 {gift.coins}</Text></TouchableOpacity>)}
+           {GIFTS.map((gift) => <TouchableOpacity key={gift.id} style={[styles.packOption, { borderColor: colors.border }, inviteGiftId === gift.id && styles.inviteChoice]} onPress={() => setInviteGiftId(gift.id)}>{hasGiftImage(gift.id) ? <GiftImageArtwork gift={gift.id} size={21} /> : <Text style={{ fontSize: 21 }}>{gift.emoji}</Text>}<Text style={[styles.packOptionName, { color: colors.foreground }]}>{gift.name}</Text><Text style={styles.price}>🪙 {gift.coins}</Text></TouchableOpacity>)}
            <TouchableOpacity disabled={createInviteMutation.isPending || contactBlocked || needsGift} onPress={() => void invitePeer()} style={styles.inviteSend}><Text style={[localizedTextStyle(), styles.invitePrimaryText]}>{createInviteMutation.isPending ? t("Sending…") : t("Send invite")}</Text></TouchableOpacity>
          </View></View>
        </Modal>

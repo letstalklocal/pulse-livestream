@@ -1,3 +1,4 @@
+import { GiftImageArtwork, hasGiftImage } from "@/components/GiftImageArtwork";
 import { DirectVideoThumbnail } from "@/components/DirectVideoThumbnail";
 import { GoldCoinIcon } from "@/components/GoldCoinIcon";
 import { GIFTS } from "@/components/GiftPicker";
@@ -453,6 +454,8 @@ export default function MediaPacksScreen() {
                 >
                   {gift.id === "crown" ? (
                     <CrownArtwork size={32} />
+                  ) : hasGiftImage(gift.id) ? (
+                    <GiftImageArtwork gift={gift.id} size={28} />
                   ) : (
                     <Text style={{ fontSize: 28 }}>{gift.emoji}</Text>
                   )}

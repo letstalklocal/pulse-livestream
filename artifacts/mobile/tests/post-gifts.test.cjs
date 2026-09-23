@@ -30,8 +30,8 @@ const code = ts.transpileModule(source.slice(start, source.indexOf('  return <>'
   fail = false;
   const retry = send({ id: 'rose' }); release(); await retry;
   assert.equal(calls[1].body.requestId, requestId, 'Retry preserves transaction identity');
-  assert.equal(state.comments, true);
-  assert.equal(state.gifts, false);
+  assert.equal(state.comments, false, "Sending does not replace the gift sheet with comments");
+  assert.equal(state.gifts, true, "Gift sheet stays open after success");
   assert.deepEqual(balances, [99]);
   assert.deepEqual(invalidated, [['post-comments', 7], ['post-activity', 7]]);
   const next = send({ id: 'rose' }); release(); await next;

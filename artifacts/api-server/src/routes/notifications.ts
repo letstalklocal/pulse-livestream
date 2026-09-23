@@ -178,4 +178,87 @@ router.get("/notifications/in-app", async (req, res) => {
     .set("Cache-Control", "no-store")
     .json({ notifications, cursor: now, preferences: settings });
 });
+// History is captured at commit time, independently of foreground banner settings.
+router.get("/notifications/history", async (req, res) => {
+  const user = await viewer(req);
+  if (!user)
+    return void res
+      .status(401)
+      .json({ error: "Sign in to receive notifications." });
+  const before =
+    req.query.before === undefined ? 2147483647 : Number(req.query.before);
+  if (
+    !Number.isSafeInteger(before) ||
+    before < 1 ||
+    typeof req.query.before === "object"
+  )
+    return void res.status(400).json({ error: "Invalid notification cursor." });
+  const visible = sql`h.recipient_user_id=${user.uid} AND NOT EXISTS (
+    SELECT 1 FROM user_blocks b WHERE (b.blocker_user_id=${user.uid} AND b.blocked_user_id=h.actor_user_id) OR (b.blocked_user_id=${user.uid} AND b.blocker_user_id=h.actor_user_id)
+  ) AND (h.category <> 'live' OR NOT EXISTS (SELECT 1 FROM creator_blocks b WHERE b.host_user_id=h.actor_user_id AND b.viewer_user_id=${user.uid}))`;
+  const settings = await preferences(user.uid);
+  const rows = await db.execute(
+    sql`SELECT h.*, u.name AS actor_name FROM notification_history h LEFT JOIN users u ON u.uid=h.actor_user_id WHERE ${visible} AND h.id<${before} ORDER BY h.id DESC LIMIT 51`,
+  );
+  const counts = await db.execute(
+    sql`SELECT count(*)::int AS unread FROM notification_history h WHERE ${visible} AND h.read_at IS NULL`,
+  );
+  const page = rows.rows.slice(0, 50);
+  res.set("Cache-Control", "no-store").json({
+    notifications: page.map((row) => ({
+      id: Number(row.id),
+      category: row.category,
+      title: row.title,
+      body:
+        !settings.previews &&
+        ["messages", "posts"].includes(String(row.category))
+          ? "Open Pulse to view it."
+          : `${row.actor_name ? `${row.actor_name}: ` : ""}${row.body}`,
+      route: row.route,
+      createdAt: new Date(row.created_at as string).getTime(),
+      read: !!row.read_at,
+    })),
+    unreadCount: Number(counts.rows[0]?.unread ?? 0),
+    nextCursor: rows.rows.length > 50 ? Number(page[page.length - 1].id) : null,
+  });
+});
+router.patch("/notifications/history/:id/read", async (req, res) => {
+  const user = await viewer(req);
+  if (!user)
+    return void res
+      .status(401)
+      .json({ error: "Sign in to manage notifications." });
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id < 1)
+    return void res.status(400).json({ error: "Invalid notification." });
+  await db.execute(
+    sql`UPDATE notification_history SET read_at=coalesce(read_at,now()) WHERE id=${id} AND recipient_user_id=${user.uid}`,
+  );
+  res.json({ ok: true });
+});
+router.delete("/notifications/history/:id", async (req, res) => {
+  const user = await viewer(req);
+  if (!user)
+    return void res
+      .status(401)
+      .json({ error: "Sign in to manage notifications." });
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id < 1)
+    return void res.status(400).json({ error: "Invalid notification." });
+  await db.execute(
+    sql`DELETE FROM notification_history WHERE id=${id} AND recipient_user_id=${user.uid}`,
+  );
+  res.json({ ok: true });
+});
+router.delete("/notifications/history", async (req, res) => {
+  const user = await viewer(req);
+  if (!user)
+    return void res
+      .status(401)
+      .json({ error: "Sign in to manage notifications." });
+  await db.execute(
+    sql`DELETE FROM notification_history WHERE recipient_user_id=${user.uid}`,
+  );
+  res.json({ ok: true });
+});
 export default router;

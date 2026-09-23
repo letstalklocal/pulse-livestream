@@ -13,7 +13,9 @@ export const SendPostGiftBodyGiftId = {
   rose: 'rose',
   heart: 'heart',
   party: 'party',
+  strawberry: 'strawberry',
   diamond: 'diamond',
+  lips: 'lips',
   rocket: 'rocket',
   crown: 'crown',
 } as const;

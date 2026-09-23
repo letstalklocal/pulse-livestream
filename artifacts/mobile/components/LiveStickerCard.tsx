@@ -1,3 +1,4 @@
+import { GiftImageArtwork, hasGiftImage } from "@/components/GiftImageArtwork";
 import React, { useRef } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -67,6 +68,8 @@ export function LiveStickerCard({
       </View>
       {gift?.id === "crown" ? (
         <CrownArtwork size={35.2} />
+      ) : hasGiftImage(gift?.id) ? (
+        <GiftImageArtwork gift={gift?.id} size={35.2} style={{ height: 44.8 }} />
       ) : (
         <Text style={styles.gift}>{gift?.emoji}</Text>
       )}

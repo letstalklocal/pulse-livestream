@@ -73,6 +73,7 @@ function RootLayoutNav() {
       <Stack.Screen name="new-chat" options={{ headerShown: false }} />
       <Stack.Screen name="search-users" options={{ headerShown: false }} />
       <Stack.Screen name="media-packs" options={{ headerShown: false }} />
+      <Stack.Screen name="notifications" options={{ headerShown: false }} />
       <Stack.Screen name="notification-settings" options={{ headerShown: false }} />
       <Stack.Screen name="message-settings" options={{ headerShown: false }} />
         <Stack.Screen name="my-vault" options={{ headerShown: false }} />

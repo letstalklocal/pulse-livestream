@@ -1,3 +1,4 @@
+import { GiftImageArtwork, hasGiftImage } from "@/components/GiftImageArtwork";
 import { LiveStickerSetup } from "@/components/LiveStickerSetup";
 import { LiveStickerOverlay } from "@/components/LiveStickerOverlay";
 import type { StickerDraft } from "@/utils/liveStickers";
@@ -1774,7 +1775,7 @@ export default function GoLiveScreen() {
                         <Ionicons name="checkmark" size={14} color="#FFF" />
                       </View>
                     ) : null}
-                    {gift.id === "crown" ? <CrownArtwork size={31} style={{ marginBottom: 6 }} /> : <Text style={styles.giftSheetEmoji}>{gift.emoji}</Text>}
+                    {gift.id === "crown" ? <CrownArtwork size={31} style={{ marginBottom: 6 }} /> : hasGiftImage(gift.id) ? <GiftImageArtwork gift={gift.id} size={31} style={{ marginBottom: 6 }} /> : <Text style={styles.giftSheetEmoji}>{gift.emoji}</Text>}
                     <Text style={styles.giftSheetGiftName}>{gift.name}</Text>
                     <Text style={styles.giftSheetGiftCost}>🪙 {gift.coins}</Text>
                   </TouchableOpacity>

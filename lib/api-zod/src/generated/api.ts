@@ -234,11 +234,11 @@ export const CreateStreamBody = zod.object({
   "category": zod.string(),
   "stickers": zod.array(zod.object({
   "kind": zod.enum(['gift', 'pack']),
-  "giftId": zod.enum(['rose', 'heart', 'party', 'diamond', 'rocket', 'crown']),
+  "giftId": zod.enum(['rose', 'heart', 'party', 'strawberry', 'diamond', 'lips', 'rocket', 'crown']),
   "packId": zod.number().min(1).optional()
 })).max(createStreamBodyStickersMax).optional(),
   "allowIncognito": zod.boolean().optional(),
-  "requiredGiftId": zod.union([zod.literal('rose'),zod.literal('heart'),zod.literal('party'),zod.literal('diamond'),zod.literal('rocket'),zod.literal('crown'),zod.literal(null)]).nullish()
+  "requiredGiftId": zod.union([zod.literal('rose'),zod.literal('heart'),zod.literal('party'),zod.literal('strawberry'),zod.literal('diamond'),zod.literal('lips'),zod.literal('rocket'),zod.literal('crown'),zod.literal(null)]).nullish()
 })
 
 
@@ -950,7 +950,7 @@ export const createMediaPackBodyItemsMax = 20;
 
 export const CreateMediaPackBody = zod.object({
   "name": zod.string().max(createMediaPackBodyNameMax),
-  "giftId": zod.enum(['rose', 'heart', 'party', 'diamond', 'rocket', 'crown']),
+  "giftId": zod.enum(['rose', 'heart', 'party', 'strawberry', 'diamond', 'lips', 'rocket', 'crown']),
   "items": zod.array(zod.object({
   "objectPath": zod.string(),
   "mediaType": zod.enum(['image', 'video']),
@@ -1001,7 +1001,7 @@ export const updateMediaPackBodyItemsMax = 20;
 
 
 export const UpdateMediaPackBody = zod.object({
-  "giftId": zod.enum(['rose', 'heart', 'party', 'diamond', 'rocket', 'crown']),
+  "giftId": zod.enum(['rose', 'heart', 'party', 'strawberry', 'diamond', 'lips', 'rocket', 'crown']),
   "items": zod.array(zod.union([zod.object({
   "id": zod.string().min(1)
 }),zod.object({
@@ -1173,7 +1173,7 @@ export const createPrivateStreamInvitationBodyTitleMax = 120;
 export const CreatePrivateStreamInvitationBody = zod.object({
   "invitedUserId": zod.number(),
   "title": zod.string().max(createPrivateStreamInvitationBodyTitleMax).optional(),
-  "requiredGiftId": zod.enum(['rose', 'heart', 'party', 'diamond', 'rocket', 'crown']).nullish()
+  "requiredGiftId": zod.enum(['rose', 'heart', 'party', 'strawberry', 'diamond', 'lips', 'rocket', 'crown']).nullish()
 })
 
 
@@ -1436,7 +1436,7 @@ export const sendPostGiftBodyRequestIdRegExp = new RegExp('^[a-zA-Z0-9-]{16,80}$
 
 
 export const SendPostGiftBody = zod.object({
-  "giftId": zod.enum(['rose', 'heart', 'party', 'diamond', 'rocket', 'crown']),
+  "giftId": zod.enum(['rose', 'heart', 'party', 'strawberry', 'diamond', 'lips', 'rocket', 'crown']),
   "requestId": zod.string().min(sendPostGiftBodyRequestIdMin).max(sendPostGiftBodyRequestIdMax).regex(sendPostGiftBodyRequestIdRegExp)
 })
 

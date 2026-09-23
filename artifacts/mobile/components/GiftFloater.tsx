@@ -1,3 +1,4 @@
+import { GiftImageArtwork, hasGiftImage } from "@/components/GiftImageArtwork";
 import { CrownArtwork } from "./CrownArtwork";
 import React, { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, Text } from "react-native";
@@ -20,18 +21,28 @@ interface Props {
 export function GiftFloater({ gift, onDone }: Props) {
   const translateY = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.4)).current;
+  const scale = useRef(new Animated.Value(0.35)).current;
 
   useEffect(() => {
-    Animated.sequence([
-      // Pop in — single curve with natural overshoot, no second spring needed
+    const animation = Animated.sequence([
+      // Winner-style timing with a gentler overshoot for gift artwork.
       Animated.parallel([
-        Animated.timing(scale, {
-          toValue: 1,
-          duration: 380,
-          easing: Easing.out(Easing.back(2.2)),
-          useNativeDriver: true,
-        }),
+        Animated.sequence([
+          Animated.timing(scale, {
+            toValue: 1.25,
+            duration: 320,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+            isInteraction: false,
+          }),
+          Animated.timing(scale, {
+            toValue: 1,
+            duration: 650,
+            easing: Easing.inOut(Easing.cubic),
+            useNativeDriver: true,
+            isInteraction: false,
+          }),
+        ]),
         Animated.timing(opacity, {
           toValue: 1,
           duration: 180,
@@ -61,7 +72,9 @@ export function GiftFloater({ gift, onDone }: Props) {
           useNativeDriver: true,
         }),
       ]),
-    ]).start(() => onDone(gift.id));
+    ]);
+    animation.start(({ finished }) => { if (finished) onDone(gift.id); });
+    return () => animation.stop();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -71,8 +84,8 @@ export function GiftFloater({ gift, onDone }: Props) {
       pointerEvents="none"
     >
       {gift.name === "Crown" ? (
-        <CrownArtwork size={90} style={{ height: 110, opacity: gift.inVideo ? 0 : 1 }} />
-      ) : <Text style={[styles.emoji, gift.inVideo && { opacity: 0 }]}>{gift.emoji}</Text>}
+        <CrownArtwork size={180} style={{ height: 220, opacity: gift.inVideo ? 0 : 1 }} />
+      ) : hasGiftImage(gift.name) ? <GiftImageArtwork gift={gift.name} size={180} style={{ height: 220, opacity: gift.inVideo ? 0 : 1 }} /> : <Text style={[styles.emoji, gift.inVideo && { opacity: 0 }]}>{gift.emoji}</Text>}
     </Animated.View>
   );
 }
@@ -88,8 +101,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   emoji: {
-    fontSize: 90,
-    lineHeight: 110,
+    fontSize: 180,
+    lineHeight: 220,
     textShadowColor: "rgba(255,25,102,0.6)",
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 24,

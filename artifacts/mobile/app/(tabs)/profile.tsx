@@ -1,3 +1,4 @@
+import { useNotificationHistory } from "@/hooks/useNotificationHistory";
 import { PostGiftTotal } from "@/components/PostGiftTotal";
 import SignedOutProfile from "@/components/SignedOutProfile";
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
@@ -80,6 +81,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, updateUser } = useAuth();
+  const { unreadCount } = useNotificationHistory();
 
   const [editing, setEditing] = useState(false);
   const [historyView, setHistoryView] = useState<"grid" | "feed" | "saved">("grid");
@@ -402,6 +404,17 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
           ) : (
+            <View style={[styles.headerBtns, { gap: 0 }]}>
+              <TouchableOpacity
+                style={styles.headerMenuBtn}
+                onPress={() => router.push("/notifications" as any)}
+                accessibilityRole="button"
+                accessibilityLabel={t("Notifications")}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="notifications-outline" size={26} color="#FFF" />
+                {unreadCount > 0 && <View style={{ position: "absolute", top: 0, right: 0, minWidth: 16, height: 16, paddingHorizontal: 3, borderRadius: 8, backgroundColor: "#FF4D67", alignItems: "center", justifyContent: "center" }}><Text style={{ color: "#FFF", fontSize: 9, fontFamily: "Inter_700Bold" }}>{unreadCount > 99 ? "99+" : unreadCount}</Text></View>}
+              </TouchableOpacity>
             <TouchableOpacity
               style={styles.headerMenuBtn}
               onPress={() => router.push("/settings" as any)}
@@ -411,6 +424,7 @@ export default function ProfileScreen() {
             >
               <Ionicons name="menu-outline" size={30} color="#FFF" />
             </TouchableOpacity>
+            </View>
           )}
           </View>
           <TouchableOpacity

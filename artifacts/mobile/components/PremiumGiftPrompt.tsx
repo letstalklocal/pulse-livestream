@@ -1,3 +1,4 @@
+import { GiftImageArtwork, hasGiftImage } from "@/components/GiftImageArtwork";
 import React, { useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo,
@@ -78,6 +79,8 @@ export function PremiumGiftPrompt({
         <View style={styles.row}>
           {request.gift.id === "crown" ? (
             <CrownArtwork size={28} />
+          ) : hasGiftImage(request.gift.id) ? (
+            <GiftImageArtwork gift={request.gift.id} size={28} />
           ) : (
             <Text style={{ fontSize: 28 }}>{request.gift.emoji}</Text>
           )}

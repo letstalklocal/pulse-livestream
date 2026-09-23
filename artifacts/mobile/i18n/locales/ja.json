@@ -1011,5 +1011,12 @@
   "Incognito": "匿名",
   "Incognito not available": "匿名での参加は利用できません",
   "Invisible viewing": "非表示で視聴",
-  "Requires an active VIP subscription.": "有効なVIPサブスクリプションが必要です。"
+  "Requires an active VIP subscription.": "有効なVIPサブスクリプションが必要です。",
+  "Clear all": "すべて削除",
+  "No notifications yet": "通知はまだありません",
+  "Lips": "唇",
+  "Strawberry": "イチゴ",
+  "Tap Send below a gift.": "ギフトの下の「送信」をタップしてください。",
+  "Select a gift, then tap Send.": "ギフトを選んでから「送信」をタップしてください。",
+  "Popular": "人気"
 }

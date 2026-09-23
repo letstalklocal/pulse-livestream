@@ -158,6 +158,7 @@ function fixture(component) {
     "./LiveStickerCard": { LiveStickerCard: "Card" },
     "./LiveStickerSetup": { LiveStickerPicker: "Picker" },
     "./CrownArtwork": { CrownArtwork: "Crown" },
+    "@/components/GiftImageArtwork": { GiftImageArtwork: "GiftImage", hasGiftImage: id => ["rose", "heart", "lips", "strawberry"].includes(id?.toLowerCase()) },
     "./GoldCoinIcon": { GoldCoinIcon: "Coin" },
     "./MediaPackGallery": { MediaPackGallery: "Gallery" },
     "react-native-safe-area-context": {

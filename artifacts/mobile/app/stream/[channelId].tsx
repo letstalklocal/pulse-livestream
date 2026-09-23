@@ -1,3 +1,4 @@
+import { GiftImageArtwork, hasGiftImage } from "@/components/GiftImageArtwork";
 import { LiveStickerOverlay } from "@/components/LiveStickerOverlay";
 import { DemoVideo } from "@/components/DemoVideo";
 import { useLivePlayback } from "@/context/LivePlaybackContext";
@@ -165,6 +166,7 @@ export default function StreamScreen() {
   const [inputText, setInputText] = useState("");
   const [likeCount, setLikeCount] = useState(Math.floor(Math.random() * 500) + 50);
   const [showGiftPicker, setShowGiftPicker] = useState(false);
+  const giftSending = useRef(false);
   const giftPresentation = useRef(createGiftPresentation());
   useEffect(() => { giftPresentation.current = createGiftPresentation(); setFloatingGifts([]); }, [channelId]);
   const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
@@ -937,8 +939,8 @@ export default function StreamScreen() {
       onRecipientChange={setGiftRecipientUid}
       onClose={() => setShowGiftPicker(false)}
       onSend={(gift) => {
-        if (!user?.uid) return;
-        setShowGiftPicker(false);
+        if (!user?.uid || giftSending.current) return;
+        giftSending.current = true;
         const giftId = createGiftRequestKey();
         spendMutation.mutate(
            { data: { uid: user.uid, recipientUid: giftRecipient?.uid ?? hostUid ?? undefined, amount: gift.coins, giftName: gift.name, senderName: user.name ?? "Viewer", channelId: giftRecipient?.channelId ?? channelId ?? undefined, description: gift.name, idempotencyKey: giftId } },
@@ -956,6 +958,7 @@ export default function StreamScreen() {
               spawnGift(gift, giftRecipient ? `${user.name ?? "You"} to ${giftRecipient.name}` : user.name ?? "You", giftId);
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             },
+            onSettled: () => { giftSending.current = false; },
             onError: () => {
               Alert.alert(t("Gift not sent"), t("Check your coin balance and that the selected host is still live."));
             },
@@ -981,7 +984,7 @@ export default function StreamScreen() {
           <Text style={[localizedTextStyle(), styles.admissionTitle]}>{t("Premium live")}</Text>
           <Text style={[localizedTextStyle(), styles.admissionHost]}>{stream?.hostName ?? t("Host")} · {stream?.title ?? t("Live stream")}</Text>
           <View style={styles.admissionGift}>
-            {stream?.requiredGift?.name === "Crown" ? <CrownArtwork size={30} /> : <Text style={styles.admissionGiftEmoji}>{stream?.requiredGift?.emoji}</Text>}
+            {stream?.requiredGift?.name === "Crown" ? <CrownArtwork size={30} /> : hasGiftImage(stream?.requiredGift?.name) ? <GiftImageArtwork gift={stream?.requiredGift?.name} size={30} /> : <Text style={styles.admissionGiftEmoji}>{stream?.requiredGift?.emoji}</Text>}
             <View>
               <Text style={styles.admissionGiftName}>{stream?.requiredGift?.name}</Text>
               <Text style={[localizedTextStyle(), styles.admissionGiftCost]}>{t("Entry gift · 🪙 {v0}", { v0: stream?.requiredGift?.coinCost })}</Text>

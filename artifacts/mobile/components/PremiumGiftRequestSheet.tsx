@@ -1,3 +1,4 @@
+import { GiftImageArtwork, hasGiftImage } from "@/components/GiftImageArtwork";
 import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -125,6 +126,8 @@ export function PremiumGiftRequestSheet({
                   >
                     {gift.id === "crown" ? (
                       <CrownArtwork size={30} />
+                    ) : hasGiftImage(gift.id) ? (
+                      <GiftImageArtwork gift={gift.id} size={30} />
                     ) : (
                       <Text style={{ fontSize: 30 }}>{gift.emoji}</Text>
                     )}

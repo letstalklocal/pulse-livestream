@@ -13,6 +13,7 @@ const PAID_START_TTL_MS = 5 * 60 * 1000;
 const GIFTS = [
   { id: "rose", name: "Rose", coins: 1 }, { id: "heart", name: "Heart", coins: 5 },
   { id: "party", name: "Party", coins: 10 }, { id: "diamond", name: "Diamond", coins: 50 },
+  { id: "strawberry", name: "Strawberry", coins: 49 }, { id: "lips", name: "Lips", coins: 99 },
   { id: "rocket", name: "Rocket", coins: 100 }, { id: "crown", name: "Crown", coins: 500 },
 ] as const;
 

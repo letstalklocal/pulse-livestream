@@ -1301,7 +1301,7 @@ paths:
               type: object
               required: [giftId, requestId]
               properties:
-                giftId: { type: string, enum: [rose, heart, party, diamond, rocket, crown] }
+                giftId: { type: string, enum: [rose, heart, party, strawberry, diamond, lips, rocket, crown] }
                 requestId: { type: string, minLength: 16, maxLength: 80, pattern: "^[a-zA-Z0-9-]{16,80}$" }
       responses:
         "200":
@@ -1383,7 +1383,7 @@ components:
     PartyAction: {"type":"object","required":["action"],"properties":{"action":{"type":"string","enum":["invite","accept","decline","cancel","leave","ready","battle_request","battle_simulate","battle_accept","battle_decline","battle_end"]},"targetChannelId":{"type":"string"},"partyId":{"type":"string"},"battleId":{"type":"string"}}}
     CreatePrivateStreamInvitationRequest:
       type: object
-      properties: { invitedUserId: { type: integer }, title: { type: string, maxLength: 120 }, requiredGiftId: { type: string, nullable: true, enum: [rose, heart, party, diamond, rocket, crown] } }
+      properties: { invitedUserId: { type: integer }, title: { type: string, maxLength: 120 }, requiredGiftId: { type: string, nullable: true, enum: [rose, heart, party, strawberry, diamond, lips, rocket, crown] } }
       required: [invitedUserId]
     PrivateStreamInvitation:
       type: object
@@ -1581,12 +1581,12 @@ components:
             required: [kind, giftId]
             properties:
               kind: { type: string, enum: [gift, pack] }
-              giftId: { type: string, enum: [rose, heart, party, diamond, rocket, crown] }
+              giftId: { type: string, enum: [rose, heart, party, strawberry, diamond, lips, rocket, crown] }
               packId: { type: integer, minimum: 1 }
         allowIncognito: { type: boolean }
         requiredGiftId:
           type: ["string", "null"]
-          enum: [rose, heart, party, diamond, rocket, crown, null]
+          enum: [rose, heart, party, strawberry, diamond, lips, rocket, crown, null]
       required:
         - channelId
         - hostUid
@@ -2009,12 +2009,12 @@ components:
       required: [objectPath, mediaType, contentType, width, height]
     CreateMediaPackRequest:
       type: object
-      properties: { name: { type: string, maxLength: 80 }, giftId: { type: string, enum: [rose, heart, party, diamond, rocket, crown] }, items: { type: array, minItems: 1, maxItems: 20, items: { $ref: "#/components/schemas/MediaPackItemInput" } } }
+      properties: { name: { type: string, maxLength: 80 }, giftId: { type: string, enum: [rose, heart, party, strawberry, diamond, lips, rocket, crown] }, items: { type: array, minItems: 1, maxItems: 20, items: { $ref: "#/components/schemas/MediaPackItemInput" } } }
       required: [name, giftId, items]
     UpdateMediaPackRequest:
       type: object
       properties:
-        giftId: { type: string, enum: [rose, heart, party, diamond, rocket, crown] }
+        giftId: { type: string, enum: [rose, heart, party, strawberry, diamond, lips, rocket, crown] }
         items:
           type: array
           minItems: 1
