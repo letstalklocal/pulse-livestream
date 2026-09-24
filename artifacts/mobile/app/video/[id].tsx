@@ -111,8 +111,7 @@ export default function CreatorVideoViewer() {
   const [lease, setLease] = useState<CacheLease | null>(null),
     [error, setError] = useState(""),
     [retry, setRetry] = useState(0),
-    [playing, setPlaying] = useState(false),
-    [stickersPaused, setStickersPaused] = useState(false);
+    [playing, setPlaying] = useState(false);
   const [draft, setDraft] = useState(""),
     [sending, setSending] = useState(false),
     [showGifts, setShowGifts] = useState(false),
@@ -365,7 +364,7 @@ export default function CreatorVideoViewer() {
             nativeControls={false}
             onError={onError}
             onPlayingChange={onPlayingChange}
-            paused={stickersPaused}
+            paused={false}
           />
         ) : (
           <View style={styles.loading}>
@@ -621,9 +620,8 @@ export default function CreatorVideoViewer() {
         </View>
       </KeyboardAvoidingView>
       {video && !detail.isError && <VideoStickerOverlay
-        videoId={video.id} visible={active && !keyboard} top={insets.top + 66} isHost={owner}
+        videoId={video.id} ownerUid={video.ownerUid} ownerName={video.ownerName} visible={active && !keyboard} top={insets.top + 66} isHost={owner}
         onGift={(giftId) => { const gift = GIFTS.find(value => value.id === giftId); if (gift && !owner) void sendGift(gift); }}
-        onPause={() => setStickersPaused(true)} onResume={() => setStickersPaused(false)}
       />}
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
         {gifts.map((g) => (

@@ -252,10 +252,10 @@ function fixture(component) {
   await tick();
   tree = f.render();
   assert.equal(card(), undefined, "Opening pack dismisses the offer");
-  assert.ok(
-    nodes(tree).some((n) => n.type === "Gallery"),
-    "Unlocked pack opens in place",
-  );
+  assert.equal(f.routes.length, 1, "View pack opens one receipt conversation");
+  assert.equal(f.routes[0].pathname, "/dm/[peerId]");
+  assert.equal(f.routes[0].params.peerId, "2");
+  assert.ok(!nodes(tree).some((n) => n.type === "Gallery"), "Sticker never opens protected media in place");
   assert.deepEqual(JSON.parse(f.store.get("dismissed-live-stickers:1")), {
     live: ["pack"],
   });
@@ -294,20 +294,18 @@ function fixture(component) {
   );
   const late = fixture("LiveStickerOverlay");
   late.data.get(JSON.stringify(late.key)).stickers[0].owned = true;
-  let done;
-  late.state.wait = new Promise((r) => (done = r));
   tree = late.render();
   nodes(tree)
     .find((n) => n.type === "Card")
     .props.onPress();
   late.unmount();
-  done();
   await tick();
   assert.equal(
     late.store.size,
     0,
-    "Late pack load cannot dismiss after leaving",
+    "Leaving before View pack navigation cannot dismiss the sticker",
   );
+  assert.equal(late.routes.length, 0, "Leaving before View pack navigation cannot open a DM");
   const setup = fixture("LiveStickerSetup");
   let value = [{ kind: "gift", giftId: "rose" }];
   const props = () => ({
@@ -439,7 +437,7 @@ function fixture(component) {
     "Two stickers disables both add buttons",
   );
   console.log(
-    "PASS: setup limit/edit cancellation, pack confirmation, in-flight guard, View pack/dismissal persistence, no repurchase, retry key reuse, hidden controls and late-response cleanup. Mocked UI, not device proof.",
+    "PASS: setup limit/edit cancellation, pack confirmation, View pack DM navigation/dismissal, no repurchase, retry key reuse, hidden controls and late-response cleanup. Mocked UI, not device proof.",
   );
 })().catch((e) => {
   console.error(e);

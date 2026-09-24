@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import { useAuth as useClerkAuth } from "@clerk/expo";
+import { useRouter } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Crypto from "expo-crypto";
@@ -20,7 +21,6 @@ import { GIFTS } from "./GiftPicker";
 import { LiveStickerPicker } from "./LiveStickerSetup";
 import type { StickerDraft } from "@/utils/liveStickers";
 import { LiveStickerCard } from "./LiveStickerCard";
-import { MediaPackGallery, type PackMediaItem } from "./MediaPackGallery";
 
 export function LiveStickerOverlay(props: {
   channelId: string;
@@ -58,6 +58,7 @@ function StickerSession({
 }) {
   const { t } = useAppLanguage();
   const { getToken } = useClerkAuth();
+  const router = useRouter();
   const client = useQueryClient();
   const key = stickerQueryKey(channelId, uid);
   const dismissedKey = ["dismissed-live-stickers", uid, channelId] as const;
@@ -94,11 +95,9 @@ function StickerSession({
   const active = useRef(enabled);
   active.current = enabled;
   const paymentKeys = useRef(new Map<string, string>());
-  const [gallery, setGallery] = useState<PackMediaItem[] | null>(null);
   useEffect(() => {
     if (!enabled) {
       controller.current?.abort();
-      setGallery(null);
       setReplacement(null);
     }
   }, [enabled]);
@@ -116,22 +115,13 @@ function StickerSession({
     controller.current = new AbortController();
     try {
       if (sticker.kind === "pack" && sticker.owned) {
-        const { pack } = await stickerApi<{
-          pack: { unlocked: boolean; isOwner: boolean; items: PackMediaItem[] };
-        }>(
-          `/media-packs/${sticker.packId}`,
-          getToken,
-          "GET",
-          undefined,
-          controller.current.signal,
-        );
-        if (!pack.unlocked && !pack.isOwner)
-          throw new Error("Pack access denied");
-        if (!mounted.current || !active.current) return;
-        const ids = [...new Set([...(dismissed.data ?? []), sticker.id])];
+        const hostUid = query.data?.hostUid;
+        if (!hostUid) throw new Error("Pack conversation is unavailable");
         const saved = JSON.parse(
           (await AsyncStorage.getItem(storageKey)) ?? "{}",
         );
+        if (!mounted.current || !active.current) return;
+        const ids = [...new Set([...(dismissed.data ?? []), sticker.id])];
         const retained = Object.fromEntries(
           Object.entries(saved)
             .filter(([id]) => id !== channelId)
@@ -141,8 +131,9 @@ function StickerSession({
           storageKey,
           JSON.stringify({ ...retained, [channelId]: ids }),
         );
+        if (!mounted.current || !active.current) return;
         client.setQueryData(dismissedKey, ids);
-        if (mounted.current && active.current) setGallery(pack.items);
+        router.push({ pathname: "/dm/[peerId]", params: { peerId: String(hostUid) } });
         return;
       }
       let requestKey = paymentKeys.current.get(sticker.id);
@@ -332,9 +323,6 @@ function StickerSession({
           onClose={() => setReplacement(null)}
           onSelect={(draft) => void replace(draft)}
         />
-      ) : null}
-      {gallery && enabled ? (
-        <MediaPackGallery items={gallery} onClose={() => setGallery(null)} />
       ) : null}
     </>
   );

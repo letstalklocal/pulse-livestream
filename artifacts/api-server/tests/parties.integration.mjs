@@ -37,6 +37,8 @@ const presence = (channelId, uid) => call(streams, "/streams/:channelId/presence
 const gift = (uid, recipientUid, channelId, key = randomUUID(), amount = 5) => call(coins, "/coins/spend", "post", uid, { uid, recipientUid, channelId, amount, giftName: "Heart", idempotencyKey: key });
 try {
   await pool.query(readFileSync(new URL("../../../lib/db/migrations/20260910_live_parties.sql", import.meta.url), "utf8"));
+  await pool.query(readFileSync(new URL("../../../lib/db/migrations/20260924_party_third_channel.sql", import.meta.url), "utf8"));
+  await pool.query(readFileSync(new URL("../../../lib/db/migrations/20260924_party_fourth_channel.sql", import.meta.url), "utf8"));
   await pool.query(readFileSync(new URL("../../../lib/db/migrations/20260918_battle_simulation.sql", import.meta.url), "utf8"));
   for (const uid of [a, b, c, v, w]) await pool.query("insert into users(uid,clerk_id,name) values($1,$2,$3)", [uid, `${prefix}-${uid}`, `Party test ${uid}`]);
   for (let i = 0; i < channels.length; i++) await pool.query("insert into live_stream_sessions(channel_id,host_user_id,host_name,title,category) values($1,$2,$3,'Party test','Talk')", [channels[i], [a, b, c][i], `Host ${i}`]);

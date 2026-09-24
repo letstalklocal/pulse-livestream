@@ -5,6 +5,10 @@ export const livePartiesTable = pgTable("live_parties", {
   id: text("id").primaryKey(),
   firstChannelId: text("first_channel_id").notNull().references(() => liveStreamSessionsTable.channelId, { onDelete: "cascade" }),
   secondChannelId: text("second_channel_id").notNull().references(() => liveStreamSessionsTable.channelId, { onDelete: "cascade" }),
+  // Reserved for the additive multi-host Party expansion. Existing two-host
+  // Parties leave this null and retain their current behavior.
+  thirdChannelId: text("third_channel_id").references(() => liveStreamSessionsTable.channelId, { onDelete: "cascade" }),
+  fourthChannelId: text("fourth_channel_id").references(() => liveStreamSessionsTable.channelId, { onDelete: "cascade" }),
   status: text("status").$type<"pending" | "active" | "ended" | "declined">().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
@@ -12,7 +16,7 @@ export const livePartiesTable = pgTable("live_parties", {
   endedAt: timestamp("ended_at", { withTimezone: true }),
   firstReadyAt: timestamp("first_ready_at", { withTimezone: true }),
   secondReadyAt: timestamp("second_ready_at", { withTimezone: true }),
-}, t => [index("live_parties_first_idx").on(t.firstChannelId), index("live_parties_second_idx").on(t.secondChannelId)]);
+}, t => [index("live_parties_first_idx").on(t.firstChannelId), index("live_parties_second_idx").on(t.secondChannelId), index("live_parties_third_idx").on(t.thirdChannelId), index("live_parties_fourth_idx").on(t.fourthChannelId)]);
 
 export const liveBattlesTable = pgTable("live_battles", {
   id: text("id").primaryKey(),

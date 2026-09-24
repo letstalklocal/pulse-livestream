@@ -1,24 +1,38 @@
 // Keep each stream's lease independent so cleanup cannot release another screen's lock.
-export function startStreamAwakeLease({ tag, activate, deactivate, isForeground, subscribe, reportError }: {
+export function startStreamAwakeLease({ tag, activate, deactivate, isForeground, subscribe, reportError, now = Date.now }: {
   tag: string;
   activate: (tag: string) => Promise<unknown>;
   deactivate: (tag: string) => Promise<unknown>;
   isForeground: () => boolean;
   subscribe: (onActive: () => void) => () => void;
   reportError: (error: unknown) => void;
+  now?: () => number;
 }) {
   let disposed = false;
   let busy = false;
+  let activationStartedAt = 0;
+  let activationGeneration = 0;
   let warned = false;
-  let pending = Promise.resolve();
   const refresh = () => {
-    if (disposed || busy || !isForeground()) return;
+    if (disposed || !isForeground()) return;
+    // Native activation should resolve promptly. Do not let one hung bridge call
+    // permanently suppress the foreground and periodic recovery attempts.
+    if (busy && now() - activationStartedAt < 5_000) return;
     busy = true;
-    pending = Promise.resolve().then(() => {
+    activationStartedAt = now();
+    const generation = ++activationGeneration;
+    void Promise.resolve().then(() => {
       if (!disposed && isForeground()) return activate(tag);
-    }).then(() => { warned = false; }).catch(error => {
+    }).then(() => {
+      warned = false;
+      // If an activation completes after its screen has closed, immediately
+      // release it rather than leaving the device awake for a stale stream.
+      if (disposed) return deactivate(tag);
+    }).catch(error => {
       if (!disposed && !warned) { reportError(error); warned = true; }
-    }).finally(() => { busy = false; });
+    }).finally(() => {
+      if (generation === activationGeneration) busy = false;
+    });
   };
   const unsubscribe = subscribe(refresh);
   refresh();
@@ -28,7 +42,8 @@ export function startStreamAwakeLease({ tag, activate, deactivate, isForeground,
     disposed = true;
     clearInterval(timer);
     unsubscribe();
-    // A late native activation must settle before releasing this instance's tag.
-    void pending.then(() => deactivate(tag)).catch(reportError);
+    // Release any successful activation now. A late activation also releases
+    // itself in the completion handler above.
+    void deactivate(tag).catch(reportError);
   };
 }

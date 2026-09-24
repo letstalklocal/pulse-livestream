@@ -10,9 +10,9 @@ vm.runInNewContext(ts.transpileModule(fs.readFileSync(require.resolve('../utils/
 const start = exportsObject.startStreamAwakeLease;
 const flush = async () => { for (let i = 0; i < 15; i++) await Promise.resolve(); };
 (async () => {
-  let foreground = true, onActive, attempts = 0, unsubscribed = false;
+  let foreground = true, onActive, attempts = 0, unsubscribed = false, clock = 0;
   const activated = [], released = [], errors = [];
-  const stop = start({ tag: 'host-a', activate: async tag => { attempts++; if (attempts === 1) throw new Error('Activity not ready'); activated.push(tag); }, deactivate: async tag => released.push(tag), isForeground: () => foreground, subscribe: fn => { onActive = fn; return () => { unsubscribed = true; }; }, reportError: e => errors.push(e) });
+  const stop = start({ tag: 'host-a', activate: async tag => { attempts++; if (attempts === 1) throw new Error('Activity not ready'); activated.push(tag); }, deactivate: async tag => released.push(tag), isForeground: () => foreground, subscribe: fn => { onActive = fn; return () => { unsubscribed = true; }; }, reportError: e => errors.push(e), now: () => clock });
   await flush(); assert.equal(errors.length, 1);
   [...timers.values()].forEach(fn => fn()); await flush(); assert.deepEqual(activated, ['host-a'], 'Failed first activation must retry');
   [...timers.values()].forEach(fn => fn()); await flush(); assert.equal(activated.length, 2, 'Foreground renewal reasserts the native flag');
@@ -20,12 +20,20 @@ const flush = async () => { for (let i = 0; i < 15; i++) await Promise.resolve()
   foreground = true; onActive(); await flush(); assert.equal(activated.length, 3, 'Foreground return renews immediately');
   stop(); await flush(); assert.deepEqual(released, ['host-a']); assert.equal(timers.size, 0); assert.equal(unsubscribed, true);
   onActive(); await flush(); assert.equal(activated.length, 3);
+  let hang;
+  const hungCalls = [];
+  const stopHung = start({ tag: 'hung-host', activate: tag => new Promise(resolve => { hungCalls.push('start:' + tag); hang = resolve; }), deactivate: async tag => hungCalls.push('release:' + tag), isForeground: () => true, subscribe: () => () => {}, reportError: e => { throw e; }, now: () => clock });
+  await flush();
+  clock += 10_000; [...timers.values()].forEach(fn => fn()); await flush();
+  assert.deepEqual(hungCalls, ['start:hung-host', 'start:hung-host'], 'A hung native activation must not block the next repair attempt');
+  stopHung(); await flush(); assert.equal(hungCalls.filter(call => call === 'release:hung-host').length, 1, 'Cleanup releases an already-active tag without waiting for a hung bridge call');
+  hang(); await flush(); assert.equal(hungCalls.filter(call => call === 'release:hung-host').length, 2, 'A late activation releases itself after its screen closes');
   let finish;
   const calls = [];
   const stopLate = start({ tag: 'old-viewer', activate: tag => { calls.push('start:'+tag); return new Promise(resolve => { finish = () => { calls.push('active:'+tag); resolve(); }; }); }, deactivate: async tag => calls.push('release:'+tag), isForeground: () => true, subscribe: () => () => {}, reportError: e => { throw e; } });
-  await flush(); stopLate(); await flush(); assert.deepEqual(calls, ['start:old-viewer']);
-  finish(); await flush(); assert.deepEqual(calls, ['start:old-viewer','active:old-viewer','release:old-viewer']);
+  await flush(); stopLate(); await flush(); assert.deepEqual(calls, ['start:old-viewer','release:old-viewer']);
+  finish(); await flush(); assert.deepEqual(calls, ['start:old-viewer','release:old-viewer','active:old-viewer','release:old-viewer']);
   const stopNew = start({ tag: 'new-viewer', activate: async tag => activated.push(tag), deactivate: async tag => released.push(tag), isForeground: () => true, subscribe: () => () => {}, reportError: e => { throw e; } });
   await flush(); assert.equal(activated.at(-1), 'new-viewer'); stopNew(); await flush(); assert.equal(released.at(-1), 'new-viewer'); assert.equal(timers.size, 0);
-  console.log('PASS: awake activation retry, foreground repair, background suppression, per-screen release and late-activation cleanup.');
+  console.log('PASS: awake activation retry, hung-bridge recovery, foreground repair, background suppression, per-screen release and late-activation cleanup.');
 })().catch(e => { console.error(e); process.exitCode = 1; });

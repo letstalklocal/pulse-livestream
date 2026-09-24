@@ -2,6 +2,20 @@
 
 Party links two existing public, free live sessions. Hosts invite from More > Party; the recipient accepts before their audiences share the experience. Each viewer keeps the original live route and host identity.
 
+## Multi-host Party foundation — September 24, 2026
+
+The Party table now has additive nullable `third_channel_id` and `fourth_channel_id` fields, each with a foreign key, index and distinctness constraint. Existing Party creation, invitations, responses, media, chat, Premium rules, gifts, battles and layouts remain strictly two-host; the new fields are not populated or exposed yet. This is a compatibility-safe foundation for the requested future third and fourth smaller host windows, not an implemented multi-host Party feature.
+
+### Remaining multi-host Party work
+
+1. **Membership and invitations:** Define/add explicit join and leave actions for a third and fourth public, free host. Keep the initial two-host invite/accept flow unchanged; no host may belong to more than one pending or active Party, and a declined/ended invite must clear the appropriate optional channel without ending the other hosts' lives.
+2. **Server state and access:** Extend Party lookup, validity, readiness, host authorization, viewer-count union, shared-chat mirroring, moderation, gift fan-out, Premium admission/access receipts, disconnect/end cleanup, and tokens so they operate over every populated channel. Preserve two-host responses and behavior when both optional channels are null.
+3. **Agora media:** Give each viewer/host an independent secondary subscription for each extra host, with its own token renewal, cleanup and local mute state. Never publish a viewer/host microphone or camera into another host's channel, and never let cleanup of one secondary connection release the primary stream or another connection.
+4. **Stage layout:** Keep the selected host as the primary full-screen video. Render third/fourth participants as smaller, independently tappable windows with safe-area-aware placement and no overlap with header, chat, gift drawer, keyboard, or controls. Define the specific three- and four-host window positions before implementation.
+5. **Gifts and navigation:** Continue requiring an explicit recipient for every gift; identify all current Party hosts in the recipient picker. Decide main-window switching and per-window mute/info behavior for more than one secondary host, without changing the established two-host gesture behavior.
+6. **VS/battles:** Keep VS strictly two-host until separate multi-host scoring, winner, simulation, score display, early-end, and gift-attribution rules are explicitly approved. Do not silently apply the present `firstScore`/`secondScore` model to three or four hosts.
+7. **Verification:** Add database/API concurrency and authorization coverage for third/fourth joins, duplicate membership, host departure, Premium conversion, gifts, chat, viewers and reconnect cleanup. Add mobile tests for multiple secondary connections/window interactions, then verify with three and four real host devices plus a viewer on Android and iPhone. This requires a rebuilt API and native clients; passing mocks do not prove Agora media, touch handling, or layout.
+
 ## Media and layout
 
 - Each host keeps publishing to their own Agora channel.
