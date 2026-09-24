@@ -8,26 +8,15 @@ import {
   View,
 } from "react-native";
 import { Image } from "expo-image";
-import { VideoView, useVideoPlayer } from "expo-video";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppLanguage } from "@/i18n";
+import { DirectMessageVideo } from "./DirectMessageVideo";
 export type PackMediaItem = {
   id: string;
   mediaType: string;
   mediaUrl?: string;
 };
-function PackVideo({ uri }: { uri: string }) {
-  const player = useVideoPlayer(uri);
-  return (
-    <VideoView
-      player={player}
-      style={styles.media}
-      nativeControls
-      contentFit="contain"
-    />
-  );
-}
 export function MediaPackGallery({
   items,
   onClose,
@@ -106,7 +95,7 @@ export function MediaPackGallery({
                     contentFit="contain"
                   />
                 ) : index === activeIndex ? (
-                  <PackVideo uri={item.mediaUrl} />
+                  <DirectMessageVideo key={item.mediaUrl} uri={item.mediaUrl} />
                 ) : (
                   <Ionicons name="videocam" size={42} color="white" />
                 ))}

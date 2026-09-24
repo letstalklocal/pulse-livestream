@@ -17,7 +17,7 @@ const mocks = {
   '@/hooks/useColors': { useColors: () => colors }, '@/context/AuthContext': { useAuth: () => ({ user: { uid: 1 } }) },
   '@tanstack/react-query': { useQueryClient: () => ({ setQueryData() {} }) },
   '@workspace/api-client-react': { useGetMediaPack: () => ({ data: { pack }, refetch: async () => {} }), useUnlockMediaPack: () => ({ isPending: false, mutateAsync: async request => { payments.push(request); return { balance: 500 }; } }), getGetCoinBalanceQueryKey: () => [] },
-  './MediaPackGallery': { MediaPackGallery: 'Gallery' },
+  './MediaPackGallery': { MediaPackGallery: 'Gallery' }, './DirectVideoThumbnail': { DirectVideoThumbnail: 'Thumbnail' },
 };
 const mod = { exports: {} };
 new Function('require', 'module', 'exports', code)(id => { assert.ok(mocks[id], id); return mocks[id]; }, mod, mod.exports);

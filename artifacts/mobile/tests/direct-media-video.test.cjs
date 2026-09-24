@@ -40,6 +40,12 @@ function render(message){cursor=0;let tree=DirectMediaMessage({message,mine:fals
  const {DirectMessageVideo}=load('../components/DirectMessageVideo.tsx',{react:{...react,useEffect:fn=>cleanup.push(fn())},'react-native':{...native,AppState:{addEventListener:(_,fn)=>{onState=fn;return{remove:()=>removed++};}}},'@/i18n':i18n,expo:{useEvent:()=>({status:'readyToPlay'})},'expo-video':{useVideoPlayer:(source,setup)=>{assert.equal(source.contentType,'progressive');setup(player);return player;},VideoView:'NativeVideo'}});
  tree=DirectMessageVideo({uri:'signed-video'});assert.equal(played,1);assert.equal(nodes(tree).find(n=>n.type==='NativeVideo').props.nativeControls,true);
  onState('background');assert.equal(paused,1);cleanup.forEach(fn=>fn());assert.equal(removed,1);
+ const galleryReact={...react,useState:initial=>[initial,()=>{}]};
+ const {MediaPackGallery}=load('../components/MediaPackGallery.tsx',{react:galleryReact,'react-native':{...native,FlatList:'List',useWindowDimensions:()=>({width:390,height:800})},'expo-image':{Image:'Image'},'@expo/vector-icons':{Ionicons:'Icon'},'react-native-safe-area-context':{useSafeAreaInsets:()=>({top:0})},'@/i18n':i18n,'./DirectMessageVideo':{DirectMessageVideo:'Video'}});
+ const gallery=MediaPackGallery({items:[{id:'video',mediaType:'video',mediaUrl:'pack-video'},{id:'photo',mediaType:'image',mediaUrl:'pack-photo'}],onClose:()=>{},embedded:true});
+ const galleryList=nodes(gallery).find(n=>n.type==='List');
+ assert.equal(nodes(galleryList.props.renderItem({item:galleryList.props.data[0],index:0})).find(n=>n.type==='Video').props.uri,'pack-video','Opening a pack video uses the autoplay DM player');
+ assert.equal(nodes(galleryList.props.renderItem({item:galleryList.props.data[1],index:1})).some(n=>n.type==='Video'),false,'Photo pages do not mount a video player');
  const chooser = fs.readFileSync(require.resolve('../components/MediaChooser.tsx'), 'utf8');
  const uploadCode = ts.transpileModule(chooser.slice(chooser.indexOf('  const performUpload ='), chooser.indexOf('  const handleClose =')), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
  for (const [type, mimeType, expected] of [['video', undefined, 'video/mp4'], ['video', 'video/quicktime', 'video/quicktime'], ['image', undefined, 'image/jpeg']]) {

@@ -17,6 +17,7 @@ The timed Premium request prompt currently has **no Buy Coins flow**. **Planned 
 ## Gold coin artwork and purchase UI
 
 - Replaced the account-header system coin emoji, which looked white on iPhone, with explicit-gold SVG artwork. The shared `GoldCoinIcon` defaults to 16 points.
+- **Durable requirement (user reaffirmed 2026-09-24):** Every new or changed native/iOS coin affordance, balance, price, earnings total, or gift-cost display must use the shared explicit-gold `GoldCoinIcon`, never the system `🪙` emoji. This avoids Apple rendering it as a non-gold/white glyph. Preserve existing approved exceptions only until they are deliberately converted; do not introduce further emoji coin usage.
 - Host/viewer live earnings counters and Top Gifters totals use the same artwork at 14 points, including regular and party live views. Earnings totals and leaderboard actions remain the same; those counters do not become wallet-purchase buttons.
 - The shared Buy Coins page and gift-drawer purchase sheet use a **3 × 3 grid**, ascending coin amounts, smaller **32-point** gold artwork, and **white localized prices** beneath the amounts. Cards currently have a 124-point minimum height and can expand for text.
 - Both SVG artwork implementations use `accessible={false}` on native platforms and omit that value on web. The purchase card retains its accessible coin/price label. This records the compatibility correction; it is not a completed accessibility audit or a proven fix for the connectivity incident.

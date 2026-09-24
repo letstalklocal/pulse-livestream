@@ -283,6 +283,8 @@ CDN/upload assessment: current DM and pack uploads are whole-file PUTs directly 
 
 Individual authorized DM videos now show an extracted first-frame thumbnail behind the existing play button. Native frame extraction is muted and does not autoplay; it runs once per mounted URL, bounds frame dimensions, releases its temporary decoder, and releases the retained frame on cleanup. Locked videos do not extract private media. Unsupported web extraction, failures and timeouts retain the play-button fallback. Automated tests cover rendering, duplicate-ready events, decoder/frame cleanup, failed extraction and late completion after unmount; mobile typecheck and localization also pass. Android/iPhone thumbnail appearance and extraction performance remain pending device verification.
 
+Latest DM playback requirement (2026-09-24): videos autoplay when opened in the full-screen viewer, including videos inside media packs. Opening a video uses the shared DM player; closing or swiping away unmounts it, and backgrounding pauses playback. Thumbnail extraction remains muted and does not autoplay in the message list. Android/iPhone playback confirmation remains pending.
+
 DM video, media-pack and private 1:1 invitation rows now have 16 points of bottom spacing (doubled from 8), for incoming and outgoing cards. Other message spacing, card dimensions and composer/keyboard insets are preserved. Device visual confirmation of this spacing remains pending.
 
 ## DM and pack upload progress/resumption — September 21, 2026

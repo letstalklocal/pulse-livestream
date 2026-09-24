@@ -1,6 +1,7 @@
 import { GiftImageArtwork, hasGiftImage } from "@/components/GiftImageArtwork";
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { CrownArtwork } from "./CrownArtwork";
+import { GoldCoinIcon } from "./GoldCoinIcon";
 import React, { useEffect, useState } from "react";
 import { CoinStoreContent } from "./CoinStoreContent";
 import {
@@ -10,6 +11,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -50,6 +52,7 @@ interface Props {
 export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipientUid, onRecipientChange, hintText = "Select a gift, then tap Send.", preview = false }: Props) {
   const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const [buyingCoins, setBuyingCoins] = useState(false);
   const [selectedGiftId, setSelectedGiftId] = useState<string | null>(null);
   useEffect(() => { if (!visible) { setBuyingCoins(false); setSelectedGiftId(null); } }, [visible]);
@@ -66,7 +69,7 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
 
       {buyingCoins && !preview ? <View style={styles.purchaseSheet}>
         <CoinStoreContent sheet onClose={() => setBuyingCoins(false)} />
-      </View> : <View style={[styles.sheet, { paddingBottom: insets.bottom + (Platform.OS === "android" ? 32 : 16) }]}>
+      </View> : <View style={[styles.sheet, { maxHeight: windowHeight * 0.4 + 10, paddingBottom: Platform.OS === "android" ? Math.max(insets.bottom, 32) : insets.bottom + 16 }]}>
         {/* Handle */}
         <View style={styles.handle} />
 
@@ -75,7 +78,7 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
           <Text style={[localizedTextStyle(), styles.title]}>{t("Popular")}</Text>
           <TouchableOpacity style={styles.coinBadge} hitSlop={8} disabled={preview} onPress={() => setBuyingCoins(true)}
             accessibilityRole="button" accessibilityLabel={t(preview ? "Preview gifts" : "Buy Coins")} activeOpacity={0.75}>
-            <Text style={styles.coinIcon}>🪙</Text>
+            <GoldCoinIcon size={14} />
             <Text style={[styles.coinCount, localizedTextStyle()]}>{preview ? t("Preview gifts") : coins === 0 ? t("Buy Coins") : coins.toLocaleString(appLocale())}</Text>
           </TouchableOpacity>
         </View>
@@ -100,8 +103,9 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
             return (
               <View
                 key={gift.id}
-                style={[styles.giftCell, selected && styles.selectedGift, !canAfford && styles.giftCellDisabled]}
+                style={styles.giftSlot}
               >
+              <View style={[styles.giftCell, selected && styles.selectedGift, !canAfford && styles.giftCellDisabled]}>
                 <TouchableOpacity
                   onPress={() => setSelectedGiftId(gift.id)}
                   accessibilityRole="radio"
@@ -115,7 +119,7 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
                 </View>
                 <Text style={[styles.giftName, localizedTextStyle()]} numberOfLines={1}>{gift.name}</Text>
                 <View style={styles.giftCost}>
-                  <Text style={styles.coinIconSm}>🪙</Text>
+                  <GoldCoinIcon size={11} />
                   <Text style={[styles.giftCoins, !canAfford && styles.giftCoinsDisabled]}>
                     {gift.coins}
                   </Text>
@@ -133,16 +137,11 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
                   <Text style={[styles.sendText, localizedTextStyle()]}>{t("Send")}</Text>
                 </TouchableOpacity>
               </View>
+              </View>
             );
           })}
         </ScrollView>
 
-        {!preview && coins === 0 && (
-          <Text style={[localizedTextStyle(), styles.hintEmpty]}>{t("Tap Buy Coins to top up.")}</Text>
-        )}
-        {hintText !== "Select a gift, then tap Send." && (
-          <Text style={styles.hint}>{t(hintText)}</Text>
-        )}
       </View>}
     </Modal>
   );
@@ -193,7 +192,6 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     gap: 4,
   },
-  coinIcon: { fontSize: 14 },
   coinCount: {
     color: "#FFD700",
     fontWeight: "700",
@@ -204,7 +202,6 @@ const styles = StyleSheet.create({
     maxHeight: 124 * Math.min(3, Math.ceil(GIFTS.length / 4)),
     flexGrow: 0,
     flexShrink: 1,
-    marginBottom: 12,
   },
   grid: {
     flexDirection: "row",
@@ -213,8 +210,12 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     rowGap: 8,
   },
-  giftCell: {
+  giftSlot: {
     width: "25%",
+    paddingHorizontal: 2,
+  },
+  giftCell: {
+    width: "100%",
     borderWidth: 1,
     borderColor: "transparent",
     borderRadius: 12,
@@ -275,7 +276,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 3,
   },
-  coinIconSm: { fontSize: 11 },
   giftCoins: {
     color: "#FFD700",
     fontSize: 12,
@@ -284,19 +284,5 @@ const styles = StyleSheet.create({
   },
   giftCoinsDisabled: {
     color: "rgba(255,215,0,0.5)",
-  },
-  hint: {
-    color: "rgba(255,255,255,0.3)",
-    fontSize: 11,
-    textAlign: "center",
-    fontFamily: "Inter_400Regular",
-    marginBottom: 4,
-  },
-  hintEmpty: {
-    color: "#FF1966",
-    fontSize: 12,
-    textAlign: "center",
-    fontFamily: "Inter_500Medium",
-    marginBottom: 4,
   },
 });
