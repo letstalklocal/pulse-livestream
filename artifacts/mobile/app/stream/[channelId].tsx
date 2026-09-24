@@ -23,7 +23,8 @@ import { useAuth as useClerkAuth } from "@clerk/expo";
 import * as Crypto from "expo-crypto";
 import * as Haptics from "expo-haptics";
 import { useStreamKeepAwake } from "@/hooks/useStreamKeepAwake";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { shouldKeepViewerAwake } from "@/utils/viewerAwake";
+import { useFocusEffect, useLocalSearchParams, usePathname, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -62,6 +63,7 @@ import {
   useFollowUser,
   useUnfollowUser,
   useGetFollowStatus,
+  useGetUser,
   useGetPrivateStreamInvitation,
   useAdmitToStream,
 } from "@workspace/api-client-react";
@@ -134,6 +136,7 @@ export default function StreamScreen() {
   const insets = useSafeAreaInsets();
   const keyboardVisible = useKeyboardState(state => state.isVisible);
   const router = useRouter();
+  const pathname = usePathname();
   const { channelId, privateInvitationId } = useLocalSearchParams<{
     channelId: string;
     privateInvitationId?: string;
@@ -245,6 +248,13 @@ export default function StreamScreen() {
     if (stream) setRestrictedByEvent(!!stream.viewerRemoved || !!stream.viewerBlocked);
   }, [stream]);
   const canEnterStream = !accessRestricted && streamDetailsLoaded && (!requiresAdmission || hasAdmission);
+  // The current route is stable through in-stream sheets. Keep the lease
+  // through a delayed focus callback or detail refetch while admitted.
+  const keepViewerAwake = shouldKeepViewerAwake({
+    pathname, channelId, canEnterStream, requiresAdmission,
+    playbackChannelId: playback.channelId, playbackCanEnterStream: playback.canEnterStream,
+    accessRestricted, streamEnded, playbackEnded: playback.ended,
+  });
   const { data: privateInvitationData } = useGetPrivateStreamInvitation(
     privateInvitationIdNumber,
     {
@@ -304,6 +314,11 @@ export default function StreamScreen() {
   }, [channelId]);
 
   const hostUid = stream?.hostUid ?? hostUidFromChannel;
+  // Profile images use expiring URLs. Refresh while a live stays open instead
+  // of relying only on the URL saved when the host started broadcasting.
+  const { data: hostProfileData } = useGetUser(hostUid ?? 0, {
+    query: { enabled: !!hostUid && !isDemo, refetchInterval: 13 * 60 * 1000, retry: false } as any,
+  });
   const isOwnStream = !!user?.uid && user.uid === hostUid;
   const partyState = playback.partyState;
   const party = partyState.party;
@@ -368,6 +383,10 @@ export default function StreamScreen() {
   // The list is already cached when swiping, before the destination detail query resolves.
   const listedStream = allStreams.find((item) => item.channelId === channelId);
   const displayHostName = stream?.hostName ?? listedStream?.hostName;
+  const hostAvatarUrl = hostProfileData?.user.avatarImageUrl
+    ?? stream?.hostAvatarUrl
+    ?? listedStream?.hostAvatarUrl;
+  const [failedHostAvatarUrl, setFailedHostAvatarUrl] = useState<string | null>(null);
   const AVATAR_COLORS = ["#FF1966","#7B2FFF","#FF6B35","#00C2A8","#FFB800","#0095FF"];
   const hostInitials = (displayHostName ?? "")
     .split(" ")
@@ -692,7 +711,7 @@ export default function StreamScreen() {
 
   return (
     <View style={styles.container}>
-    {viewerFocused && canEnterStream && <StreamViewerKeepAwake />}
+    {keepViewerAwake && <StreamViewerKeepAwake />}
     <Animated.View
       style={[StyleSheet.absoluteFill, { backgroundColor: "#000", transform: [{ translateY: slideAnim }] }]}
       {...panResponder.panHandlers}
@@ -786,19 +805,29 @@ export default function StreamScreen() {
               activeOpacity={0.8}
             >
               <View style={[styles.avatarCircle, { backgroundColor: hostAvatarColor }]}>
-                {hostInitials ? <Text style={styles.avatarInitials}>{hostInitials}</Text> : <Ionicons name="person" size={15} color="#FFF" />}
+                {hostAvatarUrl && hostAvatarUrl !== failedHostAvatarUrl
+                  ? <Image source={{ uri: hostAvatarUrl }} style={styles.avatarImage} onError={() => setFailedHostAvatarUrl(hostAvatarUrl)} />
+                  : hostInitials ? <Text style={styles.avatarInitials}>{hostInitials}</Text> : <Ionicons name="person" size={15} color="#FFF" />}
               </View>
             </TouchableOpacity>
           </View>
 
           <View style={styles.streamMeta}>
-            {displayHostName && (
+            {requiresAdmission && !streamEnded ? (
+              <View style={styles.premiumBadge} pointerEvents="none" testID="viewer-premium-badge">
+                <View style={styles.premiumDot} />
+                <Text style={[localizedTextStyle(), styles.premiumBadgeText]}>{t("PREMIUM")}</Text>
+              </View>
+            ) : displayHostName ? (
               <Text style={styles.hostName} numberOfLines={1}>{displayHostName}</Text>
-            )}
+            ) : null}
           </View>
 
           <View style={styles.statsGroup}>
             <TouchableOpacity style={styles.statsRow} onPress={() => setShowLeaderboard(true)} activeOpacity={0.75}>
+              <Ionicons name="people" size={13} color="#FFF" />
+              <Text style={styles.statsText}>{(stream?.totalViewers ?? 0).toLocaleString(appLocale())}</Text>
+              <View style={styles.statsDivider} />
               <GoldCoinIcon size={14} />
               <Text style={styles.statsText}>{hostCoins.toLocaleString(appLocale())}</Text>
               <View style={styles.statsDivider} />
@@ -811,12 +840,6 @@ export default function StreamScreen() {
                   : "—"}
               </Text>
             </TouchableOpacity>
-            {requiresAdmission && !streamEnded ? (
-              <View style={styles.premiumBadge} pointerEvents="none" testID="viewer-premium-badge">
-                <View style={styles.premiumDot} />
-                <Text style={[localizedTextStyle(), styles.premiumBadgeText]}>{t("PREMIUM")}</Text>
-              </View>
-            ) : null}
           </View>
         </View>
 
@@ -1173,19 +1196,17 @@ const styles = StyleSheet.create({
   },
   statsGroup: { alignItems: "center" },
   premiumBadge: {
-    position: "absolute",
-    top: "100%",
-    marginTop: 1,
+    alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
+    gap: 5,
     backgroundColor: "#FF1966",
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
   },
-  premiumDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FFF" },
-  premiumBadgeText: { color: "#FFF", fontSize: 9, fontWeight: "700", fontFamily: "Inter_700Bold", letterSpacing: 0.3 },
+  premiumDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#FFF" },
+  premiumBadgeText: { color: "#FFF", fontSize: 11, fontWeight: "700", fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -1196,7 +1217,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 0,
-    marginLeft: -10,
+    marginLeft: -18,
   },
   exitButton: {
     width: 44,
@@ -1218,8 +1239,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.35)",
+    borderColor: "rgba(0,0,0,0.5)",
+    overflow: "hidden",
   },
+  avatarImage: { width: "100%", height: "100%", borderRadius: 14 },
   avatarInitials: {
     color: "#FFF",
     fontSize: 10,

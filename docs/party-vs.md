@@ -218,7 +218,7 @@ One-minute bonus verification passed: Party database integration including 59/60
 
 ## Final-ten-second blink and centered winner — September 18, 2026
 
-User requests the battle countdown to blink at ten seconds and the winner's avatar centered on screen with **Winner**. In real/simulated battles on host/viewer, the clock turns pink and pulses between full/30% opacity every half-second during the final 10 seconds of the round; the opening three-second countdown does not blink. Reduced Motion uses steady pink text. Backgrounding, expiry, cancellation, new rounds and unmount stop the blink and restore opacity. The winning-line effect still sweeps only once per changed leading score.
+User requests the battle countdown to blink at ten seconds and the winner's avatar centered on screen with **Winner**. In real/simulated battles on host/viewer, the white clock text pulses between full/30% opacity every half-second during the final 10 seconds of the round; the opening three-second countdown does not blink. The pink pill remains solid under the latest correction below. Reduced Motion keeps both steady. Backgrounding, expiry, cancellation, new rounds and unmount stop the blink and restore opacity. The winning-line effect still sweeps only once per changed leading score.
 
 Use the server-selected winner to show a 96-point avatar with gold ring, localized Winner label and name in a screen-centered nonblocking overlay for the existing ten-second result duration. Keep Test battle visible on simulated results. Draws show the draw message without a winner avatar; cancelled rounds show no winner. The result disappears on expiry/rematch and passes touches through. This replaces the previous small result banner below the header.
 
@@ -230,7 +230,7 @@ User requests white Winner text and winner name, plus a shadow on the avatar. Us
 
 ## Final countdown pink pill — September 18, 2026
 
-User specifies white countdown text inside a pill using app pink (#FF1966), superseding pink warning text. The pill and white countdown blink together during the final ten seconds. Reduced Motion shows the same pill steadily. Keep the existing text line height and 10-point bar gap; use horizontal padding only. Applies to actual/simulated host/viewer battles and the retained split layout. Winner text/name remain white with the avatar shadow. Automated checks are separate from pending Android/iPhone appearance verification.
+User specifies white countdown text inside a pill using app pink (#FF1966), superseding pink warning text. Latest correction (September 24, 2026): the pink pill stays solid while only the white time text blinks during the final ten seconds. Reduced Motion shows both steadily. Keep the existing text line height and 10-point bar gap; use horizontal padding only. Applies to actual/simulated host/viewer battles and the retained split layout. Winner text/name remain white with the avatar shadow. Mobile typecheck, mocked Android/iOS battle tests, the required stream suite and diff formatting passed for the text-only blink. Actual Android/iPhone countdown appearance remains pending; no native build was started.
 
 ## Smooth score retreat — September 18, 2026
 
@@ -285,3 +285,7 @@ User approved the two-line Pulse winner message and requested hiding Simulate ba
 ### Simulation restored — September 21, 2026
 
 User explicitly requested unhiding **Simulate Battle** (title only, no additional text) in the broadcaster's three-dot menu, superseding the September 18 hiding decision. Restore it beside Start Battle for an active Party when no battle is active, disabled until both hosts are ready or while an action is pending. It calls the existing `battle_simulate` action and closes the menu, with no trailing chevron. End Battle and all existing simulation/payment rules remain unchanged. Mobile typechecking, localization and required stream regression checks are automated verification; Android/iPhone menu and simulation checks remain pending. No backend change or native build is needed for this source change; an already-started build may not include it.
+
+## Rocket finish disabled — September 24, 2026
+
+The user paused the rocket experiment and requested the prior battle result behavior. No rocket, burst or delayed Winner display runs in real or simulated battles. The centered Winner result appears immediately when the finished round is received, for its original ten-second window; the score bar ends with the round. Preserve the earlier correction that only the countdown time text blinks while its pink pill stays solid. Simulate Battle remains available through the broadcaster menu.

@@ -16,6 +16,7 @@ const tests = [
   'artifacts/mobile/tests/live-reactions.test.cjs',
   'artifacts/api-server/tests/live-reactions.test.cjs',
   'artifacts/mobile/tests/stream-awake-lease.test.cjs',
+  'artifacts/mobile/tests/viewer-awake-screen.test.cjs',
   'artifacts/mobile/tests/idle-auto-close.test.cjs',
   'artifacts/mobile/tests/live-viewer-list.test.cjs',
   'artifacts/mobile/tests/live-viewers-sheet.test.cjs',

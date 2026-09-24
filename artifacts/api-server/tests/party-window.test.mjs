@@ -30,7 +30,7 @@ const mocks = {
     export const AccessibilityInfo={isReduceMotionEnabled:async()=>false,addEventListener:(name,fn)=>{globalThis.battleMotion=fn;return {remove(){}}}};
     export const AppState={currentState:'active',addEventListener:(name,fn)=>{globalThis.battleAppState=fn;return {remove(){}}}};
     export const Easing={linear:v=>v,cubic:v=>v*v*v,inOut:fn=>fn,out:fn=>fn};
-    export const Animated={parallel:steps=>({start(){steps.forEach(s=>s.start())},stop(){steps.forEach(s=>s.stop())}}),sequence:steps=>{let running=false;const blink=steps.length===2&&steps.every(s=>s.duration===500);return {isSequence:true,start(){if(blink){running=true;globalThis.battleBlinkLoops=(globalThis.battleBlinkLoops??0)+1;globalThis.battleBlinkStarts=(globalThis.battleBlinkStarts??0)+1}steps.forEach(s=>s.start())},stop(){if(running){running=false;globalThis.battleBlinkLoops--}steps.forEach(s=>s.stop())}}},loop:animation=>{if(!animation.isSequence)throw new Error("Battle highlight must not loop");let running=false;return {start(){running=true;globalThis.battleBlinkLoops=(globalThis.battleBlinkLoops??0)+1;animation.start()},stop(){if(running){running=false;globalThis.battleBlinkLoops--}animation.stop()}}},View:'Animated.View',Value:class{constructor(v){this.value=v;this.listeners=new Map()}setValue(v){this.value=v;this.listeners.forEach(fn=>fn({value:v}))}addListener(fn){const id=String(this.listeners.size);this.listeners.set(id,fn);return id}removeListener(id){this.listeners.delete(id)}stopAnimation(callback){callback?.(this.value)}interpolate(config){return {...config,source:this}}},timing:(value,config)=>({duration:config.duration,start(){(globalThis.battleAnimationEvents??=[]).push({value,from:value.value,to:config.toValue,duration:config.duration});if(config.toValue===1.6)(globalThis.winnerPops??=[]).push({from:value.value,to:config.toValue,duration:config.duration});if(config.duration===650)(globalThis.battleTransitions??=[]).push({from:value.value,to:config.toValue});if(config.duration===1050)globalThis.battleSweeps=(globalThis.battleSweeps??0)+1;value.setValue(config.toValue)},stop(){}})};
+    export const Animated={parallel:steps=>({start(){steps.forEach(s=>s.start())},stop(){steps.forEach(s=>s.stop())}}),sequence:steps=>{let running=false;const blink=steps.length===2&&steps.every(s=>s.duration===500);return {isSequence:true,start(){if(blink){running=true;globalThis.battleBlinkLoops=(globalThis.battleBlinkLoops??0)+1;globalThis.battleBlinkStarts=(globalThis.battleBlinkStarts??0)+1}steps.forEach(s=>s.start())},stop(){if(running){running=false;globalThis.battleBlinkLoops--}steps.forEach(s=>s.stop())}}},loop:animation=>{if(!animation.isSequence)throw new Error("Battle highlight must not loop");let running=false;return {start(){running=true;globalThis.battleBlinkLoops=(globalThis.battleBlinkLoops??0)+1;animation.start()},stop(){if(running){running=false;globalThis.battleBlinkLoops--}animation.stop()}}},View:'Animated.View',Text:'Animated.Text',Value:class{constructor(v){this.value=v;this.listeners=new Map()}setValue(v){this.value=v;this.listeners.forEach(fn=>fn({value:v}))}addListener(fn){const id=String(this.listeners.size);this.listeners.set(id,fn);return id}removeListener(id){this.listeners.delete(id)}stopAnimation(callback){callback?.(this.value)}interpolate(config){return {...config,source:this}}},timing:(value,config)=>({duration:config.duration,start(){(globalThis.battleAnimationEvents??=[]).push({value,from:value.value,to:config.toValue,duration:config.duration});if(config.toValue===1.6)(globalThis.winnerPops??=[]).push({from:value.value,to:config.toValue,duration:config.duration});if(config.duration===650)(globalThis.battleTransitions??=[]).push({from:value.value,to:config.toValue});if(config.duration===1050)globalThis.battleSweeps=(globalThis.battleSweeps??0)+1;value.setValue(config.toValue)},stop(){}})};
   `,
   'react-native-safe-area-context': `export const useSafeAreaInsets=()=>({top:24,bottom:24});`,
   'expo-linear-gradient': `export const LinearGradient='LinearGradient';`,
@@ -135,7 +135,7 @@ try {
   assert.equal(find(n=>n.props.testID==='battle-score-tip'),undefined,'No winning tip on a tie');
   assert.equal(flowOpacity(),0,'No idle flow on a tie');
   assert.ok(find(n=>n.type==='Text'&&n.props.children.includes('Test battle')));
-  assert.ok(find(n=>n.type==='Text'&&n.props.children.includes('Starts 3')));
+  assert.ok(find(n=>n.type==='Animated.Text'&&n.props.children.includes('Starts 3')));
   globalThis.battleAnimationEvents=[];
   props.now=9100;props.party.battle.firstScore=100;refresh();assert.equal(markerPosition(),'95%');
   assert.equal(segmentOpacity('battle-score-mine'),1);assert.equal(segmentOpacity('battle-score-peer'),0.25);
@@ -167,7 +167,7 @@ try {
   globalThis.battleAppState('active');refresh();assert.ok(find(n=>n.props.testID==='battle-score-flow'));
   assert.equal(globalThis.battleSweeps,sweepsAfterAward,'Foreground and motion preference changes do not replay scores');
   props.now=9100;refresh();
-  assert.ok(find(n=>n.type==='Text'&&n.props.children.includes('2:54')));
+  assert.ok(find(n=>n.type==='Animated.Text'&&n.props.children.includes('2:54')));
   globalThis.battleTransitions=[];globalThis.battleAnimationEvents=[];
   props.party.battle.secondScore=100;refresh();assert.equal(markerPosition(),'50%');
   assert.equal(globalThis.battleAnimationEvents.filter(e=>e.duration===1050).length,1,'Returning to a tie uses the same uninterrupted motion');
@@ -182,12 +182,17 @@ try {
   assert.equal(segmentOpacity('battle-score-mine'),1);assert.equal(segmentOpacity('battle-score-peer'),1);
   props.now=props.party.battle.endsAt-11000;refresh();assert.equal(globalThis.battleBlinkLoops,0);
   props.now=props.party.battle.endsAt-10000;refresh();assert.equal(globalThis.battleBlinkLoops,1,'Blink starts at ten seconds');
+  const clockPill=find(n=>n.props.testID==='battle-countdown');
+  const clockText=nodes(clockPill).find(n=>n.type==='Animated.Text');
+  assert.equal(clockPill.props.style.backgroundColor,'#FF1966','The pink pill stays solid');
+  assert.equal(clockPill.props.style.opacity,undefined,'The pill itself never blinks');
+  assert.equal(Object.assign({},...clockText.props.style).opacity.value,1,'Only the time text receives animated opacity');
   const blinksAtTen=globalThis.battleBlinkStarts;
   props.now+=1000;refresh();assert.equal(globalThis.battleBlinkLoops,1,'Only one blink is active');
   assert.equal(globalThis.battleBlinkStarts,blinksAtTen+1,'Changing 10 to 9 starts exactly one matching blink');
   refresh();assert.equal(globalThis.battleBlinkStarts,blinksAtTen+1,'Same-second polls do not blink again');
   globalThis.battleMotion(true);refresh();assert.equal(globalThis.battleBlinkLoops,0,'Reduced Motion keeps warning steady');
-  assert.equal(Object.assign({},...find(n=>n.props.testID==='battle-countdown').props.style).opacity.value,1);
+  assert.equal(Object.assign({},...nodes(find(n=>n.props.testID==='battle-countdown')).find(n=>n.type==='Animated.Text').props.style).opacity.value,1);
   globalThis.battleMotion(false);refresh();assert.equal(globalThis.battleBlinkLoops,1);
   globalThis.battleAppState('background');refresh();assert.equal(globalThis.battleBlinkLoops,0);
   globalThis.battleAppState('active');refresh();assert.equal(globalThis.battleBlinkLoops,1);

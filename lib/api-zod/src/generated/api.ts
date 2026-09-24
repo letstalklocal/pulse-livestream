@@ -204,6 +204,7 @@ export const ListStreamsResponse = zod.object({
   "hostBackgroundImageUrl": zod.string().nullish(),
   "title": zod.string(),
   "viewerCount": zod.number(),
+  "totalViewers": zod.number().describe('Number of distinct admitted people who watched this live, including those no longer watching.'),
   "startedAt": zod.coerce.date(),
   "category": zod.string(),
   "requiredGift": zod.object({
@@ -267,6 +268,7 @@ export const GetStreamResponse = zod.object({
   "hostBackgroundImageUrl": zod.string().nullish(),
   "title": zod.string(),
   "viewerCount": zod.number(),
+  "totalViewers": zod.number().describe('Number of distinct admitted people who watched this live, including those no longer watching.'),
   "startedAt": zod.coerce.date(),
   "category": zod.string(),
   "requiredGift": zod.object({
@@ -381,6 +383,7 @@ export const ConvertStreamToPremiumResponse = zod.object({
   "hostBackgroundImageUrl": zod.string().nullish(),
   "title": zod.string(),
   "viewerCount": zod.number(),
+  "totalViewers": zod.number().describe('Number of distinct admitted people who watched this live, including those no longer watching.'),
   "startedAt": zod.coerce.date(),
   "category": zod.string(),
   "requiredGift": zod.object({
@@ -671,6 +674,7 @@ export const UpdateViewerCountResponse = zod.object({
   "hostBackgroundImageUrl": zod.string().nullish(),
   "title": zod.string(),
   "viewerCount": zod.number(),
+  "totalViewers": zod.number().describe('Number of distinct admitted people who watched this live, including those no longer watching.'),
   "startedAt": zod.coerce.date(),
   "category": zod.string(),
   "requiredGift": zod.object({

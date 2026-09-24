@@ -314,7 +314,7 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onWin
           </View>
           <View style={styles.partyBattleLabels}>
             <Text style={styles.partyBattleCoins} numberOfLines={1} adjustsFontSizeToFit><Text style={styles.partyBattleCoinIcon}>🪙 </Text>{myScore.toLocaleString(appLocale())}</Text>
-            <Animated.View testID="battle-countdown" style={[{ opacity: clockOpacity }, urgent && styles.urgentClockPill]}><Text style={[localizedTextStyle(), styles.partyBattleClock]}>{countdown ? t("Starts {v0}", { v0: countdown }) : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`}</Text></Animated.View>
+            <View testID="battle-countdown" style={urgent && styles.urgentClockPill}><Animated.Text style={[localizedTextStyle(), styles.partyBattleClock, { opacity: clockOpacity }]}>{countdown ? t("Starts {v0}", { v0: countdown }) : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`}</Animated.Text></View>
             <Text style={[styles.partyBattleCoins, { textAlign: "right" }]} numberOfLines={1} adjustsFontSizeToFit><Text style={styles.partyBattleCoinIcon}>🪙 </Text>{peerScore.toLocaleString(appLocale())}</Text>
           </View>
           <View style={styles.partyBattleAvatarRing}>
@@ -325,7 +325,7 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onWin
       {vs ? <View style={[styles.scoreboard, { top: top + panelHeight }]} pointerEvents="none">
         <View style={styles.scores}>
           <Text style={[styles.score, { color: "#FF4E86" }]}>{myScore.toLocaleString(appLocale())}</Text>
-          <Animated.View testID="battle-countdown" style={[{ opacity: clockOpacity }, urgent && styles.urgentClockPill]}><Text style={[localizedTextStyle(), styles.timer]}>{countdown ? t("Starts in {v0}", { v0: countdown }) : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`}</Text></Animated.View>
+          <View testID="battle-countdown" style={urgent && styles.urgentClockPill}><Animated.Text style={[localizedTextStyle(), styles.timer, { opacity: clockOpacity }]}>{countdown ? t("Starts in {v0}", { v0: countdown }) : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`}</Animated.Text></View>
           <Text style={[styles.score, { color: "#44D7CD" }]}>{peerScore.toLocaleString(appLocale())}</Text>
         </View>
         <View style={styles.scoreTrack}>

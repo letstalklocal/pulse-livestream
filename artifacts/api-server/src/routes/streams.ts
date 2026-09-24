@@ -13,12 +13,13 @@ import {
   coinTransactionsTable,
   db,
   liveStreamSessionsTable,
+  liveStreamViewersTable,
   premiumStreamAdmissionsTable,
   privateStreamInvitationsTable,
   streamHistoryTable,
   usersTable,
 } from "@workspace/db";
-import { AdmitToStreamBody, CreateStreamBody, UpdateViewerCountBody } from "@workspace/api-zod";
+import { AdmitToStreamBody, CreateStreamBody, UpdateStreamPresenceBody, UpdateViewerCountBody } from "@workspace/api-zod";
 import * as wsHub from "../lib/wsHub";
 import { clearChat } from "./chat";
 import { createPrivateGetUrl } from "../lib/objectStorage";
@@ -44,6 +45,7 @@ export interface StreamRecord {
   hostBackgroundImagePath?: string | null;
   title: string;
   viewerCount: number;
+  totalViewers: number;
   startedAt: string;
   category: string;
   lastHeartbeat: number;
@@ -81,6 +83,7 @@ function sessionToRuntime(session: typeof liveStreamSessionsTable.$inferSelect):
     hostBackgroundImagePath: session.hostBackgroundImagePath,
     title: session.title,
     viewerCount: 0,
+    totalViewers: session.totalViewers,
     startedAt: session.startedAt.toISOString(),
     category: session.category,
     lastHeartbeat: session.lastHeartbeatAt.getTime(),
@@ -106,6 +109,7 @@ export async function getActiveRuntimeStream(channelId: string): Promise<StreamR
   }
   const restored = sessionToRuntime(session);
   restored.viewerCount = runtime?.viewerCount ?? 0;
+  restored.totalViewers = session.totalViewers;
   restored.peakViewers = runtime?.peakViewers ?? 0;
   streams.set(channelId, restored);
   return restored;
@@ -189,6 +193,7 @@ const seedStreams: StreamRecord[] = [
     hostName: "ProGamer_X",
     title: "Late night ranked grind – Road to Diamond",
     viewerCount: 342,
+    totalViewers: 342,
     startedAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
     category: "Gaming",
     lastHeartbeat: Infinity,
@@ -201,6 +206,7 @@ const seedStreams: StreamRecord[] = [
     hostName: "LoFiSoul",
     title: "Chillwave beats and live production session",
     viewerCount: 189,
+    totalViewers: 189,
     startedAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
     category: "Music",
     lastHeartbeat: Infinity,
@@ -213,6 +219,7 @@ const seedStreams: StreamRecord[] = [
     hostName: "TechTalks",
     title: "AI and the Future of Work – open discussion",
     viewerCount: 512,
+    totalViewers: 512,
     startedAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
     category: "Talk",
     lastHeartbeat: Infinity,
@@ -225,6 +232,7 @@ const seedStreams: StreamRecord[] = [
     hostName: "SketchWitch",
     title: "Digital portrait painting from scratch",
     viewerCount: 97,
+    totalViewers: 97,
     startedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
     category: "Art",
     lastHeartbeat: Infinity,
@@ -404,6 +412,7 @@ router.post("/streams", async (req, res) => {
     hostBackgroundImagePath: host.streamBackgroundImagePath,
     title,
     viewerCount: 0,
+    totalViewers: 0,
     startedAt: session.startedAt.toISOString(),
     category,
     lastHeartbeat: session.lastHeartbeatAt.getTime(),
@@ -422,6 +431,7 @@ export function forgetViewer(channelId: string, uid: number) {
   if (stream) stream.viewerCount = activeViewerIds(channelId).length;
 }
 const viewerPresence = new Map<string, Map<number, number>>();
+const demoViewerIds = new Map<string, Set<number>>();
 export function activeViewerIds(channelId: string): number[] {
   const entries = viewerPresence.get(channelId);
   if (!entries) return [];
@@ -431,16 +441,45 @@ export function activeViewerIds(channelId: string): number[] {
 }
 
 router.post("/streams/:channelId/presence", async (req, res) => {
+  const parsed = UpdateStreamPresenceBody.safeParse(req.body);
+  if (!parsed.success) return void res.status(400).json({ error: "Invalid presence action" });
+  const { action } = parsed.data;
   const viewer = await currentUser(req);
   if (!viewer) return void res.status(401).json({ error: "Authentication required" });
   const stream = await getActiveRuntimeStream(req.params.channelId);
   if (!stream) return void res.status(404).json({ error: "Stream not found" });
   if (!await authorizePrivateStream(req, res, stream)) return;
   const moderation = stream.sessionId ? await viewerModeration(stream.sessionId, stream.hostUid, viewer.uid) : null;
-  if (req.body?.action !== "leave" && (moderation?.removed || moderation?.blocked)) return void res.status(403).json({ error: "Stream access denied" });
-  if (req.body?.action === "leave") viewerPresence.get(stream.channelId)?.delete(viewer.uid);
-  else if (req.body?.action === "join" && viewer.uid !== stream.hostUid) {
+  if (action !== "leave" && (moderation?.removed || moderation?.blocked || await contactBlocked(stream.hostUid, viewer.uid))) return void res.status(403).json({ error: "Stream access denied" });
+  if (action === "join" && stream.requiredGift && viewer.uid !== stream.hostUid && !(stream.premiumFreeViewerIds ?? []).includes(viewer.uid)) {
+    const party = await findParty(stream.channelId);
+    const sessions = party ? (await partyStreams(party)).filter((item): item is NonNullable<typeof item> => !!item) : [];
+    const sessionIds = sessions.length ? sessions.map(item => item.id) : [stream.sessionId!];
+    const admission = await db.select({ id: premiumStreamAdmissionsTable.id }).from(premiumStreamAdmissionsTable)
+      .where(and(inArray(premiumStreamAdmissionsTable.sessionId, sessionIds), eq(premiumStreamAdmissionsTable.viewerUserId, viewer.uid))).limit(1);
+    if (!admission.length) return void res.status(403).json({ error: "Stream admission required" });
+  }
+  if (action === "leave") viewerPresence.get(stream.channelId)?.delete(viewer.uid);
+  else if (viewer.uid !== stream.hostUid) {
     const entries = viewerPresence.get(stream.channelId) ?? new Map<number, number>();
+    const alreadyPresent = (entries.get(viewer.uid) ?? 0) >= Date.now() - 45000;
+    if (stream.sessionId && !alreadyPresent) {
+      const total = await db.transaction(async tx => {
+        const inserted = await tx.insert(liveStreamViewersTable).values({ sessionId: stream.sessionId!, viewerUserId: viewer.uid })
+          .onConflictDoNothing().returning({ id: liveStreamViewersTable.id });
+        if (!inserted.length) return null;
+        return (await tx.update(liveStreamSessionsTable)
+          .set({ totalViewers: sql`${liveStreamSessionsTable.totalViewers} + 1` })
+          .where(eq(liveStreamSessionsTable.id, stream.sessionId!))
+          .returning({ totalViewers: liveStreamSessionsTable.totalViewers }))[0]?.totalViewers ?? null;
+      });
+      if (total !== null) stream.totalViewers = Math.max(stream.totalViewers, total);
+    } else if (!stream.sessionId) {
+      const seen = demoViewerIds.get(stream.channelId) ?? new Set<number>();
+      if (!seen.has(viewer.uid)) stream.totalViewers += 1;
+      seen.add(viewer.uid);
+      demoViewerIds.set(stream.channelId, seen);
+    }
     entries.set(viewer.uid, Date.now());
     viewerPresence.set(stream.channelId, entries);
   } else return void res.status(400).json({ error: "Invalid presence action" });
@@ -512,6 +551,7 @@ router.post("/streams/:channelId/premium", async (req, res) => {
   const previous = streams.get(channelId);
   const updated = sessionToRuntime(result.session);
   updated.viewerCount = previous?.viewerCount ?? 0;
+  updated.totalViewers = result.session.totalViewers;
   updated.peakViewers = previous?.peakViewers ?? 0;
   streams.set(channelId, updated);
   wsHub.pushStreamUpdated(channelId);
@@ -523,6 +563,7 @@ router.post("/streams/:channelId/premium", async (req, res) => {
       const previousPeer = streams.get(peer.channelId);
       const runtimePeer = sessionToRuntime(peer);
       runtimePeer.viewerCount = previousPeer?.viewerCount ?? 0;
+      runtimePeer.totalViewers = peer.totalViewers;
       runtimePeer.peakViewers = previousPeer?.peakViewers ?? 0;
       streams.set(peer.channelId, runtimePeer);
       wsHub.pushStreamUpdated(peer.channelId);

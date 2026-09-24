@@ -1516,6 +1516,9 @@ components:
           type: string
         viewerCount:
           type: integer
+        totalViewers:
+          type: integer
+          description: Number of distinct admitted people who watched this live, including those no longer watching.
         startedAt:
           type: string
           format: date-time
@@ -1535,6 +1538,7 @@ components:
         - hostName
         - title
         - viewerCount
+        - totalViewers
         - startedAt
         - category
         - requiredGift

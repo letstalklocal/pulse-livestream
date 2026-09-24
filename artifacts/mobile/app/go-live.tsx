@@ -1257,6 +1257,9 @@ export default function GoLiveScreen() {
                   </View>
                 )}
                 <TouchableOpacity style={styles.viewerPill} onPress={() => setShowViewerManagement(true)} activeOpacity={0.75} accessibilityLabel={t("Live Viewers")}>
+                  <Ionicons name="people" size={13} color="#FFF" />
+                  <Text style={styles.viewerPillText}>{(liveStreamData?.stream?.totalViewers ?? 0).toLocaleString(appLocale())}</Text>
+                  <View style={styles.viewerPillDivider} />
                   <GoldCoinIcon size={14} />
                   <Text style={styles.viewerPillText}>{streamCoins.toLocaleString(appLocale())}</Text>
                   <View style={styles.viewerPillDivider} />

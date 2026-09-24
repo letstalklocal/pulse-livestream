@@ -25,6 +25,8 @@ export interface Stream {
   hostBackgroundImageUrl?: string | null;
   title: string;
   viewerCount: number;
+  /** Number of distinct admitted people who watched this live, including those no longer watching. */
+  totalViewers: number;
   startedAt: Date;
   category: string;
   /** @nullable */
