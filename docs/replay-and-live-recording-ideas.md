@@ -171,6 +171,8 @@ Automated verification: mobile typecheck; required stream regression suite; full
 
 Device verification pending on both Android and iPhone, installed build IDs unknown: card appearance/tap, header/back hit targets, full-screen portrait playback/loop, silent-media handling, follow state, message scrolling, repeated keyboard open/type/send/dismiss/Android Back, draft preservation, dock safe-area anchoring, gift picker/animations, background/foreground, cache expiry and awake timeout/release. No native build or production deployment was started, and EAS/version configuration remains unchanged.
 
+Web card correction, September 29, 2026: the video card and its avatar/profile action must be sibling buttons inside a plain card container. Nesting the profile button inside the card button caused a browser hydration warning. Keep tapping the card/name opening the video and tapping the avatar opening the owner's profile. A rendered HTML check covers both real and prototype cards; mobile typecheck and the required stream suite pass. Native touch behavior remains pending device verification.
+
 
 ### Full-screen video correction — September 18, 2026
 
@@ -303,6 +305,12 @@ Verification: mobile/API typechecks, API build, ten-language localization and re
 ### Processing feedback and deletion race — September 18, 2026
 
 User reported a parse error while processing and, separately, Video not found after tapping Remove. Running API logs confirm the removal succeeded (200) and an overlapping processing refresh then returned 404. The sheet now cancels the active background poll before a mutation, ignores aborted/retired results, and starts a fresh controller on the next poll. A late response cannot restore the removed card or show the false deletion error.
+
+### Deleting previously uploaded videos — September 29, 2026
+
+The user now wants to delete saved ready videos, superseding the earlier ready-history removal restriction. In Your Video, both the selected video and each ready History item have a Delete action with confirmation that the hosted video and its statistics will be permanently deleted. Unfinished uploads retain their existing Remove action. Only the authenticated owner can delete a record. A successful delete removes the Bunny asset and database video; video views, chat, gift links and per-video statistics cascade away, while coin transactions and wallet balances remain intact. Deleting the selected video clears its selection and disables Show in Discovery; deleting an older video preserves the current selection and visibility. A provider failure leaves the record and settings in place for retry, and an already-missing provider asset can be cleared. The sheet removes the deleted entry immediately after success and refreshes its library; the existing poll-abort guard prevents stale processing results from restoring it.
+
+Automated database and sheet tests cover owner checks, selected/historical deletion, confirmation, provider failure, Discovery removal and ledger preservation. Native Android/iPhone appearance and deletion from a signed-in device remain pending. No production deployment or native build was started.
 
 The exact response behind the processing parse error was not captured. Hardened JSON handling so empty/truncated/non-object responses cannot expose a raw parser exception. Library/detail reads and processing refreshes may retry one malformed successful/server-error response; upload creation, gifts and deletion are never blindly repeated. Persistent malformed responses show the existing service/retry message. Cancellation prevents retries. Diagnostics contain method/path/status only, never credentials or response bodies. This is tested recovery behavior, not a proven diagnosis of the original phone parse error.
 

@@ -289,7 +289,7 @@ export default function PublicProfileScreen() {
                     ]}
                     onPress={() => {
                       if (!followerUid) {
-                        router.push("/(auth)/sign-in");
+                        router.push("/(tabs)/profile");
                         return;
                       }
                       router.push({ pathname: "/dm/[peerId]", params: { peerId: hostUid, peerName: displayName } });

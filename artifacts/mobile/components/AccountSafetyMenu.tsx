@@ -22,7 +22,7 @@ export function AccountSafetyMenu({ uid, source, color, peerId }: { uid: number;
   const [blockedByMe, setBlockedByMe] = useState(false);
   if (!uid || uid === user?.uid) return null;
   const open = async () => {
-    if (!user) { router.push("/(auth)/sign-in"); return; }
+    if (!user) { router.push("/(tabs)/profile"); return; }
     const result = await safety.refetch();
     if (!result.data || result.isError) { Alert.alert(t("Couldn't load account options"), t("Please try again.")); return; }
     setBlockedByMe(result.data.blockedByMe);

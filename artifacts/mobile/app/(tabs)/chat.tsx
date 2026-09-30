@@ -68,7 +68,7 @@ export default function ChatScreen() {
           <Text style={[localizedTextStyle(), [styles.guestSub, { color: colors.mutedForeground }]]}>{t("Connect with the streamers you follow")}</Text>
           <TouchableOpacity
             style={[styles.signInBtn, { backgroundColor: colors.primary }]}
-            onPress={() => router.push("/(auth)/sign-in")}
+            onPress={() => router.push("/(tabs)/profile")}
             activeOpacity={0.8}
           >
             <Text style={[localizedTextStyle(), styles.signInBtnText]}>{t("Sign In")}</Text>

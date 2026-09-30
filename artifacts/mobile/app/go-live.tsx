@@ -35,7 +35,7 @@ import { StreamBackgroundCropper, type BackgroundCropSource } from "@/components
 import { fetch as expoFetch } from "expo/fetch";
 import * as Haptics from "expo-haptics";
 import { useStreamKeepAwake } from "@/hooks/useStreamKeepAwake";
-import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import { Redirect, useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -186,7 +186,7 @@ export default function GoLiveScreen() {
   const keyboardVisible = useKeyboardState(state => state.isVisible);
   const router = useRouter();
   const navigation = useNavigation();
-  const { user, isSignedIn, updateUser } = useAuth();
+  const { user, isSignedIn, isLoaded, updateUser } = useAuth();
   const { getToken } = useClerkAuth();
   const { invitationId, channelId: invitationChannelId } = useLocalSearchParams<{ invitationId?: string; channelId?: string }>();
   const privateInvitationId = Number(invitationId);
@@ -1175,34 +1175,10 @@ export default function GoLiveScreen() {
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const catColor = CATEGORY_COLORS[category] ?? colors.primary;
 
-  // Auth gate — must live after all hooks
-  if (!isSignedIn || !user) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: "center", alignItems: "center" }]}>
-        <TouchableOpacity
-          style={[styles.backBtnAlt, { top: insets.top + 10 }]}
-          onPress={() => router.back()}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="chevron-back" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <Ionicons name="radio-outline" size={52} color={colors.primary} />
-        <Text style={[localizedTextStyle(), [styles.gateTitle, { color: colors.foreground }]]}>{t("Sign in to go live")}</Text>
-        <Text style={[localizedTextStyle(), [styles.gateSub, { color: colors.mutedForeground }]]}>{t("Create an account to start streaming to your audience")}</Text>
-        <TouchableOpacity
-          style={[styles.gateBtn, { backgroundColor: colors.primary }]}
-          onPress={() => router.push("/(auth)/sign-in" as any)}
-          activeOpacity={0.85}
-        >
-          <Text style={[localizedTextStyle(), styles.gateBtnText]}>{t("Sign in")}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.push("/(auth)/sign-up" as any)} style={{ marginTop: 12 }}>
-          <Text style={[localizedTextStyle(), [styles.gateLink, { color: colors.mutedForeground }]]}>{t("No account? ")}<Text style={[localizedTextStyle(), { color: colors.primary }]}>{t("Sign up")}</Text>
-          </Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  // Auth gate — must live after all hooks. The signed-out Profile tab is the
+  // Google/Apple/Email choice screen; only Email opens the password form.
+  if (!isLoaded) return <View style={[styles.container, { backgroundColor: colors.background, justifyContent: "center" }]}><ActivityIndicator color={colors.primary} /></View>;
+  if (!isSignedIn || !user) return <Redirect href="/(tabs)/profile" />;
 
   const VideoView = RtcSurfaceViewComponent;
   const showNativeVideo = isNative && VideoView;
@@ -2412,20 +2388,4 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     minHeight: 40,
   },
-  backBtnAlt: {
-    position: "absolute",
-    left: 16,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 10,
-  },
-  gateTitle: { fontSize: 24, fontWeight: "800", fontFamily: "Inter_700Bold", marginTop: 20, marginBottom: 8, textAlign: "center" },
-  gateSub: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", paddingHorizontal: 32, lineHeight: 22, marginBottom: 28 },
-  gateBtn: { paddingHorizontal: 48, paddingVertical: 14, borderRadius: 30 },
-  gateBtnText: { color: "#FFF", fontSize: 16, fontWeight: "700", fontFamily: "Inter_700Bold" },
-  gateLink: { fontSize: 14, fontFamily: "Inter_400Regular" },
 });

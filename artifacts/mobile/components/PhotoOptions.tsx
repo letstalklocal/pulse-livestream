@@ -16,7 +16,7 @@ export function PhotoOptions({ postId, ownerUid, color }: { postId: number; owne
     <TouchableOpacity accessibilityRole="button" accessibilityLabel={t("Photo options")} hitSlop={10}
       onPress={() => Alert.alert(t("Photo options"), undefined, [
         { text: t("Report photo"), onPress: () => {
-          if (!user) { router.push("/(auth)/sign-in"); return; }
+          if (!user) { router.push("/(tabs)/profile"); return; }
           setReporting(true);
         } },
         { text: t("Cancel"), style: "cancel" },

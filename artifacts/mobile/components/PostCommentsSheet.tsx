@@ -63,7 +63,7 @@ export function PostCommentsSheet({ postId, ownerUid, onClose }: { postId: numbe
           <TouchableOpacity style={styles.icon} accessibilityRole="button" accessibilityLabel={t("Post comment")} accessibilityState={{ disabled: !text.trim() || send.isPending, busy: send.isPending }} disabled={!text.trim() || send.isPending} onPress={() => send.mutate()}>
             {send.isPending ? <ActivityIndicator color={colors.primary} /> : <Ionicons name="arrow-up-circle" size={32} color={text.trim() ? colors.primary : colors.mutedForeground} />}
           </TouchableOpacity>
-        </View> : <TouchableOpacity style={styles.loadMore} onPress={() => { onClose(); router.push("/(auth)/sign-in"); }}><Text style={[localizedTextStyle(), { color: colors.primary }]}>{t("Sign in to comment")}</Text></TouchableOpacity>}
+        </View> : <TouchableOpacity style={styles.loadMore} onPress={() => { onClose(); router.push("/(tabs)/profile"); }}><Text style={[localizedTextStyle(), { color: colors.primary }]}>{t("Sign in to comment")}</Text></TouchableOpacity>}
       </View>
     </KeyboardAvoidingView>
   </Modal>;

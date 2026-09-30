@@ -163,25 +163,25 @@ const VideoDiscoveryCard = React.forwardRef<
     },
   });
   return (
-    <TouchableOpacity
-      accessibilityRole="button"
-      accessibilityLabel={video?.ownerName ?? t("Video prototype")}
-      onPress={() => {
-        setOpening(true);
-        stopAllLivePreviews();
-        router.push((video ? `/video/${video.id}` : "/video-prototype") as any);
-      }}
-      activeOpacity={0.85}
+    <View
+      ref={card}
+      collapsable={false}
+      onLayout={refreshVisibility}
       style={[
         styles.card,
         { backgroundColor: colors.card, borderColor: colors.border },
       ]}
     >
-      <View
-        ref={card}
-        collapsable={false}
-        onLayout={refreshVisibility}
-        style={{ width: "100%", aspectRatio: 9 / 16 }}
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel={video?.ownerName ?? t("Video prototype")}
+        onPress={() => {
+          setOpening(true);
+          stopAllLivePreviews();
+          router.push((video ? `/video/${video.id}` : "/video-prototype") as any);
+        }}
+        activeOpacity={0.85}
+        style={styles.cardOpen}
       >
         <Image
           source={
@@ -204,35 +204,35 @@ const VideoDiscoveryCard = React.forwardRef<
         <View style={styles.badge}>
           <Text style={styles.badgeText}>VIDEO</Text>
         </View>
-        <View style={styles.identity}>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={t("View {v0}'s profile", { v0: ownerProfile.data?.user.name?.trim() ?? video?.ownerName ?? t("Video prototype") })}
-            disabled={ownerUid <= 0}
-            onPress={() => router.push({
-              pathname: "/profile/[hostUid]",
-              params: {
-                hostUid: String(ownerUid),
-                name: ownerProfile.data?.user.name?.trim() ?? video?.ownerName ?? "",
-                avatarUri: ownerProfile.data?.user.avatarImageUrl ?? "",
-              },
-            })}
-            activeOpacity={0.75}
-          >
-            <Avatar
-              uid={ownerUid}
-              name={ownerProfile.data?.user.name?.trim() ?? video?.ownerName ?? t("Video prototype")}
-              avatarUri={ownerProfile.data?.user.avatarImageUrl ?? undefined}
-              size={26}
-              borderWidth={1}
-            />
-          </TouchableOpacity>
-          <Text style={styles.name} numberOfLines={1}>
-            {video?.ownerName ?? t("Video prototype")}
-          </Text>
-        </View>
+      </TouchableOpacity>
+      <View style={styles.identity}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t("View {v0}'s profile", { v0: ownerProfile.data?.user.name?.trim() ?? video?.ownerName ?? t("Video prototype") })}
+          disabled={ownerUid <= 0}
+          onPress={() => router.push({
+            pathname: "/profile/[hostUid]",
+            params: {
+              hostUid: String(ownerUid),
+              name: ownerProfile.data?.user.name?.trim() ?? video?.ownerName ?? "",
+              avatarUri: ownerProfile.data?.user.avatarImageUrl ?? "",
+            },
+          })}
+          activeOpacity={0.75}
+        >
+          <Avatar
+            uid={ownerUid}
+            name={ownerProfile.data?.user.name?.trim() ?? video?.ownerName ?? t("Video prototype")}
+            avatarUri={ownerProfile.data?.user.avatarImageUrl ?? undefined}
+            size={26}
+            borderWidth={1}
+          />
+        </TouchableOpacity>
+        <Text style={styles.name} numberOfLines={1}>
+          {video?.ownerName ?? t("Video prototype")}
+        </Text>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 });
 const styles = StyleSheet.create({
@@ -243,6 +243,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 12,
   },
+  cardOpen: { width: "100%", aspectRatio: 9 / 16 },
   fade: { position: "absolute", bottom: 0, left: 0, right: 0, height: "45%" },
   badge: {
     position: "absolute",
@@ -261,6 +262,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   identity: {
+    pointerEvents: "box-none",
     position: "absolute",
     bottom: 0,
     left: 0,
@@ -282,6 +284,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   name: {
+    pointerEvents: "none",
     flex: 1,
     color: "#FFF",
     fontSize: 12,

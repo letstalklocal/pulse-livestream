@@ -42,7 +42,7 @@ export default function PrivacyScreen() {
     },
   });
   if (!isLoaded) return <View style={[styles.center, { backgroundColor: colors.background }]}><ActivityIndicator color={colors.primary} /></View>;
-  if (!userId) return <Redirect href="/(auth)/sign-in" />;
+  if (!userId) return <Redirect href="/(tabs)/profile" />;
   const people = list.data?.pages.flatMap(page => page.accounts) ?? [];
   const total = list.data?.pages[0]?.total;
   return <View style={{ flex: 1, backgroundColor: colors.background }}>

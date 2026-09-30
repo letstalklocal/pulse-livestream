@@ -371,7 +371,7 @@ export default function AccountScreen() {
         <ActivityIndicator color={colors.primary} />
       </View>
     );
-  if (!user) return <Redirect href="/(auth)/sign-in" />;
+  if (!user) return <Redirect href="/(tabs)/profile" />;
   const title = {
     account: "Account",
     email: "Email address",

@@ -231,8 +231,33 @@ export function CreatorVideoSheet({
     const data = await videoRequest<VideoStats>(`/${id}/stats`, getToken);
     if (version === generation.current) { setStats(data); setStatsId(id); }
   });
+  const deleteReadyVideo = (video: CreatorVideo) => {
+    Alert.alert(t("Delete video?"), t("This video and its stats will be permanently deleted."), [
+      { text: t("Cancel"), style: "cancel" },
+      { text: t("Delete"), style: "destructive", onPress: () => {
+        if (!sessionActive.current) return;
+        void run(async () => {
+          const version = generation.current;
+          await videoRequest(`/${video.id}`, getToken, "DELETE");
+          if (version !== generation.current) return;
+          setLibrary(current => current ? {
+            ...current,
+            videos: current.videos.filter(item => item.id !== video.id),
+            selectedId: current.selectedId === video.id ? null : current.selectedId,
+            enabled: current.selectedId === video.id ? false : current.enabled,
+          } : null);
+          setEncodingProgress(current => {
+            const next = { ...current }; delete next[video.id]; return next;
+          });
+          await load();
+        });
+      } },
+    ]);
+  };
   const action = (label: string, onPress: () => void, disabled = false) => (
     <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={t(label)}
       onPress={onPress}
       disabled={disabled || busy}
       style={[
@@ -407,6 +432,7 @@ export function CreatorVideoSheet({
                     </TouchableOpacity>
                     <LiveStickerSetup value={selected.stickers ?? []} disabled={busy} onChange={(stickers) => void run(async () => { await videoRequest(`/${selected.id}/stickers`, getToken, "PUT", { stickers }); await load(); })} />
                     {visible && <VideoManagementSummary key={`summary:${userId}:${selected.id}`} videoId={selected.id} onDetails={() => showDetails(selected.id)} disabled={busy} />}
+                    {action("Delete", () => deleteReadyVideo(selected))}
                   </View> : <View style={[styles.emptyVideo, { backgroundColor: colors.card }]}>
                     <Ionicons name="videocam-outline" size={38} color="#00D4D4" />
                     <Text style={{ color: colors.mutedForeground, textAlign: "center", lineHeight: 20 }}>{t("Let viewers discover you while you’re offline.")}</Text>
@@ -503,6 +529,7 @@ export function CreatorVideoSheet({
                           video.id === library.selectedId,
                         )}
                         {action("Show details", () => showDetails(video.id))}
+                        {action("Delete", () => deleteReadyVideo(video))}
                       </View>
                     )}
                   </View>

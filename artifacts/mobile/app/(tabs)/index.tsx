@@ -36,7 +36,7 @@ export default function DiscoveryScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, isLoaded } = useAuth();
   const selectedFeed = pathname.endsWith("/following") ? "following" : "discover";
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [manualRefreshing, setManualRefreshing] = React.useState(false);
@@ -107,7 +107,7 @@ export default function DiscoveryScreen() {
         )}
         <TouchableOpacity
           style={[styles.goLiveBtn, { backgroundColor: colors.primary }]}
-          onPress={() => router.push("/go-live" as any)}
+          onPress={() => router.push(isLoaded && !user ? "/(tabs)/profile" : "/go-live")}
           activeOpacity={0.8}
         >
           <Ionicons name="radio" size={14} color="#FFF" />
@@ -206,7 +206,7 @@ export default function DiscoveryScreen() {
               {selectedFeed === "discover" ? (
                 <TouchableOpacity
                   style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
-                  onPress={() => router.push("/go-live" as any)}
+                  onPress={() => router.push(isLoaded && !user ? "/(tabs)/profile" : "/go-live")}
                   activeOpacity={0.8}
                 >
                   <Text style={[localizedTextStyle(), styles.emptyBtnText]}>{t("Go Live Now")}</Text>

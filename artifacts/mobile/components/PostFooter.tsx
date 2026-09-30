@@ -38,7 +38,7 @@ export function PostFooter({ postId, ownerUid, caption }: {
   const liked = activity.data?.liked ?? false;
   const saved = activity.data?.saved ?? false;
   const react = async (kind: "like" | "save") => {
-    if (!user) { router.push("/(auth)/sign-in"); return; }
+    if (!user) { router.push("/(tabs)/profile"); return; }
     if (busy.current) return;
     busy.current = true;
     try {
@@ -80,7 +80,7 @@ export function PostFooter({ postId, ownerUid, caption }: {
         </TouchableOpacity>
         <Text style={[styles.count, { color: colors.foreground }]}>{activity.data && activity.data.commentCount > 0 ? activity.data.commentCount >= 1000 ? `${(activity.data.commentCount / 1000).toFixed(1)}k` : activity.data.commentCount : ""}</Text>
         {user?.uid !== ownerUid ? <TouchableOpacity style={styles.iconButton} accessibilityRole="button" accessibilityLabel={t("Send a Gift")} disabled={sendingGift} onPress={() => {
-          if (!user) { router.push("/(auth)/sign-in"); return; }
+          if (!user) { router.push("/(tabs)/profile"); return; }
           void wallet.refetch();
           setShowGifts(true);
         }}><Ionicons name="gift-outline" size={25} color={colors.foreground} /></TouchableOpacity> : null}

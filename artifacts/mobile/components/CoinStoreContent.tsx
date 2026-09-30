@@ -145,7 +145,7 @@ export function CoinStoreContent({ onClose, sheet = false }: { onClose?: () => v
         {accountMatches ? <RollingCoinBalance key={userId} balance={balance.data?.balance} credit={confirmedCredit?.userId === userId ? confirmedCredit : undefined} /> : <Text style={[styles.balance, { color: '#FFD54A' }]}>—</Text>}
       </View>
       {purchases.testStore && <Text style={[styles.copy, localizedTextStyle(), { color: colors.mutedForeground }]}>{t('Test purchases — no real payment.')}</Text>}
-      {!accountMatches && button('Sign in', () => router.push('/(auth)/sign-in'))}
+      {!accountMatches && button('Sign in', () => router.push('/(tabs)/profile'))}
       {(catalog.isLoading || (accountMatches && !purchases.ready && !purchases.error)) && <ActivityIndicator color={colors.primary} />}
       {!!purchases.error && <Text accessibilityRole="alert" style={[styles.copy, localizedTextStyle(), { color: colors.destructive }]}>{t(purchases.error)}</Text>}
       {catalog.isError && <Text accessibilityRole="alert" style={[styles.copy, localizedTextStyle(), { color: colors.destructive }]}>{t('Could not load coin packs. Please try again.')}</Text>}

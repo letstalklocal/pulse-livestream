@@ -82,7 +82,7 @@ export default function VerificationScreen() {
     } catch { setError(true); }
   };
   if (!isLoaded) return <ActivityIndicator />;
-  if (!userId) return <Redirect href="/(auth)/sign-in" />;
+  if (!userId) return <Redirect href="/(tabs)/profile" />;
   const label = status.data?.isVerified ? t("You’re Verified") : status.data?.status === "pending" ? t("Verification in progress") : status.data?.status === "review_needed" ? t("Verification needs review") : status.data?.status === "failed" ? t("Verification not approved") : t("Not verified");
   return <View style={{ flex: 1, backgroundColor: colors.background }}>
     <View style={[styles.header, { paddingTop: (Platform.OS === "web" ? 67 : insets.top) + 10, borderColor: colors.border, backgroundColor: colors.background }]}>

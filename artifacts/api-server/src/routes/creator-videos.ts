@@ -223,7 +223,8 @@ router.post(
     res.json({ ...present(rows.rows[0]), encodingProgress });
   }),
 );
-// Only incomplete uploads can be removed here; ready history and its stats stay saved.
+// Owners can remove any upload, including a selected ready video. Provider
+// failure leaves the database record intact so the deletion can be retried.
 router.delete(
   "/creator-videos/:id",
   wrap(async (req, res, user) => {
@@ -233,16 +234,20 @@ router.delete(
         await tx.execute(sql`select * from creator_videos where id=${req.params.id} and owner_user_id=${user.uid} for update`)
       ).rows[0];
       if (!video) return 404;
-      if (video.status === "ready") return 409;
       await bunnyRequest(`/${video.bunny_id}`, "DELETE");
-      // Foreign keys clear only pointers to this upload, preserving other selections.
+      // A selected video must stop appearing in Discovery before its pointer is
+      // cleared. Other saved selections and account settings are untouched.
+      await tx.execute(sql`update creator_video_settings set selected_video_id=null, enabled=false
+        where owner_user_id=${user.uid} and selected_video_id=${video.id}`);
+      // Cascading video views, chat and gift links removes this video's stats;
+      // the underlying coin transactions and balances remain intact.
       await tx.execute(sql`delete from creator_videos where id=${video.id} and owner_user_id=${user.uid}`);
       return 200;
     });
     res.status(outcome).json(
       outcome === 200
         ? { removed: true }
-        : { error: outcome === 409 ? "This video is ready and saved in your history." : "Video not found." },
+        : { error: "Video not found." },
     );
   }),
 );

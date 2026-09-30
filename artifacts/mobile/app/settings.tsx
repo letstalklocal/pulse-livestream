@@ -103,7 +103,7 @@ export default function SettingsScreen() {
       await signOut();
       queryClient.clear();
       setConfirmSignOut(false);
-      router.replace("/(auth)/sign-in");
+      router.replace("/(tabs)/profile");
     } catch {
       setSignOutError("Couldn’t log out. Please try again.");
     } finally {

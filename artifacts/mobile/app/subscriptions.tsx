@@ -55,7 +55,7 @@ export default function SubscriptionsScreen() {
         {!!expires && <Text style={[styles.expiry, localizedTextStyle()]}>{entitlement?.willRenew ? t('Renews on {v0}', { v0: expires }) : t('Access until {v0}', { v0: expires })}</Text>}
       </LinearGradient>
       {purchases.testStore && <Text style={[styles.text, localizedTextStyle(), { color: colors.mutedForeground }]}>{t('Test purchases — no real payment.')}</Text>}
-      {!userId && action('Sign in', () => router.push('/(auth)/sign-in'), false)}
+      {!userId && action('Sign in', () => router.push('/(tabs)/profile'), false)}
       {!!userId && !purchases.ready && !purchases.error && <ActivityIndicator color={colors.primary} />}
       {!!purchases.error && <Text accessibilityRole="alert" style={[styles.text, localizedTextStyle(), { color: colors.destructive }]}>{t(purchases.error)}</Text>}
       {purchases.ready && plans.length === 0 && <Text style={[styles.text, localizedTextStyle(), { color: colors.mutedForeground }]}>{t('Subscription plans are not available yet.')}</Text>}

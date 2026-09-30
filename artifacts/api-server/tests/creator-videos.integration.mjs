@@ -396,8 +396,8 @@ try {
   assert.equal((await call('get','/creator-videos/library',a)).body.selectedId,id,'manual history selection wins over late encoding');
   const remove = (uid, videoId, expectedError = false) => call('delete', '/creator-videos/:id', uid, {}, { id: videoId }, expectedError);
   assert.equal((await remove(b, landscape)).statusCode, 404, 'another account cannot remove an upload');
-  assert.equal((await remove(a, id)).statusCode, 409, 'ready history is protected');
-  assert.equal(deletedProviderIds.length, 0, 'rejected removal never touches Bunny');
+  assert.equal((await remove(b, id)).statusCode, 404, 'another account cannot delete a ready video');
+  assert.equal(deletedProviderIds.length, 0, 'foreign removal never touches Bunny');
   assert.equal((await remove(a, landscape)).statusCode, 200, 'failed upload can be removed');
   assert.equal((await remove(a, landscape)).statusCode, 404, 'repeated removal is harmless');
   await call('put', '/creator-videos/visibility', a, { enabled: true });
@@ -426,7 +426,31 @@ try {
   delete remote.encodeProgress;
   assert.equal((await call('post', '/creator-videos/:id/refresh', a, {}, { id: processing })).body.encodingProgress, null, 'unknown progress is not fabricated');
   assert.equal((await remove(a, processing)).statusCode, 200, 'processing upload can be removed');
-  console.log('PASS: incomplete upload removal ownership, ready history/stats preservation, pending cleanup and provider failure/404 retry behavior.');
+  await call('put', '/creator-videos/visibility', a, { enabled: true });
+  assert.equal((await remove(a, second)).statusCode, 200, 'historical ready video can be deleted');
+  const afterHistoricalDelete = (await call('get', '/creator-videos/library', a)).body;
+  assert.equal(afterHistoricalDelete.selectedId, id, 'historical deletion keeps current selection');
+  assert.equal(afterHistoricalDelete.enabled, true, 'historical deletion keeps Discovery visibility');
+  assert.ok(!afterHistoricalDelete.videos.some(v => v.id === second));
+  assert.equal((await call('get', '/creator-videos/:id/stats', a, {}, { id })).body.coins, 50, 'other video stats remain intact');
+  deleteStatus = 500;
+  assert.equal((await remove(a, id, true)).statusCode, 503, 'failed provider deletion keeps ready video for retry');
+  const afterFailedReadyDelete = (await call('get', '/creator-videos/library', a)).body;
+  assert.equal(afterFailedReadyDelete.selectedId, id);
+  assert.equal(afterFailedReadyDelete.enabled, true);
+  deleteStatus = 204;
+  assert.equal((await remove(a, id)).statusCode, 200, 'selected ready video can be deleted');
+  const afterSelectedDelete = (await call('get', '/creator-videos/library', a)).body;
+  assert.equal(afterSelectedDelete.selectedId, null, 'selected pointer clears');
+  assert.equal(afterSelectedDelete.enabled, false, 'Discovery turns off when selected video is deleted');
+  assert.ok(!afterSelectedDelete.videos.some(v => v.id === id));
+  assert.ok(!(await call('get', '/creator-videos/feed', b)).body.videos.some(v => v.id === id));
+  assert.equal((await call('get', '/creator-videos/:id', a, {}, { id })).statusCode, 404, 'deleted video is unavailable even to owner');
+  assert.equal((await pool.query('select count(*)::int as n from creator_video_gifts where video_id=$1', [id])).rows[0].n, 0, 'deleted video stats links are removed');
+  assert.equal((await pool.query('select count(*)::int as n from coin_transactions where from_user_id=$1 and to_user_id=$2', [b,a])).rows[0].n, 1, 'gift payment ledger remains');
+  assert.equal((await pool.query('select balance from coin_balances where user_id=$1', [a])).rows[0].balance, 50, 'owner earnings remain');
+  assert.equal((await remove(a, id)).statusCode, 404, 'repeated ready deletion is harmless');
+  console.log('PASS: unfinished and ready video deletion enforces ownership, clears selected Discovery state, preserves other videos and coin ledger, and retries provider failures.');
   console.log(
     "PASS: real database ownership, upload signing/config failure, encoding validation, selection/history reuse, live disablement, shared chat, watch caps, blocking, atomic gifts/retry/insufficient funds and owner-only statistics. Bunny transport mocked.",
   );

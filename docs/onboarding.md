@@ -34,6 +34,10 @@ Latest user decision: the signed-out Profile page now has the **Sign In** header
 
 Create Account now shows **Google → Apple → Email**, with Email directly below Apple and the same neutral card/background/border treatment. The Phone placeholder is removed from signup and is not shown on signed-out Profile. This supersedes earlier decisions to display a disabled Phone option and to emphasize Email with the primary fill. Signed-in profile layout and behavior are unchanged. The new Email sign-in label is translated in all ten languages. Native visual checks remain pending.
 
+### Guest action routing — September 30, 2026
+
+The user clarified that signed-out actions should open the existing Profile sign-in choice screen before the email/password form. Buy Coins and Go Live are confirmed examples. Their Discovery entry buttons now open signed-out Profile directly; direct visits to `/coin-store` and `/go-live` also reach it after auth state loads. The purchase sheet, Messages, post interactions, protected settings and other guest prompts use the same choice screen. Signed-in Buy Coins and Go Live paths remain unchanged. The chooser's **Sign in with Email** option and existing links inside the email/signup/recovery flow still open the password form. Guest web checks covered both entry buttons and both direct routes; mobile typecheck and required stream regressions pass. Native Android/iPhone navigation remains unverified.
+
 ## Apple sign-in — September 16, 2026
 
 User reported enabling Apple in Replit and requested its login button directly below Google. Signup-method selection now shows Google → Apple → Phone (Coming soon) → Email. Login shows Google then Apple below the email form. Apple uses **Sign up with Apple** / **Sign in with Apple**, the Apple icon and translated errors in all ten catalogs.

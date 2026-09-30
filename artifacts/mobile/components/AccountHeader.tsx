@@ -15,7 +15,7 @@ export function AccountHeader({ children }: { children?: ReactNode }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoaded } = useAuth();
   const { data: coinData } = useGetCoinBalance(
     { uid: user?.uid ?? 0 },
     { query: { enabled: !!user?.uid, refetchInterval: 8_000 } as any },
@@ -40,7 +40,7 @@ export function AccountHeader({ children }: { children?: ReactNode }) {
               </View>
             )}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.coinBalance} onPress={() => router.push("/coin-store")}
+          <TouchableOpacity style={styles.coinBalance} onPress={() => router.push(isLoaded && !user ? "/(tabs)/profile" : "/coin-store")}
             activeOpacity={0.75} accessibilityRole="button" accessibilityLabel={t("Buy Coins")}>
             <GoldCoinIcon />
             <Text style={[styles.coinText, localizedTextStyle(), { color: colors.foreground }]} numberOfLines={1}>

@@ -41,7 +41,7 @@ export default function Notifications() {
       /* The visible error keeps the action retryable. */
     }
   };
-  if (!history.userId) return <Redirect href="/(auth)/sign-in" />;
+  if (!history.userId) return <Redirect href="/(tabs)/profile" />;
   return (
     <View
       style={{

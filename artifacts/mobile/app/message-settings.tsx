@@ -16,7 +16,7 @@ export default function MessageSettingsScreen(){
   const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
  const colors=useColors();const router=useRouter();const insets=useSafeAreaInsets();const {isLoaded,userId}=useAuth();const settings=useMessageSettings();
  if(!isLoaded)return <ActivityIndicator color={colors.primary}/>;
- if(!userId)return <Redirect href="/(auth)/sign-in"/>;
+ if(!userId)return <Redirect href="/(tabs)/profile"/>;
  return <View style={{flex:1,backgroundColor:colors.background}}>
   <View style={[styles.header,{paddingTop:(Platform.OS==="web"?67:insets.top)+10,borderColor:colors.border}]}><TouchableOpacity accessibilityLabel={t("Back")} onPress={()=>router.back()}><Ionicons name="chevron-back" size={24} color={colors.foreground}/></TouchableOpacity><Text style={[localizedTextStyle(), [styles.title,{color:colors.foreground}]]}>{t("Messages Settings")}</Text><View style={{width:24}}/></View>
   <ScrollView contentContainerStyle={{padding:20,paddingBottom:insets.bottom+32}}>

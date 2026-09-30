@@ -97,7 +97,7 @@ export default function NotificationSettings() {
       />
     </View>
   );
-  if (!userId) return <Redirect href="/(auth)/sign-in" />;
+  if (!userId) return <Redirect href="/(tabs)/profile" />;
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View
