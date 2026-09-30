@@ -6,3 +6,6 @@
 
 # Local downloadable builds are not needed in production deployments.
 downloads/
+
+# Agent runtime files, including a temporary socket symlink, are not app files.
+codex-user/
