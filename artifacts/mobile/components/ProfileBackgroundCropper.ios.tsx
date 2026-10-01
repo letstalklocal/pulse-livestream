@@ -11,7 +11,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { useAppLanguage } from "@/i18n";
 
@@ -26,14 +26,15 @@ export function ProfileBackgroundCropper(props: Props) {
 
   return (
     <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={props.onCancel}>
-      <CropEditor key={`${props.source.uri}:${frameWidth}`} {...props} frameWidth={frameWidth} />
+      <SafeAreaProvider>
+        <CropEditor key={`${props.source.uri}:${frameWidth}`} {...props} frameWidth={frameWidth} />
+      </SafeAreaProvider>
     </Modal>
   );
 }
 
 function CropEditor({ source, onCancel, onConfirm, frameWidth }: Props & { frameWidth: number }) {
   const { t, localizedTextStyle } = useAppLanguage();
-  const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const saving = useRef(false);
@@ -87,7 +88,7 @@ function CropEditor({ source, onCancel, onConfirm, frameWidth }: Props & { frame
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12 }]}>
+    <SafeAreaView edges={["top", "bottom"]} style={[styles.container, { paddingTop: 12, paddingBottom: 12 }]}>
       <View style={styles.toolbar}>
         <TouchableOpacity accessibilityRole="button" disabled={busy} onPress={onCancel} style={styles.button}>
           <Text style={[styles.text, localizedTextStyle()]}>{t("Cancel")}</Text>
@@ -135,7 +136,7 @@ function CropEditor({ source, onCancel, onConfirm, frameWidth }: Props & { frame
         </View>
       </View>
       <Text style={[styles.hint, localizedTextStyle()]}>{t("Drag to position. Pinch to zoom.")}</Text>
-    </View>
+    </SafeAreaView>
   );
 }
 

@@ -245,6 +245,7 @@ export default function ProfileScreen() {
           avatarImageUrl: updated.user.avatarImageUrl,
           avatarUri: updated.user.avatarImageUrl ?? undefined,
         });
+        queryClient.setQueryData(getGetUserQueryKey(user.uid), updated);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch (error) {
         Alert.alert(
@@ -357,6 +358,7 @@ export default function ProfileScreen() {
 
   // Sign-out / guest state
   if (!user) return <SignedOutProfile />;
+  const avatarUri = profileData?.user.avatarImageUrl ?? user.avatarImageUrl ?? user.avatarUri;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -442,7 +444,7 @@ export default function ProfileScreen() {
         {/* Avatar + info */}
         <View style={styles.profileBlock}>
           <TouchableOpacity onPress={pickAvatar} activeOpacity={0.8} style={styles.avatarWrapper}>
-            <Avatar uid={user.uid} name={user.name} avatarUri={user.avatarUri} size={120} borderWidth={3} borderColor="#080A10" />
+            <Avatar uid={user.uid} name={user.name} avatarUri={avatarUri} size={120} borderWidth={3} borderColor="#080A10" />
             <View style={styles.avatarEditBadge}>
               <Ionicons name="camera" size={15} color="#FFF" />
             </View>
@@ -590,7 +592,7 @@ export default function ProfileScreen() {
                     <Avatar
                       uid={user.uid}
                       name={user.name}
-                      avatarUri={user.avatarUri}
+                      avatarUri={avatarUri}
                       size={34}
                       borderWidth={1}
                     />

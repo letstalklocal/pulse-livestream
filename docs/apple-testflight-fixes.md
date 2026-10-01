@@ -2,6 +2,12 @@
 
 **October 1 config update:** The user requested an `app.json`-only mobile configuration. Both active `eas.json` files and `app.config.js` were removed. EAS commands below are historical until an EAS profile is restored from `app.json` as described in [the migration note](eas-config-migration.md). No Replit Launch or native build has verified this change.
 
+**October 1 PC build update:** The user reports that EAS created iOS build **27** on their PC and that submission is in progress. This supersedes the September 30 target of 26 for the next build. The build ID, source revision, submission result, TestFlight processing, and installed-device behavior have not been independently checked in this workspace.
+
+**October 1 TestFlight update:** The user reports that iOS build **28** is available in TestFlight and opens on their iPhone. This is user-confirmed startup only. The build ID, source revision, Clerk proxy value embedded in build 28, sign-in, API connectivity, purchases and live video have not been independently verified here. Build 27 was reported to show a black screen; no root cause is established by build 28 opening.
+
+The user subsequently reported that the expected profile picture in videos was initially missing, then confirmed it loaded in build 28. The video avatar source remains present; see [the recorded-video follow-up](replay-and-live-recording-ideas.md#testflight-build-28-video-avatars--october-1-2026). No avatar source change or new native build was needed for that observation.
+
 ## EAS iOS build from this workspace — September 30, 2026
 
 The user is considering EAS CLI because Replit's **Launch to App Store** request times out without user-visible Launch logs. This is an alternate path for a **new native iOS build**; Replit Publish's successful Expo bundle/deployment is not an `.ipa`. The Launch timeout's cause is unconfirmed. Do not start a paid build or Apple submission merely because this process is documented.

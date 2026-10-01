@@ -1694,7 +1694,7 @@ export default function GoLiveScreen() {
         onOpenPreview={() => setShowVideoSheet(false)}
         onClose={() => Alert.alert(t("Where would you like to go?"), undefined, [
           { text: t("Stay on Go Live"), onPress: () => setShowVideoSheet(false) },
-          { text: t("Go to Discovery"), onPress: () => { setShowVideoSheet(false); router.replace("/(tabs)"); } },
+          { text: t("Go to Discovery"), onPress: () => router.dismissTo("/(tabs)"), },
         ])} />
       <Modal
         visible={showPremiumGiftSheet}
