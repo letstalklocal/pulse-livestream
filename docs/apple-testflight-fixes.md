@@ -1,5 +1,7 @@
 # Apple / TestFlight fixes
 
+**October 1 identity correction:** The user changed the displayed app name in Replit Preview and intended **Pulse VIP** as the label only. Replit's `ee7fa12` publish commit also changed the Expo slug, URL scheme, iOS bundle identifier and Android package without that intent. `artifacts/mobile/app.json` now keeps `name: "Pulse VIP"` while restoring `slug: "mobile"`, `scheme: "mobile"`, `ios.bundleIdentifier: "com.chimba.livestream"` and `android.package: "com.pulse.livestream"`. Expo config resolution verified those values. Build 28 used earlier source `26aaeaa` and did not contain the accidental identity change or this correction. No new native build, EAS submission or device check was started.
+
 **October 1 config update:** The user requested an `app.json`-only mobile configuration. Both active `eas.json` files and `app.config.js` were removed. EAS commands below are historical until an EAS profile is restored from `app.json` as described in [the migration note](eas-config-migration.md). No Replit Launch or native build has verified this change.
 
 **October 1 PC build update:** The user reports that EAS created iOS build **27** on their PC and that submission is in progress. This supersedes the September 30 target of 26 for the next build. The build ID, source revision, submission result, TestFlight processing, and installed-device behavior have not been independently checked in this workspace.
