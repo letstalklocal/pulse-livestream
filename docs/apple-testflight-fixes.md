@@ -1,5 +1,7 @@
 # Apple / TestFlight fixes
 
+**October 1 config update:** The user requested an `app.json`-only mobile configuration. Both active `eas.json` files and `app.config.js` were removed. EAS commands below are historical until an EAS profile is restored from `app.json` as described in [the migration note](eas-config-migration.md). No Replit Launch or native build has verified this change.
+
 ## EAS iOS build from this workspace — September 30, 2026
 
 The user is considering EAS CLI because Replit's **Launch to App Store** request times out without user-visible Launch logs. This is an alternate path for a **new native iOS build**; Replit Publish's successful Expo bundle/deployment is not an `.ipa`. The Launch timeout's cause is unconfirmed. Do not start a paid build or Apple submission merely because this process is documented.

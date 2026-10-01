@@ -40,6 +40,7 @@ exposeLocalhost = true
 [[ports]]
 localPort = 18116
 externalPort = 3002
+exposeLocalhost = true
 
 [nix]
 channel = "stable-25_05"

@@ -91,11 +91,11 @@ test('cancelled purchases are silent; pending/network errors are actionable', ()
   assert.match(purchaseErrorMessage({ code: '20' }), /pending/);
   assert.match(purchaseErrorMessage({ code: '10' }), /connect/);
 });
-test('saved TestFlight profile enables Apple store in a release bundle without changing Android settings', () => {
-  const eas = JSON.parse(readFileSync(`${__dirname}/../eas.json`, 'utf8'));
+test('saved iOS build settings select Apple store without changing Android settings', () => {
+  const app = JSON.parse(readFileSync(`${__dirname}/../app.json`, 'utf8'));
+  const eas = app.expo.extra.easConfigurationBackup;
   const profile = eas.build.production;
   const env = { ...profile.env, ...profile.ios.env, EAS_BUILD_PROFILE: 'production' };
-  const app = JSON.parse(readFileSync(`${__dirname}/../app.json`, 'utf8'));
   assert.equal(app.expo.name, 'Pulse');
   assert.equal(env.EXPO_PUBLIC_REVENUECAT_MODE, 'store');
   assert.equal(env.EXPO_PUBLIC_REVENUECAT_IOS_KEY, config.REVENUECAT_IOS_KEY);

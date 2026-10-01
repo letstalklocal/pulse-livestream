@@ -1,5 +1,7 @@
 # Coins, Premium gifts, and RevenueCat — change handoff
 
+**October 1 config update:** The user removed the active EAS profiles to keep the mobile Expo project on `app.json` alone. EAS build commands below are historical until the profile is restored from `app.json`; see [EAS configuration migration](eas-config-migration.md).
+
 Updated: 2026-09-15. This is the shared entry point for the implemented changes and recorded decisions. Detailed requirements remain in [coin purchases](coin-purchases.md), [timed Premium gifts](premium-gift-requests.md), and [RevenueCat integration](revenuecat-integration.md).
 
 ## How the flows connect
