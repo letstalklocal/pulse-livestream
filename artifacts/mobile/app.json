@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "Pulse",
-    "slug": "mobile",
+    "name": "Pulse VIP",
+    "slug": "pulsevip",
     "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "scheme": "pulsevip",
     "userInterfaceStyle": "dark",
     "ios": {
       "buildNumber": "15",
-      "bundleIdentifier": "com.chimba.livestream",
+      "bundleIdentifier": "com.pulsevip.app",
       "supportsTablet": false,
       "infoPlist": {
         "NSCameraUsageDescription": "Pulse needs camera access to broadcast live streams.",
@@ -19,7 +19,7 @@
     },
     "android": {
       "versionCode": 15,
-      "package": "com.pulse.livestream",
+      "package": "com.pulsevip.app",
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",
