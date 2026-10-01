@@ -91,27 +91,12 @@ test('cancelled purchases are silent; pending/network errors are actionable', ()
   assert.match(purchaseErrorMessage({ code: '20' }), /pending/);
   assert.match(purchaseErrorMessage({ code: '10' }), /connect/);
 });
-function evaluateBuild(env, appConfig = { name: 'Pulse' }) {
-  const context = { module: { exports: {} }, process: { env } };
-  runInNewContext(readFileSync(`${__dirname}/../app.config.js`, 'utf8'), context);
-  return context.module.exports({ config: appConfig });
-}
-test('production guard requires explicit iOS TestFlight opt-in for simulated payments', () => {
-  const env = { EAS_BUILD_PROFILE: 'production', EXPO_PUBLIC_REVENUECAT_MODE: 'test' };
-  assert.throws(() => evaluateBuild({ EAS_BUILD_PROFILE: 'production', EXPO_PUBLIC_REVENUECAT_MODE: 'store', EXPO_PUBLIC_REVENUECAT_IOS_MODE: 'test' }), /cannot use RevenueCat Test Store/);
-  assert.throws(() => evaluateBuild(env), /cannot use RevenueCat Test Store/);
-  assert.throws(() => evaluateBuild({ ...env, PULSE_TESTFLIGHT_BUILD: 'false' }), /cannot use RevenueCat Test Store/);
-  assert.throws(() => evaluateBuild({ ...env, PULSE_TESTFLIGHT_BUILD: 'true', EAS_BUILD_PLATFORM: 'android' }), /cannot use RevenueCat Test Store/);
-  assert.deepEqual(evaluateBuild({ ...env, EXPO_PUBLIC_REVENUECAT_MODE: 'store' }), { name: 'Pulse' });
-});
 test('saved TestFlight profile enables Apple store in a release bundle without changing Android settings', () => {
   const eas = JSON.parse(readFileSync(`${__dirname}/../eas.json`, 'utf8'));
   const profile = eas.build.production;
   const env = { ...profile.env, ...profile.ios.env, EAS_BUILD_PROFILE: 'production' };
-  // EAS evaluates app config locally as well as on its iOS build worker.
-  for (const platform of [undefined, 'ios']) {
-    assert.deepEqual(evaluateBuild({ ...env, EAS_BUILD_PLATFORM: platform }), { name: 'Pulse' });
-  }
+  const app = JSON.parse(readFileSync(`${__dirname}/../app.json`, 'utf8'));
+  assert.equal(app.expo.name, 'Pulse');
   assert.equal(env.EXPO_PUBLIC_REVENUECAT_MODE, 'store');
   assert.equal(env.EXPO_PUBLIC_REVENUECAT_IOS_KEY, config.REVENUECAT_IOS_KEY);
   const result = config.purchaseConfiguration('ios', false, { mode: env.EXPO_PUBLIC_REVENUECAT_MODE });

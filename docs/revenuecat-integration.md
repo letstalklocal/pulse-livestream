@@ -1,5 +1,9 @@
 # RevenueCat integration for Pulse
 
+## Static Expo config — October 1, 2026
+
+The user reaffirmed the Replit app-config requirement: keep the mobile Expo app settings in `artifacts/mobile/app.json` and remove `artifacts/mobile/app.config.js`. The JavaScript file contained only a build-time guard against selecting RevenueCat Test Store in an EAS production profile; it contributed no Expo settings to migrate. The current iOS EAS profile already selects Apple `store` mode and includes the public Apple SDK key. Removing the dynamic file removes that extra guard, so a future production profile must be reviewed for Test Store mode before building. Development Test Store selection and backend webhook validation remain in their existing code. Older references below to the Expo config guard describe its prior behavior. This change does not remove either `eas.json` file or establish the cause of Replit Launch timeouts.
+
 ## Refund request test status — September 21, 2026
 
 User reports submitting the iPhone TestFlight refund request and seeing the pending/request-submitted message. Apple's official [refund testing documentation](https://developer.apple.com/documentation/storekit/testing-refund-requests) states normal sandbox requests are automatically approved and no emails are sent; Other → DECLINE deliberately tests rejection. Earlier conversation wording about waiting for human approval is superseded. At the last provider readback below, no refund event was present. Request submission is user-confirmed; actual refund event, production webhook receipt and access removal remain unverified. No later provider check is implied by this note. Track alongside the [current go-live checkpoint](go-live-checklist.md#current-launch-checkpoint--september-21-2026).

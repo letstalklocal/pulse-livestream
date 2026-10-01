@@ -1,5 +1,37 @@
 # Apple / TestFlight fixes
 
+## EAS iOS build from this workspace — September 30, 2026
+
+The user is considering EAS CLI because Replit's **Launch to App Store** request times out without user-visible Launch logs. This is an alternate path for a **new native iOS build**; Replit Publish's successful Expo bundle/deployment is not an `.ipa`. The Launch timeout's cause is unconfirmed. Do not start a paid build or Apple submission merely because this process is documented.
+
+Run EAS from `artifacts/mobile`, not the repository root: both have `eas.json`, but only the mobile profile contains the approved iOS RevenueCat settings. The installed CLI is authenticated to `@eespana/mobile` (project `4119aa26-5e2a-4825-81e0-9612267f331c`). A clone on another computer must sign in to that same Expo project and install the project's dependencies. EAS cloud builds do not require local Xcode.
+
+Before building, record the source revision and verify the **EAS production** mobile settings:
+
+- `EXPO_PUBLIC_DOMAIN=chimbalivestream.replit.app`, with no protocol. This was changed from a Replit development hostname and verified by EAS readback on September 30.
+- `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` exactly matches the `pk_live_` key embedded in the deployed production iOS bundle. EAS readback confirmed the match on September 30. Replit production `CLERK_PUBLISHABLE_KEY` and `VITE_CLERK_PUBLISHABLE_KEY` are separate variable names for server/web use; do not copy server secret keys into the app.
+- `EXPO_PUBLIC_AGORA_APP_ID` was updated in EAS from the single App ID embedded in that deployed bundle. EAS accepted the update, but its secret visibility prevents readback; verify live video on the installed build.
+- The mobile `build.production.ios.env` sets RevenueCat `store` mode and the public Apple SDK key. That key matches the deployed bundle. No EAS production iOS-mode override was found. `PULSE_TESTFLIGHT_BUILD=true` remains the existing TestFlight guard; it does not enable RevenueCat Test Store when mode is `store`.
+
+**Check the iOS build number before spending on the build.** The mobile profile uses remote app versioning and `autoIncrement`; its `app.json` build number is ignored by EAS. On September 30, the user clarified that the **next build must be 26**. The EAS remote counter was changed from 2 to **25** and verified by readback, so its next auto-incremented build should be 26. If another EAS build runs first, read the counter again with `eas build:version:get --platform ios --profile production` and adjust it interactively with `eas build:version:set --platform ios --profile production` as needed. The exact latest Apple build number has not been independently read here.
+
+Replit retains database, Clerk secret, RevenueCat backend/webhook, and other server credentials. They are **not** required in EAS or a GitHub clone. The `EXPO_PUBLIC_*` values are client-visible and must never contain backend secrets. Apple signing/submission credentials are managed separately through EAS/Apple prompts; inspect their status if the build or submission asks for them.
+
+```bash
+cd artifacts/mobile
+eas env:get production --variable-name EXPO_PUBLIC_DOMAIN
+eas build:version:get --platform ios --profile production
+eas build --platform ios --profile production
+```
+
+The build command queues a new EAS cloud build and can incur a build charge. Capture its build ID, build number and source revision. After it finishes, submit **that exact build**, avoiding `--latest` until the correct build is identified:
+
+```bash
+eas submit --platform ios --profile production --id YOUR_NEW_BUILD_ID
+```
+
+EAS Submit uploads to App Store Connect/TestFlight; public App Store review remains a separate action in App Store Connect. Check processing and the installed build on iPhone, including sign-in, production API connectivity, live video, and Apple sandbox purchases. Automated build/type checks are not device verification. See [Expo's iOS build and submission guide](https://docs.expo.dev/submit/ios/) and [EAS environment guide](https://docs.expo.dev/eas/environment-variables/usage/).
+
 ## Repeated unavailable-purchases message — September 20, 2026
 
 The user reported the same message after another TestFlight build. `PurchasesContext.tsx` shows this exact message only when the native module exists but `purchaseConfiguration().apiKey` is missing/invalid. `PULSE_TESTFLIGHT_BUILD` is a build guard for Test Store opt-in, not a runtime purchase-disable flag. Both root and mobile `eas.json` exist; the exact configuration/environment consumed by the installed Replit Publish build has not been established from build logs. Do not claim changing mobile EAS settings alone proved the installed binary received them.
@@ -20,7 +52,7 @@ Updated: 2026-09-16
 
 **Current purchase mode (2026-09-20):** user approved changing `build.production.ios.env.EXPO_PUBLIC_REVENUECAT_MODE` in `artifacts/mobile/eas.json` from `test` to `store`; implemented and JSON verified. This supersedes earlier Test Store build instructions. The Apple public SDK key must be supplied as `EXPO_PUBLIC_REVENUECAT_IOS_KEY` in the build environment. Keep the existing production API connection and Replit Publish workflow. No native build or deployment was started by this edit; Apple sandbox device testing remains pending.
 
-**Current Apple build workflow (2026-09-16):** The user starts Apple/iPhone builds through the **Publish tool in Replit**. Use this workflow when giving Apple build instructions; the EAS CLI commands recorded below are historical. TestFlight uses the Replit production environment. Android continues to use its [documented development build command](android-build-workflow.md).
+**Earlier Apple build workflow (2026-09-16):** The user started Apple/iPhone builds through the **Publish tool in Replit**. Its Launch to App Store flow later timed out, so the EAS CLI process above is available for a new iOS build. TestFlight uses the Replit production API. Android continues to use its [documented development build command](android-build-workflow.md).
 
 **Previous build decision (2026-09-15):** The user resumed testing builds and explicitly approved RevenueCat Test Store configuration for the next TestFlight build. This supersedes the earlier hold while fixes were collected. Use the installed EAS CLI and existing production profile; see the approved TestFlight configuration below. The assistant has not started a build.
 

@@ -1,6 +1,6 @@
 # Combined purchase test build
 
-User decision, September 20, 2026: builds cost money. Gather all known app changes and configuration checks before the next Replit Publish iOS build. Do not start a build on the user's behalf. TestFlight keeps the production Pulse API. Do not promise device success based on automated checks.
+User decision, September 20, 2026: builds cost money. Gather all known app changes and configuration checks before the next iOS build. Replit Publish was the original path; the [EAS CLI process](apple-testflight-fixes.md#eas-ios-build-from-this-workspace--september-30-2026) is now documented after Replit Launch timeouts. Do not start a build on the user's behalf. TestFlight keeps the production Pulse API. Do not promise device success based on automated checks.
 
 ## Include together
 
