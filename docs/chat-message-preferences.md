@@ -318,3 +318,26 @@ Real-database integration checks pass for fractional duration, rounded storage, 
 ## Gift sheet persistence — September 23, 2026
 
 Sending a gift in DMs or posts now leaves the gift sheet open until explicit dismissal or tapping outside. Post gifts no longer automatically open comments; their data still refreshes. DM wallet updates, receipt delivery and errors remain, with an in-flight guard against overlapping sends. See [shared gift behavior and verification](coins-premium-revenuecat.md#keep-the-gift-sheet-open--september-23-2026).
+
+
+## 1:1 invitation gift grid — October 2, 2026
+
+User requested the 1:1 gift selector match the app's grid instead of its vertical list. The Private live invite composer now shows four gift columns with centered catalog artwork, gift name, shared gold coin icon/price and highlighted selection. The gift area scrolls within a bounded sheet. Preserve the Free option, recipient-pays notice, selected gift ID, Send invite action and existing pending/blocking/chat-activation guards. Selecting a gift sets the invitation price; it does not send or charge a gift. No backend or ordinary gift-picker behavior changed.
+
+Automated: DM header regression, required stream regression suite and all ten localization catalogs passed. Native visual checks remain pending on Android and iPhone: open the 1:1 composer, select/change each gift and Free, send an invite, close/Android Back, check short screens/large text and verify chat draft/keyboard layout after returning. User confirmation of the new grid has not yet been received. No native build or deployment started.
+
+
+### 1:1 Send invite bottom clearance — October 2, 2026
+
+User reported Send invite covered on Android after the grid revision. The invitation sheet now uses measured bottom-safe-area padding: max(36, bottom inset + 20), and the Send invite button cannot flex-shrink. This keeps its action above the system navigation area while allowing the gift viewport to shrink/scroll. Other sheets and chat keyboard/composer spacing retain their existing behavior.
+
+Automated mobile types, DM header and localization checks passed. Actual Android navigation-bar clearance and iPhone layout remain pending device confirmation. Check gesture and three-button navigation, short screens, closing/reopening and returning to the chat draft. No native build or backend change required.
+
+
+## DM gift artwork messages — October 2, 2026
+
+User replaced the yellow gift-message bubble with gift artwork about 100 × 100 points, historical coin value underneath and device-local sent time below that. This supersedes the inline time-in-gift-bubble requirement for recognized gift receipts only; ordinary text stays inline. Use existing gift images/Crown artwork, with the catalog emoji fallback for gifts without image assets. Keep incoming/outgoing alignment, incoming avatar, outgoing lighter/read double-checks, read-receipt privacy and swipe-to-reply. No new yellow box or border around the gift.
+
+Existing persisted receipts (including the Rose activation receipt) render this way; keep the recorded amount rather than deriving historical value from today's catalog. Unknown or malformed gift-prefixed text stays readable as ordinary text. Sending, wallet debits, message persistence and reply data are unchanged.
+
+Automated: mobile typecheck, DM header regression, legacy gift receipt parsing/historical-value/malformed-text checks and localization checks passed. Device checks pending on Android and iPhone: send/receive Rose, Crown and a gift with fallback artwork; compare value and local time, sent/read shades and hidden receipts, swipe/reply and reopen old history; confirm the gift picker, composer draft/focus and keyboard spacing still work. No backend or native-build change.

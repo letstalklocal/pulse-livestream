@@ -140,6 +140,15 @@ try {
    if((file.endsWith('/app/go-live.tsx')||file.endsWith('/components/LivePremiumSheet.tsx'))&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.getText(a)==='{allowIncognito ? "checkbox" : "square-outline"}')return;
    // Approved VIP invisible-viewing preference adds one switch; all prior controls remain compared.
    if(file.endsWith('/app/privacy.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='value'&&n.initializer?.getText(a)==='{isPro && privacy.preferences.invisibleViewing}')return;
+   // Approved DM gift artwork has its own timestamp/read row; retain the existing
+   // text-message and invitation icons plus all payment/message identifiers.
+   if(file.endsWith('/app/dm/[peerId].tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='checkmark-done'){
+    let parent=n.parent;
+    while(parent){
+     if(ts.isJsxElement(parent)&&parent.openingElement.tagName.getText(a)==='Text'&&parent.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='style'&&p.initializer?.getText(a).includes('styles.giftMessageTime')))return;
+     parent=parent.parent;
+    }
+   }
    if(ts.isJsxAttribute(n)&&stableAttributes.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));
    if(ts.isPropertyAssignment(n)&&stableFields.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));
    ts.forEachChild(n,walk);

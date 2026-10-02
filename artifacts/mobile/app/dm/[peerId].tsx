@@ -1,3 +1,6 @@
+import { parseDmGiftReceipt } from "@/utils/dmGiftReceipt";
+import { GoldCoinIcon } from "@/components/GoldCoinIcon";
+import { CrownArtwork } from "@/components/CrownArtwork";
 import { GiftImageArtwork, hasGiftImage } from "@/components/GiftImageArtwork";
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { loadChatPeerStatus } from "@/utils/chatPeerStatus";
@@ -25,6 +28,7 @@ import {
   Modal,
   Platform,
   StyleSheet,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -411,7 +415,7 @@ export default function DmScreen() {
         }}
         renderItem={({ item }) => {
           const isMe = item.senderId === myUidStr;
-          const isGift = item.text.startsWith("🎁");
+          const giftReceipt = parseDmGiftReceipt(item.text, GIFTS);
           const extraBottomSpacing = (item.kind === "media" && item.mediaType === "video")
             || (item.kind === "media_pack" && !!item.mediaPackId)
             || (item.kind === "private_stream_invitation" && !!item.invitation);
@@ -445,15 +449,20 @@ export default function DmScreen() {
                 <DirectMediaMessage message={item} mine={isMe} />
               ) : <View
                 style={[
-                  styles.bubble,
-                  isMe
-                    ? [styles.bubbleMe, { backgroundColor: isGift ? "rgba(255,215,0,0.18)" : "#FF1966" }]
-                    : [styles.bubbleThem, { backgroundColor: isGift ? "rgba(255,215,0,0.12)" : colors.card }],
-                  isGift && styles.giftBubble,
+                  giftReceipt ? styles.giftMessage : styles.bubble,
+                  !giftReceipt && (isMe
+                    ? [styles.bubbleMe, { backgroundColor: "#FF1966" }]
+                    : [styles.bubbleThem, { backgroundColor: colors.card }]),
                 ]}
               >
                 {item.replyTo && <View style={{ borderLeftWidth: 3, borderLeftColor: isMe ? "#FFF" : colors.primary, backgroundColor: "rgba(0,0,0,0.12)", borderRadius: 6, padding: 8, marginBottom: 6 }}><Text style={[localizedTextStyle(), { color: isMe ? "#FFF" : colors.primary, fontWeight: "600", fontSize: 12 }]}>{item.replyTo.senderId === myUidStr ? t("You") : item.replyTo.senderName}</Text><Text numberOfLines={2} style={{ color: isMe ? "#FFF" : colors.foreground, fontSize: 13 }}>{item.replyTo.text}</Text></View>}
-                <TranslatedMessage trailing={<Text style={[localizedTextStyle(), { fontSize: 10, color: isGift ? "#FFD700" : isMe ? "rgba(255,255,255,0.8)" : colors.mutedForeground }]}>{new Date(item.ts).toLocaleTimeString(appLocale(), { hour: "2-digit", minute: "2-digit" })}{isMe ? <> <Ionicons name="checkmark-done" size={16} color={item.readAt != null ? (isGift ? "#FFD700" : "#FFF") : (isGift ? "rgba(255,215,0,0.45)" : "rgba(255,255,255,0.45)")} accessibilityLabel={item.readAt != null ? t("Read") : t("Sent")} /></> : null}</Text>} text={item.text} messageId={item.messageId} kind="dm" peerId={peerIdStr} incoming={!isMe && !isGift} style={[styles.bubbleText, { color: isGift ? "#FFD700" : isMe ? "#FFF" : colors.foreground }]} />
+                {giftReceipt ? <>
+                  <View style={styles.giftMessageArtwork} accessible accessibilityLabel={giftReceipt.gift.name}>
+                    {giftReceipt.gift.id === "crown" ? <CrownArtwork size={100} /> : hasGiftImage(giftReceipt.gift.id) ? <GiftImageArtwork gift={giftReceipt.gift.id} size={100} /> : <Text style={styles.giftMessageEmoji}>{giftReceipt.gift.emoji}</Text>}
+                  </View>
+                  <View style={styles.giftMessageValue}><GoldCoinIcon size={14} /><Text style={styles.giftMessageCoins}>{appNumber(giftReceipt.coins)}</Text></View>
+                  <Text style={[styles.giftMessageTime, localizedTextStyle(), { color: colors.mutedForeground }]}>{new Date(item.ts).toLocaleTimeString(appLocale(), { hour: "2-digit", minute: "2-digit" })}{isMe ? <> <Ionicons name="checkmark-done" size={16} color={item.readAt != null ? colors.foreground : colors.mutedForeground} accessibilityLabel={item.readAt != null ? t("Read") : t("Sent")} /></> : null}</Text>
+                </> : <TranslatedMessage trailing={<Text style={[localizedTextStyle(), { fontSize: 10, color: isMe ? "rgba(255,255,255,0.8)" : colors.mutedForeground }]}>{new Date(item.ts).toLocaleTimeString(appLocale(), { hour: "2-digit", minute: "2-digit" })}{isMe ? <> <Ionicons name="checkmark-done" size={16} color={item.readAt != null ? "#FFF" : "rgba(255,255,255,0.45)"} accessibilityLabel={item.readAt != null ? t("Read") : t("Sent")} /></> : null}</Text>} text={item.text} messageId={item.messageId} kind="dm" peerId={peerIdStr} incoming={!isMe} style={[styles.bubbleText, { color: isMe ? "#FFF" : colors.foreground }]} />}
               </View>}
             </View>
             </SwipeToReply>
@@ -597,11 +606,22 @@ export default function DmScreen() {
         }}
       />
        <Modal visible={showInviteComposer && !contactBlocked} transparent animationType="slide" onRequestClose={() => setShowInviteComposer(false)}>
-         <View style={styles.pickerShade}><View style={[styles.packPicker, { backgroundColor: colors.card }]}>
+         <View style={styles.pickerShade}><View style={[styles.packPicker, styles.invitePicker, { backgroundColor: colors.card, paddingBottom: Math.max(36, insets.bottom + 20) }]}>
            <View style={styles.pickerHead}><Text style={[localizedTextStyle(), [styles.pickerTitle, { color: colors.foreground }]]}>{t("Private live invite")}</Text><TouchableOpacity onPress={() => setShowInviteComposer(false)}><Ionicons name="close" size={23} color={colors.foreground} /></TouchableOpacity></View>
            <TouchableOpacity style={[styles.packOption, { borderColor: colors.border }, !inviteGiftId && styles.inviteChoice]} onPress={() => setInviteGiftId(null)}><Text style={[localizedTextStyle(), [styles.packOptionName, { color: colors.foreground }]]}>{t("Free")}</Text><Text style={[localizedTextStyle(), [styles.packOptionMeta, { color: colors.mutedForeground }]]}>{t("No gift required")}</Text></TouchableOpacity>
            <Text style={[localizedTextStyle(), [styles.packOptionMeta, { color: colors.mutedForeground }]]}>{t("Paid — recipient pays when accepting")}</Text>
-           {GIFTS.map((gift) => <TouchableOpacity key={gift.id} style={[styles.packOption, { borderColor: colors.border }, inviteGiftId === gift.id && styles.inviteChoice]} onPress={() => setInviteGiftId(gift.id)}>{hasGiftImage(gift.id) ? <GiftImageArtwork gift={gift.id} size={21} /> : <Text style={{ fontSize: 21 }}>{gift.emoji}</Text>}<Text style={[styles.packOptionName, { color: colors.foreground }]}>{gift.name}</Text><Text style={styles.price}>🪙 {gift.coins}</Text></TouchableOpacity>)}
+           <ScrollView style={styles.inviteGiftViewport} contentContainerStyle={styles.inviteGiftGrid} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator>
+             {GIFTS.map((gift) => <View key={gift.id} style={styles.inviteGiftSlot}>
+               <TouchableOpacity style={[styles.inviteGiftCell, { borderColor: colors.border }, inviteGiftId === gift.id && styles.inviteChoice]}
+                 onPress={() => setInviteGiftId(gift.id)} accessibilityRole="radio" accessibilityState={{ checked: inviteGiftId === gift.id }} accessibilityLabel={`${gift.name}, ${appNumber(gift.coins)}`}>
+                 <View style={styles.inviteGiftArtwork}>
+                   {gift.id === "crown" ? <CrownArtwork size={gift.size} /> : hasGiftImage(gift.id) ? <GiftImageArtwork gift={gift.id} size={gift.size} /> : <Text style={{ fontSize: gift.size }}>{gift.emoji}</Text>}
+                 </View>
+                 <Text style={[styles.inviteGiftName, localizedTextStyle(), { color: colors.foreground }]} numberOfLines={1}>{gift.name}</Text>
+                 <View style={styles.inviteGiftCost}><GoldCoinIcon size={11} /><Text style={styles.inviteGiftPrice}>{appNumber(gift.coins)}</Text></View>
+               </TouchableOpacity>
+             </View>)}
+           </ScrollView>
            <TouchableOpacity disabled={createInviteMutation.isPending || contactBlocked || needsGift} onPress={() => void invitePeer()} style={styles.inviteSend}><Text style={[localizedTextStyle(), styles.invitePrimaryText]}>{createInviteMutation.isPending ? t("Sending…") : t("Send invite")}</Text></TouchableOpacity>
          </View></View>
        </Modal>
@@ -682,10 +702,12 @@ const styles = StyleSheet.create({
   bubbleThem: {
     borderBottomLeftRadius: 4,
   },
-  giftBubble: {
-    borderWidth: 1,
-    borderColor: "rgba(255,215,0,0.45)",
-  },
+  giftMessage: { maxWidth: "72%", alignItems: "center", gap: 5, paddingVertical: 6 },
+  giftMessageArtwork: { width: 100, height: 100, alignItems: "center", justifyContent: "center" },
+  giftMessageEmoji: { fontSize: 80, lineHeight: 100, includeFontPadding: false },
+  giftMessageValue: { flexDirection: "row", alignItems: "center", gap: 4 },
+  giftMessageCoins: { color: "#FFD700", fontSize: 14, fontFamily: "Inter_700Bold" },
+  giftMessageTime: { fontSize: 10 },
   bubbleText: {
     fontSize: 15,
     fontFamily: "Inter_400Regular",
@@ -701,7 +723,7 @@ const styles = StyleSheet.create({
   inviteSecondary: { fontFamily: "Inter_600SemiBold", fontSize: 13 },
   invitePrice: { color: "#FFD700", fontFamily: "Inter_700Bold", fontSize: 13 },
   inviteChoice: { borderColor: "#FF1966", backgroundColor: "rgba(255,25,102,0.1)" },
-  inviteSend: { backgroundColor: "#FF1966", padding: 13, alignItems: "center", borderRadius: 12, marginTop: 4 },
+  inviteSend: { flexShrink: 0, backgroundColor: "#FF1966", padding: 13, alignItems: "center", borderRadius: 12, marginTop: 4 },
   emptyWrap: {
     flex: 1,
     alignItems: "center",
@@ -747,6 +769,15 @@ const styles = StyleSheet.create({
   packPicker:{borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,paddingBottom:36,gap:10},
   pickerHead:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginBottom:3},
   pickerTitle:{fontFamily:"Inter_700Bold",fontSize:18},
+  invitePicker: { maxHeight: "85%" },
+  inviteGiftViewport: { maxHeight: 240, flexGrow: 0, flexShrink: 1 },
+  inviteGiftGrid: { flexDirection: "row", flexWrap: "wrap", rowGap: 8 },
+  inviteGiftSlot: { width: "25%", paddingHorizontal: 2 },
+  inviteGiftCell: { borderWidth: 1, borderRadius: 12, alignItems: "center", paddingVertical: 8, paddingHorizontal: 4, gap: 2 },
+  inviteGiftArtwork: { height: 44, alignItems: "center", justifyContent: "center" },
+  inviteGiftName: { fontSize: 10, lineHeight: 12, fontFamily: "Inter_600SemiBold" },
+  inviteGiftCost: { flexDirection: "row", alignItems: "center", gap: 3 },
+  inviteGiftPrice: { color: "#FFD700", fontSize: 11, fontFamily: "Inter_700Bold" },
   packOption:{borderWidth:1,borderRadius:13,padding:12,flexDirection:"row",alignItems:"center",gap:10},
   packOptionName:{fontFamily:"Inter_600SemiBold",fontSize:15},
   packOptionMeta:{fontFamily:"Inter_400Regular",fontSize:12,marginTop:2},
