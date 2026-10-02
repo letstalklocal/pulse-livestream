@@ -3,7 +3,7 @@
 .agents/
 .cache/
 attached_assets/
-codex-user/
+.config/codex/
 downloads/
 screenshots/
 

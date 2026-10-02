@@ -8,4 +8,4 @@
 downloads/
 
 # Agent runtime files, including a temporary socket symlink, are not app files.
-codex-user/
+.config/codex/

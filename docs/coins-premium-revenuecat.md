@@ -207,3 +207,5 @@ Latest footer refinement: remove the ordinary â€œSelect a gift, then tap Send.â€
 Latest Send sizing: reduce button minimum height from 24 to 20 points and label font from 12 to 10 points. Preserve the full-width pink button, white text and square top corners.
 
 Latest gift picker artwork sizing: Heart and Lips use 36-point artwork. Match Crown and Diamond to 36 points; Party already uses 36. Rocket remains 40. This is drawer artwork sizing, not floating gift or native Crown effect sizing.
+
+Latest gift-tile interaction: the first tap anywhere on an affordable gift selects it and shows its pink selected/Send state. A second tap **anywhere in that same selected gift container** sends it; users no longer need to hit only the narrow pink Send strip. Tapping a different gift changes selection instead of sending it. The pink Send strip remains as the visual cue, unaffordable gifts cannot become send-ready, and all existing in-flight/payment safeguards remain.

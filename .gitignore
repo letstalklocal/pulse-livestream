@@ -49,4 +49,4 @@ Thumbs.db
 .local/
 
 # Local agent runtime state can contain sensitive session data.
-/codex-user/
+/.config/codex/

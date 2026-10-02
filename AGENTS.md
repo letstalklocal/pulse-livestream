@@ -1,5 +1,7 @@
 # Project instructions
 
+Before changing the mobile app name, Expo slug, URL scheme, iOS bundle identifier, Android package, or build configuration that could alter app identity, read [docs/app-identity.md](docs/app-identity.md). Preserve the existing app identifiers unless the user explicitly requests an identity migration.
+
 Before changing any viewer/broadcaster screen functionality or shared stream controls, read [docs/stream-screen-regressions.md](docs/stream-screen-regressions.md) and run its required checks. Screen-awake behavior on both Android and iPhone, navigation, header/list behavior and keyboard/dock anchoring are app requirements. Report automated and device verification separately; never call an untested device regression fixed.
 
 Before changing direct messages, chat UI, keyboard/composer behavior, message status indicators, replies, or message preferences, read [docs/chat-message-preferences.md](docs/chat-message-preferences.md).

@@ -105,38 +105,34 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
                 key={gift.id}
                 style={styles.giftSlot}
               >
-              <View style={[styles.giftCell, selected && styles.selectedGift, !canAfford && styles.giftCellDisabled]}>
-                <TouchableOpacity
-                  onPress={() => setSelectedGiftId(gift.id)}
+              <TouchableOpacity
+                  testID={`send-gift-${gift.id}`}
+                  onPress={() => {
+                    if (canSend) onSend(gift);
+                    else setSelectedGiftId(gift.id);
+                  }}
                   accessibilityRole="radio"
                   accessibilityState={{ checked: selected }}
-                  accessibilityLabel={gift.name}
-                  style={styles.giftSelection}
+                  accessibilityLabel={selected && canAfford ? `${t("Send")} ${gift.name}, ${gift.coins}` : gift.name}
+                  style={[styles.giftCell, selected && styles.selectedGift, !canAfford && styles.giftCellDisabled]}
                   activeOpacity={0.8}
                 >
-                <View style={styles.artwork}>
-                  {gift.id === "crown" ? <CrownArtwork size={gift.size} /> : hasGiftImage(gift.id) ? <GiftImageArtwork gift={gift.id} size={gift.size} /> : <Text style={[styles.giftEmoji, { fontSize: gift.size }]}>{gift.emoji}</Text>}
-                </View>
-                <Text style={[styles.giftName, localizedTextStyle()]} numberOfLines={1}>{gift.name}</Text>
-                <View style={styles.giftCost}>
-                  <GoldCoinIcon size={11} />
-                  <Text style={[styles.giftCoins, !canAfford && styles.giftCoinsDisabled]}>
-                    {gift.coins}
-                  </Text>
-                </View>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  testID={`send-gift-${gift.id}`}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${t("Send")} ${gift.name}, ${gift.coins}`}
-                  disabled={!canSend}
-                  onPress={() => { if (canSend) onSend(gift); }}
-                  style={[styles.sendButton, !canSend && styles.sendDisabled]}
-                  activeOpacity={0.7}
-                >
+                  <View style={styles.giftSelection}>
+                    <View style={styles.artwork}>
+                      {gift.id === "crown" ? <CrownArtwork size={gift.size} /> : hasGiftImage(gift.id) ? <GiftImageArtwork gift={gift.id} size={gift.size} /> : <Text style={[styles.giftEmoji, { fontSize: gift.size }]}>{gift.emoji}</Text>}
+                    </View>
+                    <Text style={[styles.giftName, localizedTextStyle()]} numberOfLines={1}>{gift.name}</Text>
+                    <View style={styles.giftCost}>
+                      <GoldCoinIcon size={11} />
+                      <Text style={[styles.giftCoins, !canAfford && styles.giftCoinsDisabled]}>
+                        {gift.coins}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={[styles.sendButton, !canSend && styles.sendDisabled]}>
                   <Text style={[styles.sendText, localizedTextStyle()]}>{t("Send")}</Text>
-                </TouchableOpacity>
-              </View>
+                  </View>
+              </TouchableOpacity>
               </View>
             );
           })}
