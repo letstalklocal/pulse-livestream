@@ -1,0 +1,419 @@
+{
+  "schemaVersion": 1,
+  "developmentOnly": false,
+  "target": "x86_64-unknown-linux-gnu",
+  "sourceCommit": "a956835d020762cb2b570053af06f643a11c0ecc",
+  "sourceManifestSha256": "e2f6b124f6277e7c3c4f5c7cc8830c66190f671ad65e972bb2cc9507dbfcb937",
+  "inventorySha256": "46f25c768face6fccbc9d3f26933368184dc48f5b1b91f7c9cc93f9aacd96bff",
+  "libraries": [
+    {
+      "path": "lib/gstreamer-1.0/libgstapp.so",
+      "sourcePath": "lib/gstreamer-1.0/libgstapp.so",
+      "sourceSha256": "d9e4f502e5c2aeb2e9470d5efaa5a8657cb9bacddce106bc88facea92becb366",
+      "sha256": "d9e4f502e5c2aeb2e9470d5efaa5a8657cb9bacddce106bc88facea92becb366",
+      "imports": [
+        "libgstapp-1.0.so.0",
+        "libgsttag-1.0.so.0",
+        "libgstbase-1.0.so.0",
+        "libgstreamer-1.0.so.0",
+        "libgobject-2.0.so.0",
+        "libglib-2.0.so.0",
+        "libintl.so.8",
+        "libm.so.6",
+        "libz.so.1",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/gstreamer-1.0/libgstaudioconvert.so",
+      "sourcePath": "lib/gstreamer-1.0/libgstaudioconvert.so",
+      "sourceSha256": "683202e93824c36fa7acecd9de6df2ad891110ebbc959baebe02ed4e873d3c50",
+      "sha256": "683202e93824c36fa7acecd9de6df2ad891110ebbc959baebe02ed4e873d3c50",
+      "imports": [
+        "libgstaudio-1.0.so.0",
+        "libgsttag-1.0.so.0",
+        "libgstbase-1.0.so.0",
+        "libgstreamer-1.0.so.0",
+        "libgobject-2.0.so.0",
+        "libglib-2.0.so.0",
+        "libintl.so.8",
+        "libm.so.6",
+        "libz.so.1",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/gstreamer-1.0/libgstaudioresample.so",
+      "sourcePath": "lib/gstreamer-1.0/libgstaudioresample.so",
+      "sourceSha256": "fffe83239de05df3f6acaf9203231b1b37ab39fe17aaf4cf8516de99aa5ca1ba",
+      "sha256": "fffe83239de05df3f6acaf9203231b1b37ab39fe17aaf4cf8516de99aa5ca1ba",
+      "imports": [
+        "libgstaudio-1.0.so.0",
+        "libgsttag-1.0.so.0",
+        "libgstbase-1.0.so.0",
+        "libgstreamer-1.0.so.0",
+        "libgobject-2.0.so.0",
+        "libglib-2.0.so.0",
+        "libintl.so.8",
+        "libm.so.6",
+        "libz.so.1",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/gstreamer-1.0/libgstcoreelements.so",
+      "sourcePath": "lib/gstreamer-1.0/libgstcoreelements.so",
+      "sourceSha256": "44356d5e6867acdd76966aa5395428f63b4954389e85e0f748564d5989422aa1",
+      "sha256": "44356d5e6867acdd76966aa5395428f63b4954389e85e0f748564d5989422aa1",
+      "imports": [
+        "libpthread.so.0",
+        "libgstreamer-1.0.so.0",
+        "libgstbase-1.0.so.0",
+        "libglib-2.0.so.0",
+        "libintl.so.8",
+        "libgobject-2.0.so.0",
+        "libgmodule-2.0.so.0",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/gstreamer-1.0/libgstopus.so",
+      "sourcePath": "lib/gstreamer-1.0/libgstopus.so",
+      "sourceSha256": "39874376534b8d5f72fe6bbe62f4df258e33dba76a2f66bf5f3389940aa4f752",
+      "sha256": "39874376534b8d5f72fe6bbe62f4df258e33dba76a2f66bf5f3389940aa4f752",
+      "imports": [
+        "libgstpbutils-1.0.so.0",
+        "libgstvideo-1.0.so.0",
+        "libgstallocators-1.0.so.0",
+        "libgstaudio-1.0.so.0",
+        "libgsttag-1.0.so.0",
+        "libgstreamer-1.0.so.0",
+        "libgobject-2.0.so.0",
+        "libglib-2.0.so.0",
+        "libintl.so.8",
+        "libgstbase-1.0.so.0",
+        "libm.so.6",
+        "libz.so.1",
+        "libopus.so.0",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/gstreamer-1.0/libgstrtp.so",
+      "sourcePath": "lib/gstreamer-1.0/libgstrtp.so",
+      "sourceSha256": "7a4599d312c3a00a1794f9b99481ac147cee7554b6d36d1479df6b7fd019b2a8",
+      "sha256": "7a4599d312c3a00a1794f9b99481ac147cee7554b6d36d1479df6b7fd019b2a8",
+      "imports": [
+        "libgstbase-1.0.so.0",
+        "libgstreamer-1.0.so.0",
+        "libgobject-2.0.so.0",
+        "libglib-2.0.so.0",
+        "libintl.so.8",
+        "libgstaudio-1.0.so.0",
+        "libgstvideo-1.0.so.0",
+        "libgsttag-1.0.so.0",
+        "libgstrtp-1.0.so.0",
+        "libgstpbutils-1.0.so.0",
+        "libm.so.6",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/gstreamer-1.0/libgstrtpmanager.so",
+      "sourcePath": "lib/gstreamer-1.0/libgstrtpmanager.so",
+      "sourceSha256": "c1f55dad0daedc45b189e970a46519bb065420f704c2265d95e040686b6adebb",
+      "sha256": "c1f55dad0daedc45b189e970a46519bb065420f704c2265d95e040686b6adebb",
+      "imports": [
+        "libgstbase-1.0.so.0",
+        "libgstreamer-1.0.so.0",
+        "libgobject-2.0.so.0",
+        "libglib-2.0.so.0",
+        "libintl.so.8",
+        "libgstnet-1.0.so.0",
+        "libgstrtp-1.0.so.0",
+        "libgstaudio-1.0.so.0",
+        "libgio-2.0.so.0",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/libffi.so.8",
+      "sourcePath": "lib/libffi.so.8.5.0",
+      "sourceSha256": "6ef5db59b2e4b1eb63032fa6c8afb1669bc09b073789233c379efda85b1353db",
+      "sha256": "6ef5db59b2e4b1eb63032fa6c8afb1669bc09b073789233c379efda85b1353db",
+      "imports": [
+        "libpthread.so.0",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/libgio-2.0.so.0",
+      "sourcePath": "lib/libgio-2.0.so.0.8800.3",
+      "sourceSha256": "3b3cc57ae7b680ba5efd0ff9fdcabb9fe324a76d2242762ba6ac3b6240e1a7ab",
+      "sha256": "3b3cc57ae7b680ba5efd0ff9fdcabb9fe324a76d2242762ba6ac3b6240e1a7ab",
+      "imports": [
+        "libpthread.so.0",
+        "libglib-2.0.so.0",
+        "libgobject-2.0.so.0",
+        "libgmodule-2.0.so.0",
+        "libz.so.1",
+        "libintl.so.8",
+        "libresolv.so.2",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/libglib-2.0.so.0",
+      "sourcePath": "lib/libglib-2.0.so.0.8800.3",
+      "sourceSha256": "edfa7989861b231b46b564dbad9e0445bd6788e088f1ab60f0a85c4a61428a44",
+      "sha256": "edfa7989861b231b46b564dbad9e0445bd6788e088f1ab60f0a85c4a61428a44",
+      "imports": [
+        "libpthread.so.0",
+        "libintl.so.8",
+        "libm.so.6",
+        "libpcre2-8.so.0",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/libgmodule-2.0.so.0",
+      "sourcePath": "lib/libgmodule-2.0.so.0.8800.3",
+      "sourceSha256": "e8e87e59f24569ad3c20b039eefce03aea811eee10352904e33b726e53f8d22f",
+      "sha256": "e8e87e59f24569ad3c20b039eefce03aea811eee10352904e33b726e53f8d22f",
+      "imports": [
+        "libpthread.so.0",
+        "libdl.so.2",
+        "libglib-2.0.so.0",
+        "libintl.so.8",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/libgobject-2.0.so.0",
+      "sourcePath": "lib/libgobject-2.0.so.0.8800.3",
+      "sourceSha256": "5e3fcf7f22575d0c3295589ae44d07b3bef234aa18ee8aea45317a7380783b16",
+      "sha256": "5e3fcf7f22575d0c3295589ae44d07b3bef234aa18ee8aea45317a7380783b16",
+      "imports": [
+        "libglib-2.0.so.0",
+        "libffi.so.8",
+        "libintl.so.8",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/libgstallocators-1.0.so.0",
+      "sourcePath": "lib/libgstallocators-1.0.so.0.2806.0",
+      "sourceSha256": "43873f69fa9e165c375ad9bfe3b13a12610c34765a4fed2a734c1a174e9ffa74",
+      "sha256": "43873f69fa9e165c375ad9bfe3b13a12610c34765a4fed2a734c1a174e9ffa74",
+      "imports": [
+        "libpthread.so.0",
+        "libgstreamer-1.0.so.0",
+        "libgobject-2.0.so.0",
+        "libglib-2.0.so.0",
+        "libintl.so.8",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/libgstapp-1.0.so.0",
+      "sourcePath": "lib/libgstapp-1.0.so.0.2806.0",
+      "sourceSha256": "0b06343f03ac90e03345ceee1a69121676bead76b87df9c2c3ebadb3acc5cdc2",
+      "sha256": "0b06343f03ac90e03345ceee1a69121676bead76b87df9c2c3ebadb3acc5cdc2",
+      "imports": [
+        "libpthread.so.0",
+        "libgstbase-1.0.so.0",
+        "libgstreamer-1.0.so.0",
+        "libgobject-2.0.so.0",
+        "libglib-2.0.so.0",
+        "libintl.so.8",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/libgstaudio-1.0.so.0",
+      "sourcePath": "lib/libgstaudio-1.0.so.0.2806.0",
+      "sourceSha256": "864c5ee92de639bc699c354b548eab085aa222e87e0051918db31c86b741d5d4",
+      "sha256": "864c5ee92de639bc699c354b548eab085aa222e87e0051918db31c86b741d5d4",
+      "imports": [
+        "libpthread.so.0",
+        "libgsttag-1.0.so.0",
+        "libgstreamer-1.0.so.0",
+        "libgobject-2.0.so.0",
+        "libglib-2.0.so.0",
+        "libintl.so.8",
+        "libgstbase-1.0.so.0",
+        "libm.so.6",
+        "libz.so.1",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/libgstbase-1.0.so.0",
+      "sourcePath": "lib/libgstbase-1.0.so.0.2806.0",
+      "sourceSha256": "e215a5fcd03f52f4492a898a582217d8033c32e730f9221989c9e19032b99a6f",
+      "sha256": "e215a5fcd03f52f4492a898a582217d8033c32e730f9221989c9e19032b99a6f",
+      "imports": [
+        "libpthread.so.0",
+        "libgstreamer-1.0.so.0",
+        "libglib-2.0.so.0",
+        "libintl.so.8",
+        "libgobject-2.0.so.0",
+        "libgmodule-2.0.so.0",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/libgstnet-1.0.so.0",
+      "sourcePath": "lib/libgstnet-1.0.so.0.2806.0",
+      "sourceSha256": "9d19251c9b72b9c9049cc157f9a921fdc527111b0a4d349d87385a7bd3d2663f",
+      "sha256": "9d19251c9b72b9c9049cc157f9a921fdc527111b0a4d349d87385a7bd3d2663f",
+      "imports": [
+        "libpthread.so.0",
+        "libgstbase-1.0.so.0",
+        "libgstreamer-1.0.so.0",
+        "libgio-2.0.so.0",
+        "libgobject-2.0.so.0",
+        "libglib-2.0.so.0",
+        "libintl.so.8",
+        "libgmodule-2.0.so.0",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/libgstpbutils-1.0.so.0",
+      "sourcePath": "lib/libgstpbutils-1.0.so.0.2806.0",
+      "sourceSha256": "b07f4b00770e3f9a5700803374995717ad76b7f045bd15b4d401f3b83d2d379f",
+      "sha256": "b07f4b00770e3f9a5700803374995717ad76b7f045bd15b4d401f3b83d2d379f",
+      "imports": [
+        "libpthread.so.0",
+        "libgstvideo-1.0.so.0",
+        "libgstallocators-1.0.so.0",
+        "libgstaudio-1.0.so.0",
+        "libgsttag-1.0.so.0",
+        "libgstreamer-1.0.so.0",
+        "libgobject-2.0.so.0",
+        "libglib-2.0.so.0",
+        "libintl.so.8",
+        "libgstbase-1.0.so.0",
+        "libm.so.6",
+        "libz.so.1",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/libgstreamer-1.0.so.0",
+      "sourcePath": "lib/libgstreamer-1.0.so.0.2806.0",
+      "sourceSha256": "ebcbaaaad2bf51f483cd543aa3579cb77b8a128b835152a1481429324fbe98be",
+      "sha256": "ebcbaaaad2bf51f483cd543aa3579cb77b8a128b835152a1481429324fbe98be",
+      "imports": [
+        "libpthread.so.0",
+        "libdl.so.2",
+        "libgobject-2.0.so.0",
+        "libglib-2.0.so.0",
+        "libintl.so.8",
+        "libgmodule-2.0.so.0",
+        "libm.so.6",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/libgstrtp-1.0.so.0",
+      "sourcePath": "lib/libgstrtp-1.0.so.0.2806.0",
+      "sourceSha256": "bb5d6207c907f0906fbc8a48262149be2953041f0124b556aa3ec2b511d4b97e",
+      "sha256": "bb5d6207c907f0906fbc8a48262149be2953041f0124b556aa3ec2b511d4b97e",
+      "imports": [
+        "libpthread.so.0",
+        "libgstaudio-1.0.so.0",
+        "libgsttag-1.0.so.0",
+        "libgstbase-1.0.so.0",
+        "libgstreamer-1.0.so.0",
+        "libgobject-2.0.so.0",
+        "libglib-2.0.so.0",
+        "libintl.so.8",
+        "libm.so.6",
+        "libz.so.1",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/libgsttag-1.0.so.0",
+      "sourcePath": "lib/libgsttag-1.0.so.0.2806.0",
+      "sourceSha256": "7b0931a2f006733cb7a2b5729b34dc5257b7f3e46cd8a2770bb0d01086af56c7",
+      "sha256": "7b0931a2f006733cb7a2b5729b34dc5257b7f3e46cd8a2770bb0d01086af56c7",
+      "imports": [
+        "libgstbase-1.0.so.0",
+        "libgstreamer-1.0.so.0",
+        "libgobject-2.0.so.0",
+        "libglib-2.0.so.0",
+        "libintl.so.8",
+        "libm.so.6",
+        "libz.so.1",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/libgstvideo-1.0.so.0",
+      "sourcePath": "lib/libgstvideo-1.0.so.0.2806.0",
+      "sourceSha256": "7f10b05f6716115b5b2a7eb284dfc8136d653d940ba253d10d269fcfd7527cd7",
+      "sha256": "7f10b05f6716115b5b2a7eb284dfc8136d653d940ba253d10d269fcfd7527cd7",
+      "imports": [
+        "libgstallocators-1.0.so.0",
+        "libgstreamer-1.0.so.0",
+        "libgobject-2.0.so.0",
+        "libglib-2.0.so.0",
+        "libintl.so.8",
+        "libgstbase-1.0.so.0",
+        "libm.so.6",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/libintl.so.8",
+      "sourcePath": "lib/libintl.so.8",
+      "sourceSha256": "f50f3ab34be7b3392f2db82bd67d50e133b35fa41d352dc3b3a97b70b0ffd960",
+      "sha256": "f50f3ab34be7b3392f2db82bd67d50e133b35fa41d352dc3b3a97b70b0ffd960",
+      "imports": [
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/libopus.so.0",
+      "sourcePath": "lib/libopus.so.0.11.1",
+      "sourceSha256": "a14170fac3704ed2ef79e030c6fc85ea7058a2d6e9f3cfacd8f47a6f63deb976",
+      "sha256": "a14170fac3704ed2ef79e030c6fc85ea7058a2d6e9f3cfacd8f47a6f63deb976",
+      "imports": [
+        "libm.so.6",
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/libpcre2-8.so.0",
+      "sourcePath": "lib/libpcre2-8.so.0.15.0",
+      "sourceSha256": "e39519b242f40686734ed8d0218f68cac24f0e956ec64c8c1b49b9da5cc9788b",
+      "sha256": "e39519b242f40686734ed8d0218f68cac24f0e956ec64c8c1b49b9da5cc9788b",
+      "imports": [
+        "libc.so.6"
+      ]
+    },
+    {
+      "path": "lib/libz.so.1",
+      "sourcePath": "lib/libz.so.1.3.2",
+      "sourceSha256": "6c5d765f42d9368cc4bdbd11f725c1bcf6b14b78322033d3c94f787fc6261f5e",
+      "sha256": "6c5d765f42d9368cc4bdbd11f725c1bcf6b14b78322033d3c94f787fc6261f5e",
+      "imports": [
+        "libpthread.so.0",
+        "libc.so.6"
+      ]
+    }
+  ],
+  "plugins": [
+    "lib/gstreamer-1.0/libgstapp.so",
+    "lib/gstreamer-1.0/libgstaudioconvert.so",
+    "lib/gstreamer-1.0/libgstaudioresample.so",
+    "lib/gstreamer-1.0/libgstcoreelements.so",
+    "lib/gstreamer-1.0/libgstopus.so",
+    "lib/gstreamer-1.0/libgstrtp.so",
+    "lib/gstreamer-1.0/libgstrtpmanager.so"
+  ],
+  "distribution": "publicRelease"
+}
