@@ -14,3 +14,4 @@
 - [Private live payment escrow](private-live-payment-escrow.md) — hold paid 1-to-1 admission in escrow; settle only after durable start or refund after five minutes.
 - [RevenueCat UI pnpm dependency](revenuecat-ui-pnpm-dependency.md) — RevenueCat UI 10.9.1 needs its hybrid mappings package declared directly for Metro bundling.
 - [Codex home session history](codex-home-session-history.md) — changing CODEX_HOME selects a separate Codex history store; preserve or migrate the old home rather than treating it as a daemon-only setting.
+- [Expo Launch build numbers](expo-launch-build-numbers.md) — use App Store Connect’s previousBundleVersion from failure logs as the authority when Launch submits a duplicate build.

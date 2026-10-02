@@ -8,7 +8,7 @@
     "scheme": "mobile",
     "userInterfaceStyle": "dark",
     "ios": {
-      "buildNumber": "15",
+      "buildNumber": "30",
       "bundleIdentifier": "com.chimba.livestream",
       "supportsTablet": false,
       "infoPlist": {
