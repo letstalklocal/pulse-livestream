@@ -13,3 +13,4 @@
 - [Paid live session identity](paid-live-session-identity.md) — bind paid admission to an immutable durable live session created before any Agora token is issued.
 - [Private live payment escrow](private-live-payment-escrow.md) — hold paid 1-to-1 admission in escrow; settle only after durable start or refund after five minutes.
 - [RevenueCat UI pnpm dependency](revenuecat-ui-pnpm-dependency.md) — RevenueCat UI 10.9.1 needs its hybrid mappings package declared directly for Metro bundling.
+- [Codex home session history](codex-home-session-history.md) — changing CODEX_HOME selects a separate Codex history store; preserve or migrate the old home rather than treating it as a daemon-only setting.
