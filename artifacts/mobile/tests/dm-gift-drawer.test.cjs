@@ -42,6 +42,7 @@ const baseline = require('node:child_process').execFileSync('git', ['show', 'HEA
 function keyboardSignature(text) {
   const tree = ts.createSourceFile('dm.tsx', text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX), result = [];
   function visit(node) {
+    if (ts.isJsxElement(node) && node.openingElement.tagName.getText(tree) === 'Modal' && node.openingElement.attributes.properties.some(prop => prop.name?.getText(tree) === 'testID' && prop.initializer?.text === 'dm-edit-message')) return;
     if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(tree) === 'TextInput') result.push(node.getText(tree));
     if (ts.isJsxOpeningElement(node) && node.tagName.getText(tree) === 'KeyboardAvoidingView') result.push(node.getText(tree));
     if (ts.isJsxAttribute(node) && node.name.getText(tree) === 'onReply') result.push(node.getText(tree));

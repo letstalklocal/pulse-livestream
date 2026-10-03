@@ -11,7 +11,7 @@ import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import type { DmMessage } from "@/context/RtmContext";
 
-export function DirectMediaMessage({ message, mine }: { message: DmMessage; mine: boolean }) {
+export function DirectMediaMessage({ message, mine, onLongPress }: { message: DmMessage; mine: boolean; onLongPress?: () => void }) {
   const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const colors = useColors();
   const { user } = useAuth();
@@ -85,7 +85,7 @@ export function DirectMediaMessage({ message, mine }: { message: DmMessage; mine
   return (
     <View style={[styles.wrapper, mine ? styles.wrapperMe : styles.wrapperThem, { borderColor: colors.border }]}>
       {mine ? <View pointerEvents="none" style={{ position: "absolute", right: 8, bottom: 8, zIndex: 1, backgroundColor: "rgba(0,0,0,0.5)", borderRadius: 8, paddingHorizontal: 4 }}><Ionicons name="checkmark-done" size={16} color={message.readAt != null ? "#FFF" : "rgba(255,255,255,0.45)"} accessibilityLabel={message.readAt != null ? t("Read") : t("Sent")} /></View> : null}
-      <TouchableOpacity activeOpacity={0.8} onPress={handlePress} accessibilityLabel={canView ? t("View media") : t("Unlock media for {v0} coins", { v0: price })} testID={`media-msg-${message.messageId}`}>
+      <TouchableOpacity activeOpacity={0.8} onPress={handlePress} onLongPress={isFree ? onLongPress : undefined} accessibilityLabel={canView ? t("View media") : t("Unlock media for {v0} coins", { v0: price })} testID={`media-msg-${message.messageId}`}>
         {canView ? (
           <>
             {message.mediaType === "video" ? (

@@ -1020,5 +1020,12 @@
   "Strawberry": "Stroberi",
   "Tap Send below a gift.": "Ketuk Kirim di bawah hadiah.",
   "Select a gift, then tap Send.": "Pilih hadiah, lalu ketuk Kirim.",
-  "Popular": "Populer"
+  "Popular": "Populer",
+  "Edit": "Edit",
+  "Edit message": "Edit pesan",
+  "Edited": "Diedit",
+  "Delete message?": "Hapus pesan?",
+  "Delete for everyone": "Hapus untuk semua orang",
+  "Delete for me": "Hapus untuk saya",
+  "Couldn't update message": "Tidak dapat memperbarui pesan"
 }

@@ -31,7 +31,7 @@ router.post("/translation/messages", async (req, res) => {
   if (kind === "dm") {
     if (!/^[1-9]\d{0,9}$/.test(messageId) || Number(messageId) > 2147483647) return void res.status(404).json({ error: "Message not found" });
     const message = (await db.select().from(directMessagesTable).where(eq(directMessagesTable.id, Number(messageId))).limit(1))[0];
-    if (!message || ![message.fromUserId, message.toUserId].includes(viewer.uid) || message.kind !== "text") return void res.status(404).json({ error: "Message not found" });
+    if (!message || ![message.fromUserId, message.toUserId].includes(viewer.uid) || message.kind !== "text" || message.deletedAt || (viewer.uid === message.fromUserId ? message.hiddenFromUserAt : message.hiddenToUserAt)) return void res.status(404).json({ error: "Message not found" });
     text = message.text;
   } else {
     if (typeof channelId !== "string" || channelId.length > 200 || !await canAccessChannel(channelId, viewer.clerkId)) return void res.status(404).json({ error: "Message not found" });

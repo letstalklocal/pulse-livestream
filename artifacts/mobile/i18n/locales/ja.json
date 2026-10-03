@@ -1020,5 +1020,12 @@
   "Strawberry": "イチゴ",
   "Tap Send below a gift.": "ギフトの下の「送信」をタップしてください。",
   "Select a gift, then tap Send.": "ギフトを選んでから「送信」をタップしてください。",
-  "Popular": "人気"
+  "Popular": "人気",
+  "Edit": "編集",
+  "Edit message": "メッセージを編集",
+  "Edited": "編集済み",
+  "Delete message?": "メッセージを削除しますか？",
+  "Delete for everyone": "全員から削除",
+  "Delete for me": "自分からのみ削除",
+  "Couldn't update message": "メッセージを更新できませんでした"
 }

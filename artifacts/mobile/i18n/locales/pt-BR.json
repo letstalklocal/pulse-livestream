@@ -1020,5 +1020,12 @@
   "Strawberry": "Morango",
   "Tap Send below a gift.": "Toque em Enviar abaixo de um presente.",
   "Select a gift, then tap Send.": "Selecione um presente e toque em Enviar.",
-  "Popular": "Populares"
+  "Popular": "Populares",
+  "Edit": "Editar",
+  "Edit message": "Editar mensagem",
+  "Edited": "Editado",
+  "Delete message?": "Excluir mensagem?",
+  "Delete for everyone": "Excluir para todos",
+  "Delete for me": "Excluir para mim",
+  "Couldn't update message": "Não foi possível atualizar a mensagem"
 }

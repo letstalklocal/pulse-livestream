@@ -29,6 +29,10 @@ export const directMessagesTable = pgTable(
     idempotencyKey: text("idempotency_key"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     readAt: timestamp("read_at"),
+    editedAt: timestamp("edited_at"),
+    deletedAt: timestamp("deleted_at"),
+    hiddenFromUserAt: timestamp("hidden_from_user_at"),
+    hiddenToUserAt: timestamp("hidden_to_user_at"),
     replyToMessageId: integer("reply_to_message_id").references((): AnyPgColumn => directMessagesTable.id, { onDelete: "set null" }),
   },
   (table) => [

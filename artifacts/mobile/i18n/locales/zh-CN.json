@@ -1020,5 +1020,12 @@
   "Strawberry": "草莓",
   "Tap Send below a gift.": "点击礼物下方的“发送”。",
   "Select a gift, then tap Send.": "选择礼物，然后点击“发送”。",
-  "Popular": "热门"
+  "Popular": "热门",
+  "Edit": "编辑",
+  "Edit message": "编辑消息",
+  "Edited": "已编辑",
+  "Delete message?": "删除消息？",
+  "Delete for everyone": "为所有人删除",
+  "Delete for me": "仅为我删除",
+  "Couldn't update message": "无法更新消息"
 }

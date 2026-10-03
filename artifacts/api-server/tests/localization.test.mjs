@@ -48,6 +48,8 @@ try {
  const signatures=(file,source)=>{
   const a=ts.createSourceFile(file,source,99,true,4),result=[];
   function walk(n){
+   // User-approved separate message editor; DM action tests cover edits without replacing the chat composer.
+   if(file.endsWith('/app/dm/[peerId].tsx')&&ts.isJsxElement(n)&&n.openingElement.tagName.getText(a)==='Modal'&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&p.initializer?.text==='dm-edit-message'))return;
    // giftName here is a visual style, not a payment payload identifier.
    if(file.endsWith('/components/GiftPicker.tsx')&&ts.isPropertyAssignment(n)&&n.name.getText(a)==='giftName'&&ts.isObjectLiteralExpression(n.initializer))return;
    // Approved explicit gift Send controls; drawer tests verify accidental-tap protection.

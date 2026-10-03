@@ -1020,5 +1020,12 @@
   "Strawberry": "Strawberry",
   "Tap Send below a gift.": "Tap Send below a gift.",
   "Select a gift, then tap Send.": "Select a gift, then tap Send.",
-  "Popular": "Popular"
+  "Popular": "Popular",
+  "Edit": "Edit",
+  "Edit message": "Edit message",
+  "Edited": "Edited",
+  "Delete message?": "Delete message?",
+  "Delete for everyone": "Delete for everyone",
+  "Delete for me": "Delete for me",
+  "Couldn't update message": "Couldn't update message"
 }

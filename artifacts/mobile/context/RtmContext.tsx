@@ -22,6 +22,8 @@ export interface DmMessage {
   text: string;
   ts: number;
   readAt?: number | null;
+  editedAt?: number | null;
+  deletedAt?: number | null;
   replyTo?: { messageId: string; senderId: string; senderName: string; text: string };
   kind?: "text" | "media_pack" | "media" | "private_stream_invitation";
   mediaPackId?: string;
@@ -61,6 +63,8 @@ interface RtmContextValue {
   sendDm: (peerId: string, peerName: string, text: string, replyToMessageId?: string) => Promise<{ ok: boolean; error?: string }>;
   markRead: (peerId: string) => void;
   refreshMessages: () => Promise<void>;
+  editDm: (messageId: string, text: string) => Promise<{ ok: boolean; error?: string }>;
+  deleteDm: (messageId: string, scope: "everyone" | "me") => Promise<{ ok: boolean; error?: string }>;
 }
 
 const RtmContext = createContext<RtmContextValue>({
@@ -71,9 +75,12 @@ const RtmContext = createContext<RtmContextValue>({
   sendDm: async () => ({ ok: false, error: "Not connected" }),
   markRead: () => {},
   refreshMessages: async () => {},
+  editDm: async () => ({ ok: false }),
+  deleteDm: async () => ({ ok: false }),
 });
 
 const messageStore: Record<string, DmMessage[]> = {};
+const EMPTY_DM_MESSAGES: DmMessage[] = [];
 
 export function RtmProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -85,6 +92,7 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
 
   const getTokenRef = useRef(getToken);
   const syncedMessageIdsRef = useRef(new Set<string>());
+  const visibleMessagesRef = useRef(new Map<string, { source: DmMessage[]; visible: DmMessage[] }>());
   const initialSyncCompleteRef = useRef(false);
   const syncMessagesRef = useRef<() => Promise<void>>(async () => {});
 
@@ -133,7 +141,9 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
     if (wasAlreadySynced && message.kind !== "private_stream_invitation") {
       const peer=message.senderId===uidStr?message.recipientId:message.senderId;
       const previous=messageStore[peer]?.find(item=>item.messageId===message.id);
-      if(previous?.readAt===message.readAt && JSON.stringify(previous?.replyTo)===JSON.stringify(message.replyTo))return;
+      // A poll started before a mutation must not resurrect or revert its result.
+      if (previous?.deletedAt && !message.deletedAt || (previous?.editedAt ?? 0) > (message.editedAt ?? 0)) return;
+      if(previous?.readAt===message.readAt && previous?.text===message.text && previous?.editedAt===message.editedAt && previous?.deletedAt===message.deletedAt && JSON.stringify(previous?.replyTo)===JSON.stringify(message.replyTo))return;
     }
     syncedMessageIdsRef.current.add(message.id);
 
@@ -147,6 +157,8 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
       text: message.text,
       ts: message.ts,
       readAt: message.readAt,
+      editedAt: message.editedAt,
+      deletedAt: message.deletedAt,
       replyTo: message.replyTo,
       kind: message.kind,
       mediaPackId: message.mediaPackId,
@@ -160,10 +172,21 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
 
     const peerMessages = [...(messageStore[peerId] ?? [])];
     const priorIndex = peerMessages.findIndex((item) => item.messageId === stored.messageId);
+    const previouslyUnread = priorIndex >= 0 && !peerMessages[priorIndex]!.deletedAt && peerMessages[priorIndex]!.readAt == null;
     if (priorIndex >= 0) peerMessages[priorIndex] = stored;
     else peerMessages.push(stored);
     peerMessages.sort((a, b) => a.ts - b.ts);
     messageStore[peerId] = peerMessages;
+    if (message.deletedAt) {
+      const latest = peerMessages.filter(item => !item.deletedAt).at(-1);
+      setConversations(previous => latest ? previous.map(conversation => conversation.peerId === peerId ? {
+        ...conversation, lastTs: latest.ts,
+        lastMessage: latest.kind === "media" ? "Media" : latest.kind === "media_pack" ? "Media pack" : latest.kind === "private_stream_invitation" ? "Private live invitation" : latest.text,
+        unread: Math.max(0, conversation.unread - (isIncoming && wasAlreadySynced && previouslyUnread ? 1 : 0)),
+      } : conversation).sort((a, b) => b.lastTs - a.lastTs) : previous.filter(conversation => conversation.peerId !== peerId));
+      setTick(tick => tick + 1);
+      return;
+    }
     upsertConversation(
       peerId,
       peerName,
@@ -176,6 +199,7 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     syncedMessageIdsRef.current.clear();
+    visibleMessagesRef.current.clear();
     initialSyncCompleteRef.current = false;
     for (const peerId of Object.keys(messageStore)) delete messageStore[peerId];
     setConversations([]);
@@ -262,8 +286,31 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
   }, [uidStr, storePersistedMessage]);
 
   const getMessages = useCallback((peerId: string): DmMessage[] => {
-    return messageStore[peerId] ?? [];
+    const source = messageStore[peerId];
+    if (!source) return EMPTY_DM_MESSAGES;
+    const cached = visibleMessagesRef.current.get(peerId);
+    if (cached?.source === source) return cached.visible;
+    const visible = source.filter(message => !message.deletedAt);
+    visibleMessagesRef.current.set(peerId, { source, visible });
+    return visible;
   }, []);
+
+  const updateDm = useCallback(async (messageId: string, method: "PATCH" | "DELETE", body: object) => {
+    try {
+      const token = await getTokenRef.current();
+      if (!token || !uidStr) return { ok: false, error: "Please sign in again." };
+      const response = await fetch(`${BASE_URL}/api/dms/${encodeURIComponent(messageId)}`, {
+        method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body),
+      });
+      const data = await response.json() as { message?: PersistedDm; error?: string };
+      if (!response.ok || !data.message) return { ok: false, error: data.error ?? "Message could not be updated." };
+      storePersistedMessage(data.message, false);
+      void syncMessagesRef.current().catch(() => undefined);
+      return { ok: true };
+    } catch { return { ok: false, error: "Message could not be updated. Please try again." }; }
+  }, [uidStr, storePersistedMessage]);
+  const editDm = useCallback((messageId: string, text: string) => updateDm(messageId, "PATCH", { text }), [updateDm]);
+  const deleteDm = useCallback((messageId: string, scope: "everyone" | "me") => updateDm(messageId, "DELETE", { scope }), [updateDm]);
 
   const readRequests=useRef(new Map<string,number>());
   const markRead = useCallback((peerId: string) => {
@@ -272,15 +319,15 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
       readRequests.current.set(peerId,Date.now());
       void (async()=>{try {const token=await getTokenRef.current();if(token)await fetch(`${BASE_URL}/api/messages/peers/${encodeURIComponent(peerId)}/read`,{method:"POST",headers:{Authorization:`Bearer ${token}`}});}catch{}})();
     }
-    setConversations((prev) =>
-      prev.map((c) => c.peerId === peerId ? { ...c, unread: 0 } : c)
-    );
+    setConversations(previous => previous.some(conversation => conversation.peerId === peerId && conversation.unread !== 0)
+      ? previous.map(conversation => conversation.peerId === peerId ? { ...conversation, unread: 0 } : conversation)
+      : previous);
   }, []);
 
   const refreshMessages = useCallback(() => syncMessagesRef.current(), []);
 
   return (
-    <RtmContext.Provider value={{ ready, rtmError, conversations, getMessages, sendDm, markRead, refreshMessages }}>
+    <RtmContext.Provider value={{ ready, rtmError, conversations, getMessages, sendDm, markRead, refreshMessages, editDm, deleteDm }}>
       {children}
     </RtmContext.Provider>
   );

@@ -24,7 +24,8 @@ async function requireUser(req: any, res: any) {
 }
 
 async function messageResponse(message: typeof directMessagesTable.$inferSelect, names: Map<number, string>, viewerId: number, purchased: Set<number>, invitations = new Map<number, typeof privateStreamInvitationsTable.$inferSelect>(), shareRead = true) {
-  const isMedia = message.kind === "media";
+  const deletedAt = message.deletedAt ?? (viewerId === message.fromUserId ? message.hiddenFromUserAt : message.hiddenToUserAt);
+  const isMedia = message.kind === "media" && !deletedAt;
   const price = message.mediaPrice ?? 0;
   const unlocked = !isMedia || message.fromUserId === viewerId || price === 0 || purchased.has(message.id);
   const response: Record<string, unknown> = {
@@ -33,15 +34,17 @@ async function messageResponse(message: typeof directMessagesTable.$inferSelect,
     senderName: names.get(message.fromUserId) ?? String(message.fromUserId),
     recipientId: String(message.toUserId),
     recipientName: names.get(message.toUserId) ?? String(message.toUserId),
-    text: message.text,
+    text: deletedAt ? "" : message.text,
     kind: message.kind,
     mediaPackId: message.mediaPackId === null ? null : String(message.mediaPackId),
     ts: message.createdAt.getTime(),
+    editedAt: message.editedAt?.getTime() ?? null,
+    deletedAt: deletedAt?.getTime() ?? null,
     readAt: message.fromUserId !== viewerId || shareRead ? message.readAt?.getTime() ?? null : null,
   };
-  if (message.replyToMessageId) {
+  if (!deletedAt && message.replyToMessageId) {
     const [original] = await db.select().from(directMessagesTable).where(eq(directMessagesTable.id,message.replyToMessageId)).limit(1);
-    if (original && ((original.fromUserId === message.fromUserId && original.toUserId === message.toUserId) || (original.fromUserId === message.toUserId && original.toUserId === message.fromUserId))) {
+    if (original && !original.deletedAt && !(viewerId === original.fromUserId ? original.hiddenFromUserAt : original.hiddenToUserAt) && ((original.fromUserId === message.fromUserId && original.toUserId === message.toUserId) || (original.fromUserId === message.toUserId && original.toUserId === message.fromUserId))) {
       response.replyTo = { messageId: String(original.id), senderId: String(original.fromUserId), senderName: names.get(original.fromUserId) ?? String(original.fromUserId), text: original.kind === "text" ? original.text : original.kind === "media" ? (original.mediaContentType?.startsWith("video/") ? "Video" : "Photo") : original.kind === "media_pack" ? "Media pack" : "Private live invitation" };
     }
   }
@@ -125,6 +128,40 @@ router.get("/dms/:uid", async (req, res): Promise<any> => {
   res.json({ messages: await Promise.all(rows.reverse().map((message) => messageResponse(message, names, viewer.uid, purchased, invitationMap, receiptVisibility.get(message.toUserId) ?? true))) });
 });
 
+router.patch("/dms/:messageId", async (req, res): Promise<any> => {
+  const sender = await requireUser(req, res); if (!sender) return;
+  const messageId = Number(req.params.messageId);
+  const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
+  if (!Number.isSafeInteger(messageId) || messageId <= 0 || messageId > 2147483647 || !text || text.length > MAX_MESSAGE_LENGTH || text.startsWith("🎁")) return res.status(400).json({ error: "Invalid message edit" });
+  const [original] = await db.select().from(directMessagesTable).where(eq(directMessagesTable.id, messageId)).limit(1);
+  if (!original || original.fromUserId !== sender.uid || original.deletedAt || original.hiddenFromUserAt) return res.status(404).json({ error: "Message unavailable" });
+  if (original.kind !== "text" || original.text.startsWith("🎁")) return res.status(403).json({ error: "Only your text messages can be edited" });
+  if (!await requireContactAllowed(res, sender.uid, original.toUserId)) return;
+  const [message] = await db.update(directMessagesTable).set({ text, editedAt: new Date() })
+    .where(and(eq(directMessagesTable.id, messageId), eq(directMessagesTable.fromUserId, sender.uid), sql`${directMessagesTable.deletedAt} is null`)).returning();
+  if (!message) return res.status(404).json({ error: "Message unavailable" });
+  const names = new Map((await db.select({ uid: usersTable.uid, name: usersTable.name }).from(usersTable).where(inArray(usersTable.uid, [sender.uid, message.toUserId]))).map(user => [user.uid, user.name]));
+  const shareRead = (await db.select().from(messagePreferencesTable).where(eq(messagePreferencesTable.userId, message.toUserId)).limit(1))[0]?.readReceipts ?? true;
+  res.json({ message: await messageResponse(message, names, sender.uid, new Set(), undefined, shareRead) });
+});
+
+router.delete("/dms/:messageId", async (req, res): Promise<any> => {
+  const viewer = await requireUser(req, res); if (!viewer) return;
+  const messageId = Number(req.params.messageId);
+  const scope = req.body?.scope ?? "everyone";
+  if (!Number.isSafeInteger(messageId) || messageId <= 0 || messageId > 2147483647 || !["everyone", "me"].includes(scope)) return res.status(400).json({ error: "Invalid message deletion" });
+  const [original] = await db.select().from(directMessagesTable).where(eq(directMessagesTable.id, messageId)).limit(1);
+  if (!original || (original.fromUserId !== viewer.uid && original.toUserId !== viewer.uid)) return res.status(404).json({ error: "Message unavailable" });
+  if (scope === "everyone" && original.fromUserId !== viewer.uid) return res.status(403).json({ error: "Only the sender can delete for everyone" });
+  const eligible = original.kind === "text" && !original.text.startsWith("🎁") || original.kind === "media" && (original.mediaPrice ?? 0) === 0;
+  if (!eligible) return res.status(403).json({ error: "Paid media and gift receipts cannot be deleted" });
+  const changes = scope === "everyone" ? { deletedAt: original.deletedAt ?? new Date() }
+    : original.fromUserId === viewer.uid ? { hiddenFromUserAt: original.hiddenFromUserAt ?? new Date() }
+    : { hiddenToUserAt: original.hiddenToUserAt ?? new Date() };
+  const [message] = await db.update(directMessagesTable).set(changes).where(eq(directMessagesTable.id, messageId)).returning();
+  res.json({ message: await messageResponse(message!, new Map(), viewer.uid, new Set()) });
+});
+
 router.post("/dms/media", async (req, res): Promise<any> => {
   const sender = await requireUser(req, res); if (!sender) return;
   const { recipientId, objectPath, mediaType, contentType, width, height } = req.body ?? {};
@@ -176,7 +213,7 @@ router.post("/dms/:messageId/unlock", async (req, res): Promise<any> => {
     const result = await db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${idempotencyKey}))`);
       const message = (await tx.select().from(directMessagesTable).where(eq(directMessagesTable.id, messageId)).limit(1))[0];
-      if (!message || message.kind !== "media") return "missing" as const;
+      if (!message || message.kind !== "media" || message.deletedAt || (buyer.uid === message.toUserId && message.hiddenToUserAt)) return "missing" as const;
       if (message.toUserId !== buyer.uid) return "forbidden" as const;
       const balance = async () => (await tx.select({ balance: coinBalancesTable.balance }).from(coinBalancesTable).where(eq(coinBalancesTable.userId, buyer.uid)).limit(1))[0]?.balance ?? 0;
       const old = (await tx.select().from(directMediaPurchasesTable).where(eq(directMediaPurchasesTable.idempotencyKey, idempotencyKey)).limit(1))[0];
@@ -224,7 +261,7 @@ router.post("/dms", async (req, res) => {
   if (replyToMessageId !== null) {
     if (!Number.isSafeInteger(replyToMessageId) || replyToMessageId <= 0 || replyToMessageId > 2147483647) return void res.status(400).json({ error: "Invalid reply message." });
     const [original] = await db.select().from(directMessagesTable).where(eq(directMessagesTable.id,replyToMessageId)).limit(1);
-    if (!original || !((original.fromUserId === senderId && original.toUserId === recipientId) || (original.fromUserId === recipientId && original.toUserId === senderId))) return void res.status(404).json({ error: "The message you’re replying to is unavailable." });
+    if (!original || original.deletedAt || (senderId === original.fromUserId ? original.hiddenFromUserAt : original.hiddenToUserAt) || !((original.fromUserId === senderId && original.toUserId === recipientId) || (original.fromUserId === recipientId && original.toUserId === senderId))) return void res.status(404).json({ error: "The message you’re replying to is unavailable." });
   }
   const [message] = await db.insert(directMessagesTable).values({ fromUserId: senderId, toUserId: recipientId, text, replyToMessageId }).returning();
   if (!message) { res.status(500).json({ error: "Message could not be saved" }); return; }

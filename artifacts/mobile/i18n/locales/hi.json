@@ -1020,5 +1020,12 @@
   "Strawberry": "स्ट्रॉबेरी",
   "Tap Send below a gift.": "उपहार के नीचे भेजें पर टैप करें।",
   "Select a gift, then tap Send.": "उपहार चुनें, फिर भेजें पर टैप करें।",
-  "Popular": "लोकप्रिय"
+  "Popular": "लोकप्रिय",
+  "Edit": "संपादित करें",
+  "Edit message": "संदेश संपादित करें",
+  "Edited": "संपादित",
+  "Delete message?": "संदेश मिटाएँ?",
+  "Delete for everyone": "सभी के लिए मिटाएँ",
+  "Delete for me": "मेरे लिए मिटाएँ",
+  "Couldn't update message": "संदेश अपडेट नहीं हो सका"
 }

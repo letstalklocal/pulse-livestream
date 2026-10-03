@@ -1020,5 +1020,12 @@
   "Strawberry": "فراولة",
   "Tap Send below a gift.": "اضغط على إرسال أسفل الهدية.",
   "Select a gift, then tap Send.": "اختر هدية، ثم اضغط على إرسال.",
-  "Popular": "الأكثر رواجًا"
+  "Popular": "الأكثر رواجًا",
+  "Edit": "تعديل",
+  "Edit message": "تعديل الرسالة",
+  "Edited": "تم التعديل",
+  "Delete message?": "حذف الرسالة؟",
+  "Delete for everyone": "حذف لدى الجميع",
+  "Delete for me": "حذف لديّ",
+  "Couldn't update message": "تعذّر تحديث الرسالة"
 }

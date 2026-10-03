@@ -1020,5 +1020,12 @@
   "Strawberry": "Fraise",
   "Tap Send below a gift.": "Appuyez sur Envoyer sous un cadeau.",
   "Select a gift, then tap Send.": "Sélectionnez un cadeau, puis appuyez sur Envoyer.",
-  "Popular": "Populaires"
+  "Popular": "Populaires",
+  "Edit": "Modifier",
+  "Edit message": "Modifier le message",
+  "Edited": "Modifié",
+  "Delete message?": "Supprimer le message ?",
+  "Delete for everyone": "Supprimer pour tout le monde",
+  "Delete for me": "Supprimer pour moi",
+  "Couldn't update message": "Impossible de modifier le message"
 }

@@ -70,7 +70,7 @@ export default function DmScreen() {
     router.back();
   }, [router]);
   const { user } = useAuth();
-  const { getMessages, sendDm, markRead, conversations, refreshMessages } = useRtm();
+  const { getMessages, sendDm, markRead, conversations, refreshMessages, editDm, deleteDm } = useRtm();
   const queryClient = useQueryClient();
 
   const { peerId, peerName } = useLocalSearchParams<{ peerId: string; peerName: string }>();
@@ -328,6 +328,46 @@ export default function DmScreen() {
   }, [messages, myUidStr, queryClient, user?.uid]);
 
   const [sendError, setSendError] = useState<string | null>(null);
+  const [editingMessage, setEditingMessage] = useState<DmMessage | null>(null);
+  const [editText, setEditText] = useState("");
+  const [messageActionPending, setMessageActionPending] = useState(false);
+  useEffect(() => { setEditingMessage(null); setEditText(""); }, [peerIdStr]);
+  const removeMessage = async (message: DmMessage, scope: "everyone" | "me") => {
+    if (messageActionPending) return;
+    setMessageActionPending(true);
+    try {
+      const result = await deleteDm(message.messageId, scope);
+      if (!result.ok) Alert.alert(t("Couldn't update message"), t("Please try again."));
+      else if (replyTo?.messageId === message.messageId) setReplyTo(null);
+    } finally { setMessageActionPending(false); }
+  };
+  const showMessageOptions = (message: DmMessage, translate?: () => void) => {
+    if (messageActionPending) return;
+    const mine = message.senderId === myUidStr;
+    const text = !message.kind || message.kind === "text";
+    const freeMedia = message.kind === "media" && (message.price ?? 0) === 0;
+    if ((!text && !freeMedia) || message.text.startsWith("🎁")) return;
+    const deletion = () => Alert.alert(t("Delete message?"), undefined, [
+      ...(mine ? [{ text: t("Delete for everyone"), style: "destructive" as const, onPress: () => void removeMessage(message, "everyone") }] : []),
+      { text: t("Delete for me"), style: "destructive", onPress: () => void removeMessage(message, "me") },
+      { text: t("Cancel"), style: "cancel" },
+    ]);
+    Alert.alert(t("Message options"), undefined, [
+      ...(mine && text ? [{ text: t("Edit"), onPress: () => { setEditText(message.text); setEditingMessage(message); } }] : []),
+      { text: t("Delete"), style: "destructive", onPress: deletion },
+      ...(translate ? [{ text: t("Translate"), onPress: translate }] : []),
+      { text: t("Cancel"), style: "cancel" },
+    ]);
+  };
+  const saveMessageEdit = async () => {
+    if (!editingMessage || messageActionPending || !editText.trim()) return;
+    setMessageActionPending(true);
+    try {
+      const result = await editDm(editingMessage.messageId, editText);
+      if (result.ok) setEditingMessage(null);
+      else Alert.alert(t("Couldn't update message"), t("Please try again."));
+    } finally { setMessageActionPending(false); }
+  };
 
   const send = async () => {
     const text = inputText.trim();
@@ -474,7 +514,7 @@ export default function DmScreen() {
               ) : item.kind === "media_pack" && item.mediaPackId ? (
                 <MediaPackMessage packId={item.mediaPackId} mine={isMe} read={isMe && item.readAt != null} />
               ) : item.kind === "media" ? (
-                <DirectMediaMessage message={item} mine={isMe} />
+                <DirectMediaMessage message={item} mine={isMe} onLongPress={(item.price ?? 0) === 0 ? () => showMessageOptions(item) : undefined} />
               ) : <View
                 style={[
                   giftReceipt ? styles.giftMessage : styles.bubble,
@@ -490,7 +530,7 @@ export default function DmScreen() {
                   </View>
                   <View style={styles.giftMessageValue}><GoldCoinIcon size={14} /><Text style={styles.giftMessageCoins}>{appNumber(giftReceipt.coins)}</Text></View>
                   <Text style={[styles.giftMessageTime, localizedTextStyle(), { color: colors.mutedForeground }]}>{new Date(item.ts).toLocaleTimeString(appLocale(), { hour: "2-digit", minute: "2-digit" })}{isMe ? <> <Ionicons name="checkmark-done" size={16} color={item.readAt != null ? colors.foreground : colors.mutedForeground} accessibilityLabel={item.readAt != null ? t("Read") : t("Sent")} /></> : null}</Text>
-                </> : <TranslatedMessage trailing={<Text style={[localizedTextStyle(), { fontSize: 10, color: isMe ? "rgba(255,255,255,0.8)" : colors.mutedForeground }]}>{new Date(item.ts).toLocaleTimeString(appLocale(), { hour: "2-digit", minute: "2-digit" })}{isMe ? <> <Ionicons name="checkmark-done" size={16} color={item.readAt != null ? "#FFF" : "rgba(255,255,255,0.45)"} accessibilityLabel={item.readAt != null ? t("Read") : t("Sent")} /></> : null}</Text>} text={item.text} messageId={item.messageId} kind="dm" peerId={peerIdStr} incoming={!isMe} style={[styles.bubbleText, { color: isMe ? "#FFF" : colors.foreground }]} />}
+                </> : <TranslatedMessage trailing={<Text style={[localizedTextStyle(), { fontSize: 10, textAlign: "right", flexShrink: 1, color: isMe ? "rgba(255,255,255,0.8)" : colors.mutedForeground }]}>{item.editedAt ? <>{t("Edited")} </> : null}{new Date(item.ts).toLocaleTimeString(appLocale(), { hour: "2-digit", minute: "2-digit" })}{isMe ? <> <Ionicons name="checkmark-done" size={16} color={item.readAt != null ? "#FFF" : "rgba(255,255,255,0.45)"} accessibilityLabel={item.readAt != null ? t("Read") : t("Sent")} /></> : null}</Text>} onLongPress={item.text.startsWith("🎁") ? undefined : (translate) => showMessageOptions(item, translate)} text={item.text} messageId={item.messageId} kind="dm" peerId={peerIdStr} incoming={!isMe} style={[styles.bubbleText, { color: isMe ? "#FFF" : colors.foreground }]} />}
               </View>}
             </View>
             </SwipeToReply>
@@ -572,6 +612,28 @@ export default function DmScreen() {
         </TouchableOpacity>
       </View>}
 
+      <Modal testID="dm-edit-message" visible={editingMessage !== null} transparent animationType="fade" onRequestClose={() => { if (!messageActionPending) setEditingMessage(null); }}>
+        <KeyboardAvoidingView style={styles.pickerShade} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={0}>
+          <View style={[styles.editPanel, { backgroundColor: colors.background, paddingBottom: composerBottomInset + 8 }]}>
+            <View style={styles.pickerHead}>
+              <Text style={[styles.editTitle, { color: colors.mutedForeground }]}>{t("Edit message")}</Text>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel={t("Cancel")} disabled={messageActionPending} onPress={() => setEditingMessage(null)} hitSlop={10}>
+                <Ionicons name="close" size={22} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.editRow}>
+              <TextInput value={editText} onChangeText={setEditText} multiline maxLength={2000} autoFocus
+                accessibilityLabel={t("Edit message")}
+                style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} />
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel={t(messageActionPending ? "Saving…" : "Save changes")}
+                disabled={messageActionPending || !editText.trim()} onPress={() => void saveMessageEdit()}
+                style={[styles.sendBtn, { backgroundColor: editText.trim() ? "#FF1966" : "rgba(255,25,102,0.2)" }]}>
+                {messageActionPending ? <ActivityIndicator size="small" color="#FFF" /> : <Ionicons name="checkmark" size={22} color={editText.trim() ? "#FFF" : "rgba(255,255,255,0.4)"} />}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
       <ChatMediaChooser
         key={peerIdStr}
         ref={mediaChooserRef}
@@ -826,6 +888,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,215,0,0.1)",
   },
   pickerShade: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" },
+  editPanel: { paddingHorizontal: 12, paddingTop: 12, gap: 8, borderTopLeftRadius: 16, borderTopRightRadius: 16 },
+  editTitle: { fontFamily: "Inter_600SemiBold", fontSize: 13 },
+  editRow: { flexDirection: "row", alignItems: "flex-end" },
   packPicker:{borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,paddingBottom:36,gap:10},
   pickerHead:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginBottom:3},
   pickerTitle:{fontFamily:"Inter_700Bold",fontSize:18},
