@@ -190,7 +190,9 @@ export default function DmScreen() {
   const initialTargetRef = useRef<string | null>(null);
   const positionedRef = useRef(false);
   const positionFailedRef = useRef(false);
+  const positionAttemptsRef = useRef(0);
   const positionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const positionDeadlineRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollFrameRef = useRef<number | null>(null);
   const focusedRef = useRef(false);
   const latestMessageRef = useRef<string | undefined>(undefined);
@@ -201,19 +203,38 @@ export default function DmScreen() {
   reversedMessagesRef.current = reversedMessages;
   const paymentBalanceStateRef = useRef("");
 
-  // An inverted list starts at the newest message without scrolling through history.
-  // Only unread openings need an explicit (hidden, nonanimated) position change.
+  const finishOpening = useCallback((index: number) => {
+    // Content-size changes must not continually cancel the pending reveal.
+    if (!focusedRef.current || positionedRef.current || scrollFrameRef.current != null) return;
+    scrollFrameRef.current = requestAnimationFrame(() => {
+      scrollFrameRef.current = requestAnimationFrame(() => {
+        scrollFrameRef.current = null;
+        if (!focusedRef.current || positionedRef.current) return;
+        positionedRef.current = true;
+        if (positionTimerRef.current != null) clearTimeout(positionTimerRef.current);
+        if (positionDeadlineRef.current != null) clearTimeout(positionDeadlineRef.current);
+        positionTimerRef.current = null;
+        positionDeadlineRef.current = null;
+        updateFollowingBottom(index <= 0);
+        setListPositioned(true);
+        markRead(peerIdStr);
+      });
+    });
+  }, [markRead, peerIdStr, updateFollowingBottom]);
+
+  // Prefer the first unread message, but never keep cached history hidden
+  // indefinitely while variable-height rows are being measured.
   const positionOnOpen = useCallback(() => {
     if (!focusedRef.current || positionedRef.current) return;
-    if (scrollFrameRef.current != null) {
-      cancelAnimationFrame(scrollFrameRef.current);
-      scrollFrameRef.current = null;
-    }
+    if (scrollFrameRef.current != null) return;
     const data = reversedMessagesRef.current;
     if (!data.length) return;
     const index = initialTargetRef.current
       ? data.findIndex((message) => message.messageId === initialTargetRef.current)
       : -1;
+    if (positionDeadlineRef.current == null) {
+      positionDeadlineRef.current = setTimeout(() => finishOpening(index), 500);
+    }
     positionFailedRef.current = false;
     if (index >= 0) {
       listRef.current?.scrollToIndex({ index, animated: false, viewPosition: 1 });
@@ -221,16 +242,22 @@ export default function DmScreen() {
       listRef.current?.scrollToOffset({ offset: 0, animated: false });
     }
     if (positionFailedRef.current) return;
-    scrollFrameRef.current = requestAnimationFrame(() => {
-      scrollFrameRef.current = requestAnimationFrame(() => {
-        positionedRef.current = true;
-        updateFollowingBottom(index <= 0);
-        setListPositioned(true);
-        markRead(peerIdStr);
-        scrollFrameRef.current = null;
-      });
-    });
-  }, [markRead, peerIdStr, updateFollowingBottom]);
+    finishOpening(index);
+  }, [finishOpening]);
+
+  const handleInitialPositionFailed = useCallback(({ index, averageItemLength }: { index: number; averageItemLength: number }) => {
+    if (!focusedRef.current || positionedRef.current) return;
+    positionFailedRef.current = true;
+    positionAttemptsRef.current += 1;
+    listRef.current?.scrollToOffset({ offset: averageItemLength * index, animated: false });
+    if (positionTimerRef.current != null) clearTimeout(positionTimerRef.current);
+    if (positionAttemptsRef.current >= 3) {
+      // Show the approximate unread position rather than a blank conversation.
+      finishOpening(index);
+      return;
+    }
+    positionTimerRef.current = setTimeout(positionOnOpen, 100);
+  }, [finishOpening, positionOnOpen]);
 
   // At the bottom, keep offset zero instead of anchoring an older message and
   // then animating back to the newest one after insertion or keyboard layout.
@@ -282,6 +309,7 @@ export default function DmScreen() {
       focusedRef.current = true;
       draggingRef.current = false;
       positionedRef.current = false;
+      positionAttemptsRef.current = 0;
       setListPositioned(false);
       const cached = getMessages(peerIdStr);
       const unread = conversationsRef.current.find((c) => c.peerId === peerIdStr)?.unread ?? 0;
@@ -297,7 +325,11 @@ export default function DmScreen() {
       return () => {
         focusedRef.current = false;
         if (positionTimerRef.current != null) clearTimeout(positionTimerRef.current);
+        if (positionDeadlineRef.current != null) clearTimeout(positionDeadlineRef.current);
         if (scrollFrameRef.current != null) cancelAnimationFrame(scrollFrameRef.current);
+        positionTimerRef.current = null;
+        positionDeadlineRef.current = null;
+        scrollFrameRef.current = null;
       };
     }, [getMessages, peerIdStr, positionOnOpen, updateFollowingBottom]),
   );
@@ -473,14 +505,7 @@ export default function DmScreen() {
         }}
         onLayout={handleListLayout}
         onContentSizeChange={handleListLayout}
-        onScrollToIndexFailed={({ index, averageItemLength }) => {
-          // Variable-height rows outside the render window must be measured first.
-          // Keep the list hidden until the exact unread index can be positioned.
-          positionFailedRef.current = true;
-          listRef.current?.scrollToOffset({ offset: averageItemLength * index, animated: false });
-          if (positionTimerRef.current != null) clearTimeout(positionTimerRef.current);
-          positionTimerRef.current = setTimeout(positionOnOpen, 100);
-        }}
+        onScrollToIndexFailed={handleInitialPositionFailed}
         renderItem={({ item }) => {
           const isMe = item.senderId === myUidStr;
           const giftReceipt = parseDmGiftReceipt(item.text, GIFTS);
