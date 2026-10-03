@@ -35,6 +35,7 @@ import type {
   CoinBalanceResponse,
   CoinGrantRequest,
   CoinSpendRequest,
+  CoinSpendResponse,
   ConvertStreamToPremiumBody,
   CreateMediaPackRequest,
   CreatePostRequest,
@@ -2849,9 +2850,9 @@ export const getSpendCoinsUrl = () => {
 /**
  * @summary Spend coins on a gift
  */
-export const spendCoins = async (coinSpendRequest: CoinSpendRequest, options?: RequestInit): Promise<CoinBalanceResponse> => {
+export const spendCoins = async (coinSpendRequest: CoinSpendRequest, options?: RequestInit): Promise<CoinSpendResponse> => {
 
-  return customFetch<CoinBalanceResponse>(getSpendCoinsUrl(),
+  return customFetch<CoinSpendResponse>(getSpendCoinsUrl(),
   {
     ...options,
     method: 'POST',

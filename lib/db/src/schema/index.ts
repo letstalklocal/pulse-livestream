@@ -38,3 +38,4 @@ export * from "./revenuecat-webhook-logs";
 export * from "./premium-identities";
 
 export * from "./notification-history";
+export * from "./dm-gift-combos";

@@ -44,6 +44,8 @@ import { useColors } from "@/hooks/useColors";
 import { Avatar } from "@/components/Avatar";
 import { GiftPicker, GIFTS, type Gift } from "@/components/GiftPicker";
 import { GiftFloater, type FloatingGift } from "@/components/GiftFloater";
+import { GiftComboBadge } from "@/components/GiftComboBadge";
+import { mergeGiftFloater } from "@/utils/giftPresentation";
 import { MediaPackMessage } from "@/components/MediaPackMessage";
 import { MediaChooser } from "@/components/MediaChooser";
 import { DirectMediaMessage } from "@/components/DirectMediaMessage";
@@ -70,7 +72,7 @@ export default function DmScreen() {
     router.back();
   }, [router]);
   const { user } = useAuth();
-  const { getMessages, sendDm, markRead, conversations, refreshMessages, editDm, deleteDm } = useRtm();
+  const { getMessages, sendDm, markRead, conversations, refreshMessages, editDm, deleteDm, sendGiftDm } = useRtm();
   const queryClient = useQueryClient();
 
   const { peerId, peerName } = useLocalSearchParams<{ peerId: string; peerName: string }>();
@@ -92,6 +94,10 @@ export default function DmScreen() {
   const name = profile?.name?.trim() || peerName?.trim() ||
     conversations.find(conversation => conversation.peerId === peerIdStr)?.peerName?.trim() || "User";
   const avatarUri = profile?.avatarImageUrl ?? undefined;
+  const openPeerProfile = useCallback(() => {
+    if (!Number.isSafeInteger(peerUid) || peerUid <= 0) return;
+    router.push({ pathname: "/profile/[hostUid]", params: { hostUid: String(peerUid), name } });
+  }, [router, peerUid, name]);
   const {getToken}=useClerkAuth();
   const peerStatus = useQuery({
     queryKey: ["message-peer", user?.uid, peerIdStr],
@@ -161,8 +167,7 @@ export default function DmScreen() {
     animation.start();
     return () => animation.stop();
   }, [showGiftPicker, contactBlocked, giftDrawerHeight, composerHeight, reduceMotion, giftMessageClearance]);
-  const giftSending = useRef(false);
-  const [sendingGiftId, setSendingGiftId] = useState<string | null>(null);
+  const pendingGiftPayments = useRef(0);
   const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
   const activeGiftPeer = useRef<string | null>(peerIdStr);
   useEffect(() => {
@@ -171,7 +176,7 @@ export default function DmScreen() {
     return () => { activeGiftPeer.current = null; };
   }, [peerIdStr]);
   const giftFeedback = floatingGifts.map((gift) => (
-    <GiftFloater key={gift.id} gift={gift}
+    <GiftFloater key={gift.comboId ?? gift.id} gift={gift}
       onDone={(id) => setFloatingGifts((previous) => previous.filter((item) => item.id !== id))} />
   ));
   const [showPackPicker, setShowPackPicker] = useState(false);
@@ -202,6 +207,7 @@ export default function DmScreen() {
   const reversedMessagesRef = useRef(reversedMessages);
   reversedMessagesRef.current = reversedMessages;
   const paymentBalanceStateRef = useRef("");
+  const giftRetryRef = useRef<{ peerId: string; giftId: string; key: string }[]>([]);
 
   const finishOpening = useCallback((index: number) => {
     // Content-size changes must not continually cancel the pending reveal.
@@ -458,10 +464,10 @@ export default function DmScreen() {
         <TouchableOpacity onPress={handleBack} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="chevron-back" size={24} color={colors.foreground} />
         </TouchableOpacity>
-        <View style={{ width: 40, height: 40 }}>
+        <TouchableOpacity onPress={openPeerProfile} accessibilityRole="button" accessibilityLabel={t("View {v0}'s profile", { v0: name })} style={{ width: 40, height: 40 }}>
           <Avatar uid={peerUid} name={name} avatarUri={avatarUri} size={40} />
           {!contactBlocked && peerStatus.data?.online && <View accessibilityLabel={t("Online")} style={{ position: "absolute", bottom: 0, right: 1, width: 11, height: 11, borderRadius: 6, backgroundColor: "#22C55E", borderWidth: 2, borderColor: colors.background }} />}
-        </View>
+        </TouchableOpacity>
         <View style={{flex:1}}><Text style={[styles.headerName, { color: colors.foreground }]} numberOfLines={1}>{name}</Text>
         {!contactBlocked && !peerStatus.data?.online && peerStatus.data?.lastSeen != null && <Text style={{fontSize:11,color:colors.mutedForeground}}>{formatLastSeen(peerStatus.data.lastSeen, lastSeenNow, appLocale(), t)}</Text>}</View>
         <TouchableOpacity style={styles.privateInviteButton} onPress={() => setShowInviteComposer(true)} disabled={createInviteMutation.isPending || contactBlocked || needsGift} accessibilityLabel={t("Invite {v0} to a 1:1 private live stream", { v0: name })}>
@@ -516,7 +522,9 @@ export default function DmScreen() {
             <SwipeToReply color={colors.primary} disabled={contactBlocked || needsGift || sendingMessage} onReply={() => { setReplyTo(item); inputRef.current?.focus(); void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}>
             <View style={[styles.bubbleRow, extraBottomSpacing && styles.cardRowSpacing, isMe && styles.bubbleRowMe]}>
               {!isMe && (
+                <TouchableOpacity onPress={openPeerProfile} accessibilityRole="button" accessibilityLabel={t("View {v0}'s profile", { v0: name })}>
                 <Avatar uid={parseInt(item.senderId)} name={item.senderName} size={28} />
+                </TouchableOpacity>
               )}
               {item.kind === "private_stream_invitation" && item.invitation ? (
                 <View style={[styles.inviteCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -552,6 +560,7 @@ export default function DmScreen() {
                 {giftReceipt ? <>
                   <View style={styles.giftMessageArtwork} accessible accessibilityLabel={giftReceipt.gift.name}>
                     {giftReceipt.gift.id === "crown" ? <CrownArtwork size={100} /> : hasGiftImage(giftReceipt.gift.id) ? <GiftImageArtwork gift={giftReceipt.gift.id} size={100} /> : <Text style={styles.giftMessageEmoji}>{giftReceipt.gift.emoji}</Text>}
+                    <View style={{ position: "absolute", top: 0, right: -8 }}><GiftComboBadge count={giftReceipt.count} label={`×${appNumber(giftReceipt.count)}`} reduceMotion={reduceMotion} /></View>
                   </View>
                   <View style={styles.giftMessageValue}><GoldCoinIcon size={14} /><Text style={styles.giftMessageCoins}>{appNumber(giftReceipt.coins)}</Text></View>
                   <Text style={[styles.giftMessageTime, localizedTextStyle(), { color: colors.mutedForeground }]}>{new Date(item.ts).toLocaleTimeString(appLocale(), { hour: "2-digit", minute: "2-digit" })}{isMe ? <> <Ionicons name="checkmark-done" size={16} color={item.readAt != null ? colors.foreground : colors.mutedForeground} accessibilityLabel={item.readAt != null ? t("Read") : t("Sent")} /></> : null}</Text>
@@ -563,7 +572,9 @@ export default function DmScreen() {
         }}
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
+            <TouchableOpacity onPress={openPeerProfile} accessibilityRole="button" accessibilityLabel={t("View {v0}'s profile", { v0: name })}>
             <Avatar uid={peerUid} name={name} avatarUri={avatarUri} size={64} />
+            </TouchableOpacity>
             <Text style={[styles.emptyName, { color: colors.foreground }]}>{name}</Text>
             <Text style={[localizedTextStyle(), [styles.emptySub, { color: colors.mutedForeground }]]}>
               {needsGift ? t("Send a Rose to activate this chat.") : t("Say hi to start the conversation!")}
@@ -674,7 +685,6 @@ export default function DmScreen() {
         onDrawerHeightChange={setGiftDrawerHeight}
         coins={viewerCoins}
         hintText="Select a gift, then tap Send."
-        sendingGiftId={sendingGiftId}
         feedbackOverlay={giftFeedback}
         onClose={() => { setShowGiftPicker(false); setFloatingGifts([]); }}
         onSend={(gift: Gift) => {
@@ -684,69 +694,49 @@ export default function DmScreen() {
             return;
           }
 
-          if (giftSending.current) return;
-          giftSending.current = true;
           void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
-          setSendingGiftId(gift.id);
           setSendError(null);
+          // Only completed, uncertain requests are eligible for retry. An
+          // in-flight tap never shares its key with another deliberate tap.
+          const retryIndex = giftRetryRef.current.findIndex(item => item.peerId === peerIdStr && item.giftId === gift.id);
+          const requestKey = retryIndex >= 0 ? giftRetryRef.current.splice(retryIndex, 1)[0].key : createGiftRequestKey();
+          pendingGiftPayments.current += 1;
           void (async () => {
-            let paymentCompleted = false;
             try {
-              const result = await spendMutation.mutateAsync({
-                data: {
-                  uid: user.uid,
-                  recipientUid: recipientId,
-                  amount: gift.coins,
-                  giftName: gift.name,
-                  senderName: user.name ?? "Viewer",
-                  description: `${gift.emoji} ${gift.name}`,
-                  idempotencyKey: createGiftRequestKey(),
-                },
-              });
-
-              paymentCompleted = true;
+              const result = await sendGiftDm(peerIdStr, gift.id, requestKey);
+              if (!result.ok || !result.combo) {
+                if (result.uncertain) giftRetryRef.current.push({ peerId: peerIdStr, giftId: gift.id, key: requestKey });
+                Alert.alert(t("Unable to send gift"), t(result.error ?? "Please try again."));
+                return;
+              }
+              const combo = result.combo;
 
               queryClient.setQueryData(
                 getGetCoinBalanceQueryKey({ uid: user.uid }),
                 { balance: result.balance },
               );
 
-              // Show the paid gift now; its persisted chat receipt follows separately.
+              // Payment and the grouped receipt have committed together.
               if (activeGiftPeer.current === peerIdStr) {
-                setFloatingGifts((previous) => [...previous, {
+                setFloatingGifts((previous) => mergeGiftFloater(previous, {
                   id: createGiftRequestKey(), emoji: gift.emoji, name: gift.name,
                   senderName: user.name ?? "You", x: 0, size: gift.size,
-                }]);
+                  comboId: combo.id, comboCount: combo.count,
+                  comboLabel: `×${appNumber(combo.count)}`, reduceMotion,
+                }));
               }
               void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
 
-              // Receipt saving must not keep the next gift's payment locked.
-              // This task owns its errors and never clears another send's guard.
-              void (async () => {
-                try {
-                  const dmResult = await sendDm(
-                    peerIdStr,
-                    name,
-                    `🎁 ${gift.emoji} ${gift.name} gift • ${gift.coins} coins`,
-                  );
-                  if (!dmResult.ok && activeGiftPeer.current === peerIdStr) {
-                    setSendError(`Gift sent, but the chat receipt could not be delivered. ${dmResult.error ?? ""}`.trim());
-                  }
-                } catch {
-                  if (activeGiftPeer.current === peerIdStr) {
-                    setSendError("Gift sent, but the chat receipt could not be delivered.");
-                  }
-                }
-              })();
             } catch {
-              if (paymentCompleted) {
-                setSendError("Gift sent, but the chat receipt could not be delivered.");
-              } else {
-                Alert.alert(t("Gift couldn't be sent"), t("You may not have enough coins. Try a smaller gift or top up from your profile."));
-              }
+              giftRetryRef.current.push({ peerId: peerIdStr, giftId: gift.id, key: requestKey });
+              Alert.alert(t("Gift couldn't be sent"), t("Please try again."));
             } finally {
-              giftSending.current = false;
-              setSendingGiftId(null);
+              pendingGiftPayments.current -= 1;
+              // Responses can arrive out of order; refresh the final wallet
+              // after the burst rather than keeping an older response balance.
+              if (pendingGiftPayments.current === 0) {
+                void queryClient.invalidateQueries({ queryKey: getGetCoinBalanceQueryKey({ uid: user.uid }) });
+              }
             }
           })();
         }}

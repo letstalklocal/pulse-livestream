@@ -544,6 +544,17 @@ export interface CoinBalanceResponse {
   balance: number;
 }
 
+export type CoinSpendResponseCombo = {
+  id: string;
+  count: number;
+  totalCoins: number;
+};
+
+export interface CoinSpendResponse {
+  balance: number;
+  combo?: CoinSpendResponseCombo;
+}
+
 export interface CoinSpendRequest {
   /** Sender user ID */
   uid: number;

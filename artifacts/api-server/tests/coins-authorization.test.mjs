@@ -28,6 +28,7 @@ function fixture(clerkId, senderUid) {
     if (id === "../lib/liveStickers") return { StickerError: class extends Error {} };
     if (id === "../lib/giftCatalog") return {};
     if (id === "../lib/wsHub") return {};
+    if (id === "../lib/incognito") return { pushPrivateGift: async () => {} };
     if (id === "../lib/liveParty") return {};
     if (id === "../lib/userSafety") return { requireContactAllowed: async () => true };
     if (id === "../lib/privateChannelAccess") return { requireChannelAccess: async () => true };

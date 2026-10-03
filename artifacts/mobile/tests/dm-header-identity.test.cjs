@@ -3,6 +3,7 @@ const code = ts.transpileModule(fs.readFileSync(require.resolve('../app/dm/[peer
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
 }).outputText;
 let params = { peerId: '1', peerName: 'Video Host' }, profiles = new Map(), conversations = [], blocked = false, options;
+const openedProfiles = [];
 let si = 0, ri = 0; const states = [], refs = [];
 const react = {
   createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
@@ -16,7 +17,7 @@ const mod = { exports: {} };
 vm.runInNewContext(code, { module: mod, exports: mod.exports, process: { env: {} }, require: id => {
   if (id === 'react') return react;
   if (id === 'react-native') return rn;
-  if (id === 'expo-router') return { useLocalSearchParams: () => params, useRouter: () => ({ back() {} }), useFocusEffect() {} };
+  if (id === 'expo-router') return { useLocalSearchParams: () => params, useRouter: () => ({ back() {}, push: route => openedProfiles.push(route) }), useFocusEffect() {} };
   if (id === 'expo-crypto') return { randomUUID: () => 'test' };
   if (id === 'react-native-safe-area-context') return { useSafeAreaInsets: () => ({ top: 24, bottom: 20 }) };
   if (id === '@clerk/expo') return { useAuth: () => ({ getToken: async () => 'token' }) };
@@ -40,6 +41,16 @@ function render() {
   return { nodes, avatar: nodes.find(n => n.type === 'Avatar' && n.props.size === 40), header: nodes.find(n => n.type === 'Text' && n.props.numberOfLines === 1) };
 }
 let v = render(); assert.equal(v.header.props.children[0], 'Video Host', 'route name appears while messages/status/profile are pending');
+function pressHeaderAvatar(view) {
+  const button = view.nodes.find(node => node.type === 'TouchableOpacity' && node.props.children.includes(view.avatar));
+  assert.ok(button, 'header avatar has a profile action');
+  assert.equal(button.props.accessibilityRole, 'button');
+  button.props.onPress();
+}
+pressHeaderAvatar(v);
+assert.equal(openedProfiles.at(-1).pathname, '/profile/[hostUid]');
+assert.equal(openedProfiles.at(-1).params.hostUid, '1');
+assert.equal(openedProfiles.at(-1).params.name, 'Video Host');
 assert.equal(v.avatar.props.name, 'Video Host'); assert.equal(options.queryKey[0], '/api/users/1', 'shares profile/video avatar cache');
 assert.equal(options.staleTime, 60000); assert.equal(options.enabled, true);
 profiles.set(1, { name: 'Current Host', avatarImageUrl: 'https://test/avatar.jpg' });
@@ -47,6 +58,8 @@ v = render(); assert.equal(v.header.props.children[0], 'Current Host'); assert.e
 params = { peerId: '2' }; v = render(); assert.equal(v.header.props.children[0], 'User'); assert.equal(v.avatar.props.avatarUri, undefined, 'new peer cannot inherit previous photo');
 conversations = [{ peerId: '2', peerName: 'Conversation Name' }]; v = render(); assert.equal(v.header.props.children[0], 'Conversation Name', 'late conversations also repair a missing route name');
 profiles.set(2, { name: 'Resolved Peer', avatarImageUrl: null }); v = render(); assert.equal(v.header.props.children[0], 'Resolved Peer'); assert.equal(v.avatar.props.avatarUri, undefined);
+pressHeaderAvatar(v); assert.equal(openedProfiles.at(-1).params.hostUid, '2'); assert.equal(openedProfiles.at(-1).params.name, 'Resolved Peer');
 blocked = true; render(); assert.equal(options.enabled, false);
-params = { peerId: 'invalid' }; render(); assert.equal(options.enabled, false);
+params = { peerId: 'invalid' }; v = render(); assert.equal(options.enabled, false);
+const priorOpens = openedProfiles.length; pressHeaderAvatar(v); assert.equal(openedProfiles.length, priorOpens, 'invalid peer never navigates');
 console.log('PASS: DM header uses immediate video name, shared avatar cache, later profile/conversation updates and per-peer isolation while messages/status are pending. Native UI mocked.');

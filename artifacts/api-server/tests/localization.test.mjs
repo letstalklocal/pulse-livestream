@@ -153,6 +153,9 @@ try {
      parent=parent.parent;
     }
    }
+   // DM combo gifts deliberately replace the two-request payment/receipt flow.
+   // Dedicated actual-handler and real-database tests enforce its payment rules.
+   if(file.endsWith('/app/dm/[peerId].tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='onSend'&&n.parent.parent.tagName?.getText(a)==='GiftPicker')return;
    if(ts.isJsxAttribute(n)&&stableAttributes.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));
    if(ts.isPropertyAssignment(n)&&stableFields.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));
    ts.forEachChild(n,walk);

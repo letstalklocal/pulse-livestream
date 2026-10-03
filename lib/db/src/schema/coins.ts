@@ -1,4 +1,4 @@
-import { pgTable, integer, text, timestamp, serial, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, integer, text, timestamp, serial, uniqueIndex, index, primaryKey } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 import { liveBattlesTable } from "./live-parties";
 
@@ -21,10 +21,21 @@ export const coinTransactionsTable = pgTable("coin_transactions", {
   description: text("description").notNull().default(""),
   idempotencyKey: text("idempotency_key"),
   balanceAfter: integer("balance_after"),
+  giftComboId: text("gift_combo_id"),
+  giftComboCount: integer("gift_combo_count"),
+  giftComboTotalCoins: integer("gift_combo_total_coins"),
+  giftComboClosedAt: timestamp("gift_combo_closed_at"),
   createdAt:   timestamp("created_at").defaultNow().notNull(),
 }, (table) => [
   uniqueIndex("coin_transactions_idempotency_key_idx").on(table.idempotencyKey),
+  index("coin_transactions_live_combo_idx").on(table.fromUserId, table.channelId, table.toUserId, table.createdAt, table.id),
 ]);
+
+export const liveGiftComboMilestonesTable = pgTable("live_gift_combo_milestones", {
+  comboId: text("combo_id").notNull(),
+  count: integer("count").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, table => [primaryKey({ columns: [table.comboId, table.count] })]);
 
 export type CoinBalance     = typeof coinBalancesTable.$inferSelect;
 export type CoinTransaction = typeof coinTransactionsTable.$inferSelect;

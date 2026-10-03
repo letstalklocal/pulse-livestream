@@ -8,7 +8,8 @@ import { LiveReactions, type LiveReactionsHandle } from "@/components/LiveReacti
 import { PremiumGiftPrompt } from "@/components/PremiumGiftPrompt";
 import { premiumGiftRequestKey } from "@/hooks/usePremiumGiftRequest";
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
-import { createGiftPresentation, expectsNativeCrown } from "@/utils/giftPresentation";
+import { createGiftPresentation, expectsNativeCrown, mergeGiftFloater } from "@/utils/giftPresentation";
+import { mergeLiveChat } from "@/utils/mergeLiveChat";
 import { CrownArtwork } from "@/components/CrownArtwork";
 import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
 import { TranslatedMessage } from "@/components/TranslatedMessage";
@@ -169,7 +170,7 @@ export default function StreamScreen() {
   const [inputText, setInputText] = useState("");
   const [likeCount, setLikeCount] = useState(Math.floor(Math.random() * 500) + 50);
   const [showGiftPicker, setShowGiftPicker] = useState(false);
-  const giftSending = useRef(false);
+  const pendingGiftPayments = useRef(0);
   const giftPresentation = useRef(createGiftPresentation());
   useEffect(() => { giftPresentation.current = createGiftPresentation(); setFloatingGifts([]); }, [channelId]);
   const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
@@ -292,16 +293,7 @@ export default function StreamScreen() {
 
   useEffect(() => {
     if (!chatPollData?.messages) return;
-    setMessages((prev) => {
-      const deleted = new Set(chatPollData.deletedIds ?? []);
-      const retained = prev.filter(m => !deleted.has(m.id));
-      const existingIds = new Set(retained.map((m) => m.id));
-      const next = chatPollData.messages
-        .filter((m) => !existingIds.has(m.id))
-        .map((m) => ({ id: m.id, sender: m.senderName, senderUid: m.senderUid, text: m.text, color: m.color }));
-      if (next.length === 0 && retained.length === prev.length) return prev;
-      return [...retained, ...next].slice(-100);
-    });
+    setMessages(prev => mergeLiveChat(prev, chatPollData.messages.map(m => ({ id: m.id, sender: m.senderName, senderUid: m.senderUid, text: m.text, color: m.color })), chatPollData.deletedIds));
   }, [chatPollData]);
 
   // Parse hostUid directly from channelId (format: pulse-{uid}-{timestamp})
@@ -456,15 +448,13 @@ export default function StreamScreen() {
   }, [channelId, nextStream, hintOpacity]);
 
   // Helper: spawn a floating gift on screen
-  const spawnGift = (gift: Gift, senderName: string, giftId?: string, amount = gift.coins) => {
+  const spawnGift = (gift: Gift, senderName: string, giftId?: string, amount = gift.coins, combo?: { id: string; count: number; totalCoins: number }) => {
     const nativeExpected = !isDemo && expectsNativeCrown(gift.name, amount);
     if (giftId && !giftPresentation.current.claim(giftId, nativeExpected)) return;
     const inVideo = giftId ? giftPresentation.current.inVideo(giftId) : nativeExpected;
     const x = Math.random() * (SCREEN_W * 0.55) + 16;
-    setFloatingGifts((prev) => giftId && prev.some(g => g.id === giftId) ? prev : [
-      ...prev,
-      { id: giftId ?? `${Date.now()}-${Math.random()}`, emoji: gift.emoji, name: gift.name, senderName, x, size: gift.size, inVideo },
-    ]);
+    setFloatingGifts(prev => mergeGiftFloater(prev, { id: giftId ?? `${Date.now()}-${Math.random()}`, emoji: gift.emoji, name: gift.name, senderName, x, size: gift.size, inVideo,
+      comboId: combo?.id, comboCount: combo?.count, comboLabel: combo ? `×${appNumber(combo.count)}` : undefined }));
   };
 
   // Simulate other viewers sending gifts occasionally — demo streams only
@@ -518,6 +508,7 @@ export default function StreamScreen() {
             amount?: number;
             inVideo?: boolean;
             senderName?: string;
+            combo?: { id: string; count: number; totalCoins: number };
           };
           if (msg.type === "gift_in_video" && msg.giftId) {
             const inVideo = giftPresentation.current.decide(msg.giftId, msg.inVideo !== false);
@@ -535,7 +526,7 @@ export default function StreamScreen() {
           } else if (msg.type === "gift" && msg.giftName) {
             if (typeof msg.coins === "number") setRealtimeCoins(previous => Math.max(previous ?? 0, msg.coins!));
             const gift = GIFTS.find((g) => g.name === msg.giftName);
-            if (gift) spawnGift(gift, msg.senderName ?? "Viewer", msg.giftId, msg.amount ?? gift.coins);
+            if (gift) spawnGift(gift, msg.senderName ?? "Viewer", msg.giftId, msg.amount ?? gift.coins, msg.combo);
           }
         } catch { /* ignore */ }
     },
@@ -946,7 +937,7 @@ export default function StreamScreen() {
     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { transform: [{ translateX: overlaySlideAnim }] }]}>
     {floatingGifts.map((fg) => (
       <GiftFloater
-        key={fg.id}
+        key={fg.comboId ?? fg.id}
         gift={fg}
         onDone={(id) => setFloatingGifts((prev) => prev.filter((g) => g.id !== id))}
       />
@@ -961,32 +952,35 @@ export default function StreamScreen() {
       recipientUid={giftRecipient?.uid ?? hostUid ?? undefined}
       onRecipientChange={setGiftRecipientUid}
       onClose={() => setShowGiftPicker(false)}
-      onSend={(gift) => {
-        if (!user?.uid || giftSending.current) return;
-        giftSending.current = true;
+      onSend={async (gift) => {
+        if (!user?.uid) return;
+        pendingGiftPayments.current += 1;
         const giftId = createGiftRequestKey();
-        spendMutation.mutate(
-           { data: { uid: user.uid, recipientUid: giftRecipient?.uid ?? hostUid ?? undefined, amount: gift.coins, giftName: gift.name, senderName: user.name ?? "Viewer", channelId: giftRecipient?.channelId ?? channelId ?? undefined, description: gift.name, idempotencyKey: giftId } },
-          {
-            onSuccess: (data) => {
-              // Update viewer's own balance in cache
-              queryClient.setQueryData(
-                getGetCoinBalanceQueryKey({ uid: user.uid }),
-                { balance: data.balance },
-              );
-              // Invalidate host balance so the stats row reflects the credit
-              queryClient.invalidateQueries({
-                queryKey: getGetCoinBalanceQueryKey({ uid: giftRecipient?.uid ?? hostUid ?? 0 }),
-              });
-              spawnGift(gift, giftRecipient ? `${user.name ?? "You"} to ${giftRecipient.name}` : user.name ?? "You", giftId);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            },
-            onSettled: () => { giftSending.current = false; },
-            onError: () => {
-              Alert.alert(t("Gift not sent"), t("Check your coin balance and that the selected host is still live."));
-            },
-          },
-        );
+        try {
+          // mutateAsync retains a result for every overlapping tap. Per-call
+          // mutate callbacks can be skipped when a later mutation replaces it.
+          const data = await spendMutation.mutateAsync(
+            { data: { uid: user.uid, recipientUid: giftRecipient?.uid ?? hostUid ?? undefined, amount: gift.coins, giftName: gift.name, senderName: user.name ?? "Viewer", channelId: giftRecipient?.channelId ?? channelId ?? undefined, description: gift.name, idempotencyKey: giftId } },
+          );
+          // Update viewer's own balance in cache
+          queryClient.setQueryData(
+            getGetCoinBalanceQueryKey({ uid: user.uid }),
+            { balance: data.balance },
+          );
+          // Invalidate host balance so the stats row reflects the credit
+          queryClient.invalidateQueries({
+            queryKey: getGetCoinBalanceQueryKey({ uid: giftRecipient?.uid ?? hostUid ?? 0 }),
+          });
+          spawnGift(gift, giftRecipient ? `${user.name ?? "You"} to ${giftRecipient.name}` : user.name ?? "You", giftId, gift.coins, data.combo);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        } catch {
+          Alert.alert(t("Gift not sent"), t("Check your coin balance and that the selected host is still live."));
+        } finally {
+          pendingGiftPayments.current -= 1;
+          if (pendingGiftPayments.current === 0) {
+            void queryClient.invalidateQueries({ queryKey: getGetCoinBalanceQueryKey({ uid: user.uid }) });
+          }
+        }
       }}
     />
 

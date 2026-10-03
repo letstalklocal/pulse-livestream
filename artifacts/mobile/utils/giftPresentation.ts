@@ -40,3 +40,10 @@ export function expectsNativeCrown(
 ) {
   return name === "Crown" && typeof amount === "number" && amount >= 500;
 }
+
+export function mergeGiftFloater<T extends { id: string; comboId?: string; comboCount?: number }>(previous: T[], gift: T): T[] {
+  const combo = gift.comboId ? previous.find(item => item.comboId === gift.comboId) : undefined;
+  if (combo && (combo.comboCount ?? 1) >= (gift.comboCount ?? 1)) return previous;
+  if (!gift.comboId && previous.some(item => item.id === gift.id)) return previous;
+  return [...previous.filter(item => item.id !== gift.id && (!gift.comboId || item.comboId !== gift.comboId)), gift];
+}

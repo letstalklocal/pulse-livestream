@@ -5,8 +5,8 @@ import { requireContactAllowed } from "../lib/userSafety";
 import { lockParty, scorePartyGift, findParty, partyStreams, partyChannels } from "../lib/liveParty";
 import { Router } from "express";
 import { getAuth } from "@clerk/express";
-import { eq, sql, and, inArray } from "drizzle-orm";
-import { db, coinBalancesTable, coinTransactionsTable, liveStreamSessionsTable, premiumIdentitiesTable, usersTable } from "@workspace/db";
+import { eq, sql, and, inArray, desc } from "drizzle-orm";
+import { db, coinBalancesTable, coinTransactionsTable, liveStreamSessionsTable, premiumIdentitiesTable, usersTable, liveGiftComboMilestonesTable } from "@workspace/db";
 import * as wsHub from "../lib/wsHub";
 import { requireChannelAccess } from "../lib/privateChannelAccess";
 
@@ -104,6 +104,7 @@ router.get("/coins/balance", async (req, res) => {
 
 // POST /coins/spend
 router.post("/coins/spend", async (req, res) => {
+  const requestedAt = new Date();
   const { userId: clerkId } = getAuth(req);
   if (!clerkId) {
     res.status(401).json({ error: "Authentication required" });
@@ -147,7 +148,7 @@ router.post("/coins/spend", async (req, res) => {
   const effectiveRecipientUid =
     typeof recipientUid === "number" && recipientUid !== uid ? recipientUid : null;
 
-  let transfer: { balance: number; duplicate: boolean } | null;
+  let transfer: { balance: number; duplicate: boolean; combo?: { id: string; count: number; totalCoins: number } } | null;
   try {
     transfer = await db.transaction(async (tx) => {
       await lockParty(tx);
@@ -188,8 +189,18 @@ router.post("/coins/spend", async (req, res) => {
         return {
           balance: existing[0].balanceAfter ?? currentBalance[0]?.balance ?? 0,
           duplicate: true,
+          combo: existing[0].giftComboId && existing[0].giftComboCount && existing[0].giftComboTotalCoins ? { id: existing[0].giftComboId, count: existing[0].giftComboCount, totalCoins: existing[0].giftComboTotalCoins } : undefined,
         };
       }
+
+      const comboEligible = !!channelId && !!effectiveRecipientUid && Object.values(PREMIUM_GIFT_CATALOG).some(gift => gift.name === giftName && gift.coinCost === amount);
+      const [previousGift] = comboEligible ? await tx.select().from(coinTransactionsTable).where(and(eq(coinTransactionsTable.fromUserId, uid), eq(coinTransactionsTable.toUserId, effectiveRecipientUid!), eq(coinTransactionsTable.channelId, channelId!), eq(coinTransactionsTable.type, "gift"))).orderBy(desc(coinTransactionsTable.createdAt), desc(coinTransactionsTable.id)).limit(1) : [];
+      const continuesCombo = previousGift?.giftComboId && !previousGift.giftComboClosedAt && previousGift.giftName === giftName && previousGift.amount === amount && Math.max(0, requestedAt.getTime() - previousGift.createdAt.getTime()) <= 2000 && (previousGift.giftComboTotalCoins ?? 0) <= 2147483647 - amount;
+      const combo = comboEligible ? {
+        id: continuesCombo ? previousGift.giftComboId! : idempotencyKey,
+        count: continuesCombo ? previousGift.giftComboCount! + 1 : 1,
+        totalCoins: continuesCombo ? previousGift.giftComboTotalCoins! + amount : amount,
+      } : undefined;
 
       // Keep the row creation inside the transaction so every balance operation
       // uses the same atomic unit of work.
@@ -209,7 +220,10 @@ router.post("/coins/spend", async (req, res) => {
         ))
         .returning();
 
-      if (!updated[0]) return null;
+      if (!updated[0]) {
+        if (previousGift) await tx.update(coinTransactionsTable).set({ giftComboClosedAt: new Date() }).where(eq(coinTransactionsTable.id, previousGift.id));
+        return null;
+      }
 
       if (effectiveRecipientUid) {
         await tx
@@ -235,9 +249,14 @@ router.post("/coins/spend", async (req, res) => {
         description: description ?? "",
         idempotencyKey,
         balanceAfter: updated[0].balance,
+        giftComboId: combo?.id,
+        giftComboCount: combo?.count,
+        giftComboTotalCoins: combo?.totalCoins,
+        createdAt: new Date(),
       });
+      if (combo && (combo.count === 5 || combo.count === 10)) await tx.insert(liveGiftComboMilestonesTable).values({ comboId: combo.id, count: combo.count }).onConflictDoNothing();
 
-      return { balance: updated[0].balance, duplicate: false };
+      return { balance: updated[0].balance, duplicate: false, combo };
     });
   } catch (error) {
     if (error instanceof StickerError) { res.status(error.status).json({ error: error.message }); return; }
@@ -274,7 +293,7 @@ router.post("/coins/spend", async (req, res) => {
       const participants = party ? await partyStreams(party) : [];
       const recipient = participants.find(s => s?.hostUserId === effectiveRecipientUid);
       const displaySender = recipient ? `${senderName ?? "Viewer"} to ${recipient.hostName}` : senderName ?? "Viewer";
-      const giftDetails = { giftId: idempotencyKey, amount, senderUid: uid, recipientUid: effectiveRecipientUid };
+      const giftDetails = { giftId: idempotencyKey, amount, senderUid: uid, recipientUid: effectiveRecipientUid, combo: transfer.combo };
       await pushPrivateGift(channelId, giftName ?? "", displaySender, total, giftDetails);
       if (party) {
         const other = party.firstChannelId === channelId ? party.secondChannelId : party.firstChannelId;
@@ -287,7 +306,7 @@ router.post("/coins/spend", async (req, res) => {
     }
   }
 
-  res.json({ balance: transfer.balance });
+  res.json({ balance: transfer.balance, ...(transfer.combo ? { combo: transfer.combo } : {}) });
 });
 
 // POST /coins/grant  (dev / manual testing — no payment required)

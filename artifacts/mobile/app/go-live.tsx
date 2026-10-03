@@ -9,7 +9,8 @@ import { Image as CachedImage } from "expo-image";
 import { PremiumGiftRequestSheet } from "@/components/PremiumGiftRequestSheet";
 import { usePremiumGiftRequest, premiumGiftRequestKey } from "@/hooks/usePremiumGiftRequest";
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
-import { createGiftPresentation, expectsNativeCrown } from "@/utils/giftPresentation";
+import { createGiftPresentation, expectsNativeCrown, mergeGiftFloater } from "@/utils/giftPresentation";
+import { mergeLiveChat } from "@/utils/mergeLiveChat";
 import { CrownArtwork } from "@/components/CrownArtwork";
 import { momentsRequest } from "@/utils/moments";
 import { startMomentProof, stopMomentProof } from "@/utils/momentProof";
@@ -487,6 +488,7 @@ export default function GoLiveScreen() {
             senderName?: string;
             inVideo?: boolean;
             giftId?: string; amount?: number; recipientUid?: number; senderUid?: number;
+            combo?: { id: string; count: number; totalCoins: number };
           };
           if (msg.type === "stream_updated") {
             void queryClient.invalidateQueries({ queryKey: premiumGiftRequestKey(activeChannelId) });
@@ -531,10 +533,8 @@ export default function GoLiveScreen() {
           if (msg.type === "gift" && msg.giftName) {
             const gift = GIFTS.find((g) => g.name === msg.giftName) ?? GIFTS[0]!;
             const x = 60 + Math.random() * 200;
-            setFloatingGifts((prev) => [
-              ...prev,
-              { id: msg.giftId ?? `${Date.now()}-${Math.random()}`, emoji: gift.emoji, name: gift.name, senderName: msg.senderName ?? "Viewer", x, size: gift.size, inVideo: msg.giftId ? giftPresentation.current.inVideo(msg.giftId) : nativeGift },
-            ]);
+            setFloatingGifts(prev => mergeGiftFloater(prev, { id: msg.giftId ?? `${Date.now()}-${Math.random()}`, emoji: gift.emoji, name: gift.name, senderName: msg.senderName ?? "Viewer", x, size: gift.size, inVideo: msg.giftId ? giftPresentation.current.inVideo(msg.giftId) : nativeGift,
+              comboId: msg.combo?.id, comboCount: msg.combo?.count, comboLabel: msg.combo ? `×${appNumber(msg.combo.count)}` : undefined }));
           }
           if (msg.type === "stream_ended") {
             serverEndedShutdownRef.current();
@@ -552,14 +552,7 @@ export default function GoLiveScreen() {
 
   useEffect(() => {
     if (!chatPollData?.messages) return;
-    setChatMessages((prev) => {
-      const deleted = new Set(chatPollData.deletedIds ?? []);
-      const retained = prev.filter(m => !deleted.has(m.id));
-      const existingIds = new Set(retained.map((m) => m.id));
-      const next = chatPollData.messages.filter((m) => !existingIds.has(m.id));
-      if (next.length === 0 && retained.length === prev.length) return prev;
-      return [...retained, ...next].slice(-100);
-    });
+    setChatMessages(prev => mergeLiveChat(prev, chatPollData.messages, chatPollData.deletedIds));
   }, [chatPollData]);
 
   // Request permissions and initialise Agora engine on mount
@@ -1444,7 +1437,7 @@ export default function GoLiveScreen() {
         {/* Floating gift animations — rendered above everything */}
         {floatingGifts.map((fg) => (
           <GiftFloater
-            key={fg.id}
+            key={fg.comboId ?? fg.id}
             gift={fg}
             onDone={(id) => setFloatingGifts((prev) => prev.filter((g) => g.id !== id))}
           />

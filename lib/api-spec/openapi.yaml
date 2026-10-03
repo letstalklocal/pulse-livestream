@@ -855,7 +855,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CoinBalanceResponse"
+                $ref: "#/components/schemas/CoinSpendResponse"
         "402":
           description: Insufficient coins
           content:
@@ -1788,6 +1788,21 @@ components:
       properties:
         balance:
           type: integer
+      required:
+        - balance
+
+    CoinSpendResponse:
+      type: object
+      properties:
+        balance:
+          type: integer
+        combo:
+          type: object
+          properties:
+            id: { type: string }
+            count: { type: integer }
+            totalCoins: { type: integer }
+          required: [id, count, totalCoins]
       required:
         - balance
 

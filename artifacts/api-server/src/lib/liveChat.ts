@@ -6,6 +6,7 @@ export interface ChatMessage {
   text: string;
   color: string;
   ts: number;
+  giftComboCount?: number;
 }
 
 export const chatStore = new Map<string, ChatMessage[]>();
@@ -24,12 +25,13 @@ export function appendGiftChat(
   channelId: string,
   giftName: string,
   senderName: string,
-  gift: { giftId: string; amount: number; senderUid: number; isIncognito?: boolean },
+  gift: { giftId: string; amount: number; senderUid: number; isIncognito?: boolean; combo?: { id: string; count: number; totalCoins: number } },
 ) {
   const messages = chatStore.get(channelId) ?? [];
-  const id = `gift:${gift.giftId}`;
+  const id = `gift:${gift.combo?.id ?? gift.giftId}`;
+  const previous = messages.find(message => message.id === id);
   if (
-    messages.some((message) => message.id === id) ||
+    (previous && (!gift.combo || (previous.giftComboCount ?? 1) >= gift.combo.count)) ||
     (deletedMessages.get(channelId) ?? []).includes(id)
   )
     return;
@@ -38,9 +40,10 @@ export function appendGiftChat(
     senderName,
     senderUid: gift.senderUid,
     isIncognito: gift.isIncognito,
-    text: `sent 🪙 ${gift.amount.toLocaleString("en-US")} coins · ${giftName}`,
+    text: `sent 🪙 ${gift.amount.toLocaleString("en-US")} coins · ${giftName}${gift.combo && gift.combo.count > 1 ? ` ×${gift.combo.count}` : ""}`,
     color: "#FFD76A",
     ts: Date.now(),
+    giftComboCount: gift.combo?.count,
   };
-  chatStore.set(channelId, [...messages, message].slice(-MAX_MESSAGES));
+  chatStore.set(channelId, [...messages.filter(item => item.id !== id), message].slice(-MAX_MESSAGES));
 }

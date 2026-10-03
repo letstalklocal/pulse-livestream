@@ -31,6 +31,8 @@ export * from './chatMessagesResponse';
 export * from './coinBalanceResponse';
 export * from './coinGrantRequest';
 export * from './coinSpendRequest';
+export * from './coinSpendResponse';
+export * from './coinSpendResponseCombo';
 export * from './convertStreamToPremiumBody';
 export * from './createMediaPackRequest';
 export * from './createMediaPackRequestGiftId';

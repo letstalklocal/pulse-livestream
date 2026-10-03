@@ -797,7 +797,12 @@ export const SpendCoinsBody = zod.object({
 })
 
 export const SpendCoinsResponse = zod.object({
-  "balance": zod.number()
+  "balance": zod.number(),
+  "combo": zod.object({
+  "id": zod.string(),
+  "count": zod.number(),
+  "totalCoins": zod.number()
+}).optional()
 })
 
 

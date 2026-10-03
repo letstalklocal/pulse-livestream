@@ -65,6 +65,7 @@ interface RtmContextValue {
   refreshMessages: () => Promise<void>;
   editDm: (messageId: string, text: string) => Promise<{ ok: boolean; error?: string }>;
   deleteDm: (messageId: string, scope: "everyone" | "me") => Promise<{ ok: boolean; error?: string }>;
+  sendGiftDm: (peerId: string, giftId: string, idempotencyKey: string) => Promise<{ ok: boolean; error?: string; uncertain?: boolean; balance?: number; combo?: { id: string; count: number; totalCoins: number } }>;
 }
 
 const RtmContext = createContext<RtmContextValue>({
@@ -77,6 +78,7 @@ const RtmContext = createContext<RtmContextValue>({
   refreshMessages: async () => {},
   editDm: async () => ({ ok: false }),
   deleteDm: async () => ({ ok: false }),
+  sendGiftDm: async () => ({ ok: false }),
 });
 
 const messageStore: Record<string, DmMessage[]> = {};
@@ -138,6 +140,8 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
     // parties see accept/start/end transitions without reopening the thread.
     const wasAlreadySynced = syncedMessageIdsRef.current.has(message.id);
 
+    const priorMessage = messageStore[message.senderId === uidStr ? message.recipientId : message.senderId]?.find(item => item.messageId === message.id);
+    const comboAdvanced = message.text.startsWith("🎁") && !!priorMessage && message.ts > priorMessage.ts && message.text !== priorMessage.text;
     if (wasAlreadySynced && message.kind !== "private_stream_invitation") {
       const peer=message.senderId===uidStr?message.recipientId:message.senderId;
       const previous=messageStore[peer]?.find(item=>item.messageId===message.id);
@@ -192,7 +196,7 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
       peerName,
       message.kind === "private_stream_invitation" ? "Private live invitation" : message.kind === "media_pack" ? "Media pack" : message.kind === "media" ? "Media" : message.text,
       message.ts,
-      isIncoming && unread && !wasAlreadySynced ? 1 : 0,
+      isIncoming && unread && (!wasAlreadySynced || (comboAdvanced && priorMessage?.readAt != null)) ? 1 : 0,
     );
     setTick((tick) => tick + 1);
   }, [uidStr, upsertConversation]);
@@ -312,6 +316,23 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
   const editDm = useCallback((messageId: string, text: string) => updateDm(messageId, "PATCH", { text }), [updateDm]);
   const deleteDm = useCallback((messageId: string, scope: "everyone" | "me") => updateDm(messageId, "DELETE", { scope }), [updateDm]);
 
+  const sendGiftDm = useCallback(async (peerId: string, giftId: string, idempotencyKey: string) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30_000);
+    try {
+      const token = await getTokenRef.current();
+      if (!token || !uidStr) return { ok: false, error: "Please sign in again." };
+      const response = await fetch(`${BASE_URL}/api/dms/gifts`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ recipientId: Number(peerId), giftId, idempotencyKey }), signal: controller.signal });
+      if (!response.ok) return { ok: false, error: response.status === 402 ? "You may not have enough coins. Try a smaller gift or top up from your profile." : "Please try again.", uncertain: response.status >= 500 };
+      const data = await response.json() as { balance: number; message: PersistedDm; combo: { id: string; count: number; totalCoins: number } };
+      if (!data.message || !data.combo || !Number.isSafeInteger(data.balance)) return { ok: false, uncertain: true };
+      storePersistedMessage(data.message, false);
+      return { ok: true, balance: data.balance, combo: data.combo };
+    } catch { return { ok: false, uncertain: true }; }
+    finally { clearTimeout(timeout); }
+  }, [uidStr, storePersistedMessage]);
+
   const readRequests=useRef(new Map<string,number>());
   const markRead = useCallback((peerId: string) => {
     if(AppState.currentState !== "active" || (typeof document !== "undefined" && document.hidden))return;
@@ -327,7 +348,7 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
   const refreshMessages = useCallback(() => syncMessagesRef.current(), []);
 
   return (
-    <RtmContext.Provider value={{ ready, rtmError, conversations, getMessages, sendDm, markRead, refreshMessages, editDm, deleteDm }}>
+    <RtmContext.Provider value={{ ready, rtmError, conversations, getMessages, sendDm, markRead, refreshMessages, editDm, deleteDm, sendGiftDm }}>
       {children}
     </RtmContext.Provider>
   );
