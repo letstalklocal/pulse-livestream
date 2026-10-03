@@ -46,6 +46,8 @@ interface Props {
   sendingGiftId?: string | null;
   /** Optional touch-through feedback above this native modal's drawer. */
   feedbackOverlay?: React.ReactNode;
+  /** Optional measured sheet size for message-area clearance in DMs. */
+  onDrawerHeightChange?: (height: number) => void;
   /** Local animation preview only; never exposes purchases or a real wallet balance. */
   preview?: boolean;
   recipients?: Array<{ uid: number; name: string; avatarUrl?: string | null }>;
@@ -53,7 +55,7 @@ interface Props {
   onRecipientChange?: (uid: number) => void;
 }
 
-export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipientUid, onRecipientChange, hintText = "Select a gift, then tap Send.", preview = false, sendingGiftId, feedbackOverlay }: Props) {
+export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipientUid, onRecipientChange, hintText = "Select a gift, then tap Send.", preview = false, sendingGiftId, feedbackOverlay, onDrawerHeightChange }: Props) {
   const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
@@ -73,7 +75,7 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
 
       {buyingCoins && !preview ? <View style={styles.purchaseSheet}>
         <CoinStoreContent sheet onClose={() => setBuyingCoins(false)} />
-      </View> : <View style={[styles.sheet, { maxHeight: windowHeight * 0.4 + 10, paddingBottom: Platform.OS === "android" ? Math.max(insets.bottom, 32) : insets.bottom + 16 }]}>
+      </View> : <View onLayout={onDrawerHeightChange ? (event) => onDrawerHeightChange(event.nativeEvent.layout.height) : undefined} style={[styles.sheet, { maxHeight: windowHeight * 0.4 + 10, paddingBottom: Platform.OS === "android" ? Math.max(insets.bottom, 32) : insets.bottom + 16 }]}>
         {/* Handle */}
         <View style={styles.handle} />
 

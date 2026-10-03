@@ -5,7 +5,7 @@ const ts = require('typescript');
 const code = ts.transpileModule(fs.readFileSync(require.resolve('../components/GiftPicker.tsx'), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
 }).outputText;
-function render(preview, coins = 0, buying = false, feedbackOverlay) {
+function render(preview, coins = 0, buying = false, feedbackOverlay, onDrawerHeightChange) {
   const sent = [], writes = [], closes = [], slots = [buying, null];
   let cursor = 0, visible = true, effects = [];
   const react = { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
@@ -27,7 +27,7 @@ function render(preview, coins = 0, buying = false, feedbackOverlay) {
   const result = { nodes: [], sent, writes, closes };
   const update = () => {
     cursor = 0; effects = [];
-    const tree = mod.exports.GiftPicker({ visible, preview, coins, feedbackOverlay, onClose: () => closes.push(true), onSend: gift => sent.push(gift.id), hintText: preview ? 'Test gifts only. No coins are spent.' : undefined });
+    const tree = mod.exports.GiftPicker({ visible, preview, coins, feedbackOverlay, onDrawerHeightChange, onClose: () => closes.push(true), onSend: gift => sent.push(gift.id), hintText: preview ? 'Test gifts only. No coins are spent.' : undefined });
     const nodes = [];
     const walk = value => { if (Array.isArray(value)) value.forEach(walk); else if (value && typeof value === 'object') { nodes.push(value); walk(value.props?.children); } };
     walk(tree); result.nodes = nodes;
@@ -47,6 +47,11 @@ const sendAll = state => {
 };
 
 let preview = render(true);
+const measuredHeights = [];
+const measured = render(false, 500, false, undefined, height => measuredHeights.push(height));
+measured.nodes.find(node => node.type === 'View' && node.props.onLayout).props.onLayout({ nativeEvent: { layout: { height: 260 } } });
+assert.deepEqual(measuredHeights, [260]);
+assert.ok(measured.nodes.some(node => node.type === 'Modal' && node.props.visible), 'DM clearance does not replace the existing native gift modal');
 const feedback = { type: 'PaidGiftAnimation', props: {} };
 const feedbackState = render(false, 5, false, feedback);
 const overlayContainer = feedbackState.nodes.find(node => node.type === 'View' && node.props.children.includes(feedback));

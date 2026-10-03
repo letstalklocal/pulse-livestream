@@ -148,6 +148,19 @@ export default function DmScreen() {
   const establishedChat = getMessages(peerIdStr).length > 0;
   const needsGift = !establishedChat && peerStatus.data?.needsGift === true;
   const [showGiftPicker, setShowGiftPicker] = useState(false);
+  const [giftDrawerHeight, setGiftDrawerHeight] = useState(0);
+  const [composerHeight, setComposerHeight] = useState(0);
+  const giftMessageClearance = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const animation = Animated.timing(giftMessageClearance, {
+      toValue: showGiftPicker && !contactBlocked ? Math.max(0, giftDrawerHeight - composerHeight) : 0,
+      duration: reduceMotion ? 0 : 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [showGiftPicker, contactBlocked, giftDrawerHeight, composerHeight, reduceMotion, giftMessageClearance]);
   const giftSending = useRef(false);
   const [sendingGiftId, setSendingGiftId] = useState<string | null>(null);
   const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
@@ -249,7 +262,8 @@ export default function DmScreen() {
     const next = getMessages(peerIdStr);
     const latest = next[next.length - 1];
     if (focusedRef.current && positionedRef.current && latest &&
-        latest.messageId !== latestMessageRef.current && latest.senderId === myUidStr) {
+        latest.messageId !== latestMessageRef.current && latest.senderId === myUidStr &&
+        !parseDmGiftReceipt(latest.text, GIFTS)) {
       // Switch anchoring in the same render that inserts our outgoing message.
       updateFollowingBottom(true);
       keepAtBottom();
@@ -294,7 +308,7 @@ export default function DmScreen() {
     const hasNewMessage = latest && latest.messageId !== latestMessageRef.current;
     latestMessageRef.current = latest?.messageId;
     if (!positionedRef.current) return;
-    if (hasNewMessage && (isNearBottomRef.current || latest.senderId === myUidStr)) {
+    if (hasNewMessage && (isNearBottomRef.current || (latest.senderId === myUidStr && !parseDmGiftReceipt(latest.text, GIFTS)))) {
       updateFollowingBottom(true);
       keepAtBottom();
     }
@@ -385,6 +399,7 @@ export default function DmScreen() {
       </View>
 
       {/* Messages */}
+      <Animated.View style={{ flex: 1, minHeight: 0, paddingBottom: giftMessageClearance }}>
       <FlatList
         ref={listRef}
         data={reversedMessages}
@@ -491,6 +506,7 @@ export default function DmScreen() {
           </View>
         }
       />
+      </Animated.View>
 
       {/* Send error */}
       {sendError && (
@@ -500,7 +516,7 @@ export default function DmScreen() {
       )}
       {replyTo && !contactBlocked && !needsGift && <View style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 12, marginHorizontal: 16, borderLeftWidth: 3, borderLeftColor: colors.primary, backgroundColor: colors.card }}><View style={{ flex: 1 }}><Text style={[localizedTextStyle(), { color: colors.primary, fontWeight: "600" }]}>{t("Replying to {v0}", { v0: replyTo.senderId === myUidStr ? t("yourself") : replyTo.senderName })}</Text><Text numberOfLines={2} style={{ color: colors.mutedForeground, marginTop: 4 }}>{replyText(replyTo)}</Text></View><TouchableOpacity accessibilityLabel={t("Cancel reply")} disabled={sendingMessage} onPress={() => setReplyTo(null)}><Ionicons name="close" size={22} color={colors.mutedForeground} /></TouchableOpacity></View>}
       {/* Input bar */}
-      {contactBlocked ? <Text style={[localizedTextStyle(), { color: colors.mutedForeground, textAlign: "center", padding: 16, paddingBottom: composerBottomInset + 16 }]}>{safety.data?.blockedByMe ? t("You blocked this user. Use the user menu to unblock.") : t("Messaging is unavailable with this account.")}</Text> : !establishedChat && peerStatus.isPending ? <ActivityIndicator color={colors.primary} style={{padding:20}}/> : !establishedChat && peerStatus.isError && !peerStatus.data ? <TouchableOpacity onPress={()=>void peerStatus.refetch()} style={{padding:20}}><Text style={[localizedTextStyle(), {color:colors.mutedForeground,textAlign:"center"}]}>{t("Couldn’t load chat settings. Tap to retry.")}</Text></TouchableOpacity> : needsGift ? <View style={{padding:20,paddingBottom:composerBottomInset+20,gap:10}}><Text style={[localizedTextStyle(), {color:colors.mutedForeground,textAlign:"center"}]}>{t("Send a Rose to activate your chat with {v0}.", { v0: name })}</Text><TouchableOpacity disabled={sendingRose} onPress={()=>void activateChat()} style={{padding:16,borderRadius:14,backgroundColor:colors.primary,alignItems:"center"}}>{sendingRose?<ActivityIndicator color="#FFF"/>:<Text style={[localizedTextStyle(), {color:"#FFF",fontWeight:"600"}]}>{t("🌹 Send Rose · 1 coin")}</Text>}</TouchableOpacity></View> : <View style={[styles.inputBar, { borderTopColor: colors.border, paddingBottom: composerBottomInset + 8 }]}>
+      {contactBlocked ? <Text style={[localizedTextStyle(), { color: colors.mutedForeground, textAlign: "center", padding: 16, paddingBottom: composerBottomInset + 16 }]}>{safety.data?.blockedByMe ? t("You blocked this user. Use the user menu to unblock.") : t("Messaging is unavailable with this account.")}</Text> : !establishedChat && peerStatus.isPending ? <ActivityIndicator color={colors.primary} style={{padding:20}}/> : !establishedChat && peerStatus.isError && !peerStatus.data ? <TouchableOpacity onPress={()=>void peerStatus.refetch()} style={{padding:20}}><Text style={[localizedTextStyle(), {color:colors.mutedForeground,textAlign:"center"}]}>{t("Couldn’t load chat settings. Tap to retry.")}</Text></TouchableOpacity> : needsGift ? <View style={{padding:20,paddingBottom:composerBottomInset+20,gap:10}}><Text style={[localizedTextStyle(), {color:colors.mutedForeground,textAlign:"center"}]}>{t("Send a Rose to activate your chat with {v0}.", { v0: name })}</Text><TouchableOpacity disabled={sendingRose} onPress={()=>void activateChat()} style={{padding:16,borderRadius:14,backgroundColor:colors.primary,alignItems:"center"}}>{sendingRose?<ActivityIndicator color="#FFF"/>:<Text style={[localizedTextStyle(), {color:"#FFF",fontWeight:"600"}]}>{t("🌹 Send Rose · 1 coin")}</Text>}</TouchableOpacity></View> : <View onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)} style={[styles.inputBar, { borderTopColor: colors.border, paddingBottom: composerBottomInset + 8 }]}>
         <TextInput
           ref={inputRef}
           style={[styles.input, { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border }]}
@@ -568,6 +584,7 @@ export default function DmScreen() {
       />
       <GiftPicker
         visible={showGiftPicker && !contactBlocked}
+        onDrawerHeightChange={setGiftDrawerHeight}
         coins={viewerCoins}
         hintText="Select a gift, then tap Send."
         sendingGiftId={sendingGiftId}
