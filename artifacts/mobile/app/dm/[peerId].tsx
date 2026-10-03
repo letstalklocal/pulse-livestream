@@ -43,6 +43,7 @@ import { useRtm, type DmMessage } from "@/context/RtmContext";
 import { useColors } from "@/hooks/useColors";
 import { Avatar } from "@/components/Avatar";
 import { GiftPicker, GIFTS, type Gift } from "@/components/GiftPicker";
+import { GiftFloater, type FloatingGift } from "@/components/GiftFloater";
 import { MediaPackMessage } from "@/components/MediaPackMessage";
 import { MediaChooser } from "@/components/MediaChooser";
 import { DirectMediaMessage } from "@/components/DirectMediaMessage";
@@ -148,6 +149,18 @@ export default function DmScreen() {
   const needsGift = !establishedChat && peerStatus.data?.needsGift === true;
   const [showGiftPicker, setShowGiftPicker] = useState(false);
   const giftSending = useRef(false);
+  const [sendingGiftId, setSendingGiftId] = useState<string | null>(null);
+  const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
+  const activeGiftPeer = useRef<string | null>(peerIdStr);
+  useEffect(() => {
+    activeGiftPeer.current = peerIdStr;
+    setFloatingGifts([]);
+    return () => { activeGiftPeer.current = null; };
+  }, [peerIdStr]);
+  const giftFeedback = floatingGifts.map((gift) => (
+    <GiftFloater key={gift.id} gift={gift}
+      onDone={(id) => setFloatingGifts((previous) => previous.filter((item) => item.id !== id))} />
+  ));
   const [showPackPicker, setShowPackPicker] = useState(false);
   const mediaChooserRef = useRef<{ open: () => void }>(null);
   const [showInviteComposer, setShowInviteComposer] = useState(false);
@@ -557,7 +570,9 @@ export default function DmScreen() {
         visible={showGiftPicker && !contactBlocked}
         coins={viewerCoins}
         hintText="Select a gift, then tap Send."
-        onClose={() => setShowGiftPicker(false)}
+        sendingGiftId={sendingGiftId}
+        feedbackOverlay={giftFeedback}
+        onClose={() => { setShowGiftPicker(false); setFloatingGifts([]); }}
         onSend={(gift: Gift) => {
           const recipientId = Number.parseInt(peerIdStr, 10);
           if (!user?.uid || !Number.isInteger(recipientId)) {
@@ -567,8 +582,11 @@ export default function DmScreen() {
 
           if (giftSending.current) return;
           giftSending.current = true;
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+          setSendingGiftId(gift.id);
           setSendError(null);
           void (async () => {
+            let paymentCompleted = false;
             try {
               const result = await spendMutation.mutateAsync({
                 data: {
@@ -582,29 +600,54 @@ export default function DmScreen() {
                 },
               });
 
+              paymentCompleted = true;
+
               queryClient.setQueryData(
                 getGetCoinBalanceQueryKey({ uid: user.uid }),
                 { balance: result.balance },
               );
 
-              const dmResult = await sendDm(
-                peerIdStr,
-                name,
-                `🎁 ${gift.emoji} ${gift.name} gift • ${gift.coins} coins`,
-              );
-              if (!dmResult.ok) {
-                setSendError(`Gift sent, but the chat receipt could not be delivered. ${dmResult.error ?? ""}`.trim());
-              } else {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              // Show the paid gift now; its persisted chat receipt follows separately.
+              if (activeGiftPeer.current === peerIdStr) {
+                setFloatingGifts((previous) => [...previous, {
+                  id: createGiftRequestKey(), emoji: gift.emoji, name: gift.name,
+                  senderName: user.name ?? "You", x: 0, size: gift.size,
+                }]);
               }
+              void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
+
+              // Receipt saving must not keep the next gift's payment locked.
+              // This task owns its errors and never clears another send's guard.
+              void (async () => {
+                try {
+                  const dmResult = await sendDm(
+                    peerIdStr,
+                    name,
+                    `🎁 ${gift.emoji} ${gift.name} gift • ${gift.coins} coins`,
+                  );
+                  if (!dmResult.ok && activeGiftPeer.current === peerIdStr) {
+                    setSendError(`Gift sent, but the chat receipt could not be delivered. ${dmResult.error ?? ""}`.trim());
+                  }
+                } catch {
+                  if (activeGiftPeer.current === peerIdStr) {
+                    setSendError("Gift sent, but the chat receipt could not be delivered.");
+                  }
+                }
+              })();
             } catch {
-              Alert.alert(t("Gift couldn't be sent"), t("You may not have enough coins. Try a smaller gift or top up from your profile."));
+              if (paymentCompleted) {
+                setSendError("Gift sent, but the chat receipt could not be delivered.");
+              } else {
+                Alert.alert(t("Gift couldn't be sent"), t("You may not have enough coins. Try a smaller gift or top up from your profile."));
+              }
             } finally {
               giftSending.current = false;
+              setSendingGiftId(null);
             }
           })();
         }}
       />
+      {!showGiftPicker && !contactBlocked ? <View pointerEvents="none" style={StyleSheet.absoluteFill}>{giftFeedback}</View> : null}
        <Modal visible={showInviteComposer && !contactBlocked} transparent animationType="slide" onRequestClose={() => setShowInviteComposer(false)}>
          <View style={styles.pickerShade}><View style={[styles.packPicker, styles.invitePicker, { backgroundColor: colors.card, paddingBottom: Math.max(36, insets.bottom + 20) }]}>
            <View style={styles.pickerHead}><Text style={[localizedTextStyle(), [styles.pickerTitle, { color: colors.foreground }]]}>{t("Private live invite")}</Text><TouchableOpacity onPress={() => setShowInviteComposer(false)}><Ionicons name="close" size={23} color={colors.foreground} /></TouchableOpacity></View>

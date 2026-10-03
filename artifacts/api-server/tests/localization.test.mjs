@@ -140,6 +140,8 @@ try {
    if((file.endsWith('/app/go-live.tsx')||file.endsWith('/components/LivePremiumSheet.tsx'))&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.getText(a)==='{allowIncognito ? "checkbox" : "square-outline"}')return;
    // Approved VIP invisible-viewing preference adds one switch; all prior controls remain compared.
    if(file.endsWith('/app/privacy.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='value'&&n.initializer?.getText(a)==='{isPro && privacy.preferences.invisibleViewing}')return;
+   // Paid DM animation adds a keyed renderer; payment/receipt timing has dedicated tests.
+   if(file.endsWith('/app/dm/[peerId].tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='key'&&n.initializer?.getText(a)==='{gift.id}'&&n.parent.parent.tagName?.getText(a)==='GiftFloater')return;
    // Approved DM gift artwork has its own timestamp/read row; retain the existing
    // text-message and invitation icons plus all payment/message identifiers.
    if(file.endsWith('/app/dm/[peerId].tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='checkmark-done'){

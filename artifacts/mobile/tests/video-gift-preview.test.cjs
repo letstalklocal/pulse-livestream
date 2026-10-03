@@ -5,7 +5,7 @@ const ts = require('typescript');
 const code = ts.transpileModule(fs.readFileSync(require.resolve('../components/GiftPicker.tsx'), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
 }).outputText;
-function render(preview, coins = 0, buying = false) {
+function render(preview, coins = 0, buying = false, feedbackOverlay) {
   const sent = [], writes = [], closes = [], slots = [buying, null];
   let cursor = 0, visible = true, effects = [];
   const react = { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
@@ -27,7 +27,7 @@ function render(preview, coins = 0, buying = false) {
   const result = { nodes: [], sent, writes, closes };
   const update = () => {
     cursor = 0; effects = [];
-    const tree = mod.exports.GiftPicker({ visible, preview, coins, onClose: () => closes.push(true), onSend: gift => sent.push(gift.id), hintText: preview ? 'Test gifts only. No coins are spent.' : undefined });
+    const tree = mod.exports.GiftPicker({ visible, preview, coins, feedbackOverlay, onClose: () => closes.push(true), onSend: gift => sent.push(gift.id), hintText: preview ? 'Test gifts only. No coins are spent.' : undefined });
     const nodes = [];
     const walk = value => { if (Array.isArray(value)) value.forEach(walk); else if (value && typeof value === 'object') { nodes.push(value); walk(value.props?.children); } };
     walk(tree); result.nodes = nodes;
@@ -47,6 +47,11 @@ const sendAll = state => {
 };
 
 let preview = render(true);
+const feedback = { type: 'PaidGiftAnimation', props: {} };
+const feedbackState = render(false, 5, false, feedback);
+const overlayContainer = feedbackState.nodes.find(node => node.type === 'View' && node.props.children.includes(feedback));
+assert.equal(overlayContainer?.props.pointerEvents, 'none', 'paid feedback inside the native picker modal cannot intercept drawer/backdrop touches');
+assert.ok(!preview.nodes.some(node => node.type === 'PaidGiftAnimation'), 'callers without feedback retain their existing presentation');
 const badge = preview.nodes.find(node => node.props?.accessibilityLabel === 'Preview gifts');
 assert.equal(badge.props.disabled, true, 'preview cannot open a coin purchase');
 assert.equal(preview.nodes.filter(n => n.props.testID?.startsWith('send-gift-')).length, 8, 'Each gift tile is the full-tile tap target');

@@ -42,6 +42,10 @@ interface Props {
   onSend: (gift: Gift) => void;
   coins: number;
   hintText?: string;
+  /** Optional caller-owned pending feedback; payment remains server-confirmed. */
+  sendingGiftId?: string | null;
+  /** Optional touch-through feedback above this native modal's drawer. */
+  feedbackOverlay?: React.ReactNode;
   /** Local animation preview only; never exposes purchases or a real wallet balance. */
   preview?: boolean;
   recipients?: Array<{ uid: number; name: string; avatarUrl?: string | null }>;
@@ -49,7 +53,7 @@ interface Props {
   onRecipientChange?: (uid: number) => void;
 }
 
-export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipientUid, onRecipientChange, hintText = "Select a gift, then tap Send.", preview = false }: Props) {
+export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipientUid, onRecipientChange, hintText = "Select a gift, then tap Send.", preview = false, sendingGiftId, feedbackOverlay }: Props) {
   const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
@@ -99,7 +103,8 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
           {GIFTS.map((gift) => {
             const canAfford = preview || coins >= gift.coins;
             const selected = selectedGiftId === gift.id;
-            const canSend = selected && canAfford;
+            const sending = sendingGiftId === gift.id;
+            const canSend = selected && canAfford && !sendingGiftId;
             return (
               <View
                 key={gift.id}
@@ -107,13 +112,15 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
               >
               <TouchableOpacity
                   testID={`send-gift-${gift.id}`}
+                  disabled={!!sendingGiftId}
                   onPress={() => {
+                    if (sendingGiftId) return;
                     if (canSend) onSend(gift);
                     else setSelectedGiftId(gift.id);
                   }}
                   accessibilityRole="radio"
-                  accessibilityState={{ checked: selected }}
-                  accessibilityLabel={selected && canAfford ? `${t("Send")} ${gift.name}, ${gift.coins}` : gift.name}
+                  accessibilityState={{ checked: selected, disabled: !!sendingGiftId, busy: sending }}
+                  accessibilityLabel={sending ? `${t("Sending…")} ${gift.name}` : selected && canAfford ? `${t("Send")} ${gift.name}, ${gift.coins}` : gift.name}
                   style={[styles.giftCell, selected && styles.selectedGift, !canAfford && styles.giftCellDisabled]}
                   activeOpacity={0.8}
                 >
@@ -129,8 +136,8 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
                       </Text>
                     </View>
                   </View>
-                  <View style={[styles.sendButton, !canSend && styles.sendDisabled]}>
-                  <Text style={[styles.sendText, localizedTextStyle()]}>{t("Send")}</Text>
+                  <View style={[styles.sendButton, !canSend && !sending && styles.sendDisabled]}>
+                  <Text style={[styles.sendText, localizedTextStyle()]}>{t(sending ? "Sending…" : "Send")}</Text>
                   </View>
               </TouchableOpacity>
               </View>
@@ -139,6 +146,7 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
         </ScrollView>
 
       </View>}
+      {feedbackOverlay ? <View pointerEvents="none" style={StyleSheet.absoluteFill}>{feedbackOverlay}</View> : null}
     </Modal>
   );
 }
