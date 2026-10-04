@@ -1529,3 +1529,11 @@ export async function humanDecline(
     return withdrawalDetail(c, id, undefined, account);
   });
 }
+export async function renewPreparationLease(db:Database,account:string,id:string,input:unknown,actor:string){
+ const b=body(input,['attemptId','quoteHash','evidence']);const evidence=note(b.evidence,'lease renewal evidence');
+ return tx(db,async c=>{const w=await lockedWithdrawal(c,id,account);const a=(await c.query('SELECT * FROM creator_payout_attempts WHERE id=$1 AND withdrawal_id=$2 FOR UPDATE',[b.attemptId,id])).rows[0];if(!a||a.maker!==actor||a.state!=='preparing'||w.status!=='preparing'||a.binding_hash!==binding(w)||b.quoteHash!==w.quote?.hash||Date.parse(a.lease_until)<=Date.now()||Date.parse(w.quote.expiresAt)<=Date.now())fail('Preparation lease expired or attempt/quote changed; record unknown and investigate.',409);await c.query("UPDATE creator_payout_attempts SET lease_until=LEAST(now()+interval '15 minutes',$2::timestamptz),updated_at=now() WHERE id=$1",[a.id,w.quote.expiresAt]);await event(c,w.user_id,actor,'preparation_lease_renewed',{attemptId:a.id,evidence},id);return adminWithdrawalDetail(c,id,account);});
+}
+export async function releasePreparationLease(db:Database,account:string,id:string,input:unknown,actor:string){
+ const b=body(input,['attemptId','quoteHash','evidence']);const evidence=note(b.evidence,'lease release evidence');
+ return tx(db,async c=>{const w=await lockedWithdrawal(c,id,account);const a=(await c.query('SELECT * FROM creator_payout_attempts WHERE id=$1 AND withdrawal_id=$2 FOR UPDATE',[b.attemptId,id])).rows[0];if(!a||a.maker!==actor||a.binding_hash!==binding(w)||b.quoteHash!==w.quote?.hash||!['preparing','unknown'].includes(a.state))fail('Preparation attempt does not match this operator and quote.',409);await c.query("UPDATE creator_payout_attempts SET state='unknown',updated_at=now() WHERE id=$1",[a.id]);await c.query("UPDATE creator_withdrawals SET status='unknown',checker=NULL,updated_at=now() WHERE id=$1",[id]);await event(c,w.user_id,actor,'preparation_lease_released_unknown',{attemptId:a.id,evidence},id);return adminWithdrawalDetail(c,id,account);});
+}
