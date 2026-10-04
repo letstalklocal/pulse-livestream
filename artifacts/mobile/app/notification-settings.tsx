@@ -35,8 +35,8 @@ const categories: {
   },
   {
     key: "privateInvitations",
-    title: "Private live invitations",
-    detail: "Invitations to a private live",
+    title: "1:1 Private invitations",
+    detail: "Invitations to a 1:1 Private session",
   },
   {
     key: "gifts",

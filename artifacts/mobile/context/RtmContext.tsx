@@ -185,7 +185,7 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
       const latest = peerMessages.filter(item => !item.deletedAt).at(-1);
       setConversations(previous => latest ? previous.map(conversation => conversation.peerId === peerId ? {
         ...conversation, lastTs: latest.ts,
-        lastMessage: latest.kind === "media" ? "Media" : latest.kind === "media_pack" ? "Media pack" : latest.kind === "private_stream_invitation" ? "Private live invitation" : latest.text,
+        lastMessage: latest.kind === "media" ? "Media" : latest.kind === "media_pack" ? "Media pack" : latest.kind === "private_stream_invitation" ? "1:1 Private invitation" : latest.text,
         unread: Math.max(0, conversation.unread - (isIncoming && wasAlreadySynced && previouslyUnread ? 1 : 0)),
       } : conversation).sort((a, b) => b.lastTs - a.lastTs) : previous.filter(conversation => conversation.peerId !== peerId));
       setTick(tick => tick + 1);
@@ -194,7 +194,7 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
     upsertConversation(
       peerId,
       peerName,
-      message.kind === "private_stream_invitation" ? "Private live invitation" : message.kind === "media_pack" ? "Media pack" : message.kind === "media" ? "Media" : message.text,
+      message.kind === "private_stream_invitation" ? "1:1 Private invitation" : message.kind === "media_pack" ? "Media pack" : message.kind === "media" ? "Media" : message.text,
       message.ts,
       isIncoming && unread && (!wasAlreadySynced || (comboAdvanced && priorMessage?.readAt != null)) ? 1 : 0,
     );

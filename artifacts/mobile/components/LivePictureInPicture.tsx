@@ -82,6 +82,7 @@ function FloatingPlayer() {
   const Video = Platform.OS === "android" ? RtcTextureViewComponent : RtcSurfaceViewComponent;
   const isDemo = playback.channelId.endsWith("-demo");
   const peer = playback.partyMedia.peer;
+  const paused = !!(playback.stream as (typeof playback.stream & { paused?: boolean }))?.paused;
   const content = (
     <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
       {playback.canEnterStream ? <FloatingKeepAwake /> : null}
@@ -98,7 +99,11 @@ function FloatingPlayer() {
             connection={playback.partyMedia.connection}
             style={styles.partner}
           /> : null}
-          {!isDemo && !playback.remoteVideoReady ? <View style={styles.loading}><ActivityIndicator color="#FFF" /></View> : null}
+          {paused ? <View style={[StyleSheet.absoluteFill, styles.loading]}>
+            {playback.backgroundImageUrl ? <Image source={{ uri: playback.backgroundImageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+            <Text style={{ color: "#FFF", textAlign: "center", padding: 8, backgroundColor: "rgba(0,0,0,0.4)" }}>{t("Streamer will be back soon")}</Text>
+          </View> : null}
+          {!isDemo && !paused && !playback.remoteVideoReady ? <View style={styles.loading}><ActivityIndicator color="#FFF" /></View> : null}
         </View>
         <Pressable style={StyleSheet.absoluteFill} onPress={toggleLarge}
           accessibilityRole="button" accessibilityLabel={t("Picture in picture")}

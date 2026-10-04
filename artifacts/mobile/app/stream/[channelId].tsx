@@ -237,6 +237,7 @@ export default function StreamScreen() {
     query: { enabled: !!channelId, refetchInterval: 5000 } as any,
   });
   const stream = streamData?.stream;
+  const streamPaused = !!(stream as (typeof stream & { paused?: boolean }))?.paused;
   const requiresAdmission = !!stream?.requiredGift;
   // Demo streams have no persisted stream record. Every live channel waits for
   // its server details so a Premium requirement cannot be bypassed.
@@ -690,11 +691,17 @@ export default function StreamScreen() {
     return (
       <View style={styles.endedScreen}>
         <View style={styles.endedCard}>
+          <TouchableOpacity testID="ended-stream-close" accessibilityRole="button" accessibilityLabel={t("Close")} onPress={() => { playback.close(); router.back(); }} style={{ alignSelf: "flex-end", padding: 12 }}>
+            <Ionicons name="close" size={28} color="#FFF" />
+          </TouchableOpacity>
           <Text style={[localizedTextStyle(), styles.endedTitle]}>{t("Stream has ended")}</Text>
           <Text style={styles.endedCountdown}>{countdown}</Text>
           <Text style={[localizedTextStyle(), styles.endedSub]}>
             {isPrivateStream ? t("Returning to chat…") : t("Returning to streams…")}
           </Text>
+          <TouchableOpacity testID="ended-stream-discover" accessibilityRole="button" accessibilityLabel={t("Return to Discover")} onPress={() => { playback.close(); router.dismissTo("/(tabs)"); }} style={{ padding: 16 }}>
+            <Text style={{ color: "#FF1966", fontSize: 16 }}>{t("Return to Discover")}</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -734,6 +741,11 @@ export default function StreamScreen() {
           <View style={[StyleSheet.absoluteFill, { backgroundColor: "#000" }]} />
         ) : isDemo ? (
           <DemoVideo category={demoCategory} />
+        ) : streamPaused ? (
+          <View style={styles.nativeVideoStatus}>
+            <StreamBackdrop imageUrl={backgroundImageUrl} />
+            <Text style={[localizedTextStyle(), styles.nativeVideoStatusText]}>{t("Streamer will be back soon")}</Text>
+          </View>
         ) : showNativeVideo && VideoView ? (
           <>
             <VideoView
@@ -804,10 +816,10 @@ export default function StreamScreen() {
           </View>
 
           <View style={styles.streamMeta}>
-            {requiresAdmission && !streamEnded ? (
-              <View style={styles.premiumBadge} pointerEvents="none" testID="viewer-premium-badge">
+            {(isPrivateStream || requiresAdmission) && !streamEnded ? (
+              <View style={styles.premiumBadge} pointerEvents="none" testID={isPrivateStream ? "viewer-private-badge" : "viewer-premium-badge"}>
                 <View style={styles.premiumDot} />
-                <Text style={[localizedTextStyle(), styles.premiumBadgeText]}>{t("PREMIUM")}</Text>
+                <Text style={[localizedTextStyle(), styles.premiumBadgeText]}>{t(isPrivateStream ? "1:1 Private" : "PREMIUM")}</Text>
               </View>
             ) : displayHostName ? (
               <Text style={styles.hostName} numberOfLines={1}>{displayHostName}</Text>

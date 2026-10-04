@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useAuth as useClerkAuth } from "@clerk/expo";
 import { useRouter } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -28,6 +28,8 @@ export function LiveStickerOverlay(props: {
   visible: boolean;
   top: number;
   isHost?: boolean;
+  manageVisible?: boolean;
+  onManageClose?: () => void;
 }) {
   const { user } = useAuth();
   return user ? (
@@ -45,6 +47,8 @@ function StickerSession({
   visible,
   top,
   isHost = false,
+  manageVisible = false,
+  onManageClose,
   uid,
   senderName,
 }: {
@@ -53,6 +57,8 @@ function StickerSession({
   visible: boolean;
   top: number;
   isHost?: boolean;
+  manageVisible?: boolean;
+  onManageClose?: () => void;
   uid: number;
   senderName: string;
 }) {
@@ -310,6 +316,25 @@ function StickerSession({
             </View>
           ))}
         </View>
+      ) : null}
+      {isHost && manageVisible && enabled ? (
+        <Modal testID="manage-live-stickers" transparent visible animationType="fade" onRequestClose={onManageClose}>
+          <View style={{ flex: 1, justifyContent: "center", padding: 24, backgroundColor: "rgba(0,0,0,0.6)" }}>
+            <View style={{ padding: 20, borderRadius: 16, backgroundColor: "#1A1A2E" }}>
+              <Text style={{ color: "#FFF", fontSize: 20, marginBottom: 16 }}>{t("Change sticker")}</Text>
+              {query.isLoading ? <Text style={{ color: "#FFF" }}>{t("Loading…")}</Text> : null}
+              {query.isError ? <TouchableOpacity onPress={() => void query.refetch()} style={{ padding: 16 }}><Text style={{ color: "#FFF" }}>{t("Please try again.")}</Text></TouchableOpacity> : null}
+              {query.isSuccess && stickers.length === 0 ? <Text style={{ color: "#FFF", paddingVertical: 12 }}>{t("Add stickers before going live.")}</Text> : null}
+              {stickers.map(sticker => <TouchableOpacity key={sticker.id} testID={`manage-live-sticker-${sticker.id}`} accessibilityRole="button"
+                disabled={busy} style={{ flexDirection: "row", alignItems: "center", gap: 16, paddingVertical: 10 }}
+                onPress={() => { onManageClose?.(); setReplacement(sticker); }}>
+                <LiveStickerCard sticker={sticker} disabled showOwned={false} />
+                <Text style={{ color: "#FFF", flex: 1 }}>{sticker.name} · {t("Replace sticker")}</Text>
+              </TouchableOpacity>)}
+              <TouchableOpacity onPress={onManageClose} style={{ padding: 16 }} accessibilityRole="button"><Text style={{ color: "#FFF", textAlign: "center" }}>{t("Cancel")}</Text></TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       ) : null}
       {replacement && enabled ? (
         <LiveStickerPicker

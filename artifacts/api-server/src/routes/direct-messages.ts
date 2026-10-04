@@ -47,7 +47,7 @@ async function messageResponse(message: typeof directMessagesTable.$inferSelect,
   if (!deletedAt && message.replyToMessageId) {
     const [original] = await db.select().from(directMessagesTable).where(eq(directMessagesTable.id,message.replyToMessageId)).limit(1);
     if (original && !original.deletedAt && !(viewerId === original.fromUserId ? original.hiddenFromUserAt : original.hiddenToUserAt) && ((original.fromUserId === message.fromUserId && original.toUserId === message.toUserId) || (original.fromUserId === message.toUserId && original.toUserId === message.fromUserId))) {
-      response.replyTo = { messageId: String(original.id), senderId: String(original.fromUserId), senderName: names.get(original.fromUserId) ?? String(original.fromUserId), text: original.kind === "text" ? original.text : original.kind === "media" ? (original.mediaContentType?.startsWith("video/") ? "Video" : "Photo") : original.kind === "media_pack" ? "Media pack" : "Private live invitation" };
+      response.replyTo = { messageId: String(original.id), senderId: String(original.fromUserId), senderName: names.get(original.fromUserId) ?? String(original.fromUserId), text: original.kind === "text" ? original.text : original.kind === "media" ? (original.mediaContentType?.startsWith("video/") ? "Video" : "Photo") : original.kind === "media_pack" ? "Media pack" : "1:1 Private invitation" };
     }
   }
   if (isMedia) {

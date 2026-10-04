@@ -83,6 +83,8 @@ function RootLayoutNav() {
       <Stack.Screen name="moments" options={{ headerShown: false }} />
       <Stack.Screen name="performance" options={{ headerShown: false }} />
       <Stack.Screen name="earnings" options={{ headerShown: false }} />
+      <Stack.Screen name="withdraw-money" options={{ headerShown: false }} />
+      <Stack.Screen name="withdrawal/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="subscriptions" options={{ headerShown: false }} />
       <Stack.Screen name="coin-store" options={{ headerShown: false }} />
       <Stack.Screen name="general" options={{ headerShown: false }} />

@@ -277,6 +277,9 @@ importers:
       expo-keep-awake:
         specifier: ~57.0.1
         version: 57.0.1(patch_hash=67a2170262d8c08759fd0ba40b4e20555acb0d0d6f5e8517e7d1ab93c5976fe5)(expo@57.0.20)(react@19.2.3)
+      expo-sharing:
+        specifier: ~57.0.22
+        version: 57.0.22(expo@57.0.20)(react-native@0.86.3(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.3))(react@19.2.3)(typescript@6.0.3)
       expo-video:
         specifier: ~57.0.4
         version: 57.0.4(expo@57.0.20)(react-native@0.86.3(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.3))(react@19.2.3)
@@ -3936,6 +3939,13 @@ packages:
   expo-server@57.0.3:
     resolution: {integrity: sha512-aK+LdKzauHSGmsOStZtyxdzv0zWssCkxTw3m4QuOhfDSJsZaMRTd9O41d8ixU/QfELTbaJ0oRNcF7JFV/7O9YQ==}
     engines: {node: '>=20.16.0'}
+
+  expo-sharing@57.0.22:
+    resolution: {integrity: sha512-IWmiz0Dnjd7ifsZ2Gg5XODxb6DQoJ4/H6FofW9bTL9gDjfX2+va8SV1BYVkFvJ8vKQoKR4HgkMCKDCZlrrbKkg==}
+    peerDependencies:
+      expo: '*'
+      react: '*'
+      react-native: '*'
 
   expo-splash-screen@57.0.8:
     resolution: {integrity: sha512-BEsrKg4niYBZa5AFzWRyGqxA4ZemtBOPwbCy+C336iGYYPuZYLEgWJGmm2xD1gRfCdrM/TP+l2ONd86Zvk3KyA==}
@@ -10355,6 +10365,18 @@ snapshots:
   expo-server@57.0.1: {}
 
   expo-server@57.0.3: {}
+
+  expo-sharing@57.0.22(expo@57.0.20)(react-native@0.86.3(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.3))(react@19.2.3)(typescript@6.0.3):
+    dependencies:
+      '@expo/config-plugins': 57.0.9(typescript@6.0.3)
+      '@expo/config-types': 57.0.2
+      '@expo/plist': 0.8.1
+      expo: 57.0.20(@babel/core@7.29.0)(@expo/metro-runtime@57.0.15)(expo-router@57.0.19)(react-dom@19.2.3(react@19.2.3))(react-native-web@0.21.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-native-worklets@0.10.1(@babel/core@7.29.0)(react-native@0.86.3(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.3))(react@19.2.3)(typescript@6.0.3)
+      react: 19.2.3
+      react-native: 0.86.3(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.3)
+    transitivePeerDependencies:
+      - supports-color
+      - typescript
 
   expo-splash-screen@57.0.8(expo@57.0.20)(typescript@6.0.3):
     dependencies:

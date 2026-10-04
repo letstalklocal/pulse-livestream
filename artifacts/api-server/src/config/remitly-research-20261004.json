@@ -1,0 +1,62 @@
+{
+  "observed_date": "2026-10-04",
+  "source": "Signed-in Remitly Business website UI",
+  "source_urls": ["https://www.remitly.com/us/en/homepage", "https://www.remitly.com/us/en/transfer/send"],
+  "sender_country": "US",
+  "funding_method": "debit_card",
+  "comparison_send_amounts_usd": [15, 500],
+  "fee_currency": "USD",
+  "production_fee_schedule": false,
+  "live_requote_required": true,
+  "scope": "All 13 documented Pulse launch countries; default receive currency only. Missing or failing routes cannot be quoted.",
+  "discount_note": "Successful USD 500 quotes displayed a separate USD 50 discount; excluded from fee columns. Promotion eligibility and persistence not verified.",
+  "countries": [
+    {"country_code":"GB","country":"United Kingdom","receive_currency":"GBP","inspection_status":"link_options","notes":"","methods":[
+      {"label":"Bank deposit","fee_cents_at_15_usd_send":0,"fee_cents_at_500_usd_send":0,"delivery_estimate":"45 minutes"},
+      {"label":"Cash pickup","fee_cents_at_15_usd_send":299,"fee_cents_at_500_usd_send":299,"delivery_estimate":"instantly"}
+    ]},
+    {"country_code":"SA","country":"Saudi Arabia","receive_currency":"SAR","inspection_status":"manual_only","notes":"Person went directly to quote without Send by link choice. On delivery step bank deposit available; cash pickup disabled as Temporarily unavailable. Same at both amounts.","methods":[
+      {"label":"Bank deposit","fee_cents_at_15_usd_send":299,"fee_cents_at_500_usd_send":299,"delivery_estimate":"2 days"}
+    ]},
+    {"country_code":"US","country":"United States","receive_currency":null,"inspection_status":"not_in_destination_picker","notes":"Exact United States search returned no result; United search returned only United Arab Emirates and United Kingdom. US sender account.","methods":[]},
+    {"country_code":"CO","country":"Colombia","receive_currency":"COP","inspection_status":"link_options","notes":"","methods":[
+      {"label":"Bre-B","fee_cents_at_15_usd_send":99,"fee_cents_at_500_usd_send":0,"delivery_estimate":"5 minutes"},
+      {"label":"Mobile wallet","fee_cents_at_15_usd_send":99,"fee_cents_at_500_usd_send":0,"delivery_estimate":"5 minutes"},
+      {"label":"Bank deposit","fee_cents_at_15_usd_send":399,"fee_cents_at_500_usd_send":0,"delivery_estimate":"instantly"},
+      {"label":"Cash pickup","fee_cents_at_15_usd_send":499,"fee_cents_at_500_usd_send":0,"delivery_estimate":"instantly"}
+    ]},
+    {"country_code":"RU","country":"Russia","receive_currency":null,"inspection_status":"quote_error","notes":"Country selectable, but both Send by link and Enter details yourself fail with Something went wrong before amount entry. Neither amount could be quoted; cause not established.","methods":[]},
+    {"country_code":"ES","country":"Spain","receive_currency":"EUR","inspection_status":"link_options","notes":"","methods":[
+      {"label":"Bank deposit","fee_cents_at_15_usd_send":0,"fee_cents_at_500_usd_send":0,"delivery_estimate":"25 minutes"},
+      {"label":"Cash pickup","fee_cents_at_15_usd_send":299,"fee_cents_at_500_usd_send":299,"delivery_estimate":"10 minutes"}
+    ]},
+    {"country_code":"CA","country":"Canada","receive_currency":"CAD","inspection_status":"link_options","notes":"","methods":[
+      {"label":"Interac e-Transfer","fee_cents_at_15_usd_send":0,"fee_cents_at_500_usd_send":0,"delivery_estimate":"10 hours"},
+      {"label":"Bank deposit","fee_cents_at_15_usd_send":0,"fee_cents_at_500_usd_send":0,"delivery_estimate":"3 days"},
+      {"label":"Cash pickup","fee_cents_at_15_usd_send":299,"fee_cents_at_500_usd_send":299,"delivery_estimate":"instantly"}
+    ]},
+    {"country_code":"AU","country":"Australia","receive_currency":"AUD","inspection_status":"link_options","notes":"","methods":[
+      {"label":"Bank deposit","fee_cents_at_15_usd_send":0,"fee_cents_at_500_usd_send":0,"delivery_estimate":"1 day"},
+      {"label":"Cash pickup","fee_cents_at_15_usd_send":299,"fee_cents_at_500_usd_send":299,"delivery_estimate":"instantly"}
+    ]},
+    {"country_code":"VE","country":"Venezuela","receive_currency":null,"inspection_status":"not_in_destination_picker","notes":"Exact Venezuela and partial Vene searches returned no destination results.","methods":[]},
+    {"country_code":"MX","country":"Mexico","receive_currency":"MXN","inspection_status":"link_options","notes":"Supersedes blank-amount observation. Delivery times not displayed in method modal.","methods":[
+      {"label":"Bank or Debit Card Deposit","fee_cents_at_15_usd_send":199,"fee_cents_at_500_usd_send":199,"delivery_estimate":null},
+      {"label":"Mobile wallet","fee_cents_at_15_usd_send":199,"fee_cents_at_500_usd_send":199,"delivery_estimate":null},
+      {"label":"Cash pickup","fee_cents_at_15_usd_send":399,"fee_cents_at_500_usd_send":399,"delivery_estimate":null}
+    ]},
+    {"country_code":"CR","country":"Costa Rica","receive_currency":"CRC","inspection_status":"link_available_no_method_modal","notes":"Send by link offered, but amount screen has no delivery-method modal and Continue leads to recipient legal name. Enter details yourself flow exposes Let recipient choose, Bank deposit and Cash pickup (Teledolar). Selecting bank and cash individually showed the same fee at each amount. No recipient data entered. Link method restrictions were not verified.","methods":[
+      {"label":"Bank deposit","fee_cents_at_15_usd_send":399,"fee_cents_at_500_usd_send":399,"delivery_estimate":null},
+      {"label":"Cash pickup","fee_cents_at_15_usd_send":399,"fee_cents_at_500_usd_send":399,"delivery_estimate":null}
+    ]},
+    {"country_code":"AR","country":"Argentina","receive_currency":"ARS","inspection_status":"link_options","notes":"Supersedes invalid earlier blank-amount zero-fee observation.","methods":[
+      {"label":"Mobile wallet","fee_cents_at_15_usd_send":299,"fee_cents_at_500_usd_send":299,"delivery_estimate":"10 minutes"},
+      {"label":"Bank deposit","fee_cents_at_15_usd_send":499,"fee_cents_at_500_usd_send":499,"delivery_estimate":"4 hours"},
+      {"label":"Cash pickup","fee_cents_at_15_usd_send":599,"fee_cents_at_500_usd_send":599,"delivery_estimate":"10 minutes"}
+    ]},
+    {"country_code":"BR","country":"Brazil","receive_currency":"BRL","inspection_status":"link_options","notes":"Main maximum-fee totals include tax: USD 19.05 at USD 15; USD 455.90 at USD 500 including displayed USD 50 discount. Method-specific taxes not resolved.","methods":[
+      {"label":"Pix","fee_cents_at_15_usd_send":0,"fee_cents_at_500_usd_send":0,"delivery_estimate":"instantly"},
+      {"label":"Bank deposit","fee_cents_at_15_usd_send":399,"fee_cents_at_500_usd_send":399,"delivery_estimate":"30 minutes"}
+    ]}
+  ]
+}

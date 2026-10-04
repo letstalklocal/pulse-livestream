@@ -98,7 +98,7 @@ async function expireIfNeeded(invitation: typeof privateStreamInvitationsTable.$
 router.post("/private-stream-invitations", async (req, res): Promise<any> => {
   const streamer = await requireUser(req, res); if (!streamer) return;
   const invitedUserId = Number(req.body?.invitedUserId);
-  const title = typeof req.body?.title === "string" ? req.body.title.trim().slice(0, 120) : "Private live";
+  const title = typeof req.body?.title === "string" ? req.body.title.trim().slice(0, 120) : "1:1 Private";
   const requestedGiftId = req.body?.requiredGiftId;
   const gift = requestedGiftId == null || requestedGiftId === "" ? null : GIFTS.find((candidate) => candidate.id === requestedGiftId);
   if (requestedGiftId != null && requestedGiftId !== "" && !gift) return res.status(400).json({ error: "Choose a valid gift from the invitation catalog" });
@@ -133,7 +133,7 @@ router.post("/private-stream-invitations", async (req, res): Promise<any> => {
       .limit(1))[0];
     if (openInvitation) return { conflict: true as const };
     const [created] = await tx.insert(privateStreamInvitationsTable).values({
-      streamerUserId: streamer.uid, invitedUserId, channelId, title: title || "Private live",
+      streamerUserId: streamer.uid, invitedUserId, channelId, title: title || "1:1 Private",
       backgroundObjectPath: streamer.streamBackgroundImagePath!, expiresAt: new Date(now.getTime() + INVITE_TTL_MS),
        requiredGiftId: gift?.id ?? null, requiredGiftName: gift?.name ?? null, requiredGiftAmount: gift?.coins ?? 0, paymentStatus: gift ? "pending" : "free",
     }).returning();

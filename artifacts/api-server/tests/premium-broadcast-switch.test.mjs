@@ -59,3 +59,15 @@ test('partner leave event cannot complete a primary media-channel switch', async
   assert.equal(f.events.filter(event => event[0] === 'join').length, 1);
   assert.equal(f.handlers.size, 0);
 });
+
+for (const state of [1, 3]) {
+  test(`paused live stays unpublished through Premium join from state ${state}`, async () => {
+    const f = fixture(state);
+    await switchBroadcastChannel(f.engine, 'token', 'protected', 10, false, () => true, undefined, true);
+    const join = f.events.find(event => event[0] === 'join');
+    assert.equal(join[2].publishCameraTrack, false);
+    assert.equal(join[2].publishMicrophoneTrack, false);
+    assert.equal(f.events.find(event => event[0] === 'mute')[1], true);
+    assert.equal(f.handlers.size, 0);
+  });
+}

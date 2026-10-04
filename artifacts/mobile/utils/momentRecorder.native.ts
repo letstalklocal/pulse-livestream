@@ -8,6 +8,7 @@ import {
   type LocalMoment,
 } from "./moments";
 import { DEFAULT_GIFT_SOUND_ID } from "./defaultGiftSound";
+import { prepareLiveGiftSound } from "./liveGiftSound.native";
 import { prepareMomentGiftAssets, prepareMomentGiftSound } from "./momentGiftAssets.native";
 import {
   GIFT_ANIMATION_MS,
@@ -166,7 +167,7 @@ export function recordGiftMoment(
   try {
     const placement = momentGiftWatermarkOptions(size);
     const frames = prepareMomentGiftAssets();
-    try { soundPath = prepareMomentGiftSound(); } catch (error) {
+    try { soundPath = prepareLiveGiftSound(gift.giftName ?? "Crown"); } catch (error) {
       console.warn("[Moments] Gift sound preparation failed", error);
     }
     const directory = new Directory(Paths.document, "moments");
@@ -220,9 +221,12 @@ export function recordGiftMoment(
                 if (soundPath) {
                   soundAttempted = true;
                   try {
-                    const result = engine.playEffect(
+                    let result = engine.playEffect(
                       DEFAULT_GIFT_SOUND_ID, soundPath, 0, 1, 0, 65, true, 0,
                     );
+                    if (result < 0 && soundPath !== prepareMomentGiftSound()) {
+                      result = engine.playEffect(DEFAULT_GIFT_SOUND_ID, prepareMomentGiftSound(), 0, 1, 0, 65, true, 0);
+                    }
                     if (result < 0) console.warn("[Moments] Gift sound failed", result);
                   } catch (error) { console.warn("[Moments] Gift sound failed", error); }
                 }

@@ -51,6 +51,7 @@ export interface StreamRecord {
   lastHeartbeat: number;
   peakViewers: number;
   isPrivate?: boolean;
+  paused?: boolean;
   requiredGift: PremiumGift | null;
 }
 
@@ -89,6 +90,7 @@ function sessionToRuntime(session: typeof liveStreamSessionsTable.$inferSelect):
     lastHeartbeat: session.lastHeartbeatAt.getTime(),
     peakViewers: 0,
     isPrivate: session.isPrivate,
+    paused: session.paused,
     requiredGift,
   };
 }
@@ -802,6 +804,25 @@ router.get("/streams/:channelId", async (req, res) => {
   );
   const identity = viewer ? await premiumIdentity(stream.channelId, viewer.uid) : null;
   res.json({ stream: { ...await toStreamResponse(stream), viewerIncognito: identity?.incognito ?? false, viewerIncognitoChosen: !!identity, viewerAdmitted, viewerMuted: moderation.muted, viewerRemoved: moderation.removed, viewerBlocked: moderation.blocked } });
+});
+
+// Pause changes media presentation only; the session, admissions and heartbeat continue.
+router.put("/streams/:channelId/pause", async (req, res) => {
+  const viewer = await currentUser(req);
+  if (!viewer) return void res.status(401).json({ error: "Authentication required" });
+  const stream = await getActiveRuntimeStream(String(req.params.channelId));
+  if (!stream) return void res.status(404).json({ error: "Stream not found" });
+  if (viewer.uid !== stream.hostUid) return void res.status(403).json({ error: "Only the host can pause this live" });
+  if (!await authorizePrivateStream(req, res, stream, true)) return;
+  if (typeof req.body?.paused !== "boolean") return void res.status(400).json({ error: "Paused must be boolean" });
+  if (!stream.sessionId) return void res.status(409).json({ error: "This live cannot be paused" });
+  const updated = await db.update(liveStreamSessionsTable).set({ paused: req.body.paused })
+    .where(and(eq(liveStreamSessionsTable.id, stream.sessionId), isNull(liveStreamSessionsTable.endedAt)))
+    .returning({ id: liveStreamSessionsTable.id });
+  if (!updated.length) return void res.status(409).json({ error: "Stream has ended" });
+  stream.paused = req.body.paused;
+  wsHub.pushStreamUpdated(stream.channelId);
+  res.json({ paused: stream.paused });
 });
 
 router.delete("/streams/:channelId", async (req, res) => {

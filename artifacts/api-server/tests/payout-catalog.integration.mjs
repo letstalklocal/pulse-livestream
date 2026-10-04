@@ -1,0 +1,243 @@
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { createRequire } from 'node:module';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { build } from 'esbuild';
+
+// Always creates a disposable local PostgreSQL cluster. Never uses the project DATABASE_URL.
+// The HTTP harness injects authenticated Clerk session claims; real route guards and SQL run.
+const root = fileURLToPath(new URL('..', import.meta.url));
+const temporary = mkdtempSync(join(tmpdir(), 'pulse-payout-catalog-'));
+const output = join(root, 'tests', `.payout-catalog-${randomUUID()}.cjs`);
+const previous = { database: process.env.DATABASE_URL, environment: process.env.NODE_ENV, account: process.env.PULSE_PAYOUT_CATALOG_ACCOUNT };
+let pool, server, started = false;
+const account = 'isolated-research-account';
+const staff = 'catalog-owner', ordinary = 'catalog-creator';
+const research = JSON.parse(readFileSync(join(root, 'src/config/remitly-research-20261004.json'), 'utf8'));
+const copy = value => structuredClone(value);
+try {
+  execFileSync('initdb', ['-D', join(temporary, 'data'), '-A', 'trust', '-U', 'catalog_test', '--no-locale'], { stdio: 'pipe' });
+  // Unix socket only; a private directory prevents collisions and accidental project connections.
+  execFileSync('pg_ctl', ['-D', join(temporary, 'data'), '-l', join(temporary, 'postgres.log'), '-o', `-k ${temporary} -h '' -p 5432`, '-w', 'start'], { stdio: 'pipe' });
+  started = true;
+  process.env.DATABASE_URL = `postgresql://catalog_test@localhost/postgres?host=${encodeURIComponent(temporary)}`;
+  process.env.NODE_ENV = 'test';
+  process.env.PULSE_PAYOUT_CATALOG_ACCOUNT = account;
+  await build({ stdin: { contents: `import express from 'express'; import admin from './src/routes/admin'; import creator from './src/routes/payout-catalog'; export * from './src/lib/payoutCatalog'; export {pool} from '@workspace/db'; export {GetPayoutCatalogResponse,GetAdminPayoutCatalogResponse,EstimatePayoutMethodResponse} from '@workspace/api-zod'; export function testApp(){const app=express();app.use(express.json());app.use((req,res,next)=>{req.auth=()=>({userId:req.get('x-test-user')||null,sessionId:req.get('x-test-user')?'test-session':null,sessionClaims:{fva:req.get('x-test-mfa')?[0,0]:[0,-1]},tokenType:'session_token'});next();});app.use('/admin-data',admin);app.use(creator);return app;}`, resolveDir: root }, outfile: output, bundle: true, platform: 'node', format: 'cjs', external: ['pg-native'], logLevel: 'silent' });
+  const api = createRequire(import.meta.url)(output);
+  pool = api.pool;
+  for (const migration of ['20260913_admin_access.sql', '20261004_payout_catalog.sql']) await pool.query(readFileSync(join(root, '../../lib/db/migrations', migration), 'utf8'));
+  await pool.query("INSERT INTO admin_staff(clerk_user_id,role) VALUES($1,'owner')", [staff]);
+  server = api.testApp().listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const call = async (path, { user = ordinary, bearer = true, method = 'GET', body, mfa = false } = {}) => {
+    const response = await fetch(base + path, { method, headers: { ...(user ? { 'x-test-user': user } : {}), ...(bearer ? { Authorization: 'Bearer test-token' } : {}), ...(mfa ? { 'x-test-mfa': 'yes' } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+    return { status: response.status, body: await response.json(), headers: response.headers };
+  };
+  const invalid = async (change, match = /./) => { const bad = copy(research); change(bad); await assert.rejects(() => api.importResearch(pool, bad, account, staff), match); };
+  await invalid(r => { r.source = 'Public Remitly pricing'; });
+  await invalid(r => { r.source_urls = ['https://example.com/quote']; });
+  await invalid(r => { r.source_urls = ['https://www.remitly.com/us/en/public-pricing']; });
+  await invalid(r => { r.countries[0].methods[0].fee_cents_at_15_usd_send = -1; });
+  await invalid(r => { r.countries[0].methods[0].fee_cents_at_15_usd_send = 1.5; });
+  await invalid(r => { r.countries[0].methods[0].fee_cents_at_15_usd_send = Number.MAX_SAFE_INTEGER; });
+  await invalid(r => { r.countries[0].recipient_email = 'must-not-save@example.com'; });
+  await invalid(r => { r.observed_at = '2026-10-03T01:00:00Z'; });
+  await invalid(r => { r.observed_at = '2026-10-04T24:00:00Z'; });
+  await invalid(r => { r.observed_at = '2026-10-04T01:00:00+00:00'; });
+  await invalid(r => { const tomorrow = new Date(Date.now() + 86400000).toISOString(); r.observed_date = tomorrow.slice(0,10); r.observed_at = tomorrow; });
+  assert.equal(Number((await pool.query('SELECT count(*) FROM payout_catalog_providers')).rows[0].count), 0);
+  console.log('PASS strict signed-in provenance, integer fee bounds, and PII rejection before writes');
+
+  const dry = await api.importResearch(pool, research, account, staff, true);
+  assert.equal(dry.dryRun, true);
+  assert.equal(Number((await pool.query('SELECT count(*) FROM payout_catalog_providers')).rows[0].count), 0);
+  await Promise.all(Array.from({ length: 3 }, () => api.importResearch(pool, research, account, staff)));
+  const counts = (await pool.query('SELECT count(*) AS count FROM payout_catalog_observations')).rows[0].count;
+  await api.importResearch(pool, research, account, staff);
+  assert.equal(Number(counts), research.countries.length + research.countries.reduce((total, country) => total + country.methods.length * research.comparison_send_amounts_usd.length, 0));
+  assert.equal((await pool.query('SELECT count(*) AS count FROM payout_catalog_observations')).rows[0].count, counts);
+  await invalid(r => {
+    r.countries[0].methods[0].fee_cents_at_15_usd_send = 25;
+    r.countries.push({ ...copy(r.countries[0]), country_code: 'NZ', country: 'Synthetic New Zealand', receive_currency: 'NZD' });
+  });
+  assert.equal(Number((await pool.query('SELECT count(*) FROM payout_catalog_countries')).rows[0].count), research.countries.length, 'conflict rolls back earlier metadata inserts too');
+  assert.equal((await pool.query('SELECT count(*) AS count FROM payout_catalog_observations')).rows[0].count, counts);
+  console.log('PASS dry-run, concurrent idempotence, immutable observation conflict rollback');
+
+  // Generated contract assertions and authorization cases follow below.
+  const decimal = copy(research);
+  decimal.comparison_send_amounts_usd = [14.49];
+  for (const country of decimal.countries) for (const item of country.methods) {
+    item['fee_cents_at_14.49_usd_send'] = item.fee_cents_at_15_usd_send;
+    delete item.fee_cents_at_15_usd_send;
+    delete item.fee_cents_at_500_usd_send;
+  }
+  const normalizedDecimal = api.normalizeResearch(decimal, account);
+  assert.equal(normalizedDecimal.observations.filter(observation => observation.methodId).every(observation => observation.payload.sendAmountCents === 1449), true, 'exact decimal USD observations do not lose cents through binary floating point');
+  const catalog = await api.readCatalog(pool, account, true);
+  api.GetAdminPayoutCatalogResponse.parse(catalog);
+  assert.equal(catalog.maxWithdrawalCents, 1500);
+  assert.equal(catalog.liveRequoteRequired, true);
+  const countries = catalog.providers.flatMap(provider => provider.countries);
+  assert.equal(countries.length, 13);
+  const co = countries.find(country => country.countryCode === 'CO');
+  const gb = countries.find(country => country.countryCode === 'GB');
+  const method = co.methods.find(method => method.name === 'Bre-B');
+  assert.deepEqual(method.observations.map(observation => [observation.sendAmountCents, observation.feeCents]).sort((a,b) => a[0]-b[0]), [[1500,99],[50000,0]], 'different send-point fees preserved separately');
+  const zeroFee = gb.methods.find(method => method.name === 'Bank deposit');
+  await assert.rejects(() => pool.query('UPDATE payout_catalog_observations SET method_id=$1 WHERE id=$2', [zeroFee.id, method.observations[0].id]), /foreign key/);
+  assert.equal((await pool.query('SELECT method_id FROM payout_catalog_observations WHERE id=$1', [method.observations[0].id])).rows[0].method_id, method.id, 'schema prevents a quote for another country being attached to this method');
+  const estimate = input => api.estimateCatalog(catalog, input);
+  await assert.rejects(async () => estimate({ methodId: method.id, withdrawalCents: 1501, fundingMethod: 'debit_card' }));
+  await assert.rejects(async () => estimate({ methodId: method.id, withdrawalCents: 0, fundingMethod: 'debit_card' }));
+  const gross15 = estimate({ methodId: method.id, withdrawalCents: 1500, fundingMethod: 'debit_card' });
+  assert.equal(gross15.quoteRequired, true, 'observed $15 SEND plus $0.99 fee cannot quote $15 gross');
+  assert.equal(gross15.breakdown, null, 'do not invent a $14.01 send-point fee from a $15 observation');
+  const free = estimate({ methodId: zeroFee.id, withdrawalCents: 1500, fundingMethod: 'debit_card' });
+  assert.equal(free.breakdown.feeCents, 0);
+  assert.equal(free.breakdown.sendAmountCents, 1500);
+  assert.equal(free.breakdown.totalEarningsDeductedCents, 1500);
+  assert.equal(free.liveRequoteRequired, true, 'saved observations never authorize payment');
+  const funding = estimate({ methodId: zeroFee.id, withdrawalCents: 1500, fundingMethod: 'bank_account' });
+  assert.equal(funding.quoteRequired, true);
+  assert.equal(funding.breakdown, null);
+  assert.equal(free.breakdown.taxCents, null, 'unknown taxes remain separate, not assumed zero');
+  assert.equal(method.observations.every(observation => observation.discountVerified === false), true);
+  assert.equal(free.breakdown.totalEarningsDeductedCents, free.breakdown.sendAmountCents + free.breakdown.feeCents, 'promotion never reduces earnings debit');
+  const pix = countries.find(country => country.countryCode === 'BR').methods.find(item => item.name === 'Pix');
+  assert.equal(estimate({ methodId: pix.id, withdrawalCents: 1500, fundingMethod: 'debit_card' }).breakdown, null, 'Brazil unresolved taxes block even zero-fee estimate');
+  console.log('PASS $15 gross cap, exact-send quote matching, funding isolation, tax/discount separation');
+
+  assert.deepEqual((await api.readCatalog(pool, 'another-account')).providers, []);
+  await assert.rejects(() => api.updateCatalog(pool, 'another-account', 'methods', method.id, { revision: method.revision, enabled: false }, staff));
+  const creator = await api.readCatalog(pool, account);
+  api.GetPayoutCatalogResponse.parse(creator);
+  api.EstimatePayoutMethodResponse.parse(free);
+  api.EstimatePayoutMethodResponse.parse(gross15);
+  const selectable = creator.providers.flatMap(provider => provider.countries);
+  for (const countryCode of ['RU', 'US', 'VE', 'SA', 'CR']) assert.equal(selectable.some(country => country.countryCode === countryCode), false, countryCode);
+  assert.equal(selectable.some(country => country.countryCode === 'CO'), true);
+  assert.equal(JSON.stringify(creator).includes('recipient_email'), false);
+  assert.equal(JSON.stringify(creator).includes(account), false, 'do not expose provider account key');
+  const updated = await api.updateCatalog(pool, account, 'methods', method.id, { revision: method.revision, enabled: false }, staff);
+  await assert.rejects(() => api.updateCatalog(pool, account, 'methods', method.id, { revision: method.revision, enabled: true }, staff));
+  await api.importResearch(pool, research, account, staff);
+  const old = copy(research); old.observed_date = '2026-10-03';
+  await api.importResearch(pool, old, account, staff);
+  const after = await api.readCatalog(pool, account, true);
+  const preserved = after.providers.flatMap(provider => provider.countries).find(country => country.countryCode === 'CO').methods.find(item => item.id === method.id);
+  assert.equal(preserved.enabled, false);
+  assert.equal(preserved.revision, updated.revision);
+  await assert.rejects(async () => api.estimateCatalog(after, { methodId: method.id, withdrawalCents: 1500, fundingMethod: 'debit_card' }), /not available/);
+  const provider = after.providers[0];
+  await api.updateCatalog(pool, account, 'providers', provider.id, { revision: provider.revision, enabled: false }, staff);
+  assert.deepEqual((await api.readCatalog(pool, account)).providers, []);
+  await api.updateCatalog(pool, account, 'providers', provider.id, { revision: provider.revision + 1, enabled: true }, staff);
+  await api.updateCatalog(pool, account, 'countries', gb.id, { revision: gb.revision, enabled: false }, staff);
+  assert.equal((await api.readCatalog(pool, account)).providers.flatMap(provider => provider.countries).some(country => country.id === gb.id), false);
+  await api.updateCatalog(pool, account, 'countries', gb.id, { revision: gb.revision + 1, enabled: true }, staff);
+  const latestWithoutBreB = copy(research);
+  latestWithoutBreB.countries.find(country => country.country_code === 'CO').methods = latestWithoutBreB.countries.find(country => country.country_code === 'CO').methods.filter(item => item.label !== 'Bre-B');
+  await api.importResearch(pool, latestWithoutBreB, 'delayed-import-account', staff);
+  await api.importResearch(pool, old, 'delayed-import-account', staff);
+  const delayed = await api.readCatalog(pool, 'delayed-import-account');
+  assert.equal(delayed.providers.flatMap(provider => provider.countries).find(country => country.countryCode === 'CO').methods.some(item => item.name === 'Bre-B'), false, 'late historical import cannot reintroduce method omitted from latest inspection');
+  assert.ok(Number((await pool.query("SELECT count(*) FROM payout_catalog_events WHERE actor=$1 AND action LIKE '%update%'", [staff])).rows[0].count) > 0);
+  console.log('PASS unavailable routes excluded, optimistic revisions, audited disable survives old/new reimports');
+
+  // Fresh same-day quotes change fees without replacing the earlier evidence.
+  const freshAccount = 'same-day-fresh-quote-account';
+  await api.importResearch(pool, research, freshAccount, staff);
+  const quoteResearch = (timestamp, sendAmount, fee) => {
+    const quote = copy(research);
+    quote.observed_at = `${research.observed_date}T${timestamp}Z`;
+    quote.comparison_send_amounts_usd = [sendAmount];
+    quote.countries = [copy(research.countries.find(country => country.country_code === 'CO'))];
+    quote.countries[0].methods = [{ label: 'Bre-B', delivery_estimate: '5 minutes', [`fee_cents_at_${sendAmount}_usd_send`]: fee }];
+    return quote;
+  };
+  const morningQuote = quoteResearch('01:00:00', 14.01, 99);
+  const morning = await api.importResearch(pool, morningQuote, freshAccount, staff);
+  assert.equal(morning.insertedObservations, 2);
+  const freshCatalog = () => api.readCatalog(pool, freshAccount);
+  const getFreshMethod = catalog => catalog.providers.flatMap(provider => provider.countries).find(country => country.countryCode === 'CO').methods.find(method => method.name === 'Bre-B');
+  const freshMethod = getFreshMethod(await freshCatalog());
+  const freshEstimate = async gross => api.estimateCatalog(await freshCatalog(), { methodId: freshMethod.id, withdrawalCents: gross, fundingMethod: 'debit_card' });
+  const morningEstimate = await freshEstimate(1500);
+  assert.equal(morningEstimate.breakdown.feeCents, 99);
+  assert.equal(morningEstimate.breakdown.sendAmountCents, 1401);
+  assert.equal(Date.parse(morningEstimate.breakdown.observedAt), Date.parse(`${research.observed_date}T01:00:00Z`));
+  const laterQuote = quoteResearch('02:00:00.000', 14, 100);
+  const later = await api.importResearch(pool, laterQuote, freshAccount, staff);
+  assert.equal(later.insertedObservations, 2);
+  const laterEstimate = await freshEstimate(1500);
+  assert.equal(laterEstimate.breakdown.feeCents, 100);
+  assert.equal(laterEstimate.breakdown.sendAmountCents, 1400);
+  const histories = getFreshMethod(await freshCatalog()).observations;
+  assert.equal(histories.length, 4, 'original two send samples and both fresh quotes retained');
+  assert.deepEqual(histories.map(observation => [observation.sendAmountCents, observation.feeCents]).sort((a,b) => a[0]-b[0]), [[1400,100],[1401,99],[1500,99],[50000,0]]);
+  const repeated = await api.importResearch(pool, morningQuote, freshAccount, staff);
+  assert.equal(repeated.insertedObservations, 0, 'same timestamp import is idempotent');
+  assert.equal((await freshEstimate(1500)).breakdown.feeCents, 100, 'late import cannot replace newer same-day quote');
+  const conflicting = copy(laterQuote); conflicting.countries[0].methods[0].fee_cents_at_14_usd_send = 101;
+  await assert.rejects(() => api.importResearch(pool, conflicting, freshAccount, staff), /different data/);
+  await api.importResearch(pool, quoteResearch('03:00:00', 13, 100), freshAccount, staff);
+  const staleMatch = await freshEstimate(1500);
+  assert.equal(staleMatch.quoteRequired, true);
+  assert.equal(staleMatch.breakdown, null, 'older exact gross quotes never fill gaps in a newer quote observation');
+  assert.equal((await freshEstimate(1400)).breakdown.sendAmountCents, 1300);
+  api.GetPayoutCatalogResponse.parse(await freshCatalog());
+  api.GetAdminPayoutCatalogResponse.parse(await api.readCatalog(pool, freshAccount, true));
+  console.log('PASS same-day quote history, newest fees, stale exact-match rejection, generated Zod contracts');
+
+  for (const path of ['/payout-catalog', '/admin-data/payout-catalog']) {
+    assert.equal((await call(path, { user: null, bearer: false })).status, 401);
+    assert.equal((await call(path, { user: staff, bearer: false })).status, 401, 'ambient session without bearer rejected');
+  }
+  assert.equal((await call('/admin-data/payout-catalog')).status, 403);
+  assert.equal((await call('/admin-data/payout-catalog', { user: staff })).status, 200);
+  const creatorHttp = await call('/payout-catalog');
+  assert.equal(creatorHttp.status, 200);
+  api.GetPayoutCatalogResponse.parse(creatorHttp.body);
+  api.GetAdminPayoutCatalogResponse.parse((await call('/admin-data/payout-catalog', { user: staff })).body);
+  assert.equal(creatorHttp.headers.get('cache-control'), 'no-store');
+  assert.equal(JSON.stringify(creatorHttp.body).includes(account), false);
+  const dryHttp = await call('/admin-data/payout-catalog/import', { user: staff, method: 'POST', body: { research } });
+  assert.equal(dryHttp.status, 200);
+  assert.equal(dryHttp.body.dryRun, true, 'admin import defaults to dry-run');
+  const forbiddenField = await call(`/admin-data/payout-catalog/methods/${method.id}`, { user: staff, method: 'PATCH', body: { revision: preserved.revision, enabled: true, recipientEmail: 'pii@example.com' } });
+  assert.equal(forbiddenField.status, 400);
+  const validEdit = await call(`/admin-data/payout-catalog/methods/${method.id}`, { user: staff, method: 'PATCH', body: { revision: preserved.revision, name: 'Bre-B test display name' } });
+  assert.equal(validEdit.status, 200);
+  assert.equal(validEdit.body.revision, preserved.revision + 1);
+  assert.equal(validEdit.body.enabled, false, 'name edits do not silently enable methods');
+  const unauthorizedImport = await call('/admin-data/payout-catalog/import', { user: ordinary, method: 'POST', body: { research, dryRun: false } });
+  assert.equal(unauthorizedImport.status, 403);
+  const staleEdit = await call(`/admin-data/payout-catalog/methods/${method.id}`, { user: staff, method: 'PATCH', body: { revision: method.revision, enabled: true } });
+  assert.equal(staleEdit.status, 409);
+  assert.equal((await call('/payout-catalog/estimate', { user: null, method: 'POST', body: { methodId: zeroFee.id, withdrawalCents: 1500, fundingMethod: 'debit_card' } })).status, 401);
+  assert.equal((await call('/payout-catalog/estimate', { method: 'POST', body: { methodId: zeroFee.id, withdrawalCents: 1501, fundingMethod: 'debit_card' } })).status, 400);
+  process.env.NODE_ENV = 'production';
+  assert.equal((await call('/admin-data/payout-catalog', { user: staff })).status, 403);
+  assert.equal((await call('/admin-data/payout-catalog', { user: staff, mfa: true })).status, 200);
+  process.env.NODE_ENV = 'test';
+  await pool.query('UPDATE admin_staff SET enabled=false WHERE clerk_user_id=$1', [staff]);
+  assert.equal((await call('/admin-data/payout-catalog', { user: staff })).status, 403);
+  assert.equal((await call('/payout-catalog')).status, 200, 'admin disable does not affect ordinary creator access');
+  console.log('PASS real HTTP route authorization, bearer requirement, staff enforcement, production MFA, stale edit conflict');
+} finally {
+  if (server) await new Promise(resolve => server.close(resolve));
+  if (pool) await pool.end();
+  if (started) execFileSync('pg_ctl', ['-D', join(temporary, 'data'), '-m', 'immediate', '-w', 'stop'], { stdio: 'pipe' });
+  rmSync(output, { force: true });
+  rmSync(temporary, { recursive: true, force: true });
+  for (const [key, value] of [['DATABASE_URL', previous.database], ['NODE_ENV', previous.environment], ['PULSE_PAYOUT_CATALOG_ACCOUNT', previous.account]]) {
+    if (value === undefined) delete process.env[key]; else process.env[key] = value;
+  }
+}

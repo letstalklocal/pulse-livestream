@@ -5,8 +5,11 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AdminAuthConfigProxyUrl } from './adminAuthConfigProxyUrl';
 
 export interface AdminAuthConfig {
   publishableKey: string;
   frontendApi: string;
+  /** Optional same-origin Clerk proxy path used for production admin sign-in. */
+  proxyUrl?: AdminAuthConfigProxyUrl;
 }

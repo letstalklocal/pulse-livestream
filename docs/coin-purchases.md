@@ -1,5 +1,11 @@
 # Coin purchases
 
+## Withdrawal decision — October 4, 2026
+
+The user confirmed that **all existing wallet coins can be withdrawn**, including bought coins, received gifts and granted test coins. Redemption is **400 coins = USD 1** (10,000 coins = USD 25). This supersedes the historical USD 0.003 per gifted coin reference below and the intermediate diamond proposal. Keep one wallet; no diamond conversion or gift-source eligibility split. Existing pack prices and purchase fulfillment stay as recorded below.
+
+The initial withdrawal is USD 15 gross including provider fees, reserving 6,000 wallet coins. Final payout approval/decline and provider sending are human decisions. Enrollment only enables an account and never credits coins. See [Remitly rollout and full Colombia test](remitly-launch-handoff.md#testflight-rollout-and-full-colombia-trial). Device/TestFlight and real provider testing remain pending.
+
 ## Purchase history decision — September 21, 2026
 
 User requested avoiding a workaround for the generic RevenueCat Test Store history label after confirming Apple already shows the coin pack name. Reverted the proposed SDK upgrade: retain RevenueCat SDK/UI 10.9.1, native Customer Center, and the existing product names. No custom history view or historical migration. Preserve the rolling balance animation, confirmed working on Android.
@@ -48,7 +54,7 @@ Before selecting the six packs, the user supplied this strategy from the earlier
 | Website (later phase) | $100 | 20,000 | $60 |
 | In-app (initial build) | $100 | 14,000 | $42 |
 
-- Creator payout reference: **$0.003 per gifted coin**, independent of where the buyer purchased it.
+- Historical creator payout reference: **$0.003 per gifted coin**, superseded by the October 4 all-wallet redemption rate above. The example table records the earlier strategy, not current withdrawal values.
 - The example corresponds to 200 coins per dollar on web and 140 coins per dollar in-app. At equal example spend, the web pack contains approximately **42.86% more coins**.
 - The in-app example uses an **assumed approximate 30% store commission**. This is a planning assumption, not a verified fee for every store, product or purchase. Actual fees/taxes and later web processing costs must be reflected in the final economics.
 - Desired creator presentation in the supplied strategy: show earnings directly in dollars, without an intermediate diamond conversion. The existing earnings implementation has not yet been changed to this model.

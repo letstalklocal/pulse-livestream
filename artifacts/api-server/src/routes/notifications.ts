@@ -117,7 +117,7 @@ router.get("/notifications/in-app", async (req, res) => {
     WITH events AS (
       SELECT 'dm:' || m.id AS id, CASE WHEN m.kind = 'private_stream_invitation' THEN 'privateInvitations' ELSE 'messages' END AS category,
         m.from_user_id AS actor, m.created_at AS happened_at,
-        CASE WHEN m.kind = 'private_stream_invitation' THEN 'Private live invitation' ELSE 'New message' END AS title,
+        CASE WHEN m.kind = 'private_stream_invitation' THEN '1:1 Private invitation' ELSE 'New message' END AS title,
         CASE WHEN m.kind = 'text' THEN left(m.text, 140) WHEN m.kind = 'private_stream_invitation' THEN 'Invited you to a private live' ELSE 'Sent you media' END AS body,
         '/dm/' || m.from_user_id AS route
       FROM direct_messages m LEFT JOIN private_stream_invitations i ON i.id=m.private_stream_invitation_id

@@ -1,7 +1,9 @@
 import { GiftImageArtwork, hasGiftImage } from "@/components/GiftImageArtwork";
 import { LiveStickerSetup } from "@/components/LiveStickerSetup";
 import { LiveStickerOverlay } from "@/components/LiveStickerOverlay";
-import type { StickerDraft } from "@/utils/liveStickers";
+import { stickerApi, type StickerDraft } from "@/utils/liveStickers";
+import { setBroadcastPaused, flipBroadcastCamera } from "@/utils/liveMediaControls";
+import { playLiveGiftSound } from "@/utils/liveGiftSound";
 import { confirmVideoBeforeLive } from "@/utils/confirmVideoBeforeLive";
 import { CreatorVideoSheet } from "@/components/CreatorVideoSheet";
 import { LiveReactions } from "@/components/LiveReactions";
@@ -214,6 +216,11 @@ export default function GoLiveScreen() {
   const [isLive, setIsLive] = useState(false);
   const [activeChannelId, setActiveChannelId] = useState("");
   const [isMuted, setIsMuted] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const pausedRef = useRef(false);
+  const pauseBusyRef = useRef(false);
+  const [pauseBusy, setPauseBusy] = useState(false);
+  const [manageStickers, setManageStickers] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [chatText, setChatText] = useState("");
   const chatInputRef = useRef<TextInput>(null);
@@ -358,7 +365,7 @@ export default function GoLiveScreen() {
   const partyMedia = usePartyMedia(engineRef, activeChannelId, party, isNative && isLive && hostJoined && !premiumConnecting, true);
   const viewerCount = party?.status === "active" ? party.viewerCount : liveStreamData?.stream?.viewerCount ?? 0;
   const incomingPartyId = party?.status === "pending" && party.participants[1]?.uid === user?.uid ? party.id : null;
-  const proofAllowed = __DEV__ && Platform.OS === "android" && isLive && hostJoined && !party && !isPrivateInvite && !isPremium && !liveStreamData?.stream.requiredGift && !premiumConnecting;
+  const proofAllowed = __DEV__ && Platform.OS === "android" && isLive && hostJoined && !isPaused && !party && !isPrivateInvite && !isPremium && !liveStreamData?.stream.requiredGift && !premiumConnecting;
   proofAllowedRef.current = proofAllowed;
   useEffect(() => {
     if (!proofAllowed) stopMomentProof(engineRef.current, "Test cancelled because the live mode changed.");
@@ -402,7 +409,7 @@ export default function GoLiveScreen() {
         if (!stillActive()) return;
         stopMomentProof(engine);
         stopMomentRecording(engine);
-        if (isNative) await switchBroadcastChannel(engine, token.token, token.channelName, user!.uid, isMuted, stillActive, mediaChannelRef.current || activeChannelId);
+        if (isNative) await switchBroadcastChannel(engine, token.token, token.channelName, user!.uid, isMuted, stillActive, mediaChannelRef.current || activeChannelId, pausedRef.current);
         if (!stillActive()) return;
         mediaChannelRef.current = token.channelName;
         setHostJoined(true);
@@ -447,8 +454,8 @@ export default function GoLiveScreen() {
         setShowLivePremium(false);
       } else {
         if (confirmed && engineRef.current === engine && isLiveRef.current) {
-          engine?.muteLocalAudioStream(isMuted);
-          engine?.updateChannelMediaOptions({ publishCameraTrack: true, publishMicrophoneTrack: true });
+          engine?.muteLocalAudioStream(isMuted || pausedRef.current);
+          engine?.updateChannelMediaOptions({ publishCameraTrack: !pausedRef.current, publishMicrophoneTrack: !pausedRef.current });
         }
         throw error;
       }
@@ -470,8 +477,9 @@ export default function GoLiveScreen() {
     earningsQuery.data?.coins ?? 0,
     realtimeEarnings.channelId === activeChannelId ? realtimeEarnings.coins : 0,
   );
+  const playedGiftSounds = useRef(new Set<string>());
   const giftPresentation = useRef(createGiftPresentation());
-  useEffect(() => { giftPresentation.current = createGiftPresentation(); }, [activeChannelId]);
+  useEffect(() => { giftPresentation.current = createGiftPresentation(); playedGiftSounds.current.clear(); }, [activeChannelId]);
   const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
   const serverEndedShutdownRef = useRef<() => void>(() => {});
 
@@ -507,28 +515,41 @@ export default function GoLiveScreen() {
           }
           const nativeExpected = expectsNativeCrown(msg.giftName, msg.amount);
           if (msg.type === "gift" && msg.giftId && !giftPresentation.current.claim(msg.giftId, nativeExpected)) return;
-          let nativeGift = nativeExpected;
+          let nativeGift = nativeExpected && !pausedRef.current;
+          const playGiftSound = () => {
+            if (!msg.giftId || !msg.giftName || msg.recipientUid !== user?.uid || pausedRef.current ||
+                !isLiveRef.current || playedGiftSounds.current.has(msg.giftId)) return;
+            playedGiftSounds.current.add(msg.giftId);
+            if (playedGiftSounds.current.size > 512) playedGiftSounds.current.delete(playedGiftSounds.current.values().next().value!);
+            playLiveGiftSound(engineRef.current, msg.giftName);
+          };
           let fallbackSent = false;
           const fallback = () => {
             if (!msg.giftId || fallbackSent) return;
             fallbackSent = true;
+            playGiftSound();
             const inVideo = giftPresentation.current.decide(msg.giftId, false);
             setFloatingGifts(prev => prev.map(g => g.id === msg.giftId ? { ...g, inVideo } : g));
             if (nativeExpected) void momentsRequest("/live-gift", getToken, "POST", { giftId: msg.giftId, inVideo: false }).catch(error => console.warn("[Moments] Gift fallback notification failed", error));
           };
-          if (msg.type === "gift" && msg.giftId && typeof msg.amount === "number" && msg.amount >= 500 && typeof msg.recipientUid === "number" && msg.recipientUid === user?.uid && isLiveRef.current) {
+          if (msg.type === "gift" && nativeExpected && pausedRef.current) fallback();
+          if (msg.type === "gift" && msg.giftId && typeof msg.amount === "number" && msg.amount >= 500 && typeof msg.recipientUid === "number" && msg.recipientUid === user?.uid && isLiveRef.current && !pausedRef.current) {
             stopMomentProof(engineRef.current, "A real gift arrived; the test yielded to normal recording.");
             const engine = engineRef.current;
             const channel = mediaChannelRef.current || activeChannelId;
             nativeGift = recordGiftMoment(engine, channel, { giftId: msg.giftId, amount: msg.amount, recipientUid: msg.recipientUid, senderUid: msg.senderUid, senderName: msg.senderName, giftName: msg.giftName }, getToken, {
               getVideoSize: () => { const size = proofVideoSizeRef.current; return size && size.engine === engine && size.channel === channel ? size : null; },
               onGiftVisible: () => {
+                if (msg.giftId) playedGiftSounds.current.add(msg.giftId);
                 giftPresentation.current.decide(msg.giftId!, true);
                 void momentsRequest("/live-gift", getToken, "POST", { giftId: msg.giftId, inVideo: true }).catch(error => console.warn("[Moments] Gift display notification failed", error));
               },
               onFallback: fallback,
             });
             if (!nativeGift && nativeExpected) fallback();
+          }
+          if (msg.type === "gift" && msg.giftName && !pausedRef.current && !nativeGift) {
+            playGiftSound();
           }
           if (msg.type === "gift" && msg.giftName) {
             const gift = GIFTS.find((g) => g.name === msg.giftName) ?? GIFTS[0]!;
@@ -923,11 +944,47 @@ export default function GoLiveScreen() {
   const toggleMute = useCallback(() => {
     const next = !isMuted;
     setIsMuted(next);
-    engineRef.current?.muteLocalAudioStream?.(next);
+    engineRef.current?.muteLocalAudioStream?.(next || pausedRef.current);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [isMuted]);
 
+  const flipCamera = () => {
+    setShowLiveMenu(false);
+    try { if (isNative) flipBroadcastCamera(engineRef.current); }
+    catch { Alert.alert(t("Please try again.")); }
+  };
+  const togglePause = async () => {
+    if (pauseBusyRef.current || premiumConnecting) return;
+    pauseBusyRef.current = true;
+    setPauseBusy(true);
+    setShowLiveMenu(false);
+    const channel = channelIdRef.current;
+    const engine = engineRef.current;
+    const next = !pausedRef.current;
+    const apply = (paused: boolean) => {
+      if (!isLiveRef.current || channelIdRef.current !== channel || engineRef.current !== engine) return;
+      if (isNative) setBroadcastPaused(engine, paused, isMuted);
+      pausedRef.current = paused;
+      setIsPaused(paused);
+    };
+    try {
+      if (next) { stopMomentProof(engine); stopMomentRecording(engine); }
+      apply(next);
+      await stickerApi(`/streams/${encodeURIComponent(channel)}/pause`, getToken, "PUT", { paused: next });
+      void queryClient.invalidateQueries({ queryKey: getGetStreamQueryKey(channel) });
+    } catch {
+      // A lost response may have committed. Read the server before rolling back.
+      const confirmed = await getStream(channel).catch(() => null);
+      try { apply(confirmed ? !!(confirmed.stream as typeof confirmed.stream & { paused?: boolean }).paused : true); }
+      catch { if (isLiveRef.current && channelIdRef.current === channel && engineRef.current === engine) { pausedRef.current = true; setIsPaused(true); } }
+      Alert.alert(t("Please try again."));
+    } finally { pauseBusyRef.current = false; setPauseBusy(false); }
+  };
+
   const resetLiveSetup = useCallback(() => {
+    pausedRef.current = false;
+    setIsPaused(false);
+    setManageStickers(false);
     setShowPremiumGiftSheet(false);
     setShowLivePremium(false);
     setIsPremium(false);
@@ -1181,7 +1238,14 @@ export default function GoLiveScreen() {
     return (
       <View style={[styles.container, { backgroundColor: "#000" }]}>
         <LiveBroadcastKeepAwake />
-        <PartyStage channelId={activeChannelId} mainName={user.name} party={party} now={partyState.now} media={partyMedia} main={showNativeVideo && VideoView ? (
+        <PartyStage channelId={activeChannelId} mainName={user.name} party={party} now={partyState.now} media={partyMedia} main={isPaused ? (
+          <View style={StyleSheet.absoluteFill}>
+            {backgroundImageUrl ? <Image source={{ uri: backgroundImageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "center", alignItems: "center" }]}>
+              {showChat ? <Text style={[localizedTextStyle(), { color: "#FFF", fontSize: 20, textAlign: "center", padding: 24 }]}>{t("Streamer will be back soon")}</Text> : null}
+            </View>
+          </View>
+        ) : showNativeVideo && VideoView ? (
           <VideoView
             canvas={{ uid: 0, sourceType: VideoSourceType.VideoSourceCamera }}
             style={StyleSheet.absoluteFill}
@@ -1202,6 +1266,23 @@ export default function GoLiveScreen() {
           enabled={Platform.OS !== "ios"}
           automaticOffset
         >
+          {isPaused && !showChat ? (
+            <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { justifyContent: "center", alignItems: "center", paddingHorizontal: 24 }]}>
+              <Text style={[localizedTextStyle(), { color: "#FFF", fontSize: 20, textAlign: "center", padding: 24 }]}>{t("Streamer will be back soon")}</Text>
+              <View style={{ gap: 12, width: "100%", maxWidth: 280 }}>
+                <TouchableOpacity testID="paused-live-resume" accessibilityRole="button" accessibilityLabel={t("Resume live")}
+                  disabled={pauseBusy || premiumConnecting} onPress={() => void togglePause()}
+                  style={{ backgroundColor: "#FF1966", paddingVertical: 16, paddingHorizontal: 22, borderRadius: 28, opacity: pauseBusy || premiumConnecting ? 0.5 : 1 }}>
+                  <Text style={[localizedTextStyle(), { color: "#FFF", fontSize: 16, fontWeight: "600", textAlign: "center" }]}>{t("Resume live")}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity testID="paused-live-end" accessibilityRole="button" accessibilityLabel={t("End Live")}
+                  onPress={confirmStopLive}
+                  style={{ backgroundColor: "rgba(0,0,0,0.65)", paddingVertical: 16, paddingHorizontal: 22, borderRadius: 28, borderWidth: 1, borderColor: "rgba(255,255,255,0.5)" }}>
+                  <Text style={[localizedTextStyle(), { color: "#FFF", fontSize: 16, fontWeight: "600", textAlign: "center" }]}>{t("End Live")}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : null}
           {showChat && (
             <Pressable
               style={StyleSheet.absoluteFill}
@@ -1209,13 +1290,13 @@ export default function GoLiveScreen() {
               accessible={false}
             />
           )}
-          <LiveStickerOverlay channelId={activeChannelId} enabled={isLive} visible={!showChat} top={topPad + 94} isHost />
+          <LiveStickerOverlay channelId={activeChannelId} enabled={isLive} visible={!showChat} top={topPad + 94} isHost manageVisible={manageStickers} onManageClose={() => setManageStickers(false)} />
           <View style={[styles.liveTopDock, { top: topPad + 12 }]}>
             <View style={styles.liveTopBar}>
               <View style={styles.liveBadgeRow}>
                 <View style={styles.liveBadge}>
                   <View style={styles.liveDot} />
-                  <Text style={[localizedTextStyle(), styles.liveBadgeText]}>{liveStreamData?.stream.requiredGift || isPremium ? t("PREMIUM") : t("LIVE")}</Text>
+                  <Text style={[localizedTextStyle(), styles.liveBadgeText]}>{isPrivateInvite ? t("1:1 Private") : liveStreamData?.stream.requiredGift || isPremium ? t("PREMIUM") : t("LIVE")}</Text>
                 </View>
                 <Text style={styles.liveDuration}>{formatDuration(duration)}</Text>
               </View>
@@ -1346,6 +1427,18 @@ export default function GoLiveScreen() {
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowLiveMenu(false)} accessibilityLabel={t("Close live options")} />
           <View style={{ position: "absolute", left: 16, right: 16, bottom: bottomPad + 12 + liveBarHeight + 8,
             backgroundColor: "#1A1A2E", borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" }}>
+            <TouchableOpacity testID="host-live-flip-camera" accessibilityRole="button" accessibilityLabel={t("Flip camera")} disabled={!cameraReady || premiumConnecting || pauseBusy || !isNative}
+              style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 }} onPress={flipCamera}>
+              <Ionicons name="camera-reverse-outline" size={21} color="#FFF" /><Text style={{ color: "#FFF", fontSize: 16 }}>{t("Flip camera")}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity testID="host-live-pause" accessibilityRole="button" accessibilityLabel={t(isPaused ? "Resume live" : "Pause live")} disabled={premiumConnecting || pauseBusy}
+              style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 }} onPress={() => void togglePause()}>
+              <Ionicons name={isPaused ? "play-outline" : "pause-outline"} size={21} color="#FFF" /><Text style={{ color: "#FFF", fontSize: 16 }}>{t(isPaused ? "Resume live" : "Pause live")}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity testID="host-live-change-sticker" accessibilityRole="button" accessibilityLabel={t("Change sticker")}
+              style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 18, paddingHorizontal: 20 }} onPress={() => { setShowLiveMenu(false); setManageStickers(true); }}>
+              <Ionicons name="pricetag-outline" size={21} color="#FFF" /><Text style={{ color: "#FFF", fontSize: 16 }}>{t("Change sticker")}</Text>
+            </TouchableOpacity>
             <TranslationToggle menu />
             {proofAllowed ? (
               <TouchableOpacity disabled={proofBusy} accessibilityRole="button" accessibilityLabel={t("Test live gift capture")}

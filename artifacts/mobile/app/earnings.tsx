@@ -147,6 +147,7 @@ export default function EarningsScreen() {
           />
         }
       >
+        <TouchableOpacity accessibilityRole="button" onPress={() => router.push("/withdraw-money")} style={[styles.card, card, { flexDirection: "row", alignItems: "center", gap: 12 }]}><Ionicons name="cash-outline" size={22} color={colors.primary}/><Text style={[localizedTextStyle(), styles.medium, foreground, { flex: 1 }]}>{t("Withdraw Money")}</Text><Ionicons name="chevron-forward" size={22} color={colors.foreground}/></TouchableOpacity>
         <View style={[styles.periods, { backgroundColor: colors.card }]}>
           {periods.map((value) => (
             <TouchableOpacity

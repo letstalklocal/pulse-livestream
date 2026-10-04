@@ -67,7 +67,7 @@ test('Premium switch marks the new primary ready only after a successful switch'
   const { code } = transformSync(`async function completeSwitch() { ${source.slice(start, end)} }`, { loader: 'ts' });
   for (const succeeds of [true, false]) {
     const f = fixture(); f.result.joined = false;
-    const scope = { ...f.scope, isNative: true, token: { token: 'token', channelName: 'premium-live' }, user: { uid: 1 }, isMuted: false,
+    const scope = { ...f.scope, pausedRef: { current: false }, isNative: true, token: { token: 'token', channelName: 'premium-live' }, user: { uid: 1 }, isMuted: false,
       activeChannelId: 'host-live', stillActive: () => true,
       liveStreamData: { stream: { requiredGift: {} } }, setIsPremium() {},
       switchBroadcastChannel: async () => {

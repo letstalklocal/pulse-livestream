@@ -2,7 +2,7 @@
 // old current channel must not receive frames from the new Premium broadcast.
 export async function switchBroadcastChannel(
   engine: any, token: string, channelName: string, uid: number, muted: boolean,
-  stillActive: () => boolean, currentChannelName?: string,
+  stillActive: () => boolean, currentChannelName?: string, paused = false,
 ) {
   if (engine.getConnectionState() !== 1) {
     const publish = engine.updateChannelMediaOptions({ publishCameraTrack: false, publishMicrophoneTrack: false });
@@ -29,9 +29,9 @@ export async function switchBroadcastChannel(
     };
     const cleanup = () => { clearTimeout(timer); engine.unregisterEventHandler(handler); };
     engine.registerEventHandler(handler);
-    engine.muteLocalAudioStream(muted);
+    engine.muteLocalAudioStream(muted || paused);
     const result = engine.joinChannel(token, channelName, uid, {
-      clientRoleType: 1, publishCameraTrack: true, publishMicrophoneTrack: true,
+      clientRoleType: 1, publishCameraTrack: !paused, publishMicrophoneTrack: !paused,
     });
     if (result < 0) { cleanup(); reject(new Error(`Could not reconnect live video (${result}).`)); }
   });

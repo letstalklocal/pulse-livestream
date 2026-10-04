@@ -5,6 +5,861 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface WithdrawalBalances {
+  /** @pattern ^\d+$ */
+  availableTicks: string;
+  /** @pattern ^\d+$ */
+  heldTicks: string;
+  /** @pattern ^\d+$ */
+  reservedTicks: string;
+  /** @pattern ^\d+$ */
+  availableCoins: string;
+  /** @pattern ^\d+$ */
+  heldCoins: string;
+  /** @pattern ^\d+$ */
+  reservedCoins: string;
+  /** @pattern ^\d+\.\d{4}$ */
+  availableUsd: string;
+  /** @pattern ^\d+\.\d{4}$ */
+  heldUsd: string;
+  /** @pattern ^\d+\.\d{4}$ */
+  reservedUsd: string;
+}
+
+export type WithdrawalPolicyCoinsPerUsd = typeof WithdrawalPolicyCoinsPerUsd[keyof typeof WithdrawalPolicyCoinsPerUsd];
+
+
+export const WithdrawalPolicyCoinsPerUsd = {
+  NUMBER_400: 400,
+} as const;
+
+export type WithdrawalPolicyTicksPerUsd = typeof WithdrawalPolicyTicksPerUsd[keyof typeof WithdrawalPolicyTicksPerUsd];
+
+
+export const WithdrawalPolicyTicksPerUsd = {
+  NUMBER_400: 400,
+} as const;
+
+export type WithdrawalPolicyHoldDays = typeof WithdrawalPolicyHoldDays[keyof typeof WithdrawalPolicyHoldDays];
+
+
+export const WithdrawalPolicyHoldDays = {
+  NUMBER_0: 0,
+} as const;
+
+export type WithdrawalPolicyMaxWithdrawalCents = typeof WithdrawalPolicyMaxWithdrawalCents[keyof typeof WithdrawalPolicyMaxWithdrawalCents];
+
+
+export const WithdrawalPolicyMaxWithdrawalCents = {
+  NUMBER_1500: 1500,
+} as const;
+
+export type WithdrawalPolicyFirstMinimumCents = typeof WithdrawalPolicyFirstMinimumCents[keyof typeof WithdrawalPolicyFirstMinimumCents];
+
+
+export const WithdrawalPolicyFirstMinimumCents = {
+  NUMBER_1500: 1500,
+} as const;
+
+export interface WithdrawalPolicy {
+  fundingPolicyReady: boolean;
+  coinsPerUsd: WithdrawalPolicyCoinsPerUsd;
+  ticksPerUsd: WithdrawalPolicyTicksPerUsd;
+  allWalletCoinsRedeemable: boolean;
+  holdDays: WithdrawalPolicyHoldDays;
+  maxWithdrawalCents: WithdrawalPolicyMaxWithdrawalCents;
+  firstMinimumCents: WithdrawalPolicyFirstMinimumCents;
+  repeatAllowed: boolean;
+}
+
+export type WithdrawalRecipientStatus = typeof WithdrawalRecipientStatus[keyof typeof WithdrawalRecipientStatus];
+
+
+export const WithdrawalRecipientStatus = {
+  contact_saved: 'contact_saved',
+} as const;
+
+export interface WithdrawalRecipient {
+  legalFirstName: string;
+  legalLastName: string;
+  secondSurname?: string | null;
+  /** @pattern ^[A-Z]{2}$ */
+  countryCode: string;
+  email: string;
+  phone: string;
+  revision?: number;
+  status?: WithdrawalRecipientStatus;
+}
+
+export interface WithdrawalRecipientInput {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  legalFirstName: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  legalLastName: string;
+  /** @maxLength 100 */
+  secondSurname?: string;
+  /** @pattern ^[A-Z]{2}$ */
+  countryCode: string;
+  /** @maxLength 254 */
+  email: string;
+  /** @pattern ^\+\d{8,15}$ */
+  phone: string;
+}
+
+export interface WithdrawalRoute {
+  providerId: string;
+  provider: string;
+  countryCode: string;
+  country: string;
+  method: string;
+  receiveCurrency: string;
+  fundingMethod: string;
+}
+
+export type WithdrawalQuoteSource = typeof WithdrawalQuoteSource[keyof typeof WithdrawalQuoteSource];
+
+
+export const WithdrawalQuoteSource = {
+  signed_in_remitly_business: 'signed_in_remitly_business',
+} as const;
+
+export interface WithdrawalQuote {
+  hash: string;
+  methodId: string;
+  /**
+     * @minimum 0
+     * @maximum 1500
+     */
+  sendAmountCents: number;
+  /**
+     * @minimum 0
+     * @maximum 1500
+     */
+  feeCents: number;
+  /**
+     * @minimum 0
+     * @maximum 1500
+     */
+  taxCents: number;
+  /**
+     * @minimum 0
+     * @maximum 1500
+     */
+  promotionalDiscountCents: number;
+  /**
+     * @minimum 0
+     * @maximum 1500
+     */
+  totalEarningsDeductedCents: number;
+  /** @pattern ^\d+(\.\d{1,8})?$ */
+  receiveAmount: string;
+  receiveCurrency: string;
+  fundingMethod: string;
+  /**
+     * @minimum 0
+     * @maximum 1500
+     */
+  providerMinimumSendCents: number;
+  source: WithdrawalQuoteSource;
+  sourceUrl: string;
+  observedAt: string;
+  expiresAt: string;
+  recipientHash: string;
+  evidenceHash: string;
+}
+
+export type WithdrawalCheckerStatus = typeof WithdrawalCheckerStatus[keyof typeof WithdrawalCheckerStatus];
+
+
+export const WithdrawalCheckerStatus = {
+  passed: 'passed',
+  needs_attention: 'needs_attention',
+} as const;
+
+export interface WithdrawalChecker {
+  status: WithdrawalCheckerStatus;
+  checkedAt: string;
+  actor?: string;
+  bindingHash?: string;
+  attemptId?: string;
+  quoteHash?: string;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  evidence?: string;
+  historyCoverage?: string;
+}
+
+export type CreatorWithdrawalStatus = typeof CreatorWithdrawalStatus[keyof typeof CreatorWithdrawalStatus];
+
+
+export const CreatorWithdrawalStatus = {
+  awaiting_quote: 'awaiting_quote',
+  awaiting_confirmation: 'awaiting_confirmation',
+  requested: 'requested',
+  preparing: 'preparing',
+  awaiting_human_review: 'awaiting_human_review',
+  awaiting_recipient: 'awaiting_recipient',
+  processing: 'processing',
+  delivered: 'delivered',
+  failed: 'failed',
+  canceled: 'canceled',
+  expired: 'expired',
+  returned: 'returned',
+  unknown: 'unknown',
+} as const;
+
+export type CreatorWithdrawalGrossCents = typeof CreatorWithdrawalGrossCents[keyof typeof CreatorWithdrawalGrossCents];
+
+
+export const CreatorWithdrawalGrossCents = {
+  NUMBER_1500: 1500,
+} as const;
+
+export type CreatorWithdrawalProviderOnboardingStatus = typeof CreatorWithdrawalProviderOnboardingStatus[keyof typeof CreatorWithdrawalProviderOnboardingStatus];
+
+
+export const CreatorWithdrawalProviderOnboardingStatus = {
+  pending: 'pending',
+  ready: 'ready',
+} as const;
+
+export interface CreatorWithdrawal {
+  id: string;
+  userId: number;
+  status: CreatorWithdrawalStatus;
+  grossCents: CreatorWithdrawalGrossCents;
+  methodId: string;
+  recipient: WithdrawalRecipient;
+  route: WithdrawalRoute;
+  quote: WithdrawalQuote | null;
+  approvedQuoteHash: string | null;
+  checker: WithdrawalChecker | null;
+  providerLink: string | null;
+  providerOnboardingStatus: CreatorWithdrawalProviderOnboardingStatus;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WithdrawalHistoryEntry {
+  action: string;
+  createdAt: string;
+}
+
+export type WithdrawalDetail = CreatorWithdrawal & {
+  history: WithdrawalHistoryEntry[];
+};
+
+export interface WithdrawalOverview {
+  enrolled: boolean;
+  balances: WithdrawalBalances;
+  policy: WithdrawalPolicy;
+  recipient: WithdrawalRecipient | null;
+  withdrawals: CreatorWithdrawal[];
+}
+
+export type WithdrawalRequestInputWithdrawalCents = typeof WithdrawalRequestInputWithdrawalCents[keyof typeof WithdrawalRequestInputWithdrawalCents];
+
+
+export const WithdrawalRequestInputWithdrawalCents = {
+  NUMBER_1500: 1500,
+} as const;
+
+export interface WithdrawalRequestInput {
+  /**
+     * @minLength 1
+     * @maxLength 250
+     */
+  methodId: string;
+  withdrawalCents: WithdrawalRequestInputWithdrawalCents;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  idempotencyKey: string;
+}
+
+export interface WithdrawalQuoteApprovalInput {
+  quoteHash: string;
+}
+
+export interface WithdrawalEnrollmentPreview {
+  userId: number;
+  name: string;
+  /** @pattern ^\d+$ */
+  walletCoins: string;
+  /** @pattern ^\d+\.\d{4}$ */
+  availableUsd: string;
+  alreadyEnrolled: boolean;
+}
+
+export interface WithdrawalEnrollmentInput {
+  /** @minimum 1 */
+  userId: number;
+  /** @pattern ^\d+$ */
+  expectedWalletCoins: string;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  reason: string;
+}
+
+export interface WithdrawalEnrollmentResult {
+  enrolled: boolean;
+  userId: number;
+  balances: WithdrawalBalances;
+}
+
+export interface WithdrawalPauseInput {
+  paused: boolean;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  reason: string;
+}
+
+export interface WithdrawalPauseResult {
+  preparationPaused: boolean;
+}
+
+export type AdminWithdrawalSummary = CreatorWithdrawal & ({
+  creatorName: string;
+  reviewDeadline: string | null;
+  attemptState: string | null;
+  maker: string | null;
+  providerReference: string | null;
+});
+
+export interface AdminWithdrawalQueue {
+  truncated: boolean;
+  withdrawals: AdminWithdrawalSummary[];
+  preparationPaused: boolean;
+  policy: WithdrawalPolicy;
+}
+
+export type WithdrawalAttemptEvidence = { [key: string]: unknown };
+
+export interface WithdrawalAttempt {
+  id: string;
+  maker: string;
+  state: string;
+  bindingHash: string;
+  evidence: WithdrawalAttemptEvidence;
+  draftId: string | null;
+  providerReference: string | null;
+  activityId: string | null;
+  leaseUntil: string;
+  createdAt: string;
+}
+
+export type WithdrawalAuditEventEvidence = { [key: string]: unknown };
+
+export interface WithdrawalAuditEvent {
+  actor: string;
+  action: string;
+  evidence: WithdrawalAuditEventEvidence;
+  createdAt: string;
+}
+
+export type AdminWithdrawalDetail = WithdrawalDetail & {
+  creatorName: string;
+  attempts: WithdrawalAttempt[];
+  events: WithdrawalAuditEvent[];
+  balances: WithdrawalBalances;
+};
+
+export type WithdrawalQuoteInputSource = typeof WithdrawalQuoteInputSource[keyof typeof WithdrawalQuoteInputSource];
+
+
+export const WithdrawalQuoteInputSource = {
+  signed_in_remitly_business: 'signed_in_remitly_business',
+} as const;
+
+export interface WithdrawalQuoteInput {
+  methodId: string;
+  /**
+     * @minimum 0
+     * @maximum 1500
+     */
+  sendAmountCents: number;
+  /**
+     * @minimum 0
+     * @maximum 1500
+     */
+  feeCents: number;
+  /**
+     * @minimum 0
+     * @maximum 1500
+     */
+  taxCents: number;
+  /**
+     * @minimum 0
+     * @maximum 1500
+     */
+  promotionalDiscountCents: number;
+  /** @pattern ^\d+(\.\d{1,8})?$ */
+  receiveAmount: string;
+  receiveCurrency: string;
+  fundingMethod: string;
+  /**
+     * @minimum 0
+     * @maximum 1500
+     */
+  providerMinimumSendCents: number;
+  source: WithdrawalQuoteInputSource;
+  sourceUrl: string;
+  observedAt: string;
+  expiresAt: string;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  evidence: string;
+}
+
+export interface WithdrawalPrepareInput {
+  quoteHash: string;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  evidence: string;
+}
+
+export type WithdrawalPrepareResult = WithdrawalDetail & {
+  attemptId: string;
+};
+
+export type WithdrawalPreparationInputKind = typeof WithdrawalPreparationInputKind[keyof typeof WithdrawalPreparationInputKind];
+
+
+export const WithdrawalPreparationInputKind = {
+  first_time_link: 'first_time_link',
+  scheduled: 'scheduled',
+} as const;
+
+export interface WithdrawalPreparationInput {
+  attemptId: string;
+  quoteHash: string;
+  draftId?: string;
+  reviewUrl?: string;
+  deadline: string;
+  oneTime: boolean;
+  autoSend: boolean;
+  recipientMatches: boolean;
+  amountsMatch: boolean;
+  historyInspected: boolean;
+  historyCoverage: string;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  evidence: string;
+  kind: WithdrawalPreparationInputKind;
+}
+
+export interface WithdrawalCheckInput {
+  attemptId: string;
+  quoteHash: string;
+  recipientMatches: boolean;
+  amountsMatch: boolean;
+  reservationMatches: boolean;
+  historyInspected: boolean;
+  historyCoverage: string;
+  oneTime: boolean;
+  autoSend: boolean;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  evidence: string;
+}
+
+export interface WithdrawalReleaseInput {
+  attemptId: string;
+  quoteHash: string;
+  providerLink?: string;
+  providerReference?: string;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  evidence: string;
+  releasedAt: string;
+}
+
+export interface WithdrawalDeclineInput {
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  reason: string;
+}
+
+export type WithdrawalInvestigationInputStatus = typeof WithdrawalInvestigationInputStatus[keyof typeof WithdrawalInvestigationInputStatus];
+
+
+export const WithdrawalInvestigationInputStatus = {
+  unknown: 'unknown',
+  expired: 'expired',
+} as const;
+
+export interface WithdrawalInvestigationInput {
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  reason: string;
+  status?: WithdrawalInvestigationInputStatus;
+}
+
+export type WithdrawalReconcileInputStatus = typeof WithdrawalReconcileInputStatus[keyof typeof WithdrawalReconcileInputStatus];
+
+
+export const WithdrawalReconcileInputStatus = {
+  processing: 'processing',
+  delivered: 'delivered',
+  failed: 'failed',
+  canceled: 'canceled',
+  returned: 'returned',
+} as const;
+
+export interface WithdrawalReconcileInput {
+  observationId: string;
+  status: WithdrawalReconcileInputStatus;
+  providerStatus: string;
+  providerReference: string;
+  activityId?: string;
+  activityUrl?: string;
+  sourceUrl: string;
+  observedAt: string;
+  recipientMatches: boolean;
+  methodId: string;
+  /**
+     * @minimum 0
+     * @maximum 1500
+     */
+  sendAmountCents: number;
+  /**
+     * @minimum 0
+     * @maximum 1500
+     */
+  feeCents: number;
+  /**
+     * @minimum 0
+     * @maximum 1500
+     */
+  taxCents: number;
+  receiveAmount: string;
+  receiveCurrency: string;
+  fundingReturned?: boolean;
+  recipientReady?: boolean;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  evidence: string;
+}
+
+export type PayoutFeeObservationFeeCurrency = typeof PayoutFeeObservationFeeCurrency[keyof typeof PayoutFeeObservationFeeCurrency];
+
+
+export const PayoutFeeObservationFeeCurrency = {
+  USD: 'USD',
+} as const;
+
+export type PayoutFeeObservationTaxStatus = typeof PayoutFeeObservationTaxStatus[keyof typeof PayoutFeeObservationTaxStatus];
+
+
+export const PayoutFeeObservationTaxStatus = {
+  unresolved: 'unresolved',
+  not_observed: 'not_observed',
+} as const;
+
+export interface PayoutFeeObservation {
+  id: string;
+  observedAt: string;
+  /** @minimum 0 */
+  sendAmountCents: number;
+  /** @minimum 0 */
+  feeCents: number;
+  feeCurrency: PayoutFeeObservationFeeCurrency;
+  fundingMethod: string;
+  senderCountry: string;
+  deliveryEstimate: string | null;
+  taxStatus: PayoutFeeObservationTaxStatus;
+  liveRequoteRequired: boolean;
+  inspectionStatus?: string;
+  linkMethodVerified?: boolean;
+  sourceUrls?: string[];
+  discountNote?: string | null;
+  discountVerified?: boolean;
+}
+
+export type PayoutCountryObservationAvailability = typeof PayoutCountryObservationAvailability[keyof typeof PayoutCountryObservationAvailability];
+
+
+export const PayoutCountryObservationAvailability = {
+  available: 'available',
+  unavailable: 'unavailable',
+  quote_error: 'quote_error',
+  unverified: 'unverified',
+} as const;
+
+export interface PayoutCountryObservation {
+  id: string;
+  observedAt: string;
+  availability: PayoutCountryObservationAvailability;
+  inspectionStatus: string;
+  notes: string;
+  sourceUrls: string[];
+  discountNote: string | null;
+  discountVerified: boolean;
+  scope: string;
+  receiveCurrency: string | null;
+  senderCountry: string;
+  fundingMethod: string;
+  liveRequoteRequired: boolean;
+}
+
+export type PayoutDeliveryMethodAvailability = typeof PayoutDeliveryMethodAvailability[keyof typeof PayoutDeliveryMethodAvailability];
+
+
+export const PayoutDeliveryMethodAvailability = {
+  available: 'available',
+  unavailable: 'unavailable',
+  quote_error: 'quote_error',
+  unverified: 'unverified',
+} as const;
+
+export interface PayoutDeliveryMethod {
+  id: string;
+  name: string;
+  enabled: boolean;
+  /** @minimum 1 */
+  revision: number;
+  code: string;
+  receiveCurrency: string;
+  availability: PayoutDeliveryMethodAvailability;
+  lastVerifiedAt: string;
+  observations: PayoutFeeObservation[];
+}
+
+export type PayoutCountryAvailability = typeof PayoutCountryAvailability[keyof typeof PayoutCountryAvailability];
+
+
+export const PayoutCountryAvailability = {
+  available: 'available',
+  unavailable: 'unavailable',
+  quote_error: 'quote_error',
+  unverified: 'unverified',
+} as const;
+
+export interface PayoutCountry {
+  id: string;
+  name: string;
+  enabled: boolean;
+  /** @minimum 1 */
+  revision: number;
+  countryCode: string;
+  availability: PayoutCountryAvailability;
+  lastVerifiedAt: string;
+  methods: PayoutDeliveryMethod[];
+  observations?: PayoutCountryObservation[];
+}
+
+export interface PayoutProvider {
+  id: string;
+  name: string;
+  enabled: boolean;
+  /** @minimum 1 */
+  revision: number;
+  countries: PayoutCountry[];
+  accountKey?: string;
+}
+
+export type PayoutCatalogMaxWithdrawalCents = typeof PayoutCatalogMaxWithdrawalCents[keyof typeof PayoutCatalogMaxWithdrawalCents];
+
+
+export const PayoutCatalogMaxWithdrawalCents = {
+  NUMBER_1500: 1500,
+} as const;
+
+export type PayoutCatalogEnvironment = typeof PayoutCatalogEnvironment[keyof typeof PayoutCatalogEnvironment];
+
+
+export const PayoutCatalogEnvironment = {
+  development: 'development',
+  production: 'production',
+} as const;
+
+export interface PayoutCatalog {
+  providers: PayoutProvider[];
+  maxWithdrawalCents: PayoutCatalogMaxWithdrawalCents;
+  liveRequoteRequired: boolean;
+  asOf: string;
+  environment: PayoutCatalogEnvironment;
+}
+
+export interface PayoutEstimateRequest {
+  methodId: string;
+  /**
+     * @minimum 1
+     * @maximum 1500
+     */
+  withdrawalCents: number;
+  fundingMethod?: string;
+}
+
+export type PayoutEstimateBreakdownFeeCurrency = typeof PayoutEstimateBreakdownFeeCurrency[keyof typeof PayoutEstimateBreakdownFeeCurrency];
+
+
+export const PayoutEstimateBreakdownFeeCurrency = {
+  USD: 'USD',
+} as const;
+
+export interface PayoutEstimateBreakdown {
+  /** @minimum 0 */
+  feeCents: number;
+  /** @minimum 0 */
+  sendAmountCents: number;
+  /** @minimum 0 */
+  totalEarningsDeductedCents: number;
+  feeCurrency: PayoutEstimateBreakdownFeeCurrency;
+  taxCents: number | null;
+  recipientAmount: string | null;
+  observedAt: string;
+}
+
+export interface PayoutEstimate {
+  methodId: string;
+  /** @minimum 0 */
+  withdrawalCents: number;
+  fundingMethod: string;
+  receiveCurrency: string;
+  quoteRequired: boolean;
+  liveRequoteRequired: boolean;
+  breakdown: PayoutEstimateBreakdown | null;
+  message: string;
+}
+
+export interface PayoutCatalogUpdate {
+  /** @minimum 1 */
+  revision: number;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  name?: string;
+  enabled?: boolean;
+}
+
+export interface PayoutCatalogEntry {
+  id: string;
+  name: string;
+  enabled: boolean;
+  /** @minimum 1 */
+  revision: number;
+}
+
+export type PayoutResearchSource = typeof PayoutResearchSource[keyof typeof PayoutResearchSource];
+
+
+export const PayoutResearchSource = {
+  'Signed-in_Remitly_Business_website_UI': 'Signed-in Remitly Business website UI',
+} as const;
+
+export type PayoutResearchSenderCountry = typeof PayoutResearchSenderCountry[keyof typeof PayoutResearchSenderCountry];
+
+
+export const PayoutResearchSenderCountry = {
+  US: 'US',
+} as const;
+
+export type PayoutResearchFundingMethod = typeof PayoutResearchFundingMethod[keyof typeof PayoutResearchFundingMethod];
+
+
+export const PayoutResearchFundingMethod = {
+  debit_card: 'debit_card',
+  credit_card: 'credit_card',
+  bank_account: 'bank_account',
+} as const;
+
+export type PayoutResearchFeeCurrency = typeof PayoutResearchFeeCurrency[keyof typeof PayoutResearchFeeCurrency];
+
+
+export const PayoutResearchFeeCurrency = {
+  USD: 'USD',
+} as const;
+
+export type PayoutResearchCountryInspectionStatus = typeof PayoutResearchCountryInspectionStatus[keyof typeof PayoutResearchCountryInspectionStatus];
+
+
+export const PayoutResearchCountryInspectionStatus = {
+  link_options: 'link_options',
+  manual_only: 'manual_only',
+  not_in_destination_picker: 'not_in_destination_picker',
+  quote_error: 'quote_error',
+  link_available_no_method_modal: 'link_available_no_method_modal',
+} as const;
+
+export type PayoutResearchCountryMethodsItem = {
+  label: string;
+  delivery_estimate: string | null;
+  [key: string]: number | string | null;
+};
+
+export interface PayoutResearchCountry {
+  /** @pattern ^[A-Z]{2}$ */
+  country_code: string;
+  country: string;
+  receive_currency: string | null;
+  inspection_status: PayoutResearchCountryInspectionStatus;
+  notes: string;
+  methods: PayoutResearchCountryMethodsItem[];
+}
+
+export interface PayoutResearch {
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  observed_date: string;
+  source: PayoutResearchSource;
+  source_urls: string[];
+  sender_country: PayoutResearchSenderCountry;
+  funding_method: PayoutResearchFundingMethod;
+  comparison_send_amounts_usd: number[];
+  fee_currency: PayoutResearchFeeCurrency;
+  production_fee_schedule: false;
+  live_requote_required: true;
+  scope: string;
+  discount_note?: string | null;
+  countries: PayoutResearchCountry[];
+  observed_at?: string;
+}
+
+export interface PayoutResearchImportRequest {
+  research: PayoutResearch;
+  dryRun?: boolean;
+}
+
+export interface PayoutResearchImportResult {
+  dryRun: boolean;
+  providerId: string;
+  countries: number;
+  methods: number;
+  observations: number;
+  insertedObservations?: number;
+}
+
 export type AdminOverviewRangeTimeZone = typeof AdminOverviewRangeTimeZone[keyof typeof AdminOverviewRangeTimeZone];
 
 
@@ -107,9 +962,21 @@ export interface AdminUserList {
   environment: string;
 }
 
+/**
+ * Optional same-origin Clerk proxy path used for production admin sign-in.
+ */
+export type AdminAuthConfigProxyUrl = typeof AdminAuthConfigProxyUrl[keyof typeof AdminAuthConfigProxyUrl];
+
+
+export const AdminAuthConfigProxyUrl = {
+  '/api/__clerk': '/api/__clerk',
+} as const;
+
 export interface AdminAuthConfig {
   publishableKey: string;
   frontendApi: string;
+  /** Optional same-origin Clerk proxy path used for production admin sign-in. */
+  proxyUrl?: AdminAuthConfigProxyUrl;
 }
 
 export interface PostActivity {
@@ -881,6 +1748,13 @@ export interface UnlockMediaDmResponse {
   unlocked: boolean;
   mediaUrl?: string;
 }
+
+export type PreviewWithdrawalEnrollmentParams = {
+/**
+ * @minimum 1
+ */
+userId: number;
+};
 
 export type ListAdminUsersParams = {
 /**

@@ -39,3 +39,6 @@ export * from "./premium-identities";
 
 export * from "./notification-history";
 export * from "./dm-gift-combos";
+export * from "./payout-catalog";
+
+export * from "./creator-withdrawals";

@@ -26,6 +26,8 @@ import type {
   AdminSession,
   AdminUser,
   AdminUserList,
+  AdminWithdrawalDetail,
+  AdminWithdrawalQueue,
   AgoraRtmTokenRequest,
   AgoraRtmTokenResponse,
   AgoraTokenRequest,
@@ -41,6 +43,7 @@ import type {
   CreatePostRequest,
   CreatePrivateStreamInvitationRequest,
   CreateStreamRequest,
+  CreatorWithdrawal,
   DirectMessageResponse,
   DirectMessagesResponse,
   ErrorResponse,
@@ -65,10 +68,18 @@ import type {
   PartyAction,
   PartyCandidates,
   PartyState,
+  PayoutCatalog,
+  PayoutCatalogEntry,
+  PayoutCatalogUpdate,
+  PayoutEstimate,
+  PayoutEstimateRequest,
+  PayoutResearchImportRequest,
+  PayoutResearchImportResult,
   PostActivity,
   PostComments,
   PostListResponse,
   PostResponse,
+  PreviewWithdrawalEnrollmentParams,
   PrivateStreamInvitationResponse,
   RefreshCountryLocation200,
   ReportPost201,
@@ -102,7 +113,27 @@ import type {
   UpsertUserRequest,
   UserResponse,
   UserSearchResponse,
-  ViewerUpdateRequest
+  ViewerUpdateRequest,
+  WithdrawalCheckInput,
+  WithdrawalDeclineInput,
+  WithdrawalDetail,
+  WithdrawalEnrollmentInput,
+  WithdrawalEnrollmentPreview,
+  WithdrawalEnrollmentResult,
+  WithdrawalInvestigationInput,
+  WithdrawalOverview,
+  WithdrawalPauseInput,
+  WithdrawalPauseResult,
+  WithdrawalPreparationInput,
+  WithdrawalPrepareInput,
+  WithdrawalPrepareResult,
+  WithdrawalQuoteApprovalInput,
+  WithdrawalQuoteInput,
+  WithdrawalRecipient,
+  WithdrawalRecipientInput,
+  WithdrawalReconcileInput,
+  WithdrawalReleaseInput,
+  WithdrawalRequestInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -116,6 +147,1945 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
+
+export const getGetWithdrawalOverviewUrl = () => {
+
+
+
+
+  return `/api/withdrawals/overview`
+}
+
+/**
+ * Creator-scoped authenticated wallet withdrawal; no automatic payments.
+ * @summary Read existing wallet coins, reserved withdrawals and enrollment policy
+ */
+export const getWithdrawalOverview = async ( options?: RequestInit): Promise<WithdrawalOverview> => {
+
+  return customFetch<WithdrawalOverview>(getGetWithdrawalOverviewUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWithdrawalOverviewQueryKey = () => {
+    return [
+    `/api/withdrawals/overview`
+    ] as const;
+    }
+
+
+export const getGetWithdrawalOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getWithdrawalOverview>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWithdrawalOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWithdrawalOverviewQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWithdrawalOverview>>> = ({ signal }) => getWithdrawalOverview({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWithdrawalOverview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWithdrawalOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getWithdrawalOverview>>>
+export type GetWithdrawalOverviewQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read existing wallet coins, reserved withdrawals and enrollment policy
+ */
+
+export function useGetWithdrawalOverview<TData = Awaited<ReturnType<typeof getWithdrawalOverview>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWithdrawalOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWithdrawalOverviewQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetWithdrawalRecipientUrl = () => {
+
+
+
+
+  return `/api/withdrawals/recipient`
+}
+
+/**
+ * Creator-scoped authenticated wallet withdrawal; no automatic payments.
+ * @summary Read saved legal/contact details; banking details remain with Remitly
+ */
+export const getWithdrawalRecipient = async ( options?: RequestInit): Promise<WithdrawalRecipient | null> => {
+
+  return customFetch<WithdrawalRecipient | null>(getGetWithdrawalRecipientUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWithdrawalRecipientQueryKey = () => {
+    return [
+    `/api/withdrawals/recipient`
+    ] as const;
+    }
+
+
+export const getGetWithdrawalRecipientQueryOptions = <TData = Awaited<ReturnType<typeof getWithdrawalRecipient>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWithdrawalRecipient>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWithdrawalRecipientQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWithdrawalRecipient>>> = ({ signal }) => getWithdrawalRecipient({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWithdrawalRecipient>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWithdrawalRecipientQueryResult = NonNullable<Awaited<ReturnType<typeof getWithdrawalRecipient>>>
+export type GetWithdrawalRecipientQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read saved legal/contact details; banking details remain with Remitly
+ */
+
+export function useGetWithdrawalRecipient<TData = Awaited<ReturnType<typeof getWithdrawalRecipient>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWithdrawalRecipient>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWithdrawalRecipientQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSaveWithdrawalRecipientUrl = () => {
+
+
+
+
+  return `/api/withdrawals/recipient`
+}
+
+/**
+ * Creator-scoped authenticated wallet withdrawal; no automatic payments.
+ * @summary Save creator recipient contact details
+ */
+export const saveWithdrawalRecipient = async (withdrawalRecipientInput: WithdrawalRecipientInput, options?: RequestInit): Promise<WithdrawalRecipient> => {
+
+  return customFetch<WithdrawalRecipient>(getSaveWithdrawalRecipientUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      withdrawalRecipientInput,)
+  }
+);}
+
+
+
+
+export const getSaveWithdrawalRecipientMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveWithdrawalRecipient>>, TError,{data: BodyType<WithdrawalRecipientInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveWithdrawalRecipient>>, TError,{data: BodyType<WithdrawalRecipientInput>}, TContext> => {
+
+const mutationKey = ['saveWithdrawalRecipient'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveWithdrawalRecipient>>, {data: BodyType<WithdrawalRecipientInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveWithdrawalRecipient(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveWithdrawalRecipientMutationResult = NonNullable<Awaited<ReturnType<typeof saveWithdrawalRecipient>>>
+    export type SaveWithdrawalRecipientMutationBody = BodyType<WithdrawalRecipientInput>
+    export type SaveWithdrawalRecipientMutationError = ErrorType<void>
+
+    /**
+ * @summary Save creator recipient contact details
+ */
+export const useSaveWithdrawalRecipient = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveWithdrawalRecipient>>, TError,{data: BodyType<WithdrawalRecipientInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveWithdrawalRecipient>>,
+        TError,
+        {data: BodyType<WithdrawalRecipientInput>},
+        TContext
+      > => {
+      return useMutation(getSaveWithdrawalRecipientMutationOptions(options));
+    }
+
+export const getRequestWithdrawalUrl = () => {
+
+
+
+
+  return `/api/withdrawals`
+}
+
+/**
+ * Creator-scoped authenticated wallet withdrawal; no automatic payments.
+ * @summary Atomically reserve 6,000 existing wallet coins for USD 15 gross; await exact quote confirmation
+ */
+export const requestWithdrawal = async (withdrawalRequestInput: WithdrawalRequestInput, options?: RequestInit): Promise<CreatorWithdrawal> => {
+
+  return customFetch<CreatorWithdrawal>(getRequestWithdrawalUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      withdrawalRequestInput,)
+  }
+);}
+
+
+
+
+export const getRequestWithdrawalMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestWithdrawal>>, TError,{data: BodyType<WithdrawalRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestWithdrawal>>, TError,{data: BodyType<WithdrawalRequestInput>}, TContext> => {
+
+const mutationKey = ['requestWithdrawal'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestWithdrawal>>, {data: BodyType<WithdrawalRequestInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  requestWithdrawal(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestWithdrawalMutationResult = NonNullable<Awaited<ReturnType<typeof requestWithdrawal>>>
+    export type RequestWithdrawalMutationBody = BodyType<WithdrawalRequestInput>
+    export type RequestWithdrawalMutationError = ErrorType<void>
+
+    /**
+ * @summary Atomically reserve 6,000 existing wallet coins for USD 15 gross; await exact quote confirmation
+ */
+export const useRequestWithdrawal = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestWithdrawal>>, TError,{data: BodyType<WithdrawalRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestWithdrawal>>,
+        TError,
+        {data: BodyType<WithdrawalRequestInput>},
+        TContext
+      > => {
+      return useMutation(getRequestWithdrawalMutationOptions(options));
+    }
+
+export const getGetWithdrawalDetailUrl = (id: string,) => {
+
+
+
+
+  return `/api/withdrawals/${id}`
+}
+
+/**
+ * Creator-scoped authenticated wallet withdrawal; no automatic payments.
+ * @summary Read creator-owned withdrawal status and timeline
+ */
+export const getWithdrawalDetail = async (id: string, options?: RequestInit): Promise<WithdrawalDetail> => {
+
+  return customFetch<WithdrawalDetail>(getGetWithdrawalDetailUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWithdrawalDetailQueryKey = (id: string,) => {
+    return [
+    `/api/withdrawals/${id}`
+    ] as const;
+    }
+
+
+export const getGetWithdrawalDetailQueryOptions = <TData = Awaited<ReturnType<typeof getWithdrawalDetail>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWithdrawalDetail>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWithdrawalDetailQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWithdrawalDetail>>> = ({ signal }) => getWithdrawalDetail(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWithdrawalDetail>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWithdrawalDetailQueryResult = NonNullable<Awaited<ReturnType<typeof getWithdrawalDetail>>>
+export type GetWithdrawalDetailQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read creator-owned withdrawal status and timeline
+ */
+
+export function useGetWithdrawalDetail<TData = Awaited<ReturnType<typeof getWithdrawalDetail>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWithdrawalDetail>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWithdrawalDetailQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getApproveWithdrawalQuoteUrl = (id: string,) => {
+
+
+
+
+  return `/api/withdrawals/${id}/approve-quote`
+}
+
+/**
+ * Creator-scoped authenticated wallet withdrawal; no automatic payments.
+ * @summary Creator independently approves current exact signed-in quote hash
+ */
+export const approveWithdrawalQuote = async (id: string,
+    withdrawalQuoteApprovalInput: WithdrawalQuoteApprovalInput, options?: RequestInit): Promise<WithdrawalDetail> => {
+
+  return customFetch<WithdrawalDetail>(getApproveWithdrawalQuoteUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      withdrawalQuoteApprovalInput,)
+  }
+);}
+
+
+
+
+export const getApproveWithdrawalQuoteMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveWithdrawalQuote>>, TError,{id: string;data: BodyType<WithdrawalQuoteApprovalInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveWithdrawalQuote>>, TError,{id: string;data: BodyType<WithdrawalQuoteApprovalInput>}, TContext> => {
+
+const mutationKey = ['approveWithdrawalQuote'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveWithdrawalQuote>>, {id: string;data: BodyType<WithdrawalQuoteApprovalInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  approveWithdrawalQuote(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveWithdrawalQuoteMutationResult = NonNullable<Awaited<ReturnType<typeof approveWithdrawalQuote>>>
+    export type ApproveWithdrawalQuoteMutationBody = BodyType<WithdrawalQuoteApprovalInput>
+    export type ApproveWithdrawalQuoteMutationError = ErrorType<void>
+
+    /**
+ * @summary Creator independently approves current exact signed-in quote hash
+ */
+export const useApproveWithdrawalQuote = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveWithdrawalQuote>>, TError,{id: string;data: BodyType<WithdrawalQuoteApprovalInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveWithdrawalQuote>>,
+        TError,
+        {id: string;data: BodyType<WithdrawalQuoteApprovalInput>},
+        TContext
+      > => {
+      return useMutation(getApproveWithdrawalQuoteMutationOptions(options));
+    }
+
+export const getCancelUnpreparedWithdrawalUrl = (id: string,) => {
+
+
+
+
+  return `/api/withdrawals/${id}/cancel`
+}
+
+/**
+ * Creator-scoped authenticated wallet withdrawal; no automatic payments.
+ * @summary Cancel and refund wallet coins only before any provider attempt
+ */
+export const cancelUnpreparedWithdrawal = async (id: string, options?: RequestInit): Promise<WithdrawalDetail> => {
+
+  return customFetch<WithdrawalDetail>(getCancelUnpreparedWithdrawalUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getCancelUnpreparedWithdrawalMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelUnpreparedWithdrawal>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelUnpreparedWithdrawal>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['cancelUnpreparedWithdrawal'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelUnpreparedWithdrawal>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  cancelUnpreparedWithdrawal(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelUnpreparedWithdrawalMutationResult = NonNullable<Awaited<ReturnType<typeof cancelUnpreparedWithdrawal>>>
+
+    export type CancelUnpreparedWithdrawalMutationError = ErrorType<void>
+
+    /**
+ * @summary Cancel and refund wallet coins only before any provider attempt
+ */
+export const useCancelUnpreparedWithdrawal = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelUnpreparedWithdrawal>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelUnpreparedWithdrawal>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getCancelUnpreparedWithdrawalMutationOptions(options));
+    }
+
+export const getDownloadWithdrawalStatementUrl = (id: string,) => {
+
+
+
+
+  return `/api/withdrawals/${id}/statement`
+}
+
+/**
+ * Creator-scoped authenticated wallet withdrawal; no automatic payments.
+ * @summary Download creator-owned truthful payout statement
+ */
+export const downloadWithdrawalStatement = async (id: string, options?: RequestInit): Promise<string> => {
+
+  return customFetch<string>(getDownloadWithdrawalStatementUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadWithdrawalStatementQueryKey = (id: string,) => {
+    return [
+    `/api/withdrawals/${id}/statement`
+    ] as const;
+    }
+
+
+export const getDownloadWithdrawalStatementQueryOptions = <TData = Awaited<ReturnType<typeof downloadWithdrawalStatement>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadWithdrawalStatement>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadWithdrawalStatementQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadWithdrawalStatement>>> = ({ signal }) => downloadWithdrawalStatement(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadWithdrawalStatement>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadWithdrawalStatementQueryResult = NonNullable<Awaited<ReturnType<typeof downloadWithdrawalStatement>>>
+export type DownloadWithdrawalStatementQueryError = ErrorType<void>
+
+
+/**
+ * @summary Download creator-owned truthful payout statement
+ */
+
+export function useDownloadWithdrawalStatement<TData = Awaited<ReturnType<typeof downloadWithdrawalStatement>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadWithdrawalStatement>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadWithdrawalStatementQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListAdminWithdrawalsUrl = () => {
+
+
+
+
+  return `/api/admin-data/withdrawals`
+}
+
+/**
+ * Enabled owner bearer and production MFA required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * @summary Read account-scoped payout queue, exceptions and latest attempt deadlines
+ */
+export const listAdminWithdrawals = async ( options?: RequestInit): Promise<AdminWithdrawalQueue> => {
+
+  return customFetch<AdminWithdrawalQueue>(getListAdminWithdrawalsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminWithdrawalsQueryKey = () => {
+    return [
+    `/api/admin-data/withdrawals`
+    ] as const;
+    }
+
+
+export const getListAdminWithdrawalsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminWithdrawals>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminWithdrawals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminWithdrawalsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminWithdrawals>>> = ({ signal }) => listAdminWithdrawals({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminWithdrawals>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminWithdrawalsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminWithdrawals>>>
+export type ListAdminWithdrawalsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read account-scoped payout queue, exceptions and latest attempt deadlines
+ */
+
+export function useListAdminWithdrawals<TData = Awaited<ReturnType<typeof listAdminWithdrawals>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminWithdrawals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminWithdrawalsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getPreviewWithdrawalEnrollmentUrl = (params: PreviewWithdrawalEnrollmentParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin-data/withdrawals/enrollment-preview?${stringifiedParams}` : `/api/admin-data/withdrawals/enrollment-preview`
+}
+
+/**
+ * Enabled owner bearer and production MFA required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * @summary Preview selected creator wallet; bought, gifted and granted coins are all redeemable
+ */
+export const previewWithdrawalEnrollment = async (params: PreviewWithdrawalEnrollmentParams, options?: RequestInit): Promise<WithdrawalEnrollmentPreview> => {
+
+  return customFetch<WithdrawalEnrollmentPreview>(getPreviewWithdrawalEnrollmentUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getPreviewWithdrawalEnrollmentQueryKey = (params?: PreviewWithdrawalEnrollmentParams,) => {
+    return [
+    `/api/admin-data/withdrawals/enrollment-preview`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getPreviewWithdrawalEnrollmentQueryOptions = <TData = Awaited<ReturnType<typeof previewWithdrawalEnrollment>>, TError = ErrorType<void>>(params: PreviewWithdrawalEnrollmentParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof previewWithdrawalEnrollment>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPreviewWithdrawalEnrollmentQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof previewWithdrawalEnrollment>>> = ({ signal }) => previewWithdrawalEnrollment(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof previewWithdrawalEnrollment>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type PreviewWithdrawalEnrollmentQueryResult = NonNullable<Awaited<ReturnType<typeof previewWithdrawalEnrollment>>>
+export type PreviewWithdrawalEnrollmentQueryError = ErrorType<void>
+
+
+/**
+ * @summary Preview selected creator wallet; bought, gifted and granted coins are all redeemable
+ */
+
+export function usePreviewWithdrawalEnrollment<TData = Awaited<ReturnType<typeof previewWithdrawalEnrollment>>, TError = ErrorType<void>>(
+ params: PreviewWithdrawalEnrollmentParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof previewWithdrawalEnrollment>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getPreviewWithdrawalEnrollmentQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getEnrollWithdrawalCreatorUrl = () => {
+
+
+
+
+  return `/api/admin-data/withdrawals/enroll`
+}
+
+/**
+ * Enabled owner bearer and production MFA required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * @summary Enable one creator using matching wallet snapshot; never mint or backfill earnings
+ */
+export const enrollWithdrawalCreator = async (withdrawalEnrollmentInput: WithdrawalEnrollmentInput, options?: RequestInit): Promise<WithdrawalEnrollmentResult> => {
+
+  return customFetch<WithdrawalEnrollmentResult>(getEnrollWithdrawalCreatorUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      withdrawalEnrollmentInput,)
+  }
+);}
+
+
+
+
+export const getEnrollWithdrawalCreatorMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enrollWithdrawalCreator>>, TError,{data: BodyType<WithdrawalEnrollmentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof enrollWithdrawalCreator>>, TError,{data: BodyType<WithdrawalEnrollmentInput>}, TContext> => {
+
+const mutationKey = ['enrollWithdrawalCreator'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof enrollWithdrawalCreator>>, {data: BodyType<WithdrawalEnrollmentInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  enrollWithdrawalCreator(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EnrollWithdrawalCreatorMutationResult = NonNullable<Awaited<ReturnType<typeof enrollWithdrawalCreator>>>
+    export type EnrollWithdrawalCreatorMutationBody = BodyType<WithdrawalEnrollmentInput>
+    export type EnrollWithdrawalCreatorMutationError = ErrorType<void>
+
+    /**
+ * @summary Enable one creator using matching wallet snapshot; never mint or backfill earnings
+ */
+export const useEnrollWithdrawalCreator = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enrollWithdrawalCreator>>, TError,{data: BodyType<WithdrawalEnrollmentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof enrollWithdrawalCreator>>,
+        TError,
+        {data: BodyType<WithdrawalEnrollmentInput>},
+        TContext
+      > => {
+      return useMutation(getEnrollWithdrawalCreatorMutationOptions(options));
+    }
+
+export const getSetWithdrawalPreparationPauseUrl = () => {
+
+
+
+
+  return `/api/admin-data/withdrawals/pause`
+}
+
+/**
+ * Enabled owner bearer and production MFA required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * @summary Pause new preparation while reconciliation remains available
+ */
+export const setWithdrawalPreparationPause = async (withdrawalPauseInput: WithdrawalPauseInput, options?: RequestInit): Promise<WithdrawalPauseResult> => {
+
+  return customFetch<WithdrawalPauseResult>(getSetWithdrawalPreparationPauseUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      withdrawalPauseInput,)
+  }
+);}
+
+
+
+
+export const getSetWithdrawalPreparationPauseMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setWithdrawalPreparationPause>>, TError,{data: BodyType<WithdrawalPauseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setWithdrawalPreparationPause>>, TError,{data: BodyType<WithdrawalPauseInput>}, TContext> => {
+
+const mutationKey = ['setWithdrawalPreparationPause'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setWithdrawalPreparationPause>>, {data: BodyType<WithdrawalPauseInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  setWithdrawalPreparationPause(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetWithdrawalPreparationPauseMutationResult = NonNullable<Awaited<ReturnType<typeof setWithdrawalPreparationPause>>>
+    export type SetWithdrawalPreparationPauseMutationBody = BodyType<WithdrawalPauseInput>
+    export type SetWithdrawalPreparationPauseMutationError = ErrorType<void>
+
+    /**
+ * @summary Pause new preparation while reconciliation remains available
+ */
+export const useSetWithdrawalPreparationPause = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setWithdrawalPreparationPause>>, TError,{data: BodyType<WithdrawalPauseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setWithdrawalPreparationPause>>,
+        TError,
+        {data: BodyType<WithdrawalPauseInput>},
+        TContext
+      > => {
+      return useMutation(getSetWithdrawalPreparationPauseMutationOptions(options));
+    }
+
+export const getGetAdminWithdrawalDetailUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin-data/withdrawals/${id}`
+}
+
+/**
+ * Enabled owner bearer and production MFA required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * @summary Read protected attempts, legal contacts, evidence and audit identities
+ */
+export const getAdminWithdrawalDetail = async (id: string, options?: RequestInit): Promise<AdminWithdrawalDetail> => {
+
+  return customFetch<AdminWithdrawalDetail>(getGetAdminWithdrawalDetailUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminWithdrawalDetailQueryKey = (id: string,) => {
+    return [
+    `/api/admin-data/withdrawals/${id}`
+    ] as const;
+    }
+
+
+export const getGetAdminWithdrawalDetailQueryOptions = <TData = Awaited<ReturnType<typeof getAdminWithdrawalDetail>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminWithdrawalDetail>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminWithdrawalDetailQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminWithdrawalDetail>>> = ({ signal }) => getAdminWithdrawalDetail(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminWithdrawalDetail>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminWithdrawalDetailQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminWithdrawalDetail>>>
+export type GetAdminWithdrawalDetailQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read protected attempts, legal contacts, evidence and audit identities
+ */
+
+export function useGetAdminWithdrawalDetail<TData = Awaited<ReturnType<typeof getAdminWithdrawalDetail>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminWithdrawalDetail>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminWithdrawalDetailQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getRecordWithdrawalQuoteUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin-data/withdrawals/${id}/quote`
+}
+
+/**
+ * Enabled owner bearer and production MFA required. Additionally requires configured maker operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * @summary Record actual signed-in provider quote and invalidate earlier approval/checks
+ */
+export const recordWithdrawalQuote = async (id: string,
+    withdrawalQuoteInput: WithdrawalQuoteInput, options?: RequestInit): Promise<WithdrawalDetail> => {
+
+  return customFetch<WithdrawalDetail>(getRecordWithdrawalQuoteUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      withdrawalQuoteInput,)
+  }
+);}
+
+
+
+
+export const getRecordWithdrawalQuoteMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordWithdrawalQuote>>, TError,{id: string;data: BodyType<WithdrawalQuoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordWithdrawalQuote>>, TError,{id: string;data: BodyType<WithdrawalQuoteInput>}, TContext> => {
+
+const mutationKey = ['recordWithdrawalQuote'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordWithdrawalQuote>>, {id: string;data: BodyType<WithdrawalQuoteInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  recordWithdrawalQuote(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordWithdrawalQuoteMutationResult = NonNullable<Awaited<ReturnType<typeof recordWithdrawalQuote>>>
+    export type RecordWithdrawalQuoteMutationBody = BodyType<WithdrawalQuoteInput>
+    export type RecordWithdrawalQuoteMutationError = ErrorType<void>
+
+    /**
+ * @summary Record actual signed-in provider quote and invalidate earlier approval/checks
+ */
+export const useRecordWithdrawalQuote = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordWithdrawalQuote>>, TError,{id: string;data: BodyType<WithdrawalQuoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordWithdrawalQuote>>,
+        TError,
+        {id: string;data: BodyType<WithdrawalQuoteInput>},
+        TContext
+      > => {
+      return useMutation(getRecordWithdrawalQuoteMutationOptions(options));
+    }
+
+export const getBeginWithdrawalPreparationUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin-data/withdrawals/${id}/prepare`
+}
+
+/**
+ * Enabled owner bearer and production MFA required. Additionally requires configured maker operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * @summary Allocate durable attempt before possible provider creation; preparation pause applies
+ */
+export const beginWithdrawalPreparation = async (id: string,
+    withdrawalPrepareInput: WithdrawalPrepareInput, options?: RequestInit): Promise<WithdrawalPrepareResult> => {
+
+  return customFetch<WithdrawalPrepareResult>(getBeginWithdrawalPreparationUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      withdrawalPrepareInput,)
+  }
+);}
+
+
+
+
+export const getBeginWithdrawalPreparationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof beginWithdrawalPreparation>>, TError,{id: string;data: BodyType<WithdrawalPrepareInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof beginWithdrawalPreparation>>, TError,{id: string;data: BodyType<WithdrawalPrepareInput>}, TContext> => {
+
+const mutationKey = ['beginWithdrawalPreparation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof beginWithdrawalPreparation>>, {id: string;data: BodyType<WithdrawalPrepareInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  beginWithdrawalPreparation(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BeginWithdrawalPreparationMutationResult = NonNullable<Awaited<ReturnType<typeof beginWithdrawalPreparation>>>
+    export type BeginWithdrawalPreparationMutationBody = BodyType<WithdrawalPrepareInput>
+    export type BeginWithdrawalPreparationMutationError = ErrorType<void>
+
+    /**
+ * @summary Allocate durable attempt before possible provider creation; preparation pause applies
+ */
+export const useBeginWithdrawalPreparation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof beginWithdrawalPreparation>>, TError,{id: string;data: BodyType<WithdrawalPrepareInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof beginWithdrawalPreparation>>,
+        TError,
+        {id: string;data: BodyType<WithdrawalPrepareInput>},
+        TContext
+      > => {
+      return useMutation(getBeginWithdrawalPreparationMutationOptions(options));
+    }
+
+export const getRecordWithdrawalPreparationUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin-data/withdrawals/${id}/preparation`
+}
+
+/**
+ * Enabled owner bearer and production MFA required. Additionally requires configured maker operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * @summary Record first-time link plan or one-time draft with auto-send off
+ */
+export const recordWithdrawalPreparation = async (id: string,
+    withdrawalPreparationInput: WithdrawalPreparationInput, options?: RequestInit): Promise<WithdrawalDetail> => {
+
+  return customFetch<WithdrawalDetail>(getRecordWithdrawalPreparationUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      withdrawalPreparationInput,)
+  }
+);}
+
+
+
+
+export const getRecordWithdrawalPreparationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordWithdrawalPreparation>>, TError,{id: string;data: BodyType<WithdrawalPreparationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordWithdrawalPreparation>>, TError,{id: string;data: BodyType<WithdrawalPreparationInput>}, TContext> => {
+
+const mutationKey = ['recordWithdrawalPreparation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordWithdrawalPreparation>>, {id: string;data: BodyType<WithdrawalPreparationInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  recordWithdrawalPreparation(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordWithdrawalPreparationMutationResult = NonNullable<Awaited<ReturnType<typeof recordWithdrawalPreparation>>>
+    export type RecordWithdrawalPreparationMutationBody = BodyType<WithdrawalPreparationInput>
+    export type RecordWithdrawalPreparationMutationError = ErrorType<void>
+
+    /**
+ * @summary Record first-time link plan or one-time draft with auto-send off
+ */
+export const useRecordWithdrawalPreparation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordWithdrawalPreparation>>, TError,{id: string;data: BodyType<WithdrawalPreparationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordWithdrawalPreparation>>,
+        TError,
+        {id: string;data: BodyType<WithdrawalPreparationInput>},
+        TContext
+      > => {
+      return useMutation(getRecordWithdrawalPreparationMutationOptions(options));
+    }
+
+export const getCheckWithdrawalPreparationUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin-data/withdrawals/${id}/check`
+}
+
+/**
+ * Enabled owner bearer and production MFA required. Additionally requires configured checker operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * @summary Independently check exact attempt version; maker cannot self-check
+ */
+export const checkWithdrawalPreparation = async (id: string,
+    withdrawalCheckInput: WithdrawalCheckInput, options?: RequestInit): Promise<WithdrawalDetail> => {
+
+  return customFetch<WithdrawalDetail>(getCheckWithdrawalPreparationUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      withdrawalCheckInput,)
+  }
+);}
+
+
+
+
+export const getCheckWithdrawalPreparationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkWithdrawalPreparation>>, TError,{id: string;data: BodyType<WithdrawalCheckInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof checkWithdrawalPreparation>>, TError,{id: string;data: BodyType<WithdrawalCheckInput>}, TContext> => {
+
+const mutationKey = ['checkWithdrawalPreparation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkWithdrawalPreparation>>, {id: string;data: BodyType<WithdrawalCheckInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  checkWithdrawalPreparation(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CheckWithdrawalPreparationMutationResult = NonNullable<Awaited<ReturnType<typeof checkWithdrawalPreparation>>>
+    export type CheckWithdrawalPreparationMutationBody = BodyType<WithdrawalCheckInput>
+    export type CheckWithdrawalPreparationMutationError = ErrorType<void>
+
+    /**
+ * @summary Independently check exact attempt version; maker cannot self-check
+ */
+export const useCheckWithdrawalPreparation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkWithdrawalPreparation>>, TError,{id: string;data: BodyType<WithdrawalCheckInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof checkWithdrawalPreparation>>,
+        TError,
+        {id: string;data: BodyType<WithdrawalCheckInput>},
+        TContext
+      > => {
+      return useMutation(getCheckWithdrawalPreparationMutationOptions(options));
+    }
+
+export const getRecordHumanWithdrawalReleaseUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin-data/withdrawals/${id}/release`
+}
+
+/**
+ * Enabled owner bearer and production MFA required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * @summary Record human approval and actual external Remitly action; does not send payment
+ */
+export const recordHumanWithdrawalRelease = async (id: string,
+    withdrawalReleaseInput: WithdrawalReleaseInput, options?: RequestInit): Promise<WithdrawalDetail> => {
+
+  return customFetch<WithdrawalDetail>(getRecordHumanWithdrawalReleaseUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      withdrawalReleaseInput,)
+  }
+);}
+
+
+
+
+export const getRecordHumanWithdrawalReleaseMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordHumanWithdrawalRelease>>, TError,{id: string;data: BodyType<WithdrawalReleaseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordHumanWithdrawalRelease>>, TError,{id: string;data: BodyType<WithdrawalReleaseInput>}, TContext> => {
+
+const mutationKey = ['recordHumanWithdrawalRelease'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordHumanWithdrawalRelease>>, {id: string;data: BodyType<WithdrawalReleaseInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  recordHumanWithdrawalRelease(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordHumanWithdrawalReleaseMutationResult = NonNullable<Awaited<ReturnType<typeof recordHumanWithdrawalRelease>>>
+    export type RecordHumanWithdrawalReleaseMutationBody = BodyType<WithdrawalReleaseInput>
+    export type RecordHumanWithdrawalReleaseMutationError = ErrorType<void>
+
+    /**
+ * @summary Record human approval and actual external Remitly action; does not send payment
+ */
+export const useRecordHumanWithdrawalRelease = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordHumanWithdrawalRelease>>, TError,{id: string;data: BodyType<WithdrawalReleaseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordHumanWithdrawalRelease>>,
+        TError,
+        {id: string;data: BodyType<WithdrawalReleaseInput>},
+        TContext
+      > => {
+      return useMutation(getRecordHumanWithdrawalReleaseMutationOptions(options));
+    }
+
+export const getDeclineWithdrawalUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin-data/withdrawals/${id}/decline`
+}
+
+/**
+ * Enabled owner bearer and production MFA required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * @summary Final human decline; refund before attempt or retain reserve pending provider cancellation
+ */
+export const declineWithdrawal = async (id: string,
+    withdrawalDeclineInput: WithdrawalDeclineInput, options?: RequestInit): Promise<WithdrawalDetail> => {
+
+  return customFetch<WithdrawalDetail>(getDeclineWithdrawalUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      withdrawalDeclineInput,)
+  }
+);}
+
+
+
+
+export const getDeclineWithdrawalMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineWithdrawal>>, TError,{id: string;data: BodyType<WithdrawalDeclineInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof declineWithdrawal>>, TError,{id: string;data: BodyType<WithdrawalDeclineInput>}, TContext> => {
+
+const mutationKey = ['declineWithdrawal'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof declineWithdrawal>>, {id: string;data: BodyType<WithdrawalDeclineInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  declineWithdrawal(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeclineWithdrawalMutationResult = NonNullable<Awaited<ReturnType<typeof declineWithdrawal>>>
+    export type DeclineWithdrawalMutationBody = BodyType<WithdrawalDeclineInput>
+    export type DeclineWithdrawalMutationError = ErrorType<void>
+
+    /**
+ * @summary Final human decline; refund before attempt or retain reserve pending provider cancellation
+ */
+export const useDeclineWithdrawal = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineWithdrawal>>, TError,{id: string;data: BodyType<WithdrawalDeclineInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof declineWithdrawal>>,
+        TError,
+        {id: string;data: BodyType<WithdrawalDeclineInput>},
+        TContext
+      > => {
+      return useMutation(getDeclineWithdrawalMutationOptions(options));
+    }
+
+export const getMarkWithdrawalInvestigationUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin-data/withdrawals/${id}/unknown`
+}
+
+/**
+ * Enabled owner bearer and production MFA required. Additionally requires configured reconciler operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * @summary Record unknown/expired outcome without releasing coins or allowing retries
+ */
+export const markWithdrawalInvestigation = async (id: string,
+    withdrawalInvestigationInput: WithdrawalInvestigationInput, options?: RequestInit): Promise<WithdrawalDetail> => {
+
+  return customFetch<WithdrawalDetail>(getMarkWithdrawalInvestigationUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      withdrawalInvestigationInput,)
+  }
+);}
+
+
+
+
+export const getMarkWithdrawalInvestigationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markWithdrawalInvestigation>>, TError,{id: string;data: BodyType<WithdrawalInvestigationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markWithdrawalInvestigation>>, TError,{id: string;data: BodyType<WithdrawalInvestigationInput>}, TContext> => {
+
+const mutationKey = ['markWithdrawalInvestigation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markWithdrawalInvestigation>>, {id: string;data: BodyType<WithdrawalInvestigationInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  markWithdrawalInvestigation(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkWithdrawalInvestigationMutationResult = NonNullable<Awaited<ReturnType<typeof markWithdrawalInvestigation>>>
+    export type MarkWithdrawalInvestigationMutationBody = BodyType<WithdrawalInvestigationInput>
+    export type MarkWithdrawalInvestigationMutationError = ErrorType<void>
+
+    /**
+ * @summary Record unknown/expired outcome without releasing coins or allowing retries
+ */
+export const useMarkWithdrawalInvestigation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markWithdrawalInvestigation>>, TError,{id: string;data: BodyType<WithdrawalInvestigationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markWithdrawalInvestigation>>,
+        TError,
+        {id: string;data: BodyType<WithdrawalInvestigationInput>},
+        TContext
+      > => {
+      return useMutation(getMarkWithdrawalInvestigationMutationOptions(options));
+    }
+
+export const getReconcileWithdrawalUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin-data/withdrawals/${id}/reconcile`
+}
+
+/**
+ * Enabled owner bearer and production MFA required. Additionally requires configured reconciler operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * @summary Record verified provider observations; wallet refunds require authoritative return
+ */
+export const reconcileWithdrawal = async (id: string,
+    withdrawalReconcileInput: WithdrawalReconcileInput, options?: RequestInit): Promise<WithdrawalDetail> => {
+
+  return customFetch<WithdrawalDetail>(getReconcileWithdrawalUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      withdrawalReconcileInput,)
+  }
+);}
+
+
+
+
+export const getReconcileWithdrawalMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileWithdrawal>>, TError,{id: string;data: BodyType<WithdrawalReconcileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reconcileWithdrawal>>, TError,{id: string;data: BodyType<WithdrawalReconcileInput>}, TContext> => {
+
+const mutationKey = ['reconcileWithdrawal'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reconcileWithdrawal>>, {id: string;data: BodyType<WithdrawalReconcileInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  reconcileWithdrawal(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReconcileWithdrawalMutationResult = NonNullable<Awaited<ReturnType<typeof reconcileWithdrawal>>>
+    export type ReconcileWithdrawalMutationBody = BodyType<WithdrawalReconcileInput>
+    export type ReconcileWithdrawalMutationError = ErrorType<void>
+
+    /**
+ * @summary Record verified provider observations; wallet refunds require authoritative return
+ */
+export const useReconcileWithdrawal = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileWithdrawal>>, TError,{id: string;data: BodyType<WithdrawalReconcileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reconcileWithdrawal>>,
+        TError,
+        {id: string;data: BodyType<WithdrawalReconcileInput>},
+        TContext
+      > => {
+      return useMutation(getReconcileWithdrawalMutationOptions(options));
+    }
+
+export const getGetPayoutCatalogUrl = () => {
+
+
+
+
+  return `/api/payout-catalog`
+}
+
+/**
+ * @summary Selectable provider → country → method hierarchy; observed send amounts and fees remain estimates
+ */
+export const getPayoutCatalog = async ( options?: RequestInit): Promise<PayoutCatalog> => {
+
+  return customFetch<PayoutCatalog>(getGetPayoutCatalogUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPayoutCatalogQueryKey = () => {
+    return [
+    `/api/payout-catalog`
+    ] as const;
+    }
+
+
+export const getGetPayoutCatalogQueryOptions = <TData = Awaited<ReturnType<typeof getPayoutCatalog>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPayoutCatalog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPayoutCatalogQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPayoutCatalog>>> = ({ signal }) => getPayoutCatalog({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPayoutCatalog>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPayoutCatalogQueryResult = NonNullable<Awaited<ReturnType<typeof getPayoutCatalog>>>
+export type GetPayoutCatalogQueryError = ErrorType<void>
+
+
+/**
+ * @summary Selectable provider → country → method hierarchy; observed send amounts and fees remain estimates
+ */
+
+export function useGetPayoutCatalog<TData = Awaited<ReturnType<typeof getPayoutCatalog>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPayoutCatalog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPayoutCatalogQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getEstimatePayoutMethodUrl = () => {
+
+
+
+
+  return `/api/payout-catalog/estimate`
+}
+
+/**
+ * @summary Estimate an exact observed amount within USD 15 gross; missing matching quotes return a null breakdown
+ */
+export const estimatePayoutMethod = async (payoutEstimateRequest: PayoutEstimateRequest, options?: RequestInit): Promise<PayoutEstimate> => {
+
+  return customFetch<PayoutEstimate>(getEstimatePayoutMethodUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      payoutEstimateRequest,)
+  }
+);}
+
+
+
+
+export const getEstimatePayoutMethodMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof estimatePayoutMethod>>, TError,{data: BodyType<PayoutEstimateRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof estimatePayoutMethod>>, TError,{data: BodyType<PayoutEstimateRequest>}, TContext> => {
+
+const mutationKey = ['estimatePayoutMethod'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof estimatePayoutMethod>>, {data: BodyType<PayoutEstimateRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  estimatePayoutMethod(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EstimatePayoutMethodMutationResult = NonNullable<Awaited<ReturnType<typeof estimatePayoutMethod>>>
+    export type EstimatePayoutMethodMutationBody = BodyType<PayoutEstimateRequest>
+    export type EstimatePayoutMethodMutationError = ErrorType<void>
+
+    /**
+ * @summary Estimate an exact observed amount within USD 15 gross; missing matching quotes return a null breakdown
+ */
+export const useEstimatePayoutMethod = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof estimatePayoutMethod>>, TError,{data: BodyType<PayoutEstimateRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof estimatePayoutMethod>>,
+        TError,
+        {data: BodyType<PayoutEstimateRequest>},
+        TContext
+      > => {
+      return useMutation(getEstimatePayoutMethodMutationOptions(options));
+    }
+
+export const getGetAdminPayoutCatalogUrl = () => {
+
+
+
+
+  return `/api/admin-data/payout-catalog`
+}
+
+/**
+ * @summary Read complete account-scoped catalog including unavailable and errored routes
+ */
+export const getAdminPayoutCatalog = async ( options?: RequestInit): Promise<PayoutCatalog> => {
+
+  return customFetch<PayoutCatalog>(getGetAdminPayoutCatalogUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminPayoutCatalogQueryKey = () => {
+    return [
+    `/api/admin-data/payout-catalog`
+    ] as const;
+    }
+
+
+export const getGetAdminPayoutCatalogQueryOptions = <TData = Awaited<ReturnType<typeof getAdminPayoutCatalog>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminPayoutCatalog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminPayoutCatalogQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminPayoutCatalog>>> = ({ signal }) => getAdminPayoutCatalog({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminPayoutCatalog>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminPayoutCatalogQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminPayoutCatalog>>>
+export type GetAdminPayoutCatalogQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read complete account-scoped catalog including unavailable and errored routes
+ */
+
+export function useGetAdminPayoutCatalog<TData = Awaited<ReturnType<typeof getAdminPayoutCatalog>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminPayoutCatalog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminPayoutCatalogQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getImportPayoutResearchUrl = () => {
+
+
+
+
+  return `/api/admin-data/payout-catalog/import`
+}
+
+/**
+ * @summary Validate or atomically import signed-in Remitly Business research, idempotently
+ */
+export const importPayoutResearch = async (payoutResearchImportRequest: PayoutResearchImportRequest, options?: RequestInit): Promise<PayoutResearchImportResult> => {
+
+  return customFetch<PayoutResearchImportResult>(getImportPayoutResearchUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      payoutResearchImportRequest,)
+  }
+);}
+
+
+
+
+export const getImportPayoutResearchMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importPayoutResearch>>, TError,{data: BodyType<PayoutResearchImportRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importPayoutResearch>>, TError,{data: BodyType<PayoutResearchImportRequest>}, TContext> => {
+
+const mutationKey = ['importPayoutResearch'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importPayoutResearch>>, {data: BodyType<PayoutResearchImportRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  importPayoutResearch(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportPayoutResearchMutationResult = NonNullable<Awaited<ReturnType<typeof importPayoutResearch>>>
+    export type ImportPayoutResearchMutationBody = BodyType<PayoutResearchImportRequest>
+    export type ImportPayoutResearchMutationError = ErrorType<void>
+
+    /**
+ * @summary Validate or atomically import signed-in Remitly Business research, idempotently
+ */
+export const useImportPayoutResearch = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importPayoutResearch>>, TError,{data: BodyType<PayoutResearchImportRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importPayoutResearch>>,
+        TError,
+        {data: BodyType<PayoutResearchImportRequest>},
+        TContext
+      > => {
+      return useMutation(getImportPayoutResearchMutationOptions(options));
+    }
+
+export const getUpdatePayoutCatalogEntryUrl = (kind: 'providers' | 'countries' | 'methods',
+    id: string,) => {
+
+
+
+
+  return `/api/admin-data/payout-catalog/${kind}/${id}`
+}
+
+/**
+ * @summary Update display name or enablement with revision and audit history
+ */
+export const updatePayoutCatalogEntry = async (kind: 'providers' | 'countries' | 'methods',
+    id: string,
+    payoutCatalogUpdate: PayoutCatalogUpdate, options?: RequestInit): Promise<PayoutCatalogEntry> => {
+
+  return customFetch<PayoutCatalogEntry>(getUpdatePayoutCatalogEntryUrl(kind,id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      payoutCatalogUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdatePayoutCatalogEntryMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePayoutCatalogEntry>>, TError,{kind: 'providers' | 'countries' | 'methods';id: string;data: BodyType<PayoutCatalogUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePayoutCatalogEntry>>, TError,{kind: 'providers' | 'countries' | 'methods';id: string;data: BodyType<PayoutCatalogUpdate>}, TContext> => {
+
+const mutationKey = ['updatePayoutCatalogEntry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePayoutCatalogEntry>>, {kind: 'providers' | 'countries' | 'methods';id: string;data: BodyType<PayoutCatalogUpdate>}> = (props) => {
+          const {kind,id,data} = props ?? {};
+
+          return  updatePayoutCatalogEntry(kind,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePayoutCatalogEntryMutationResult = NonNullable<Awaited<ReturnType<typeof updatePayoutCatalogEntry>>>
+    export type UpdatePayoutCatalogEntryMutationBody = BodyType<PayoutCatalogUpdate>
+    export type UpdatePayoutCatalogEntryMutationError = ErrorType<void>
+
+    /**
+ * @summary Update display name or enablement with revision and audit history
+ */
+export const useUpdatePayoutCatalogEntry = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePayoutCatalogEntry>>, TError,{kind: 'providers' | 'countries' | 'methods';id: string;data: BodyType<PayoutCatalogUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePayoutCatalogEntry>>,
+        TError,
+        {kind: 'providers' | 'countries' | 'methods';id: string;data: BodyType<PayoutCatalogUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdatePayoutCatalogEntryMutationOptions(options));
+    }
 
 export const getGetAdminOverviewUrl = () => {
 

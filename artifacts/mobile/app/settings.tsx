@@ -49,6 +49,7 @@ const GENERAL_ITEMS: SettingsItem[] = [
 const VAULT_ITEMS: SettingsItem[] = [
   { label: "My Vault", icon: "lock-closed-outline" },
   { label: "Earnings", icon: "wallet-outline" },
+  { label: "Withdraw Money", icon: "cash-outline" },
   { label: "Performance", icon: "stats-chart-outline" },
   { label: "Moments", icon: "sparkles-outline" },
   { label: "Fan Subscriptions", icon: "people-outline" },
@@ -143,6 +144,8 @@ export default function SettingsScreen() {
                 ? router.push("/moments")
                 : item.label === "Performance"
                 ? router.push("/performance")
+                : item.label === "Withdraw Money"
+                ? router.push("/withdraw-money")
                 : item.label === "Earnings"
                 ? router.push("/earnings")
                 : item.label === "My Vault"

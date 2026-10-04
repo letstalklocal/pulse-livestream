@@ -6,6 +6,8 @@ Updated: 2026-09-15. This is the shared entry point for the implemented changes 
 
 ## How the flows connect
 
+**October 4 withdrawal decision:** All existing wallet coins, including purchases, received gifts and granted test coins, can fund withdrawals at **400 coins = USD 1**. Keep one wallet and no diamonds. The first USD 15 gross request reserves 6,000 coins; the human decides the final payout and manually sends in Remitly. Enrollment is account permission only. This supersedes earlier gift-only payout references without changing approved pack prices or purchase/gift behavior. See [the full rollout and Colombia trial](remitly-launch-handoff.md#testflight-rollout-and-full-colombia-trial).
+
 | Flow | Coin/access behavior | Entry point |
 | --- | --- | --- |
 | Buy Coins through RevenueCat (RC) | A verified sandbox webhook adds coins to the signed-in user's Pulse wallet, recorded as `type=purchase`. Buying coins alone does not pay a Premium entry gift or timed request. | Account/profile balances, Settings → Buy Coins, and the ordinary gift drawer's purchase sheet. |

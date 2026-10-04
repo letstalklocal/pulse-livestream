@@ -327,6 +327,19 @@ function fixture(component) {
     .find((n) => n.type?.name === "LiveStickerPicker")
     .props.onClose();
   assert.equal(value.length, 1, "Cancel preserves setup");
+  const manager = fixture("LiveStickerOverlay");
+  let managerClosed = 0;
+  const managerProps = { ...manager.props, isHost: true, manageVisible: true, onManageClose: () => managerClosed++ };
+  tree = manager.render(managerProps);
+  nodes(tree).find(n => n.props.testID === "manage-live-sticker-pack").props.onPress();
+  assert.equal(managerClosed, 1, "Choosing a sticker closes the manager before opening the picker");
+  tree = manager.render({ ...managerProps, manageVisible: false });
+  const replacementPicker = nodes(tree).find(n => n.type === "Picker");
+  assert.ok(replacementPicker, "Three-dot management opens the existing replacement picker");
+  replacementPicker.props.onClose();
+  assert.equal(manager.calls.length, 0, "Cancelling a menu replacement never saves/pays");
+  tree = manager.render({ ...managerProps, isHost: false });
+  assert.ok(!nodes(tree).some(n => n.props.testID === "manage-live-stickers"), "Viewers cannot open host sticker management");
   const host = fixture("LiveStickerOverlay");
   tree = host.render({ ...host.props, isHost: true });
   const hostCard = nodes(tree).find((n) => n.type === "Card");

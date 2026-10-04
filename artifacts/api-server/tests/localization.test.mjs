@@ -84,6 +84,11 @@ try {
    if(file.endsWith('/components/PartyStage.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.getText(a)==='{winner.name}')return;
    // Approved score marker is additive; its real/test mapping is checked in party-window tests.
    if(file.endsWith('/components/PartyStage.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='testID'&&['battle-score-marker','battle-score-mine','battle-score-peer','battle-score-tip','battle-score-flow','battle-countdown','battle-result','battle-winner-avatar','battle-score-tie'].includes(n.initializer?.text))return;
+   // Requested live controls have dedicated pause/audio/sticker/header/exit tests.
+   // Skip only the new elements; continue comparing prior controls/payment fields.
+   if((file.endsWith('/app/go-live.tsx')||file.endsWith('/stream/[channelId].tsx')||file.endsWith('/components/LiveStickerOverlay.tsx'))&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&['paused-live-resume','paused-live-end','host-live-flip-camera','host-live-pause','host-live-change-sticker','ended-stream-close','ended-stream-discover','manage-live-stickers'].includes(p.initializer?.text)))return;
+   if(file.endsWith('/app/go-live.tsx')&&ts.isPropertyAssignment(n)&&['publishCameraTrack','publishMicrophoneTrack'].includes(n.name.getText(a))&&n.initializer.getText(a)==='!pausedRef.current'){result.push(`${n.name.getText(a)}: true`);return;}
+   if(file.endsWith('/stream/[channelId].tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='testID'&&n.initializer?.getText(a)==='{isPrivateStream ? "viewer-private-badge" : "viewer-premium-badge"}'){return;}
    // User-approved additive live reactions; existing stream controls remain compared.
    if((file.endsWith('/stream/[channelId].tsx')||file.endsWith('/app/go-live.tsx'))&&ts.isJsxSelfClosingElement(n)&&['LiveReactions','ReactionFavoritesChooser','LiveStickerSetup','LiveStickerOverlay'].includes(n.tagName.getText(a)))return;
    // The user approved this additional confirmation control; signup-flow tests cover its behavior.
@@ -105,6 +110,9 @@ try {
    if(file.endsWith('/app/_layout.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='search-users')return;
    // Approved additive purchase/General/video-prototype routes; continue comparing every prior route.
    if(file.endsWith('/app/_layout.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&['coin-store','subscriptions','general','video-prototype','video/[id]'].includes(n.initializer?.text))return;
+   // Approved wallet cashout routes and Earnings link are additive. Compare every prior control.
+   if(file.endsWith('/app/_layout.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&['withdraw-money','withdrawal/[id]'].includes(n.initializer?.text))return;
+   if(file.endsWith('/app/earnings.tsx')&&ts.isJsxElement(n)&&n.openingElement.tagName.getText(a)==='TouchableOpacity'&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='onPress'&&p.initializer?.getText(a).includes('router.push("/withdraw-money")')))return;
    // Approved additive Video entry and account-scoped management sheet.
    if(file.endsWith('/go-live.tsx')&&ts.isJsxElement(n)&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='testID'&&p.initializer?.text==='stream-entry-video'))return;
    if(file.endsWith('/go-live.tsx')&&ts.isJsxSelfClosingElement(n)&&n.tagName.getText(a)==='CreatorVideoSheet')return;

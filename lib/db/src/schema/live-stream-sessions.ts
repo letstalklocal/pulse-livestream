@@ -20,6 +20,7 @@ export const liveStreamSessionsTable = pgTable("live_stream_sessions", {
   requiredGiftEmoji: text("required_gift_emoji"),
   requiredGiftCoinCost: integer("required_gift_coin_cost"),
   isPrivate: boolean("is_private").notNull().default(false),
+  paused: boolean("paused").notNull().default(false),
   totalViewers: integer("total_viewers").notNull().default(0),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
   lastHeartbeatAt: timestamp("last_heartbeat_at", { withTimezone: true }).notNull().defaultNow(),

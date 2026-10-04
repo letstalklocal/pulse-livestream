@@ -4,6 +4,9 @@ import { Router, type RequestHandler } from "express";
 import { getAuth } from "@clerk/express";
 import { pool } from "@workspace/db";
 import { verificationEnvironment } from "../lib/didit";
+import { adminCatalogRouter } from "./payout-catalog";
+import { adminWithdrawalsRouter } from "./withdrawals";
+import { CLERK_PROXY_PATH } from "../middlewares/clerkProxyMiddleware";
 
 export function adminAuthConfig() {
   const publishableKey = process.env.CLERK_PUBLISHABLE_KEY ?? "";
@@ -17,12 +20,18 @@ export function adminAuthConfig() {
     .replace(/\$$/, "");
   if (!/^[a-zA-Z0-9.-]+$/.test(host) || !host.includes("."))
     throw new Error("Clerk unavailable");
-  return { publishableKey, frontendApi: `https://${host}` };
+  return {
+    publishableKey,
+    frontendApi: `https://${host}`,
+    ...(process.env.NODE_ENV === "production"
+      ? { proxyUrl: CLERK_PROXY_PATH }
+      : {}),
+  };
 }
 const environment = () =>
   process.env.NODE_ENV === "production" ? "production" : "development";
 const providerEnvironment = verificationEnvironment;
-const guard: RequestHandler = async (req, res, next) => {
+export const adminGuard: RequestHandler = async (req, res, next) => {
   try {
     // Admin accepts explicit session bearer tokens, never ambient mobile/web cookies.
     if (!/^Bearer \S+$/i.test(req.get("authorization") ?? ""))
@@ -76,7 +85,9 @@ router.get("/config", (_req, res) => {
     res.status(503).json({ error: "Admin sign-in is not configured." });
   }
 });
-router.use(guard);
+router.use(adminGuard);
+router.use("/payout-catalog", adminCatalogRouter);
+router.use("/withdrawals", adminWithdrawalsRouter);
 const safe =
   (fn: RequestHandler): RequestHandler =>
   async (req, res, next) => {
