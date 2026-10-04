@@ -1,0 +1,16 @@
+# Copy ONE role's connection into that role's Codex configuration.
+# Replace absolute paths; never put a token in this file.
+# Install repository dependencies with pnpm install --frozen-lockfile first.
+[mcp_servers.pulse_payout_maker]
+command = "/absolute/path/to/node"
+args = ["/absolute/path/to/Pulse/artifacts/payout-operator/cli.mjs", "bridge", "--profile", "maker"]
+startup_timeout_sec = 60
+tool_timeout_sec = 60
+
+# Alternative direct remote transport, when the actual Codex process receives
+# ONLY this role's environment variable. A Dock launch does not establish that.
+# [mcp_servers.pulse_payout_maker]
+# url = "https://chimbalivestream.replit.app/api/payout-mcp"
+# bearer_token_env_var = "PULSE_PAYOUT_MAKER_TOKEN"
+# startup_timeout_sec = 60
+# tool_timeout_sec = 60

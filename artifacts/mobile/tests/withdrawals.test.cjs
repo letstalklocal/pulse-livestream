@@ -241,6 +241,9 @@ function render() {
 
 async function verifyQuoteScreen() {
   let sharingAvailable = true;
+  let sharingMissing = true;
+  let sharingImports = 0;
+  let statementRequests = 0;
   const cancelAlerts = [];
   const state = [],
     refs = [],
@@ -296,7 +299,7 @@ async function verifyQuoteScreen() {
     cancel: async () => {
       withdrawal.status = "canceled";
     },
-    statement: async () => "Pulse statement\nReserved gross USD: 15.00",
+    statement: async () => { statementRequests++; return "Pulse statement\nReserved gross USD: 15.00"; },
   };
   const module = { exports: {} };
   vm.runInNewContext(
@@ -340,13 +343,16 @@ async function verifyQuoteScreen() {
               }
             },
           };
-        if (id === "expo-sharing")
+        if (id === "expo-sharing") {
+          sharingImports++;
+          if (sharingMissing) throw new Error("Cannot find native module 'ExpoSharing'");
           return {
             isAvailableAsync: async () => sharingAvailable,
             shareAsync: async (url, options) => {
               shares.push({ url, ...options, content: files.get(url) });
             },
           };
+        }
         if (id === "expo-crypto")
           return { randomUUID: () => "private-statement-id" };
         if (id === "react-native")
@@ -421,6 +427,13 @@ async function verifyQuoteScreen() {
     };
   }
   let v = render();
+  assert.equal(sharingImports, 0, "An older native build can load and render the route without ExpoSharing");
+  v.button("Download statement").props.onPress();
+  await new Promise((r) => setImmediate(r));
+  assert.equal(sharingImports, 1);
+  assert.equal(statementRequests, 0, "Missing native sharing fails before requesting a statement");
+  assert.ok(render().texts.includes("Sharing is unavailable on this device."));
+  sharingMissing = false;
   assert.ok(v.texts.includes("Reserved withdrawal: $15.00"));
   assert.ok(v.texts.includes("Amount sent: $14.01"));
   assert.ok(v.texts.includes("Provider fee: $0.99"));
@@ -526,7 +539,8 @@ async function verifyWalletRequestScreen() {
     refs = [],
     saved = [],
     requests = [],
-    routes = [];
+    routes = [],
+    contactEffects = [];
   let si = 0,
     ri = 0;
   const react = {
@@ -545,7 +559,10 @@ async function verifyWalletRequestScreen() {
     },
     useRef: (initial) => (refs[ri++] ??= { current: initial }),
     useCallback: (fn) => fn,
-    useEffect: () => {},
+    useEffect: (fn, dependencies) => {
+      if (dependencies.length === 1 && dependencies[0] === overview.recipient)
+        contactEffects.push(fn);
+    },
   };
   const sample = {
     sendAmountCents: 1500,
@@ -623,7 +640,20 @@ async function verifyWalletRequestScreen() {
     pending: null,
     pendingReady: true,
     refresh: async () => {},
-    saveRecipient: async (data) => saved.push(data),
+    saveRecipient: async (data) => {
+      const body = JSON.parse(JSON.stringify(data));
+      const allowed = [
+        "legalFirstName",
+        "legalLastName",
+        "secondSurname",
+        "countryCode",
+        "email",
+        "phone",
+      ];
+      if (Object.keys(body).some((key) => !allowed.includes(key)))
+        throw Error("Unsupported request fields.");
+      saved.push(body);
+    },
     submit: async (methodId, cents) => {
       requests.push({ methodId, cents });
       return { id: "wd-requested" };
@@ -755,6 +785,58 @@ async function verifyWalletRequestScreen() {
   assert.equal(saved[0].phone, "+573001234567");
   assert.deepEqual(requests[0], { methodId: "co-mobile", cents: 1500 });
   assert.equal(routes[0].params.id, "wd-requested");
+  overview.recipient = {
+    legalFirstName: "  Maria  ",
+    legalLastName: " Gomez ",
+    secondSurname: " Torres ",
+    countryCode: "CO",
+    phone: "+573009876543",
+    email: "returning@example.test",
+    revision: 9,
+    status: "contact_saved",
+  };
+  v = render();
+  contactEffects.at(-1)();
+  assert.ok(!("revision" in states[4]));
+  assert.ok(!("status" in states[4]));
+  // Enforce the write allowlist too, even if a future form source carries metadata.
+  states[4] = { ...states[4], revision: 88, status: "contact_saved" };
+  v = render();
+  v.button("Request withdrawal").props.onPress();
+  await new Promise((r) => setImmediate(r));
+  assert.equal(
+    saved.length,
+    2,
+    "returning recipient is accepted by strict contact endpoint",
+  );
+  assert.deepEqual(saved[1], {
+    legalFirstName: "Maria",
+    legalLastName: "Gomez",
+    secondSurname: "Torres",
+    countryCode: "CO",
+    email: "returning@example.test",
+    phone: "+573009876543",
+  });
+  assert.equal(
+    requests.length,
+    2,
+    "returning contact continues to withdrawal request",
+  );
+  overview.recipient = { ...overview.recipient, secondSurname: null };
+  v = render();
+  contactEffects.at(-1)();
+  assert.equal(states[4].secondSurname, undefined);
+  v = render();
+  v.button("Request withdrawal").props.onPress();
+  await new Promise((r) => setImmediate(r));
+  assert.equal(saved.length, 3);
+  assert.ok(
+    !("secondSurname" in saved[2]),
+    "nullable saved surname is omitted from strict input",
+  );
+  assert.ok(!("revision" in saved[2]));
+  assert.ok(!("status" in saved[2]));
+  assert.equal(requests.length, 3);
   console.log(
     "wallet USD25 valuation, USD15 cap, unavailable route filtering and full contact/request handlers passed",
   );

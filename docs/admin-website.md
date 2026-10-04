@@ -1,5 +1,13 @@
 # Admin website
 
+## Payout operator credentials — October 4, 2026
+
+The owner-only **Payout operators** page issues separately scoped maker, checker and reconciler service credentials and revokes future access. Production retains the existing owner/MFA gate. Credentials are shown once in a masked field, copied only by explicit action, and removed on dismissal/navigation/access loss; the browser does not persist them. The list shows role, environment, account alias, expiry and last use without secrets. Default expiry is seven days, maximum thirty. Revocation quarantines interrupted preparation without releasing uncertain wallet reservations.
+
+After publishing the updated backend, connect Codex on the Mac to `https://chimbalivestream.replit.app/api/payout-mcp`, or use the [Keychain-backed JavaScript bridge](../artifacts/payout-operator/README.md). The Mac requires setup, not an app/backend build. Scheduled service tools cannot make the final payout decision or send money. Admin continues to provide the human payout desk. See [the delivery and remaining Mac/production checks](remitly-launch-handoff.md#mcp-and-mac-operator-delivery--october-4).
+
+Credential browser fixtures, scoped service/MCP integration and running development authorization checks passed. Actual owner login/MFA, Mac setup and production publication remain separate checks.
+
 ## Production sign-in proxy correction — October 4, 2026
 
 Production admin is [https://chimbalivestream.replit.app/api/admin/](https://chimbalivestream.replit.app/api/admin/). The direct `/admin/` path is not exposed by the published frontend. The shell was reachable, but sign-in failed because it loaded Clerk scripts directly from `clerk.chimbalivestream.replit.app`, whose certificate does not cover that nested hostname. The production project already proxies Clerk through `/api/__clerk`; its UI/SDK scripts and environment endpoint return 200 there.

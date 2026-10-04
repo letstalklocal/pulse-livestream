@@ -59,6 +59,7 @@ import type {
   GetUserSafety200,
   HealthStatus,
   ListAdminUsersParams,
+  ListPayoutOperatorWithdrawalsParams,
   MediaPackMessageResponse,
   MediaPackResponse,
   MediaPackUploadRequest,
@@ -73,6 +74,30 @@ import type {
   PayoutCatalogUpdate,
   PayoutEstimate,
   PayoutEstimateRequest,
+  PayoutMcpRequest,
+  PayoutMcpResponse,
+  PayoutOperatorBrowserLease,
+  PayoutOperatorCheckInput,
+  PayoutOperatorCredentials,
+  PayoutOperatorHeartbeat,
+  PayoutOperatorHeartbeatInput,
+  PayoutOperatorIdentity,
+  PayoutOperatorIssueInput,
+  PayoutOperatorIssueResult,
+  PayoutOperatorLeaseAcquire,
+  PayoutOperatorLeaseRelease,
+  PayoutOperatorLeaseReleaseInput,
+  PayoutOperatorLeaseRenew,
+  PayoutOperatorLeaseRenewInput,
+  PayoutOperatorPlaybook,
+  PayoutOperatorPreparationInput,
+  PayoutOperatorPrepareInput,
+  PayoutOperatorQueue,
+  PayoutOperatorQuoteInput,
+  PayoutOperatorReconcileInput,
+  PayoutOperatorReleased,
+  PayoutOperatorRevoked,
+  PayoutOperatorUnknownInput,
   PayoutResearchImportRequest,
   PayoutResearchImportResult,
   PostActivity,
@@ -147,6 +172,1490 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
+
+export const getListPayoutOperatorCredentialsUrl = () => {
+
+
+
+
+  return `/api/admin-data/payout-operators`
+}
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary List scoped credential metadata without secrets
+ */
+export const listPayoutOperatorCredentials = async ( options?: RequestInit): Promise<PayoutOperatorCredentials> => {
+
+  return customFetch<PayoutOperatorCredentials>(getListPayoutOperatorCredentialsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPayoutOperatorCredentialsQueryKey = () => {
+    return [
+    `/api/admin-data/payout-operators`
+    ] as const;
+    }
+
+
+export const getListPayoutOperatorCredentialsQueryOptions = <TData = Awaited<ReturnType<typeof listPayoutOperatorCredentials>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPayoutOperatorCredentials>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPayoutOperatorCredentialsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPayoutOperatorCredentials>>> = ({ signal }) => listPayoutOperatorCredentials({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPayoutOperatorCredentials>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPayoutOperatorCredentialsQueryResult = NonNullable<Awaited<ReturnType<typeof listPayoutOperatorCredentials>>>
+export type ListPayoutOperatorCredentialsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List scoped credential metadata without secrets
+ */
+
+export function useListPayoutOperatorCredentials<TData = Awaited<ReturnType<typeof listPayoutOperatorCredentials>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPayoutOperatorCredentials>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPayoutOperatorCredentialsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getIssuePayoutOperatorCredentialUrl = () => {
+
+
+
+
+  return `/api/admin-data/payout-operators/issue`
+}
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Issue one role credential; seven-day default, thirty-day maximum
+ */
+export const issuePayoutOperatorCredential = async (payoutOperatorIssueInput: PayoutOperatorIssueInput, options?: RequestInit): Promise<PayoutOperatorIssueResult> => {
+
+  return customFetch<PayoutOperatorIssueResult>(getIssuePayoutOperatorCredentialUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      payoutOperatorIssueInput,)
+  }
+);}
+
+
+
+
+export const getIssuePayoutOperatorCredentialMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof issuePayoutOperatorCredential>>, TError,{data: BodyType<PayoutOperatorIssueInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof issuePayoutOperatorCredential>>, TError,{data: BodyType<PayoutOperatorIssueInput>}, TContext> => {
+
+const mutationKey = ['issuePayoutOperatorCredential'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof issuePayoutOperatorCredential>>, {data: BodyType<PayoutOperatorIssueInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  issuePayoutOperatorCredential(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type IssuePayoutOperatorCredentialMutationResult = NonNullable<Awaited<ReturnType<typeof issuePayoutOperatorCredential>>>
+    export type IssuePayoutOperatorCredentialMutationBody = BodyType<PayoutOperatorIssueInput>
+    export type IssuePayoutOperatorCredentialMutationError = ErrorType<void>
+
+    /**
+ * @summary Issue one role credential; seven-day default, thirty-day maximum
+ */
+export const useIssuePayoutOperatorCredential = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof issuePayoutOperatorCredential>>, TError,{data: BodyType<PayoutOperatorIssueInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof issuePayoutOperatorCredential>>,
+        TError,
+        {data: BodyType<PayoutOperatorIssueInput>},
+        TContext
+      > => {
+      return useMutation(getIssuePayoutOperatorCredentialMutationOptions(options));
+    }
+
+export const getRevokePayoutOperatorCredentialUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin-data/payout-operators/${id}/revoke`
+}
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Revoke operator access and quarantine interrupted preparations
+ */
+export const revokePayoutOperatorCredential = async (id: string, options?: RequestInit): Promise<PayoutOperatorRevoked> => {
+
+  return customFetch<PayoutOperatorRevoked>(getRevokePayoutOperatorCredentialUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRevokePayoutOperatorCredentialMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokePayoutOperatorCredential>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokePayoutOperatorCredential>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['revokePayoutOperatorCredential'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokePayoutOperatorCredential>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  revokePayoutOperatorCredential(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokePayoutOperatorCredentialMutationResult = NonNullable<Awaited<ReturnType<typeof revokePayoutOperatorCredential>>>
+
+    export type RevokePayoutOperatorCredentialMutationError = ErrorType<void>
+
+    /**
+ * @summary Revoke operator access and quarantine interrupted preparations
+ */
+export const useRevokePayoutOperatorCredential = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokePayoutOperatorCredential>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revokePayoutOperatorCredential>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getRevokePayoutOperatorCredentialMutationOptions(options));
+    }
+
+export const getGetPayoutOperatorIdentityUrl = () => {
+
+
+
+
+  return `/api/payout-operator/identity`
+}
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Read authenticated role, provider account, environment and playbook version
+ */
+export const getPayoutOperatorIdentity = async ( options?: RequestInit): Promise<PayoutOperatorIdentity> => {
+
+  return customFetch<PayoutOperatorIdentity>(getGetPayoutOperatorIdentityUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPayoutOperatorIdentityQueryKey = () => {
+    return [
+    `/api/payout-operator/identity`
+    ] as const;
+    }
+
+
+export const getGetPayoutOperatorIdentityQueryOptions = <TData = Awaited<ReturnType<typeof getPayoutOperatorIdentity>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPayoutOperatorIdentity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPayoutOperatorIdentityQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPayoutOperatorIdentity>>> = ({ signal }) => getPayoutOperatorIdentity({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPayoutOperatorIdentity>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPayoutOperatorIdentityQueryResult = NonNullable<Awaited<ReturnType<typeof getPayoutOperatorIdentity>>>
+export type GetPayoutOperatorIdentityQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read authenticated role, provider account, environment and playbook version
+ */
+
+export function useGetPayoutOperatorIdentity<TData = Awaited<ReturnType<typeof getPayoutOperatorIdentity>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPayoutOperatorIdentity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPayoutOperatorIdentityQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListPayoutOperatorWithdrawalsUrl = (params?: ListPayoutOperatorWithdrawalsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/payout-operator/withdrawals?${stringifiedParams}` : `/api/payout-operator/withdrawals`
+}
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Read oldest eligible unresolved payouts, filtered before the bounded limit
+ */
+export const listPayoutOperatorWithdrawals = async (params?: ListPayoutOperatorWithdrawalsParams, options?: RequestInit): Promise<PayoutOperatorQueue> => {
+
+  return customFetch<PayoutOperatorQueue>(getListPayoutOperatorWithdrawalsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPayoutOperatorWithdrawalsQueryKey = (params?: ListPayoutOperatorWithdrawalsParams,) => {
+    return [
+    `/api/payout-operator/withdrawals`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListPayoutOperatorWithdrawalsQueryOptions = <TData = Awaited<ReturnType<typeof listPayoutOperatorWithdrawals>>, TError = ErrorType<void>>(params?: ListPayoutOperatorWithdrawalsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPayoutOperatorWithdrawals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPayoutOperatorWithdrawalsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPayoutOperatorWithdrawals>>> = ({ signal }) => listPayoutOperatorWithdrawals(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPayoutOperatorWithdrawals>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPayoutOperatorWithdrawalsQueryResult = NonNullable<Awaited<ReturnType<typeof listPayoutOperatorWithdrawals>>>
+export type ListPayoutOperatorWithdrawalsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read oldest eligible unresolved payouts, filtered before the bounded limit
+ */
+
+export function useListPayoutOperatorWithdrawals<TData = Awaited<ReturnType<typeof listPayoutOperatorWithdrawals>>, TError = ErrorType<void>>(
+ params?: ListPayoutOperatorWithdrawalsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPayoutOperatorWithdrawals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPayoutOperatorWithdrawalsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetPayoutOperatorWithdrawalUrl = (id: string,) => {
+
+
+
+
+  return `/api/payout-operator/withdrawals/${id}`
+}
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Read payout details and evidence within the authorized account
+ */
+export const getPayoutOperatorWithdrawal = async (id: string, options?: RequestInit): Promise<AdminWithdrawalDetail> => {
+
+  return customFetch<AdminWithdrawalDetail>(getGetPayoutOperatorWithdrawalUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPayoutOperatorWithdrawalQueryKey = (id: string,) => {
+    return [
+    `/api/payout-operator/withdrawals/${id}`
+    ] as const;
+    }
+
+
+export const getGetPayoutOperatorWithdrawalQueryOptions = <TData = Awaited<ReturnType<typeof getPayoutOperatorWithdrawal>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPayoutOperatorWithdrawal>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPayoutOperatorWithdrawalQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPayoutOperatorWithdrawal>>> = ({ signal }) => getPayoutOperatorWithdrawal(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPayoutOperatorWithdrawal>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPayoutOperatorWithdrawalQueryResult = NonNullable<Awaited<ReturnType<typeof getPayoutOperatorWithdrawal>>>
+export type GetPayoutOperatorWithdrawalQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read payout details and evidence within the authorized account
+ */
+
+export function useGetPayoutOperatorWithdrawal<TData = Awaited<ReturnType<typeof getPayoutOperatorWithdrawal>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPayoutOperatorWithdrawal>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPayoutOperatorWithdrawalQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetPayoutOperatorPlaybookUrl = (name: 'preflight' | 'maker' | 'checker' | 'reconciler' | 'recover',) => {
+
+
+
+
+  return `/api/payout-operator/playbooks/${name}`
+}
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Read authoritative role-appropriate operating instructions
+ */
+export const getPayoutOperatorPlaybook = async (name: 'preflight' | 'maker' | 'checker' | 'reconciler' | 'recover', options?: RequestInit): Promise<PayoutOperatorPlaybook> => {
+
+  return customFetch<PayoutOperatorPlaybook>(getGetPayoutOperatorPlaybookUrl(name),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPayoutOperatorPlaybookQueryKey = (name: 'preflight' | 'maker' | 'checker' | 'reconciler' | 'recover',) => {
+    return [
+    `/api/payout-operator/playbooks/${name}`
+    ] as const;
+    }
+
+
+export const getGetPayoutOperatorPlaybookQueryOptions = <TData = Awaited<ReturnType<typeof getPayoutOperatorPlaybook>>, TError = ErrorType<void>>(name: 'preflight' | 'maker' | 'checker' | 'reconciler' | 'recover', options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPayoutOperatorPlaybook>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPayoutOperatorPlaybookQueryKey(name);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPayoutOperatorPlaybook>>> = ({ signal }) => getPayoutOperatorPlaybook(name, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(name), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPayoutOperatorPlaybook>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPayoutOperatorPlaybookQueryResult = NonNullable<Awaited<ReturnType<typeof getPayoutOperatorPlaybook>>>
+export type GetPayoutOperatorPlaybookQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read authoritative role-appropriate operating instructions
+ */
+
+export function useGetPayoutOperatorPlaybook<TData = Awaited<ReturnType<typeof getPayoutOperatorPlaybook>>, TError = ErrorType<void>>(
+ name: 'preflight' | 'maker' | 'checker' | 'reconciler' | 'recover', options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPayoutOperatorPlaybook>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPayoutOperatorPlaybookQueryOptions(name,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAcquirePayoutOperatorBrowserLeaseUrl = () => {
+
+
+
+
+  return `/api/payout-operator/browser-lease/acquire`
+}
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Acquire exclusive account-wide browser lease
+ */
+export const acquirePayoutOperatorBrowserLease = async (payoutOperatorLeaseAcquire: PayoutOperatorLeaseAcquire, options?: RequestInit): Promise<PayoutOperatorBrowserLease> => {
+
+  return customFetch<PayoutOperatorBrowserLease>(getAcquirePayoutOperatorBrowserLeaseUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      payoutOperatorLeaseAcquire,)
+  }
+);}
+
+
+
+
+export const getAcquirePayoutOperatorBrowserLeaseMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acquirePayoutOperatorBrowserLease>>, TError,{data: BodyType<PayoutOperatorLeaseAcquire>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acquirePayoutOperatorBrowserLease>>, TError,{data: BodyType<PayoutOperatorLeaseAcquire>}, TContext> => {
+
+const mutationKey = ['acquirePayoutOperatorBrowserLease'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acquirePayoutOperatorBrowserLease>>, {data: BodyType<PayoutOperatorLeaseAcquire>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  acquirePayoutOperatorBrowserLease(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcquirePayoutOperatorBrowserLeaseMutationResult = NonNullable<Awaited<ReturnType<typeof acquirePayoutOperatorBrowserLease>>>
+    export type AcquirePayoutOperatorBrowserLeaseMutationBody = BodyType<PayoutOperatorLeaseAcquire>
+    export type AcquirePayoutOperatorBrowserLeaseMutationError = ErrorType<void>
+
+    /**
+ * @summary Acquire exclusive account-wide browser lease
+ */
+export const useAcquirePayoutOperatorBrowserLease = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acquirePayoutOperatorBrowserLease>>, TError,{data: BodyType<PayoutOperatorLeaseAcquire>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acquirePayoutOperatorBrowserLease>>,
+        TError,
+        {data: BodyType<PayoutOperatorLeaseAcquire>},
+        TContext
+      > => {
+      return useMutation(getAcquirePayoutOperatorBrowserLeaseMutationOptions(options));
+    }
+
+export const getRenewPayoutOperatorBrowserLeaseUrl = () => {
+
+
+
+
+  return `/api/payout-operator/browser-lease/renew`
+}
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Renew exclusive account-wide browser lease
+ */
+export const renewPayoutOperatorBrowserLease = async (payoutOperatorLeaseRenew: PayoutOperatorLeaseRenew, options?: RequestInit): Promise<PayoutOperatorBrowserLease> => {
+
+  return customFetch<PayoutOperatorBrowserLease>(getRenewPayoutOperatorBrowserLeaseUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      payoutOperatorLeaseRenew,)
+  }
+);}
+
+
+
+
+export const getRenewPayoutOperatorBrowserLeaseMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renewPayoutOperatorBrowserLease>>, TError,{data: BodyType<PayoutOperatorLeaseRenew>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof renewPayoutOperatorBrowserLease>>, TError,{data: BodyType<PayoutOperatorLeaseRenew>}, TContext> => {
+
+const mutationKey = ['renewPayoutOperatorBrowserLease'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof renewPayoutOperatorBrowserLease>>, {data: BodyType<PayoutOperatorLeaseRenew>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  renewPayoutOperatorBrowserLease(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RenewPayoutOperatorBrowserLeaseMutationResult = NonNullable<Awaited<ReturnType<typeof renewPayoutOperatorBrowserLease>>>
+    export type RenewPayoutOperatorBrowserLeaseMutationBody = BodyType<PayoutOperatorLeaseRenew>
+    export type RenewPayoutOperatorBrowserLeaseMutationError = ErrorType<void>
+
+    /**
+ * @summary Renew exclusive account-wide browser lease
+ */
+export const useRenewPayoutOperatorBrowserLease = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renewPayoutOperatorBrowserLease>>, TError,{data: BodyType<PayoutOperatorLeaseRenew>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof renewPayoutOperatorBrowserLease>>,
+        TError,
+        {data: BodyType<PayoutOperatorLeaseRenew>},
+        TContext
+      > => {
+      return useMutation(getRenewPayoutOperatorBrowserLeaseMutationOptions(options));
+    }
+
+export const getReleasePayoutOperatorBrowserLeaseUrl = () => {
+
+
+
+
+  return `/api/payout-operator/browser-lease/release`
+}
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Release exclusive account-wide browser lease
+ */
+export const releasePayoutOperatorBrowserLease = async (payoutOperatorLeaseRelease: PayoutOperatorLeaseRelease, options?: RequestInit): Promise<PayoutOperatorReleased> => {
+
+  return customFetch<PayoutOperatorReleased>(getReleasePayoutOperatorBrowserLeaseUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      payoutOperatorLeaseRelease,)
+  }
+);}
+
+
+
+
+export const getReleasePayoutOperatorBrowserLeaseMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof releasePayoutOperatorBrowserLease>>, TError,{data: BodyType<PayoutOperatorLeaseRelease>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof releasePayoutOperatorBrowserLease>>, TError,{data: BodyType<PayoutOperatorLeaseRelease>}, TContext> => {
+
+const mutationKey = ['releasePayoutOperatorBrowserLease'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof releasePayoutOperatorBrowserLease>>, {data: BodyType<PayoutOperatorLeaseRelease>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  releasePayoutOperatorBrowserLease(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReleasePayoutOperatorBrowserLeaseMutationResult = NonNullable<Awaited<ReturnType<typeof releasePayoutOperatorBrowserLease>>>
+    export type ReleasePayoutOperatorBrowserLeaseMutationBody = BodyType<PayoutOperatorLeaseRelease>
+    export type ReleasePayoutOperatorBrowserLeaseMutationError = ErrorType<void>
+
+    /**
+ * @summary Release exclusive account-wide browser lease
+ */
+export const useReleasePayoutOperatorBrowserLease = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof releasePayoutOperatorBrowserLease>>, TError,{data: BodyType<PayoutOperatorLeaseRelease>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof releasePayoutOperatorBrowserLease>>,
+        TError,
+        {data: BodyType<PayoutOperatorLeaseRelease>},
+        TContext
+      > => {
+      return useMutation(getReleasePayoutOperatorBrowserLeaseMutationOptions(options));
+    }
+
+export const getRecordPayoutOperatorHeartbeatUrl = () => {
+
+
+
+
+  return `/api/payout-operator/heartbeat`
+}
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Record operator health and optional owned browser lease
+ */
+export const recordPayoutOperatorHeartbeat = async (payoutOperatorHeartbeatInput: PayoutOperatorHeartbeatInput, options?: RequestInit): Promise<PayoutOperatorHeartbeat> => {
+
+  return customFetch<PayoutOperatorHeartbeat>(getRecordPayoutOperatorHeartbeatUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      payoutOperatorHeartbeatInput,)
+  }
+);}
+
+
+
+
+export const getRecordPayoutOperatorHeartbeatMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordPayoutOperatorHeartbeat>>, TError,{data: BodyType<PayoutOperatorHeartbeatInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordPayoutOperatorHeartbeat>>, TError,{data: BodyType<PayoutOperatorHeartbeatInput>}, TContext> => {
+
+const mutationKey = ['recordPayoutOperatorHeartbeat'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordPayoutOperatorHeartbeat>>, {data: BodyType<PayoutOperatorHeartbeatInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  recordPayoutOperatorHeartbeat(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordPayoutOperatorHeartbeatMutationResult = NonNullable<Awaited<ReturnType<typeof recordPayoutOperatorHeartbeat>>>
+    export type RecordPayoutOperatorHeartbeatMutationBody = BodyType<PayoutOperatorHeartbeatInput>
+    export type RecordPayoutOperatorHeartbeatMutationError = ErrorType<void>
+
+    /**
+ * @summary Record operator health and optional owned browser lease
+ */
+export const useRecordPayoutOperatorHeartbeat = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordPayoutOperatorHeartbeat>>, TError,{data: BodyType<PayoutOperatorHeartbeatInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordPayoutOperatorHeartbeat>>,
+        TError,
+        {data: BodyType<PayoutOperatorHeartbeatInput>},
+        TContext
+      > => {
+      return useMutation(getRecordPayoutOperatorHeartbeatMutationOptions(options));
+    }
+
+export const getRecordPayoutOperatorQuoteUrl = (id: string,) => {
+
+
+
+
+  return `/api/payout-operator/withdrawals/${id}/quote`
+}
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Maker records actual signed-in quote while holding the fenced browser lease
+ */
+export const recordPayoutOperatorQuote = async (id: string,
+    payoutOperatorQuoteInput: PayoutOperatorQuoteInput, options?: RequestInit): Promise<WithdrawalDetail> => {
+
+  return customFetch<WithdrawalDetail>(getRecordPayoutOperatorQuoteUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      payoutOperatorQuoteInput,)
+  }
+);}
+
+
+
+
+export const getRecordPayoutOperatorQuoteMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordPayoutOperatorQuote>>, TError,{id: string;data: BodyType<PayoutOperatorQuoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordPayoutOperatorQuote>>, TError,{id: string;data: BodyType<PayoutOperatorQuoteInput>}, TContext> => {
+
+const mutationKey = ['recordPayoutOperatorQuote'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordPayoutOperatorQuote>>, {id: string;data: BodyType<PayoutOperatorQuoteInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  recordPayoutOperatorQuote(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordPayoutOperatorQuoteMutationResult = NonNullable<Awaited<ReturnType<typeof recordPayoutOperatorQuote>>>
+    export type RecordPayoutOperatorQuoteMutationBody = BodyType<PayoutOperatorQuoteInput>
+    export type RecordPayoutOperatorQuoteMutationError = ErrorType<void>
+
+    /**
+ * @summary Maker records actual signed-in quote while holding the fenced browser lease
+ */
+export const useRecordPayoutOperatorQuote = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordPayoutOperatorQuote>>, TError,{id: string;data: BodyType<PayoutOperatorQuoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordPayoutOperatorQuote>>,
+        TError,
+        {id: string;data: BodyType<PayoutOperatorQuoteInput>},
+        TContext
+      > => {
+      return useMutation(getRecordPayoutOperatorQuoteMutationOptions(options));
+    }
+
+export const getBeginPayoutOperatorPreparationUrl = (id: string,) => {
+
+
+
+
+  return `/api/payout-operator/withdrawals/${id}/prepare`
+}
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Maker allocates a durable preparation attempt while holding the fenced browser lease
+ */
+export const beginPayoutOperatorPreparation = async (id: string,
+    payoutOperatorPrepareInput: PayoutOperatorPrepareInput, options?: RequestInit): Promise<WithdrawalPrepareResult> => {
+
+  return customFetch<WithdrawalPrepareResult>(getBeginPayoutOperatorPreparationUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      payoutOperatorPrepareInput,)
+  }
+);}
+
+
+
+
+export const getBeginPayoutOperatorPreparationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof beginPayoutOperatorPreparation>>, TError,{id: string;data: BodyType<PayoutOperatorPrepareInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof beginPayoutOperatorPreparation>>, TError,{id: string;data: BodyType<PayoutOperatorPrepareInput>}, TContext> => {
+
+const mutationKey = ['beginPayoutOperatorPreparation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof beginPayoutOperatorPreparation>>, {id: string;data: BodyType<PayoutOperatorPrepareInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  beginPayoutOperatorPreparation(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BeginPayoutOperatorPreparationMutationResult = NonNullable<Awaited<ReturnType<typeof beginPayoutOperatorPreparation>>>
+    export type BeginPayoutOperatorPreparationMutationBody = BodyType<PayoutOperatorPrepareInput>
+    export type BeginPayoutOperatorPreparationMutationError = ErrorType<void>
+
+    /**
+ * @summary Maker allocates a durable preparation attempt while holding the fenced browser lease
+ */
+export const useBeginPayoutOperatorPreparation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof beginPayoutOperatorPreparation>>, TError,{id: string;data: BodyType<PayoutOperatorPrepareInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof beginPayoutOperatorPreparation>>,
+        TError,
+        {id: string;data: BodyType<PayoutOperatorPrepareInput>},
+        TContext
+      > => {
+      return useMutation(getBeginPayoutOperatorPreparationMutationOptions(options));
+    }
+
+export const getRecordPayoutOperatorPreparationUrl = (id: string,) => {
+
+
+
+
+  return `/api/payout-operator/withdrawals/${id}/preparation`
+}
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Maker records an unsent preparation for review while holding the fenced browser lease
+ */
+export const recordPayoutOperatorPreparation = async (id: string,
+    payoutOperatorPreparationInput: PayoutOperatorPreparationInput, options?: RequestInit): Promise<WithdrawalDetail> => {
+
+  return customFetch<WithdrawalDetail>(getRecordPayoutOperatorPreparationUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      payoutOperatorPreparationInput,)
+  }
+);}
+
+
+
+
+export const getRecordPayoutOperatorPreparationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordPayoutOperatorPreparation>>, TError,{id: string;data: BodyType<PayoutOperatorPreparationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordPayoutOperatorPreparation>>, TError,{id: string;data: BodyType<PayoutOperatorPreparationInput>}, TContext> => {
+
+const mutationKey = ['recordPayoutOperatorPreparation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordPayoutOperatorPreparation>>, {id: string;data: BodyType<PayoutOperatorPreparationInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  recordPayoutOperatorPreparation(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordPayoutOperatorPreparationMutationResult = NonNullable<Awaited<ReturnType<typeof recordPayoutOperatorPreparation>>>
+    export type RecordPayoutOperatorPreparationMutationBody = BodyType<PayoutOperatorPreparationInput>
+    export type RecordPayoutOperatorPreparationMutationError = ErrorType<void>
+
+    /**
+ * @summary Maker records an unsent preparation for review while holding the fenced browser lease
+ */
+export const useRecordPayoutOperatorPreparation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordPayoutOperatorPreparation>>, TError,{id: string;data: BodyType<PayoutOperatorPreparationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordPayoutOperatorPreparation>>,
+        TError,
+        {id: string;data: BodyType<PayoutOperatorPreparationInput>},
+        TContext
+      > => {
+      return useMutation(getRecordPayoutOperatorPreparationMutationOptions(options));
+    }
+
+export const getCheckPayoutOperatorPreparationUrl = (id: string,) => {
+
+
+
+
+  return `/api/payout-operator/withdrawals/${id}/check`
+}
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Independent checker records fresh evidence while holding the fenced browser lease
+ */
+export const checkPayoutOperatorPreparation = async (id: string,
+    payoutOperatorCheckInput: PayoutOperatorCheckInput, options?: RequestInit): Promise<WithdrawalDetail> => {
+
+  return customFetch<WithdrawalDetail>(getCheckPayoutOperatorPreparationUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      payoutOperatorCheckInput,)
+  }
+);}
+
+
+
+
+export const getCheckPayoutOperatorPreparationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkPayoutOperatorPreparation>>, TError,{id: string;data: BodyType<PayoutOperatorCheckInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof checkPayoutOperatorPreparation>>, TError,{id: string;data: BodyType<PayoutOperatorCheckInput>}, TContext> => {
+
+const mutationKey = ['checkPayoutOperatorPreparation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkPayoutOperatorPreparation>>, {id: string;data: BodyType<PayoutOperatorCheckInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  checkPayoutOperatorPreparation(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CheckPayoutOperatorPreparationMutationResult = NonNullable<Awaited<ReturnType<typeof checkPayoutOperatorPreparation>>>
+    export type CheckPayoutOperatorPreparationMutationBody = BodyType<PayoutOperatorCheckInput>
+    export type CheckPayoutOperatorPreparationMutationError = ErrorType<void>
+
+    /**
+ * @summary Independent checker records fresh evidence while holding the fenced browser lease
+ */
+export const useCheckPayoutOperatorPreparation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkPayoutOperatorPreparation>>, TError,{id: string;data: BodyType<PayoutOperatorCheckInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof checkPayoutOperatorPreparation>>,
+        TError,
+        {id: string;data: BodyType<PayoutOperatorCheckInput>},
+        TContext
+      > => {
+      return useMutation(getCheckPayoutOperatorPreparationMutationOptions(options));
+    }
+
+export const getReconcilePayoutOperatorWithdrawalUrl = (id: string,) => {
+
+
+
+
+  return `/api/payout-operator/withdrawals/${id}/reconcile`
+}
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Reconciler records matching authoritative provider evidence while holding the fenced browser lease
+ */
+export const reconcilePayoutOperatorWithdrawal = async (id: string,
+    payoutOperatorReconcileInput: PayoutOperatorReconcileInput, options?: RequestInit): Promise<WithdrawalDetail> => {
+
+  return customFetch<WithdrawalDetail>(getReconcilePayoutOperatorWithdrawalUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      payoutOperatorReconcileInput,)
+  }
+);}
+
+
+
+
+export const getReconcilePayoutOperatorWithdrawalMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcilePayoutOperatorWithdrawal>>, TError,{id: string;data: BodyType<PayoutOperatorReconcileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reconcilePayoutOperatorWithdrawal>>, TError,{id: string;data: BodyType<PayoutOperatorReconcileInput>}, TContext> => {
+
+const mutationKey = ['reconcilePayoutOperatorWithdrawal'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reconcilePayoutOperatorWithdrawal>>, {id: string;data: BodyType<PayoutOperatorReconcileInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  reconcilePayoutOperatorWithdrawal(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReconcilePayoutOperatorWithdrawalMutationResult = NonNullable<Awaited<ReturnType<typeof reconcilePayoutOperatorWithdrawal>>>
+    export type ReconcilePayoutOperatorWithdrawalMutationBody = BodyType<PayoutOperatorReconcileInput>
+    export type ReconcilePayoutOperatorWithdrawalMutationError = ErrorType<void>
+
+    /**
+ * @summary Reconciler records matching authoritative provider evidence while holding the fenced browser lease
+ */
+export const useReconcilePayoutOperatorWithdrawal = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcilePayoutOperatorWithdrawal>>, TError,{id: string;data: BodyType<PayoutOperatorReconcileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reconcilePayoutOperatorWithdrawal>>,
+        TError,
+        {id: string;data: BodyType<PayoutOperatorReconcileInput>},
+        TContext
+      > => {
+      return useMutation(getReconcilePayoutOperatorWithdrawalMutationOptions(options));
+    }
+
+export const getRenewPayoutOperatorPreparationLeaseUrl = (id: string,) => {
+
+
+
+
+  return `/api/payout-operator/withdrawals/${id}/lease/renew`
+}
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Maker renews an owned preparation lease while holding the fenced browser lease
+ */
+export const renewPayoutOperatorPreparationLease = async (id: string,
+    payoutOperatorLeaseRenewInput: PayoutOperatorLeaseRenewInput, options?: RequestInit): Promise<AdminWithdrawalDetail> => {
+
+  return customFetch<AdminWithdrawalDetail>(getRenewPayoutOperatorPreparationLeaseUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      payoutOperatorLeaseRenewInput,)
+  }
+);}
+
+
+
+
+export const getRenewPayoutOperatorPreparationLeaseMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renewPayoutOperatorPreparationLease>>, TError,{id: string;data: BodyType<PayoutOperatorLeaseRenewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof renewPayoutOperatorPreparationLease>>, TError,{id: string;data: BodyType<PayoutOperatorLeaseRenewInput>}, TContext> => {
+
+const mutationKey = ['renewPayoutOperatorPreparationLease'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof renewPayoutOperatorPreparationLease>>, {id: string;data: BodyType<PayoutOperatorLeaseRenewInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  renewPayoutOperatorPreparationLease(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RenewPayoutOperatorPreparationLeaseMutationResult = NonNullable<Awaited<ReturnType<typeof renewPayoutOperatorPreparationLease>>>
+    export type RenewPayoutOperatorPreparationLeaseMutationBody = BodyType<PayoutOperatorLeaseRenewInput>
+    export type RenewPayoutOperatorPreparationLeaseMutationError = ErrorType<void>
+
+    /**
+ * @summary Maker renews an owned preparation lease while holding the fenced browser lease
+ */
+export const useRenewPayoutOperatorPreparationLease = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renewPayoutOperatorPreparationLease>>, TError,{id: string;data: BodyType<PayoutOperatorLeaseRenewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof renewPayoutOperatorPreparationLease>>,
+        TError,
+        {id: string;data: BodyType<PayoutOperatorLeaseRenewInput>},
+        TContext
+      > => {
+      return useMutation(getRenewPayoutOperatorPreparationLeaseMutationOptions(options));
+    }
+
+export const getReleasePayoutOperatorPreparationLeaseUrl = (id: string,) => {
+
+
+
+
+  return `/api/payout-operator/withdrawals/${id}/lease/release`
+}
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Maker marks interrupted preparation unknown without refund while holding the fenced browser lease
+ */
+export const releasePayoutOperatorPreparationLease = async (id: string,
+    payoutOperatorLeaseReleaseInput: PayoutOperatorLeaseReleaseInput, options?: RequestInit): Promise<AdminWithdrawalDetail> => {
+
+  return customFetch<AdminWithdrawalDetail>(getReleasePayoutOperatorPreparationLeaseUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      payoutOperatorLeaseReleaseInput,)
+  }
+);}
+
+
+
+
+export const getReleasePayoutOperatorPreparationLeaseMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof releasePayoutOperatorPreparationLease>>, TError,{id: string;data: BodyType<PayoutOperatorLeaseReleaseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof releasePayoutOperatorPreparationLease>>, TError,{id: string;data: BodyType<PayoutOperatorLeaseReleaseInput>}, TContext> => {
+
+const mutationKey = ['releasePayoutOperatorPreparationLease'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof releasePayoutOperatorPreparationLease>>, {id: string;data: BodyType<PayoutOperatorLeaseReleaseInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  releasePayoutOperatorPreparationLease(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReleasePayoutOperatorPreparationLeaseMutationResult = NonNullable<Awaited<ReturnType<typeof releasePayoutOperatorPreparationLease>>>
+    export type ReleasePayoutOperatorPreparationLeaseMutationBody = BodyType<PayoutOperatorLeaseReleaseInput>
+    export type ReleasePayoutOperatorPreparationLeaseMutationError = ErrorType<void>
+
+    /**
+ * @summary Maker marks interrupted preparation unknown without refund while holding the fenced browser lease
+ */
+export const useReleasePayoutOperatorPreparationLease = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof releasePayoutOperatorPreparationLease>>, TError,{id: string;data: BodyType<PayoutOperatorLeaseReleaseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof releasePayoutOperatorPreparationLease>>,
+        TError,
+        {id: string;data: BodyType<PayoutOperatorLeaseReleaseInput>},
+        TContext
+      > => {
+      return useMutation(getReleasePayoutOperatorPreparationLeaseMutationOptions(options));
+    }
+
+export const getMarkPayoutOperatorUnknownUrl = (id: string,) => {
+
+
+
+
+  return `/api/payout-operator/withdrawals/${id}/unknown`
+}
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Maker or reconciler flags uncertainty; no browser lease or refund required
+ */
+export const markPayoutOperatorUnknown = async (id: string,
+    payoutOperatorUnknownInput: PayoutOperatorUnknownInput, options?: RequestInit): Promise<WithdrawalDetail> => {
+
+  return customFetch<WithdrawalDetail>(getMarkPayoutOperatorUnknownUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      payoutOperatorUnknownInput,)
+  }
+);}
+
+
+
+
+export const getMarkPayoutOperatorUnknownMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markPayoutOperatorUnknown>>, TError,{id: string;data: BodyType<PayoutOperatorUnknownInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markPayoutOperatorUnknown>>, TError,{id: string;data: BodyType<PayoutOperatorUnknownInput>}, TContext> => {
+
+const mutationKey = ['markPayoutOperatorUnknown'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markPayoutOperatorUnknown>>, {id: string;data: BodyType<PayoutOperatorUnknownInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  markPayoutOperatorUnknown(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkPayoutOperatorUnknownMutationResult = NonNullable<Awaited<ReturnType<typeof markPayoutOperatorUnknown>>>
+    export type MarkPayoutOperatorUnknownMutationBody = BodyType<PayoutOperatorUnknownInput>
+    export type MarkPayoutOperatorUnknownMutationError = ErrorType<void>
+
+    /**
+ * @summary Maker or reconciler flags uncertainty; no browser lease or refund required
+ */
+export const useMarkPayoutOperatorUnknown = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markPayoutOperatorUnknown>>, TError,{id: string;data: BodyType<PayoutOperatorUnknownInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markPayoutOperatorUnknown>>,
+        TError,
+        {id: string;data: BodyType<PayoutOperatorUnknownInput>},
+        TContext
+      > => {
+      return useMutation(getMarkPayoutOperatorUnknownMutationOptions(options));
+    }
+
+export const getCallPayoutOperatorMcpUrl = () => {
+
+
+
+
+  return `/api/payout-mcp`
+}
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Stateless role-scoped Streamable HTTP MCP transport
+ */
+export const callPayoutOperatorMcp = async (payoutMcpRequest: PayoutMcpRequest, options?: RequestInit): Promise<PayoutMcpResponse> => {
+
+  return customFetch<PayoutMcpResponse>(getCallPayoutOperatorMcpUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      payoutMcpRequest,)
+  }
+);}
+
+
+
+
+export const getCallPayoutOperatorMcpMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof callPayoutOperatorMcp>>, TError,{data: BodyType<PayoutMcpRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof callPayoutOperatorMcp>>, TError,{data: BodyType<PayoutMcpRequest>}, TContext> => {
+
+const mutationKey = ['callPayoutOperatorMcp'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof callPayoutOperatorMcp>>, {data: BodyType<PayoutMcpRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  callPayoutOperatorMcp(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CallPayoutOperatorMcpMutationResult = NonNullable<Awaited<ReturnType<typeof callPayoutOperatorMcp>>>
+    export type CallPayoutOperatorMcpMutationBody = BodyType<PayoutMcpRequest>
+    export type CallPayoutOperatorMcpMutationError = ErrorType<void>
+
+    /**
+ * @summary Stateless role-scoped Streamable HTTP MCP transport
+ */
+export const useCallPayoutOperatorMcp = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof callPayoutOperatorMcp>>, TError,{data: BodyType<PayoutMcpRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof callPayoutOperatorMcp>>,
+        TError,
+        {data: BodyType<PayoutMcpRequest>},
+        TContext
+      > => {
+      return useMutation(getCallPayoutOperatorMcpMutationOptions(options));
+    }
 
 export const getGetWithdrawalOverviewUrl = () => {
 

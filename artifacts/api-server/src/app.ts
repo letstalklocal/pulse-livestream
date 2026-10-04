@@ -15,6 +15,8 @@ import {
 } from "./middlewares/clerkProxyMiddleware";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import payoutOperatorRouter from "./routes/payout-operators";
+import payoutMcpRouter from "./routes/payout-mcp";
 
 const app: Express = express();
 
@@ -57,8 +59,13 @@ app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
 app.use(cors({ credentials: true, origin: true }));
 app.post("/api/verification/webhook", express.raw({ type: "application/json", limit: "1mb" }), diditWebhook);
+// The MCP transport parses and bounds its own request bodies.
+app.use("/api/payout-mcp", payoutMcpRouter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Opaque operator credentials are authenticated by these routes, before Clerk.
+app.use("/api/payout-operator", payoutOperatorRouter);
 
 app.use(
   clerkMiddleware((req) => ({

@@ -52,10 +52,15 @@ export default function WithdrawMoneyScreen() {
     setBusy(false);
   }, [api.userId]);
   useEffect(() => {
-    if (api.overview.data?.recipient)
+    const saved = api.overview.data?.recipient;
+    if (saved)
       setRecipient({
-        ...api.overview.data.recipient,
-        secondSurname: api.overview.data.recipient.secondSurname ?? undefined,
+        legalFirstName: saved.legalFirstName,
+        legalLastName: saved.legalLastName,
+        countryCode: saved.countryCode,
+        email: saved.email,
+        phone: saved.phone,
+        ...(saved.secondSurname ? { secondSurname: saved.secondSurname } : {}),
       });
   }, [api.overview.data?.recipient]);
   useFocusEffect(
@@ -220,10 +225,11 @@ export default function WithdrawMoneyScreen() {
         );
       if (!api.pending)
         await api.saveRecipient({
-          ...recipient,
           legalFirstName: recipient.legalFirstName.trim(),
           legalLastName: recipient.legalLastName.trim(),
-          secondSurname: recipient.secondSurname?.trim(),
+          ...(recipient.secondSurname?.trim()
+            ? { secondSurname: recipient.secondSurname.trim() }
+            : {}),
           email: recipient.email.trim(),
           phone: recipient.phone.trim(),
           countryCode: country.countryCode,

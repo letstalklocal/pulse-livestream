@@ -1362,6 +1362,24 @@ dd {
   margin-bottom: 0;
   color: #a5a6b7;
 }
+#operator-token {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  margin-top: 8px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: monospace;
+}
+#operator-records small {
+  display: block;
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+}
 .payout-enrollment > summary {
   padding: 20px 22px;
 }

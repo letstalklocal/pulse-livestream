@@ -13,6 +13,7 @@ const icons = {
     '<rect x="3" y="5" width="18" height="15" rx="3"/><path d="M3 8V5l14-3v3M16 12h5v5h-5z"/>',
   "Payout methods": '<path d="M3 12h18M12 3v18M5 5h14v14H5z"/>',
   "Payout desk": '<path d="M4 5h16v15H4zM8 9h8m-8 4h5m-5 4h3M15 16l2 2 4-5"/>',
+  "Payout operators": '<circle cx="8" cy="9" r="4"/><path d="m11 12 9 9m-3-3 3-3m-6 0 3-3"/>',
   Moderation: '<path d="M5 21V3m0 1h14l-3 5 3 5H5"/>',
   "Audit log":
     '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6m-6 4h6m-6 4h4"/>',
@@ -68,6 +69,7 @@ const payoutDesk = {
   enrollment: null,
   mutationVersion: 0,
 };
+const operatorCredentials = { version: 0, busy: false, records: [], token: null };
 const operations = {
   "Live streams": {
     endpoint: "live-streams",
@@ -135,6 +137,7 @@ function clearPrivate() {
   unmountSignIn();
   authorized = false;
   resetPayoutDesk();
+  resetOperatorCredentials();
   catalogVersion++;
   catalog = null;
   catalogImport = null;
@@ -721,6 +724,7 @@ document.addEventListener("click", (event) => {
 function render() {
   if (!authorized) return;
   resetPayoutDesk();
+  resetOperatorCredentials();
   catalogVersion++;
   catalog = null;
   catalogImport = null;
@@ -741,13 +745,14 @@ function render() {
     else a.removeAttribute("aria-current");
   });
   document.getElementById("breadcrumb").textContent = section;
-  main.innerHTML = `<div class="page-heading"><div><div class="eyebrow">PULSE WORKSPACE</div><h1>${section}</h1><p>${section === "Overview" ? "Welcome back. Your community workspace." : section === "Users" ? "Find and review the people who make Pulse." : section === "Payout desk" ? "Review creator withdrawals and record verified provider outcomes." : "Your space for " + section.toLowerCase() + "."}</p></div><div class="date-label">${section === "Payout methods" ? "Catalog management" : section === "Payout desk" ? "Human release required" : "Read-only access"}</div></div>${section === "Overview" ? overview() : section === "Users" ? table() : section === "Account removals" ? removals() : section === "Verification" ? reviews() : section === "Payout methods" ? catalogPage() : section === "Payout desk" ? payoutDeskPage() : operations[section] ? operationsPage() : `<section class="panel coming-soon"><span class="empty-icon">${icon(section)}</span><span class="tag">COMING NEXT</span><h2>${section}</h2><p>This section is not connected yet.</p><a class="primary-button" href="#users">Open user directory →</a></section>`}`;
+  main.innerHTML = `<div class="page-heading"><div><div class="eyebrow">PULSE WORKSPACE</div><h1>${section}</h1><p>${section === "Overview" ? "Welcome back. Your community workspace." : section === "Users" ? "Find and review the people who make Pulse." : section === "Payout desk" ? "Review creator withdrawals and record verified provider outcomes." : "Your space for " + section.toLowerCase() + "."}</p></div><div class="date-label">${section === "Payout methods" ? "Catalog management" : section === "Payout desk" ? "Human release required" : section === "Payout operators" ? "Credential management" : "Read-only access"}</div></div>${section === "Overview" ? overview() : section === "Users" ? table() : section === "Account removals" ? removals() : section === "Verification" ? reviews() : section === "Payout methods" ? catalogPage() : section === "Payout desk" ? payoutDeskPage() : section === "Payout operators" ? operatorCredentialsPage() : operations[section] ? operationsPage() : `<section class="panel coming-soon"><span class="empty-icon">${icon(section)}</span><span class="tag">COMING NEXT</span><h2>${section}</h2><p>This section is not connected yet.</p><a class="primary-button" href="#users">Open user directory →</a></section>`}`;
   if (section === "Users" || section === "Overview") loadUsers();
   if (section === "Overview") loadOverview();
   if (section === "Account removals") loadRemovals();
   if (section === "Verification") loadReviews();
   if (section === "Payout methods") loadCatalog();
   if (section === "Payout desk") loadWithdrawals();
+  if (section === "Payout operators") loadOperatorCredentials();
   if (operations[section]) loadOperations();
 }
 async function loadUsers() {
@@ -1947,4 +1952,95 @@ document.addEventListener("click", (event) => {
     payoutDesk.detail = null;
     document.getElementById("payout-detail").replaceChildren();
   }
+});
+
+function resetOperatorCredentials() {
+  operatorCredentials.version++;
+  operatorCredentials.busy = false;
+  operatorCredentials.records = [];
+  operatorCredentials.token = null;
+}
+function operatorCredentialsPage() {
+  return `<section class="panel"><div class="panel-heading"><div><h2>Scheduled payout operators</h2><p>Separate maker, checker and reconciler credentials. None can approve or send a payout.</p></div><button class="page-button" id="refresh-operators">Refresh</button></div><div class="payout-content"><p>Connect Codex on your Mac to <strong>${esc(location.origin)}/api/payout-mcp</strong>. Store each credential in macOS Keychain and configure one role per scheduled job. Revocation stops future operator calls.</p><form id="issue-operator" class="payout-fields"><label>Operator name<input name="name" required maxlength="80" autocomplete="off" placeholder="Mac maker"/></label><label>Role<select name="role"><option value="maker">Maker · prepare</option><option value="checker">Checker · independent review</option><option value="reconciler">Reconciler · verify outcomes</option></select></label><label>Expires · UTC<input name="expiresAt" type="text" placeholder="Blank: 7 days; maximum 30 days" autocomplete="off"/></label><div class="payout-wide"><button type="submit" class="primary-button">Issue operator credential</button><p id="operator-feedback" role="status"></p></div></form><div id="operator-secret"></div><div id="operator-records">Loading operators…</div></div></section>`;
+}
+function renderOperatorCredentials() {
+  const target = document.getElementById("operator-records");
+  if (!target) return;
+  target.innerHTML = `<div class="table-scroll"><table><thead><tr><th>Operator</th><th>Scope</th><th>Expires · UTC</th><th>Last used</th><th>Access</th></tr></thead><tbody>${operatorCredentials.records.map((record) => `<tr><td>${esc(record.name)}<small>${esc(record.role)} · ${esc(record.id)}</small></td><td>${esc(record.environment)}<small>${esc(record.accountKey)}</small></td><td>${esc(payoutTime(record.expiresAt))}</td><td>${esc(payoutTime(record.lastUsedAt))}</td><td>${record.revokedAt ? "Revoked" : Date.parse(record.expiresAt) <= Date.now() ? "Expired" : `<button class="page-button" data-revoke-operator="${esc(record.id)}">Revoke</button>`}</td></tr>`).join("") || '<tr><td colspan="5">No operator credentials issued.</td></tr>'}</tbody></table></div>`;
+}
+async function loadOperatorCredentials() {
+  if (!authorized || section !== "Payout operators") return;
+  const version = ++operatorCredentials.version;
+  try {
+    const data = await api("/payout-operators");
+    if (!authorized || section !== "Payout operators" || version !== operatorCredentials.version) return;
+    operatorCredentials.records = data.credentials;
+    renderOperatorCredentials();
+  } catch (error) {
+    if (version !== operatorCredentials.version || accessError(error)) return;
+    const target = document.getElementById("operator-records");
+    if (target) target.textContent = error.message;
+  }
+}
+document.addEventListener("submit", async (event) => {
+  if (!event.target.matches("#issue-operator")) return;
+  event.preventDefault();
+  if (!authorized || section !== "Payout operators" || operatorCredentials.busy) return;
+  const form = event.target, values = new FormData(form), version = operatorCredentials.version;
+  const button = form.querySelector("button[type=submit]"), feedback = document.getElementById("operator-feedback");
+  const busy = {};
+  operatorCredentials.busy = busy;
+  operatorCredentials.token = null;
+  document.getElementById("operator-secret").replaceChildren();
+  button.disabled = true;
+  feedback.textContent = "Issuing scoped credential…";
+  try {
+    const expiresAt = String(values.get("expiresAt") || "").trim();
+    const body = { name: String(values.get("name") || "").trim(), role: String(values.get("role")), ...(expiresAt ? { expiresAt } : {}) };
+    const result = await api("/payout-operators/issue", { method: "POST", body: JSON.stringify(body) });
+    if (!authorized || section !== "Payout operators" || version !== operatorCredentials.version) return;
+    operatorCredentials.token = result.token;
+    const secret = document.getElementById("operator-secret");
+    secret.innerHTML = '<section class="payout-quote"><h3>Credential shown once</h3><p>Save this in macOS Keychain now. It disappears when you hide or leave this page and cannot be retrieved later.</p><label>Operator credential<input id="operator-token" type="password" readonly autocomplete="off" spellcheck="false"/></label><div class="catalog-actions"><button class="page-button" id="copy-operator-token">Copy credential</button><button class="page-button" id="dismiss-operator-token">Dismiss</button></div><p id="operator-copy-feedback" role="status"></p></section>';
+    document.getElementById("operator-token").value = result.token;
+    feedback.textContent = "Credential issued. Human payout approval remains separate.";
+    form.reset();
+    await loadOperatorCredentials();
+  } catch (error) {
+    if (!authorized || version !== operatorCredentials.version || accessError(error)) return;
+    feedback.textContent = `${error.message} If a save may have completed without showing its credential, refresh and revoke that entry before issuing another.`;
+  } finally {
+    if (form.isConnected) button.disabled = false;
+    if (operatorCredentials.busy === busy) operatorCredentials.busy = false;
+  }
+});
+document.addEventListener("click", async (event) => {
+  if (!authorized || section !== "Payout operators") return;
+  if (event.target.id === "refresh-operators" && !operatorCredentials.busy) return loadOperatorCredentials();
+  if (event.target.id === "dismiss-operator-token") {
+    operatorCredentials.token = null;
+    document.getElementById("operator-secret").replaceChildren();
+    return;
+  }
+  if (event.target.id === "copy-operator-token" && operatorCredentials.token) {
+    const feedback = document.getElementById("operator-copy-feedback");
+    try { await navigator.clipboard.writeText(operatorCredentials.token); if (feedback.isConnected) feedback.textContent = "Copied. Save in Keychain, then dismiss."; }
+    catch { if (feedback.isConnected) feedback.textContent = "Clipboard unavailable. Select the credential field to copy it manually."; }
+    return;
+  }
+  const id = event.target.closest("[data-revoke-operator]")?.dataset.revokeOperator;
+  if (!id || operatorCredentials.busy) return;
+  if (!confirm("Revoke this operator credential? Future calls will be denied. Existing payout reservations and uncertain attempts remain for review.")) return;
+  const version = operatorCredentials.version, busy = {};
+  operatorCredentials.busy = busy;
+  try {
+    await api("/payout-operators/" + encodeURIComponent(id) + "/revoke", { method: "POST", body: "{}" });
+    if (authorized && version === operatorCredentials.version) {
+      operatorCredentials.token = null;
+      document.getElementById("operator-secret").replaceChildren();
+      await loadOperatorCredentials();
+    }
+  } catch (error) {
+    if (version === operatorCredentials.version && !accessError(error)) document.getElementById("operator-feedback").textContent = error.message;
+  } finally { if (operatorCredentials.busy === busy) operatorCredentials.busy = false; }
 });

@@ -9,6 +9,1507 @@ import * as zod from 'zod';
 
 
 /**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary List scoped credential metadata without secrets
+ */
+export const ListPayoutOperatorCredentialsResponse = zod.object({
+  "credentials": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "role": zod.enum(['maker', 'checker', 'reconciler']),
+  "createdAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "revokedAt": zod.coerce.date().nullable(),
+  "lastUsedAt": zod.coerce.date().nullable(),
+  "accountKey": zod.string(),
+  "environment": zod.enum(['development', 'production'])
+}))
+})
+
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Issue one role credential; seven-day default, thirty-day maximum
+ */
+export const issuePayoutOperatorCredentialBodyNameMax = 100;
+
+
+
+export const IssuePayoutOperatorCredentialBody = zod.object({
+  "name": zod.string().min(1).max(issuePayoutOperatorCredentialBodyNameMax),
+  "role": zod.enum(['maker', 'checker', 'reconciler']),
+  "expiresAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Revoke operator access and quarantine interrupted preparations
+ */
+export const RevokePayoutOperatorCredentialParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const RevokePayoutOperatorCredentialResponse = zod.object({
+  "revoked": zod.boolean(),
+  "id": zod.string()
+})
+
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Read authenticated role, provider account, environment and playbook version
+ */
+export const GetPayoutOperatorIdentityResponse = zod.object({
+  "environment": zod.enum(['development', 'production']),
+  "accountKey": zod.string(),
+  "operator": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "role": zod.enum(['maker', 'checker', 'reconciler'])
+}),
+  "policy": zod.object({
+  "fundingPolicyReady": zod.boolean(),
+  "coinsPerUsd": zod.literal(400),
+  "ticksPerUsd": zod.literal(400),
+  "allWalletCoinsRedeemable": zod.boolean(),
+  "holdDays": zod.literal(0),
+  "maxWithdrawalCents": zod.literal(1500),
+  "firstMinimumCents": zod.literal(1500),
+  "repeatAllowed": zod.boolean()
+}),
+  "preparationPaused": zod.boolean(),
+  "playbookVersion": zod.string(),
+  "capabilities": zod.array(zod.string())
+})
+
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Read oldest eligible unresolved payouts, filtered before the bounded limit
+ */
+export const listPayoutOperatorWithdrawalsQueryLimitDefault = 25;
+export const listPayoutOperatorWithdrawalsQueryLimitMax = 100;
+
+
+
+export const ListPayoutOperatorWithdrawalsQueryParams = zod.object({
+  "limit": zod.coerce.number().min(1).max(listPayoutOperatorWithdrawalsQueryLimitMax).default(listPayoutOperatorWithdrawalsQueryLimitDefault)
+})
+
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneSendAmountCentsMin = 0;
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneSendAmountCentsMax = 1500;
+
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneFeeCentsMin = 0;
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneFeeCentsMax = 1500;
+
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneTaxCentsMin = 0;
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneTaxCentsMax = 1500;
+
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOnePromotionalDiscountCentsMin = 0;
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOnePromotionalDiscountCentsMax = 1500;
+
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneTotalEarningsDeductedCentsMin = 0;
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneProviderMinimumSendCentsMin = 0;
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneProviderMinimumSendCentsMax = 1500;
+
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneCheckerOneEvidenceMax = 5000;
+
+
+
+export const ListPayoutOperatorWithdrawalsResponse = zod.object({
+  "withdrawals": zod.array(zod.object({
+  "id": zod.string(),
+  "userId": zod.number(),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "grossCents": zod.literal(1500),
+  "methodId": zod.string(),
+  "recipient": zod.object({
+  "legalFirstName": zod.string(),
+  "legalLastName": zod.string(),
+  "secondSurname": zod.string().nullish(),
+  "countryCode": zod.string().regex(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneRecipientCountryCodeRegExp),
+  "email": zod.string(),
+  "phone": zod.string(),
+  "revision": zod.number().optional(),
+  "status": zod.enum(['contact_saved']).optional()
+}),
+  "route": zod.object({
+  "providerId": zod.string(),
+  "provider": zod.string(),
+  "countryCode": zod.string(),
+  "country": zod.string(),
+  "method": zod.string(),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string()
+}),
+  "quote": zod.object({
+  "hash": zod.string(),
+  "methodId": zod.string(),
+  "sendAmountCents": zod.number().min(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneSendAmountCentsMin).max(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneSendAmountCentsMax),
+  "feeCents": zod.number().min(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneFeeCentsMin).max(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneFeeCentsMax),
+  "taxCents": zod.number().min(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneTaxCentsMin).max(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneTaxCentsMax),
+  "promotionalDiscountCents": zod.number().min(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOnePromotionalDiscountCentsMin).max(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOnePromotionalDiscountCentsMax),
+  "totalEarningsDeductedCents": zod.number().min(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneTotalEarningsDeductedCentsMin).max(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneTotalEarningsDeductedCentsMax),
+  "receiveAmount": zod.string().regex(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneReceiveAmountRegExp),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string(),
+  "providerMinimumSendCents": zod.number().min(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneProviderMinimumSendCentsMin).max(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneProviderMinimumSendCentsMax),
+  "source": zod.enum(['signed_in_remitly_business']),
+  "sourceUrl": zod.string(),
+  "observedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "recipientHash": zod.string(),
+  "evidenceHash": zod.string()
+}).nullable(),
+  "approvedQuoteHash": zod.string().nullable(),
+  "checker": zod.object({
+  "status": zod.enum(['passed', 'needs_attention']),
+  "checkedAt": zod.coerce.date(),
+  "actor": zod.string().optional(),
+  "bindingHash": zod.string().optional(),
+  "attemptId": zod.string().optional(),
+  "quoteHash": zod.string().optional(),
+  "evidence": zod.string().min(1).max(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneCheckerOneEvidenceMax).optional(),
+  "historyCoverage": zod.string().optional()
+}).nullable(),
+  "providerLink": zod.string().nullable(),
+  "providerOnboardingStatus": zod.enum(['pending', 'ready']),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "creatorName": zod.string(),
+  "reviewDeadline": zod.string().nullable(),
+  "attemptState": zod.string().nullable(),
+  "maker": zod.string().nullable(),
+  "providerReference": zod.string().nullable()
+}))),
+  "truncated": zod.boolean()
+})
+
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Read payout details and evidence within the authorized account
+ */
+export const GetPayoutOperatorWithdrawalParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const getPayoutOperatorWithdrawalResponseOneOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneSendAmountCentsMin = 0;
+export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneSendAmountCentsMax = 1500;
+
+export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneFeeCentsMin = 0;
+export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneFeeCentsMax = 1500;
+
+export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneTaxCentsMin = 0;
+export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneTaxCentsMax = 1500;
+
+export const getPayoutOperatorWithdrawalResponseOneOneQuoteOnePromotionalDiscountCentsMin = 0;
+export const getPayoutOperatorWithdrawalResponseOneOneQuoteOnePromotionalDiscountCentsMax = 1500;
+
+export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneTotalEarningsDeductedCentsMin = 0;
+export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+
+export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
+export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneProviderMinimumSendCentsMin = 0;
+export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneProviderMinimumSendCentsMax = 1500;
+
+export const getPayoutOperatorWithdrawalResponseOneOneCheckerOneEvidenceMax = 5000;
+
+export const getPayoutOperatorWithdrawalResponseTwoBalancesAvailableTicksRegExp = new RegExp('^\\d+$');
+export const getPayoutOperatorWithdrawalResponseTwoBalancesHeldTicksRegExp = new RegExp('^\\d+$');
+export const getPayoutOperatorWithdrawalResponseTwoBalancesReservedTicksRegExp = new RegExp('^\\d+$');
+export const getPayoutOperatorWithdrawalResponseTwoBalancesAvailableCoinsRegExp = new RegExp('^\\d+$');
+export const getPayoutOperatorWithdrawalResponseTwoBalancesHeldCoinsRegExp = new RegExp('^\\d+$');
+export const getPayoutOperatorWithdrawalResponseTwoBalancesReservedCoinsRegExp = new RegExp('^\\d+$');
+export const getPayoutOperatorWithdrawalResponseTwoBalancesAvailableUsdRegExp = new RegExp('^\\d+\\.\\d{4}$');
+export const getPayoutOperatorWithdrawalResponseTwoBalancesHeldUsdRegExp = new RegExp('^\\d+\\.\\d{4}$');
+export const getPayoutOperatorWithdrawalResponseTwoBalancesReservedUsdRegExp = new RegExp('^\\d+\\.\\d{4}$');
+
+
+export const GetPayoutOperatorWithdrawalResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.number(),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "grossCents": zod.literal(1500),
+  "methodId": zod.string(),
+  "recipient": zod.object({
+  "legalFirstName": zod.string(),
+  "legalLastName": zod.string(),
+  "secondSurname": zod.string().nullish(),
+  "countryCode": zod.string().regex(getPayoutOperatorWithdrawalResponseOneOneRecipientCountryCodeRegExp),
+  "email": zod.string(),
+  "phone": zod.string(),
+  "revision": zod.number().optional(),
+  "status": zod.enum(['contact_saved']).optional()
+}),
+  "route": zod.object({
+  "providerId": zod.string(),
+  "provider": zod.string(),
+  "countryCode": zod.string(),
+  "country": zod.string(),
+  "method": zod.string(),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string()
+}),
+  "quote": zod.object({
+  "hash": zod.string(),
+  "methodId": zod.string(),
+  "sendAmountCents": zod.number().min(getPayoutOperatorWithdrawalResponseOneOneQuoteOneSendAmountCentsMin).max(getPayoutOperatorWithdrawalResponseOneOneQuoteOneSendAmountCentsMax),
+  "feeCents": zod.number().min(getPayoutOperatorWithdrawalResponseOneOneQuoteOneFeeCentsMin).max(getPayoutOperatorWithdrawalResponseOneOneQuoteOneFeeCentsMax),
+  "taxCents": zod.number().min(getPayoutOperatorWithdrawalResponseOneOneQuoteOneTaxCentsMin).max(getPayoutOperatorWithdrawalResponseOneOneQuoteOneTaxCentsMax),
+  "promotionalDiscountCents": zod.number().min(getPayoutOperatorWithdrawalResponseOneOneQuoteOnePromotionalDiscountCentsMin).max(getPayoutOperatorWithdrawalResponseOneOneQuoteOnePromotionalDiscountCentsMax),
+  "totalEarningsDeductedCents": zod.number().min(getPayoutOperatorWithdrawalResponseOneOneQuoteOneTotalEarningsDeductedCentsMin).max(getPayoutOperatorWithdrawalResponseOneOneQuoteOneTotalEarningsDeductedCentsMax),
+  "receiveAmount": zod.string().regex(getPayoutOperatorWithdrawalResponseOneOneQuoteOneReceiveAmountRegExp),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string(),
+  "providerMinimumSendCents": zod.number().min(getPayoutOperatorWithdrawalResponseOneOneQuoteOneProviderMinimumSendCentsMin).max(getPayoutOperatorWithdrawalResponseOneOneQuoteOneProviderMinimumSendCentsMax),
+  "source": zod.enum(['signed_in_remitly_business']),
+  "sourceUrl": zod.string(),
+  "observedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "recipientHash": zod.string(),
+  "evidenceHash": zod.string()
+}).nullable(),
+  "approvedQuoteHash": zod.string().nullable(),
+  "checker": zod.object({
+  "status": zod.enum(['passed', 'needs_attention']),
+  "checkedAt": zod.coerce.date(),
+  "actor": zod.string().optional(),
+  "bindingHash": zod.string().optional(),
+  "attemptId": zod.string().optional(),
+  "quoteHash": zod.string().optional(),
+  "evidence": zod.string().min(1).max(getPayoutOperatorWithdrawalResponseOneOneCheckerOneEvidenceMax).optional(),
+  "historyCoverage": zod.string().optional()
+}).nullable(),
+  "providerLink": zod.string().nullable(),
+  "providerOnboardingStatus": zod.enum(['pending', 'ready']),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "history": zod.array(zod.object({
+  "action": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})).and(zod.object({
+  "creatorName": zod.string(),
+  "attempts": zod.array(zod.object({
+  "id": zod.string(),
+  "maker": zod.string(),
+  "state": zod.string(),
+  "bindingHash": zod.string(),
+  "evidence": zod.record(zod.string(), zod.unknown()),
+  "draftId": zod.string().nullable(),
+  "providerReference": zod.string().nullable(),
+  "activityId": zod.string().nullable(),
+  "leaseUntil": zod.coerce.date(),
+  "createdAt": zod.coerce.date()
+})),
+  "events": zod.array(zod.object({
+  "actor": zod.string(),
+  "action": zod.string(),
+  "evidence": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date()
+})),
+  "balances": zod.object({
+  "availableTicks": zod.string().regex(getPayoutOperatorWithdrawalResponseTwoBalancesAvailableTicksRegExp),
+  "heldTicks": zod.string().regex(getPayoutOperatorWithdrawalResponseTwoBalancesHeldTicksRegExp),
+  "reservedTicks": zod.string().regex(getPayoutOperatorWithdrawalResponseTwoBalancesReservedTicksRegExp),
+  "availableCoins": zod.string().regex(getPayoutOperatorWithdrawalResponseTwoBalancesAvailableCoinsRegExp),
+  "heldCoins": zod.string().regex(getPayoutOperatorWithdrawalResponseTwoBalancesHeldCoinsRegExp),
+  "reservedCoins": zod.string().regex(getPayoutOperatorWithdrawalResponseTwoBalancesReservedCoinsRegExp),
+  "availableUsd": zod.string().regex(getPayoutOperatorWithdrawalResponseTwoBalancesAvailableUsdRegExp),
+  "heldUsd": zod.string().regex(getPayoutOperatorWithdrawalResponseTwoBalancesHeldUsdRegExp),
+  "reservedUsd": zod.string().regex(getPayoutOperatorWithdrawalResponseTwoBalancesReservedUsdRegExp)
+})
+}))
+
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Read authoritative role-appropriate operating instructions
+ */
+export const GetPayoutOperatorPlaybookParams = zod.object({
+  "name": zod.enum(['preflight', 'maker', 'checker', 'reconciler', 'recover'])
+})
+
+export const GetPayoutOperatorPlaybookResponse = zod.object({
+  "name": zod.string(),
+  "version": zod.string(),
+  "role": zod.enum(['all', 'maker', 'checker', 'reconciler']),
+  "instructions": zod.array(zod.string()),
+  "humanFinalDecisionRequired": zod.literal(true),
+  "autoSendAllowed": zod.literal(false)
+})
+
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Acquire exclusive account-wide browser lease
+ */
+export const acquirePayoutOperatorBrowserLeaseBodyIdempotencyKeyMax = 100;
+
+export const acquirePayoutOperatorBrowserLeaseBodyDurationSecondsDefault = 300;
+export const acquirePayoutOperatorBrowserLeaseBodyDurationSecondsMin = 30;
+export const acquirePayoutOperatorBrowserLeaseBodyDurationSecondsMax = 900;
+
+
+
+export const AcquirePayoutOperatorBrowserLeaseBody = zod.object({
+  "idempotencyKey": zod.string().min(1).max(acquirePayoutOperatorBrowserLeaseBodyIdempotencyKeyMax),
+  "durationSeconds": zod.number().min(acquirePayoutOperatorBrowserLeaseBodyDurationSecondsMin).max(acquirePayoutOperatorBrowserLeaseBodyDurationSecondsMax).default(acquirePayoutOperatorBrowserLeaseBodyDurationSecondsDefault)
+})
+
+export const AcquirePayoutOperatorBrowserLeaseResponse = zod.object({
+  "id": zod.string(),
+  "leaseId": zod.string(),
+  "resource": zod.enum(['remitly-browser']),
+  "fencingToken": zod.string(),
+  "expiresAt": zod.coerce.date(),
+  "operatorId": zod.string()
+})
+
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Renew exclusive account-wide browser lease
+ */
+export const renewPayoutOperatorBrowserLeaseBodyDurationSecondsDefault = 300;
+export const renewPayoutOperatorBrowserLeaseBodyDurationSecondsMin = 30;
+export const renewPayoutOperatorBrowserLeaseBodyDurationSecondsMax = 900;
+
+
+
+export const RenewPayoutOperatorBrowserLeaseBody = zod.object({
+  "leaseId": zod.string(),
+  "durationSeconds": zod.number().min(renewPayoutOperatorBrowserLeaseBodyDurationSecondsMin).max(renewPayoutOperatorBrowserLeaseBodyDurationSecondsMax).default(renewPayoutOperatorBrowserLeaseBodyDurationSecondsDefault)
+})
+
+export const RenewPayoutOperatorBrowserLeaseResponse = zod.object({
+  "id": zod.string(),
+  "leaseId": zod.string(),
+  "resource": zod.enum(['remitly-browser']),
+  "fencingToken": zod.string(),
+  "expiresAt": zod.coerce.date(),
+  "operatorId": zod.string()
+})
+
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Release exclusive account-wide browser lease
+ */
+export const releasePayoutOperatorBrowserLeaseBodyReasonMax = 1000;
+
+
+
+export const ReleasePayoutOperatorBrowserLeaseBody = zod.object({
+  "leaseId": zod.string(),
+  "reason": zod.string().min(1).max(releasePayoutOperatorBrowserLeaseBodyReasonMax)
+})
+
+export const ReleasePayoutOperatorBrowserLeaseResponse = zod.object({
+  "released": zod.boolean()
+})
+
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Record operator health and optional owned browser lease
+ */
+export const RecordPayoutOperatorHeartbeatBody = zod.object({
+  "leaseId": zod.string().optional()
+})
+
+export const RecordPayoutOperatorHeartbeatResponse = zod.object({
+  "ok": zod.boolean(),
+  "observedAt": zod.coerce.date(),
+  "operatorId": zod.string(),
+  "lease": zod.object({
+  "id": zod.string(),
+  "leaseId": zod.string(),
+  "resource": zod.enum(['remitly-browser']),
+  "fencingToken": zod.string(),
+  "expiresAt": zod.coerce.date(),
+  "operatorId": zod.string()
+}).nullable()
+})
+
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Maker records actual signed-in quote while holding the fenced browser lease
+ */
+export const RecordPayoutOperatorQuoteParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const recordPayoutOperatorQuoteBodyDataSendAmountCentsMin = 0;
+export const recordPayoutOperatorQuoteBodyDataSendAmountCentsMax = 1500;
+
+export const recordPayoutOperatorQuoteBodyDataFeeCentsMin = 0;
+export const recordPayoutOperatorQuoteBodyDataFeeCentsMax = 1500;
+
+export const recordPayoutOperatorQuoteBodyDataTaxCentsMin = 0;
+export const recordPayoutOperatorQuoteBodyDataTaxCentsMax = 1500;
+
+export const recordPayoutOperatorQuoteBodyDataPromotionalDiscountCentsMin = 0;
+export const recordPayoutOperatorQuoteBodyDataPromotionalDiscountCentsMax = 1500;
+
+export const recordPayoutOperatorQuoteBodyDataReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
+export const recordPayoutOperatorQuoteBodyDataProviderMinimumSendCentsMin = 0;
+export const recordPayoutOperatorQuoteBodyDataProviderMinimumSendCentsMax = 1500;
+
+export const recordPayoutOperatorQuoteBodyDataEvidenceMax = 5000;
+
+
+
+export const RecordPayoutOperatorQuoteBody = zod.object({
+  "leaseId": zod.string(),
+  "data": zod.object({
+  "methodId": zod.string(),
+  "sendAmountCents": zod.number().min(recordPayoutOperatorQuoteBodyDataSendAmountCentsMin).max(recordPayoutOperatorQuoteBodyDataSendAmountCentsMax),
+  "feeCents": zod.number().min(recordPayoutOperatorQuoteBodyDataFeeCentsMin).max(recordPayoutOperatorQuoteBodyDataFeeCentsMax),
+  "taxCents": zod.number().min(recordPayoutOperatorQuoteBodyDataTaxCentsMin).max(recordPayoutOperatorQuoteBodyDataTaxCentsMax),
+  "promotionalDiscountCents": zod.number().min(recordPayoutOperatorQuoteBodyDataPromotionalDiscountCentsMin).max(recordPayoutOperatorQuoteBodyDataPromotionalDiscountCentsMax),
+  "receiveAmount": zod.string().regex(recordPayoutOperatorQuoteBodyDataReceiveAmountRegExp),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string(),
+  "providerMinimumSendCents": zod.number().min(recordPayoutOperatorQuoteBodyDataProviderMinimumSendCentsMin).max(recordPayoutOperatorQuoteBodyDataProviderMinimumSendCentsMax),
+  "source": zod.enum(['signed_in_remitly_business']),
+  "sourceUrl": zod.string(),
+  "observedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "evidence": zod.string().min(1).max(recordPayoutOperatorQuoteBodyDataEvidenceMax)
+})
+})
+
+export const recordPayoutOperatorQuoteResponseOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+export const recordPayoutOperatorQuoteResponseOneQuoteOneSendAmountCentsMin = 0;
+export const recordPayoutOperatorQuoteResponseOneQuoteOneSendAmountCentsMax = 1500;
+
+export const recordPayoutOperatorQuoteResponseOneQuoteOneFeeCentsMin = 0;
+export const recordPayoutOperatorQuoteResponseOneQuoteOneFeeCentsMax = 1500;
+
+export const recordPayoutOperatorQuoteResponseOneQuoteOneTaxCentsMin = 0;
+export const recordPayoutOperatorQuoteResponseOneQuoteOneTaxCentsMax = 1500;
+
+export const recordPayoutOperatorQuoteResponseOneQuoteOnePromotionalDiscountCentsMin = 0;
+export const recordPayoutOperatorQuoteResponseOneQuoteOnePromotionalDiscountCentsMax = 1500;
+
+export const recordPayoutOperatorQuoteResponseOneQuoteOneTotalEarningsDeductedCentsMin = 0;
+export const recordPayoutOperatorQuoteResponseOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+
+export const recordPayoutOperatorQuoteResponseOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
+export const recordPayoutOperatorQuoteResponseOneQuoteOneProviderMinimumSendCentsMin = 0;
+export const recordPayoutOperatorQuoteResponseOneQuoteOneProviderMinimumSendCentsMax = 1500;
+
+export const recordPayoutOperatorQuoteResponseOneCheckerOneEvidenceMax = 5000;
+
+
+
+export const RecordPayoutOperatorQuoteResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.number(),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "grossCents": zod.literal(1500),
+  "methodId": zod.string(),
+  "recipient": zod.object({
+  "legalFirstName": zod.string(),
+  "legalLastName": zod.string(),
+  "secondSurname": zod.string().nullish(),
+  "countryCode": zod.string().regex(recordPayoutOperatorQuoteResponseOneRecipientCountryCodeRegExp),
+  "email": zod.string(),
+  "phone": zod.string(),
+  "revision": zod.number().optional(),
+  "status": zod.enum(['contact_saved']).optional()
+}),
+  "route": zod.object({
+  "providerId": zod.string(),
+  "provider": zod.string(),
+  "countryCode": zod.string(),
+  "country": zod.string(),
+  "method": zod.string(),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string()
+}),
+  "quote": zod.object({
+  "hash": zod.string(),
+  "methodId": zod.string(),
+  "sendAmountCents": zod.number().min(recordPayoutOperatorQuoteResponseOneQuoteOneSendAmountCentsMin).max(recordPayoutOperatorQuoteResponseOneQuoteOneSendAmountCentsMax),
+  "feeCents": zod.number().min(recordPayoutOperatorQuoteResponseOneQuoteOneFeeCentsMin).max(recordPayoutOperatorQuoteResponseOneQuoteOneFeeCentsMax),
+  "taxCents": zod.number().min(recordPayoutOperatorQuoteResponseOneQuoteOneTaxCentsMin).max(recordPayoutOperatorQuoteResponseOneQuoteOneTaxCentsMax),
+  "promotionalDiscountCents": zod.number().min(recordPayoutOperatorQuoteResponseOneQuoteOnePromotionalDiscountCentsMin).max(recordPayoutOperatorQuoteResponseOneQuoteOnePromotionalDiscountCentsMax),
+  "totalEarningsDeductedCents": zod.number().min(recordPayoutOperatorQuoteResponseOneQuoteOneTotalEarningsDeductedCentsMin).max(recordPayoutOperatorQuoteResponseOneQuoteOneTotalEarningsDeductedCentsMax),
+  "receiveAmount": zod.string().regex(recordPayoutOperatorQuoteResponseOneQuoteOneReceiveAmountRegExp),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string(),
+  "providerMinimumSendCents": zod.number().min(recordPayoutOperatorQuoteResponseOneQuoteOneProviderMinimumSendCentsMin).max(recordPayoutOperatorQuoteResponseOneQuoteOneProviderMinimumSendCentsMax),
+  "source": zod.enum(['signed_in_remitly_business']),
+  "sourceUrl": zod.string(),
+  "observedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "recipientHash": zod.string(),
+  "evidenceHash": zod.string()
+}).nullable(),
+  "approvedQuoteHash": zod.string().nullable(),
+  "checker": zod.object({
+  "status": zod.enum(['passed', 'needs_attention']),
+  "checkedAt": zod.coerce.date(),
+  "actor": zod.string().optional(),
+  "bindingHash": zod.string().optional(),
+  "attemptId": zod.string().optional(),
+  "quoteHash": zod.string().optional(),
+  "evidence": zod.string().min(1).max(recordPayoutOperatorQuoteResponseOneCheckerOneEvidenceMax).optional(),
+  "historyCoverage": zod.string().optional()
+}).nullable(),
+  "providerLink": zod.string().nullable(),
+  "providerOnboardingStatus": zod.enum(['pending', 'ready']),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "history": zod.array(zod.object({
+  "action": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Maker allocates a durable preparation attempt while holding the fenced browser lease
+ */
+export const BeginPayoutOperatorPreparationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const beginPayoutOperatorPreparationBodyDataEvidenceMax = 5000;
+
+
+
+export const BeginPayoutOperatorPreparationBody = zod.object({
+  "leaseId": zod.string(),
+  "data": zod.object({
+  "quoteHash": zod.string(),
+  "evidence": zod.string().min(1).max(beginPayoutOperatorPreparationBodyDataEvidenceMax)
+})
+})
+
+export const beginPayoutOperatorPreparationResponseOneOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+export const beginPayoutOperatorPreparationResponseOneOneQuoteOneSendAmountCentsMin = 0;
+export const beginPayoutOperatorPreparationResponseOneOneQuoteOneSendAmountCentsMax = 1500;
+
+export const beginPayoutOperatorPreparationResponseOneOneQuoteOneFeeCentsMin = 0;
+export const beginPayoutOperatorPreparationResponseOneOneQuoteOneFeeCentsMax = 1500;
+
+export const beginPayoutOperatorPreparationResponseOneOneQuoteOneTaxCentsMin = 0;
+export const beginPayoutOperatorPreparationResponseOneOneQuoteOneTaxCentsMax = 1500;
+
+export const beginPayoutOperatorPreparationResponseOneOneQuoteOnePromotionalDiscountCentsMin = 0;
+export const beginPayoutOperatorPreparationResponseOneOneQuoteOnePromotionalDiscountCentsMax = 1500;
+
+export const beginPayoutOperatorPreparationResponseOneOneQuoteOneTotalEarningsDeductedCentsMin = 0;
+export const beginPayoutOperatorPreparationResponseOneOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+
+export const beginPayoutOperatorPreparationResponseOneOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
+export const beginPayoutOperatorPreparationResponseOneOneQuoteOneProviderMinimumSendCentsMin = 0;
+export const beginPayoutOperatorPreparationResponseOneOneQuoteOneProviderMinimumSendCentsMax = 1500;
+
+export const beginPayoutOperatorPreparationResponseOneOneCheckerOneEvidenceMax = 5000;
+
+
+
+export const BeginPayoutOperatorPreparationResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.number(),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "grossCents": zod.literal(1500),
+  "methodId": zod.string(),
+  "recipient": zod.object({
+  "legalFirstName": zod.string(),
+  "legalLastName": zod.string(),
+  "secondSurname": zod.string().nullish(),
+  "countryCode": zod.string().regex(beginPayoutOperatorPreparationResponseOneOneRecipientCountryCodeRegExp),
+  "email": zod.string(),
+  "phone": zod.string(),
+  "revision": zod.number().optional(),
+  "status": zod.enum(['contact_saved']).optional()
+}),
+  "route": zod.object({
+  "providerId": zod.string(),
+  "provider": zod.string(),
+  "countryCode": zod.string(),
+  "country": zod.string(),
+  "method": zod.string(),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string()
+}),
+  "quote": zod.object({
+  "hash": zod.string(),
+  "methodId": zod.string(),
+  "sendAmountCents": zod.number().min(beginPayoutOperatorPreparationResponseOneOneQuoteOneSendAmountCentsMin).max(beginPayoutOperatorPreparationResponseOneOneQuoteOneSendAmountCentsMax),
+  "feeCents": zod.number().min(beginPayoutOperatorPreparationResponseOneOneQuoteOneFeeCentsMin).max(beginPayoutOperatorPreparationResponseOneOneQuoteOneFeeCentsMax),
+  "taxCents": zod.number().min(beginPayoutOperatorPreparationResponseOneOneQuoteOneTaxCentsMin).max(beginPayoutOperatorPreparationResponseOneOneQuoteOneTaxCentsMax),
+  "promotionalDiscountCents": zod.number().min(beginPayoutOperatorPreparationResponseOneOneQuoteOnePromotionalDiscountCentsMin).max(beginPayoutOperatorPreparationResponseOneOneQuoteOnePromotionalDiscountCentsMax),
+  "totalEarningsDeductedCents": zod.number().min(beginPayoutOperatorPreparationResponseOneOneQuoteOneTotalEarningsDeductedCentsMin).max(beginPayoutOperatorPreparationResponseOneOneQuoteOneTotalEarningsDeductedCentsMax),
+  "receiveAmount": zod.string().regex(beginPayoutOperatorPreparationResponseOneOneQuoteOneReceiveAmountRegExp),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string(),
+  "providerMinimumSendCents": zod.number().min(beginPayoutOperatorPreparationResponseOneOneQuoteOneProviderMinimumSendCentsMin).max(beginPayoutOperatorPreparationResponseOneOneQuoteOneProviderMinimumSendCentsMax),
+  "source": zod.enum(['signed_in_remitly_business']),
+  "sourceUrl": zod.string(),
+  "observedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "recipientHash": zod.string(),
+  "evidenceHash": zod.string()
+}).nullable(),
+  "approvedQuoteHash": zod.string().nullable(),
+  "checker": zod.object({
+  "status": zod.enum(['passed', 'needs_attention']),
+  "checkedAt": zod.coerce.date(),
+  "actor": zod.string().optional(),
+  "bindingHash": zod.string().optional(),
+  "attemptId": zod.string().optional(),
+  "quoteHash": zod.string().optional(),
+  "evidence": zod.string().min(1).max(beginPayoutOperatorPreparationResponseOneOneCheckerOneEvidenceMax).optional(),
+  "historyCoverage": zod.string().optional()
+}).nullable(),
+  "providerLink": zod.string().nullable(),
+  "providerOnboardingStatus": zod.enum(['pending', 'ready']),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "history": zod.array(zod.object({
+  "action": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})).and(zod.object({
+  "attemptId": zod.string()
+}))
+
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Maker records an unsent preparation for review while holding the fenced browser lease
+ */
+export const RecordPayoutOperatorPreparationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const recordPayoutOperatorPreparationBodyDataEvidenceMax = 5000;
+
+
+
+export const RecordPayoutOperatorPreparationBody = zod.object({
+  "leaseId": zod.string(),
+  "data": zod.object({
+  "attemptId": zod.string(),
+  "quoteHash": zod.string(),
+  "draftId": zod.string().optional(),
+  "reviewUrl": zod.string().optional(),
+  "deadline": zod.coerce.date(),
+  "oneTime": zod.boolean(),
+  "autoSend": zod.boolean(),
+  "recipientMatches": zod.boolean(),
+  "amountsMatch": zod.boolean(),
+  "historyInspected": zod.boolean(),
+  "historyCoverage": zod.string(),
+  "evidence": zod.string().min(1).max(recordPayoutOperatorPreparationBodyDataEvidenceMax),
+  "kind": zod.enum(['first_time_link', 'scheduled'])
+})
+})
+
+export const recordPayoutOperatorPreparationResponseOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+export const recordPayoutOperatorPreparationResponseOneQuoteOneSendAmountCentsMin = 0;
+export const recordPayoutOperatorPreparationResponseOneQuoteOneSendAmountCentsMax = 1500;
+
+export const recordPayoutOperatorPreparationResponseOneQuoteOneFeeCentsMin = 0;
+export const recordPayoutOperatorPreparationResponseOneQuoteOneFeeCentsMax = 1500;
+
+export const recordPayoutOperatorPreparationResponseOneQuoteOneTaxCentsMin = 0;
+export const recordPayoutOperatorPreparationResponseOneQuoteOneTaxCentsMax = 1500;
+
+export const recordPayoutOperatorPreparationResponseOneQuoteOnePromotionalDiscountCentsMin = 0;
+export const recordPayoutOperatorPreparationResponseOneQuoteOnePromotionalDiscountCentsMax = 1500;
+
+export const recordPayoutOperatorPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMin = 0;
+export const recordPayoutOperatorPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+
+export const recordPayoutOperatorPreparationResponseOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
+export const recordPayoutOperatorPreparationResponseOneQuoteOneProviderMinimumSendCentsMin = 0;
+export const recordPayoutOperatorPreparationResponseOneQuoteOneProviderMinimumSendCentsMax = 1500;
+
+export const recordPayoutOperatorPreparationResponseOneCheckerOneEvidenceMax = 5000;
+
+
+
+export const RecordPayoutOperatorPreparationResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.number(),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "grossCents": zod.literal(1500),
+  "methodId": zod.string(),
+  "recipient": zod.object({
+  "legalFirstName": zod.string(),
+  "legalLastName": zod.string(),
+  "secondSurname": zod.string().nullish(),
+  "countryCode": zod.string().regex(recordPayoutOperatorPreparationResponseOneRecipientCountryCodeRegExp),
+  "email": zod.string(),
+  "phone": zod.string(),
+  "revision": zod.number().optional(),
+  "status": zod.enum(['contact_saved']).optional()
+}),
+  "route": zod.object({
+  "providerId": zod.string(),
+  "provider": zod.string(),
+  "countryCode": zod.string(),
+  "country": zod.string(),
+  "method": zod.string(),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string()
+}),
+  "quote": zod.object({
+  "hash": zod.string(),
+  "methodId": zod.string(),
+  "sendAmountCents": zod.number().min(recordPayoutOperatorPreparationResponseOneQuoteOneSendAmountCentsMin).max(recordPayoutOperatorPreparationResponseOneQuoteOneSendAmountCentsMax),
+  "feeCents": zod.number().min(recordPayoutOperatorPreparationResponseOneQuoteOneFeeCentsMin).max(recordPayoutOperatorPreparationResponseOneQuoteOneFeeCentsMax),
+  "taxCents": zod.number().min(recordPayoutOperatorPreparationResponseOneQuoteOneTaxCentsMin).max(recordPayoutOperatorPreparationResponseOneQuoteOneTaxCentsMax),
+  "promotionalDiscountCents": zod.number().min(recordPayoutOperatorPreparationResponseOneQuoteOnePromotionalDiscountCentsMin).max(recordPayoutOperatorPreparationResponseOneQuoteOnePromotionalDiscountCentsMax),
+  "totalEarningsDeductedCents": zod.number().min(recordPayoutOperatorPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMin).max(recordPayoutOperatorPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMax),
+  "receiveAmount": zod.string().regex(recordPayoutOperatorPreparationResponseOneQuoteOneReceiveAmountRegExp),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string(),
+  "providerMinimumSendCents": zod.number().min(recordPayoutOperatorPreparationResponseOneQuoteOneProviderMinimumSendCentsMin).max(recordPayoutOperatorPreparationResponseOneQuoteOneProviderMinimumSendCentsMax),
+  "source": zod.enum(['signed_in_remitly_business']),
+  "sourceUrl": zod.string(),
+  "observedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "recipientHash": zod.string(),
+  "evidenceHash": zod.string()
+}).nullable(),
+  "approvedQuoteHash": zod.string().nullable(),
+  "checker": zod.object({
+  "status": zod.enum(['passed', 'needs_attention']),
+  "checkedAt": zod.coerce.date(),
+  "actor": zod.string().optional(),
+  "bindingHash": zod.string().optional(),
+  "attemptId": zod.string().optional(),
+  "quoteHash": zod.string().optional(),
+  "evidence": zod.string().min(1).max(recordPayoutOperatorPreparationResponseOneCheckerOneEvidenceMax).optional(),
+  "historyCoverage": zod.string().optional()
+}).nullable(),
+  "providerLink": zod.string().nullable(),
+  "providerOnboardingStatus": zod.enum(['pending', 'ready']),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "history": zod.array(zod.object({
+  "action": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Independent checker records fresh evidence while holding the fenced browser lease
+ */
+export const CheckPayoutOperatorPreparationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const checkPayoutOperatorPreparationBodyDataEvidenceMax = 5000;
+
+
+
+export const CheckPayoutOperatorPreparationBody = zod.object({
+  "leaseId": zod.string(),
+  "data": zod.object({
+  "attemptId": zod.string(),
+  "quoteHash": zod.string(),
+  "recipientMatches": zod.boolean(),
+  "amountsMatch": zod.boolean(),
+  "reservationMatches": zod.boolean(),
+  "historyInspected": zod.boolean(),
+  "historyCoverage": zod.string(),
+  "oneTime": zod.boolean(),
+  "autoSend": zod.boolean(),
+  "evidence": zod.string().min(1).max(checkPayoutOperatorPreparationBodyDataEvidenceMax)
+})
+})
+
+export const checkPayoutOperatorPreparationResponseOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+export const checkPayoutOperatorPreparationResponseOneQuoteOneSendAmountCentsMin = 0;
+export const checkPayoutOperatorPreparationResponseOneQuoteOneSendAmountCentsMax = 1500;
+
+export const checkPayoutOperatorPreparationResponseOneQuoteOneFeeCentsMin = 0;
+export const checkPayoutOperatorPreparationResponseOneQuoteOneFeeCentsMax = 1500;
+
+export const checkPayoutOperatorPreparationResponseOneQuoteOneTaxCentsMin = 0;
+export const checkPayoutOperatorPreparationResponseOneQuoteOneTaxCentsMax = 1500;
+
+export const checkPayoutOperatorPreparationResponseOneQuoteOnePromotionalDiscountCentsMin = 0;
+export const checkPayoutOperatorPreparationResponseOneQuoteOnePromotionalDiscountCentsMax = 1500;
+
+export const checkPayoutOperatorPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMin = 0;
+export const checkPayoutOperatorPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+
+export const checkPayoutOperatorPreparationResponseOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
+export const checkPayoutOperatorPreparationResponseOneQuoteOneProviderMinimumSendCentsMin = 0;
+export const checkPayoutOperatorPreparationResponseOneQuoteOneProviderMinimumSendCentsMax = 1500;
+
+export const checkPayoutOperatorPreparationResponseOneCheckerOneEvidenceMax = 5000;
+
+
+
+export const CheckPayoutOperatorPreparationResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.number(),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "grossCents": zod.literal(1500),
+  "methodId": zod.string(),
+  "recipient": zod.object({
+  "legalFirstName": zod.string(),
+  "legalLastName": zod.string(),
+  "secondSurname": zod.string().nullish(),
+  "countryCode": zod.string().regex(checkPayoutOperatorPreparationResponseOneRecipientCountryCodeRegExp),
+  "email": zod.string(),
+  "phone": zod.string(),
+  "revision": zod.number().optional(),
+  "status": zod.enum(['contact_saved']).optional()
+}),
+  "route": zod.object({
+  "providerId": zod.string(),
+  "provider": zod.string(),
+  "countryCode": zod.string(),
+  "country": zod.string(),
+  "method": zod.string(),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string()
+}),
+  "quote": zod.object({
+  "hash": zod.string(),
+  "methodId": zod.string(),
+  "sendAmountCents": zod.number().min(checkPayoutOperatorPreparationResponseOneQuoteOneSendAmountCentsMin).max(checkPayoutOperatorPreparationResponseOneQuoteOneSendAmountCentsMax),
+  "feeCents": zod.number().min(checkPayoutOperatorPreparationResponseOneQuoteOneFeeCentsMin).max(checkPayoutOperatorPreparationResponseOneQuoteOneFeeCentsMax),
+  "taxCents": zod.number().min(checkPayoutOperatorPreparationResponseOneQuoteOneTaxCentsMin).max(checkPayoutOperatorPreparationResponseOneQuoteOneTaxCentsMax),
+  "promotionalDiscountCents": zod.number().min(checkPayoutOperatorPreparationResponseOneQuoteOnePromotionalDiscountCentsMin).max(checkPayoutOperatorPreparationResponseOneQuoteOnePromotionalDiscountCentsMax),
+  "totalEarningsDeductedCents": zod.number().min(checkPayoutOperatorPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMin).max(checkPayoutOperatorPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMax),
+  "receiveAmount": zod.string().regex(checkPayoutOperatorPreparationResponseOneQuoteOneReceiveAmountRegExp),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string(),
+  "providerMinimumSendCents": zod.number().min(checkPayoutOperatorPreparationResponseOneQuoteOneProviderMinimumSendCentsMin).max(checkPayoutOperatorPreparationResponseOneQuoteOneProviderMinimumSendCentsMax),
+  "source": zod.enum(['signed_in_remitly_business']),
+  "sourceUrl": zod.string(),
+  "observedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "recipientHash": zod.string(),
+  "evidenceHash": zod.string()
+}).nullable(),
+  "approvedQuoteHash": zod.string().nullable(),
+  "checker": zod.object({
+  "status": zod.enum(['passed', 'needs_attention']),
+  "checkedAt": zod.coerce.date(),
+  "actor": zod.string().optional(),
+  "bindingHash": zod.string().optional(),
+  "attemptId": zod.string().optional(),
+  "quoteHash": zod.string().optional(),
+  "evidence": zod.string().min(1).max(checkPayoutOperatorPreparationResponseOneCheckerOneEvidenceMax).optional(),
+  "historyCoverage": zod.string().optional()
+}).nullable(),
+  "providerLink": zod.string().nullable(),
+  "providerOnboardingStatus": zod.enum(['pending', 'ready']),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "history": zod.array(zod.object({
+  "action": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Reconciler records matching authoritative provider evidence while holding the fenced browser lease
+ */
+export const ReconcilePayoutOperatorWithdrawalParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const reconcilePayoutOperatorWithdrawalBodyDataSendAmountCentsMin = 0;
+export const reconcilePayoutOperatorWithdrawalBodyDataSendAmountCentsMax = 1500;
+
+export const reconcilePayoutOperatorWithdrawalBodyDataFeeCentsMin = 0;
+export const reconcilePayoutOperatorWithdrawalBodyDataFeeCentsMax = 1500;
+
+export const reconcilePayoutOperatorWithdrawalBodyDataTaxCentsMin = 0;
+export const reconcilePayoutOperatorWithdrawalBodyDataTaxCentsMax = 1500;
+
+export const reconcilePayoutOperatorWithdrawalBodyDataEvidenceMax = 5000;
+
+
+
+export const ReconcilePayoutOperatorWithdrawalBody = zod.object({
+  "leaseId": zod.string(),
+  "data": zod.object({
+  "observationId": zod.string(),
+  "status": zod.enum(['processing', 'delivered', 'failed', 'canceled', 'returned']),
+  "providerStatus": zod.string(),
+  "providerReference": zod.string(),
+  "activityId": zod.string().optional(),
+  "activityUrl": zod.string().optional(),
+  "sourceUrl": zod.string(),
+  "observedAt": zod.coerce.date(),
+  "recipientMatches": zod.boolean(),
+  "methodId": zod.string(),
+  "sendAmountCents": zod.number().min(reconcilePayoutOperatorWithdrawalBodyDataSendAmountCentsMin).max(reconcilePayoutOperatorWithdrawalBodyDataSendAmountCentsMax),
+  "feeCents": zod.number().min(reconcilePayoutOperatorWithdrawalBodyDataFeeCentsMin).max(reconcilePayoutOperatorWithdrawalBodyDataFeeCentsMax),
+  "taxCents": zod.number().min(reconcilePayoutOperatorWithdrawalBodyDataTaxCentsMin).max(reconcilePayoutOperatorWithdrawalBodyDataTaxCentsMax),
+  "receiveAmount": zod.string(),
+  "receiveCurrency": zod.string(),
+  "fundingReturned": zod.boolean().optional(),
+  "recipientReady": zod.boolean().optional(),
+  "evidence": zod.string().min(1).max(reconcilePayoutOperatorWithdrawalBodyDataEvidenceMax)
+})
+})
+
+export const reconcilePayoutOperatorWithdrawalResponseOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneSendAmountCentsMin = 0;
+export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneSendAmountCentsMax = 1500;
+
+export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneFeeCentsMin = 0;
+export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneFeeCentsMax = 1500;
+
+export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneTaxCentsMin = 0;
+export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneTaxCentsMax = 1500;
+
+export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOnePromotionalDiscountCentsMin = 0;
+export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOnePromotionalDiscountCentsMax = 1500;
+
+export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneTotalEarningsDeductedCentsMin = 0;
+export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+
+export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
+export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneProviderMinimumSendCentsMin = 0;
+export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneProviderMinimumSendCentsMax = 1500;
+
+export const reconcilePayoutOperatorWithdrawalResponseOneCheckerOneEvidenceMax = 5000;
+
+
+
+export const ReconcilePayoutOperatorWithdrawalResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.number(),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "grossCents": zod.literal(1500),
+  "methodId": zod.string(),
+  "recipient": zod.object({
+  "legalFirstName": zod.string(),
+  "legalLastName": zod.string(),
+  "secondSurname": zod.string().nullish(),
+  "countryCode": zod.string().regex(reconcilePayoutOperatorWithdrawalResponseOneRecipientCountryCodeRegExp),
+  "email": zod.string(),
+  "phone": zod.string(),
+  "revision": zod.number().optional(),
+  "status": zod.enum(['contact_saved']).optional()
+}),
+  "route": zod.object({
+  "providerId": zod.string(),
+  "provider": zod.string(),
+  "countryCode": zod.string(),
+  "country": zod.string(),
+  "method": zod.string(),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string()
+}),
+  "quote": zod.object({
+  "hash": zod.string(),
+  "methodId": zod.string(),
+  "sendAmountCents": zod.number().min(reconcilePayoutOperatorWithdrawalResponseOneQuoteOneSendAmountCentsMin).max(reconcilePayoutOperatorWithdrawalResponseOneQuoteOneSendAmountCentsMax),
+  "feeCents": zod.number().min(reconcilePayoutOperatorWithdrawalResponseOneQuoteOneFeeCentsMin).max(reconcilePayoutOperatorWithdrawalResponseOneQuoteOneFeeCentsMax),
+  "taxCents": zod.number().min(reconcilePayoutOperatorWithdrawalResponseOneQuoteOneTaxCentsMin).max(reconcilePayoutOperatorWithdrawalResponseOneQuoteOneTaxCentsMax),
+  "promotionalDiscountCents": zod.number().min(reconcilePayoutOperatorWithdrawalResponseOneQuoteOnePromotionalDiscountCentsMin).max(reconcilePayoutOperatorWithdrawalResponseOneQuoteOnePromotionalDiscountCentsMax),
+  "totalEarningsDeductedCents": zod.number().min(reconcilePayoutOperatorWithdrawalResponseOneQuoteOneTotalEarningsDeductedCentsMin).max(reconcilePayoutOperatorWithdrawalResponseOneQuoteOneTotalEarningsDeductedCentsMax),
+  "receiveAmount": zod.string().regex(reconcilePayoutOperatorWithdrawalResponseOneQuoteOneReceiveAmountRegExp),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string(),
+  "providerMinimumSendCents": zod.number().min(reconcilePayoutOperatorWithdrawalResponseOneQuoteOneProviderMinimumSendCentsMin).max(reconcilePayoutOperatorWithdrawalResponseOneQuoteOneProviderMinimumSendCentsMax),
+  "source": zod.enum(['signed_in_remitly_business']),
+  "sourceUrl": zod.string(),
+  "observedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "recipientHash": zod.string(),
+  "evidenceHash": zod.string()
+}).nullable(),
+  "approvedQuoteHash": zod.string().nullable(),
+  "checker": zod.object({
+  "status": zod.enum(['passed', 'needs_attention']),
+  "checkedAt": zod.coerce.date(),
+  "actor": zod.string().optional(),
+  "bindingHash": zod.string().optional(),
+  "attemptId": zod.string().optional(),
+  "quoteHash": zod.string().optional(),
+  "evidence": zod.string().min(1).max(reconcilePayoutOperatorWithdrawalResponseOneCheckerOneEvidenceMax).optional(),
+  "historyCoverage": zod.string().optional()
+}).nullable(),
+  "providerLink": zod.string().nullable(),
+  "providerOnboardingStatus": zod.enum(['pending', 'ready']),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "history": zod.array(zod.object({
+  "action": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Maker renews an owned preparation lease while holding the fenced browser lease
+ */
+export const RenewPayoutOperatorPreparationLeaseParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const renewPayoutOperatorPreparationLeaseBodyDataEvidenceMax = 5000;
+
+
+
+export const RenewPayoutOperatorPreparationLeaseBody = zod.object({
+  "leaseId": zod.string(),
+  "data": zod.object({
+  "attemptId": zod.string(),
+  "quoteHash": zod.string(),
+  "evidence": zod.string().min(1).max(renewPayoutOperatorPreparationLeaseBodyDataEvidenceMax)
+})
+})
+
+export const renewPayoutOperatorPreparationLeaseResponseOneOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneSendAmountCentsMin = 0;
+export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneSendAmountCentsMax = 1500;
+
+export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneFeeCentsMin = 0;
+export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneFeeCentsMax = 1500;
+
+export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneTaxCentsMin = 0;
+export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneTaxCentsMax = 1500;
+
+export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOnePromotionalDiscountCentsMin = 0;
+export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOnePromotionalDiscountCentsMax = 1500;
+
+export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneTotalEarningsDeductedCentsMin = 0;
+export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+
+export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
+export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneProviderMinimumSendCentsMin = 0;
+export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneProviderMinimumSendCentsMax = 1500;
+
+export const renewPayoutOperatorPreparationLeaseResponseOneOneCheckerOneEvidenceMax = 5000;
+
+export const renewPayoutOperatorPreparationLeaseResponseTwoBalancesAvailableTicksRegExp = new RegExp('^\\d+$');
+export const renewPayoutOperatorPreparationLeaseResponseTwoBalancesHeldTicksRegExp = new RegExp('^\\d+$');
+export const renewPayoutOperatorPreparationLeaseResponseTwoBalancesReservedTicksRegExp = new RegExp('^\\d+$');
+export const renewPayoutOperatorPreparationLeaseResponseTwoBalancesAvailableCoinsRegExp = new RegExp('^\\d+$');
+export const renewPayoutOperatorPreparationLeaseResponseTwoBalancesHeldCoinsRegExp = new RegExp('^\\d+$');
+export const renewPayoutOperatorPreparationLeaseResponseTwoBalancesReservedCoinsRegExp = new RegExp('^\\d+$');
+export const renewPayoutOperatorPreparationLeaseResponseTwoBalancesAvailableUsdRegExp = new RegExp('^\\d+\\.\\d{4}$');
+export const renewPayoutOperatorPreparationLeaseResponseTwoBalancesHeldUsdRegExp = new RegExp('^\\d+\\.\\d{4}$');
+export const renewPayoutOperatorPreparationLeaseResponseTwoBalancesReservedUsdRegExp = new RegExp('^\\d+\\.\\d{4}$');
+
+
+export const RenewPayoutOperatorPreparationLeaseResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.number(),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "grossCents": zod.literal(1500),
+  "methodId": zod.string(),
+  "recipient": zod.object({
+  "legalFirstName": zod.string(),
+  "legalLastName": zod.string(),
+  "secondSurname": zod.string().nullish(),
+  "countryCode": zod.string().regex(renewPayoutOperatorPreparationLeaseResponseOneOneRecipientCountryCodeRegExp),
+  "email": zod.string(),
+  "phone": zod.string(),
+  "revision": zod.number().optional(),
+  "status": zod.enum(['contact_saved']).optional()
+}),
+  "route": zod.object({
+  "providerId": zod.string(),
+  "provider": zod.string(),
+  "countryCode": zod.string(),
+  "country": zod.string(),
+  "method": zod.string(),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string()
+}),
+  "quote": zod.object({
+  "hash": zod.string(),
+  "methodId": zod.string(),
+  "sendAmountCents": zod.number().min(renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneSendAmountCentsMin).max(renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneSendAmountCentsMax),
+  "feeCents": zod.number().min(renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneFeeCentsMin).max(renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneFeeCentsMax),
+  "taxCents": zod.number().min(renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneTaxCentsMin).max(renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneTaxCentsMax),
+  "promotionalDiscountCents": zod.number().min(renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOnePromotionalDiscountCentsMin).max(renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOnePromotionalDiscountCentsMax),
+  "totalEarningsDeductedCents": zod.number().min(renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneTotalEarningsDeductedCentsMin).max(renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneTotalEarningsDeductedCentsMax),
+  "receiveAmount": zod.string().regex(renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneReceiveAmountRegExp),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string(),
+  "providerMinimumSendCents": zod.number().min(renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneProviderMinimumSendCentsMin).max(renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneProviderMinimumSendCentsMax),
+  "source": zod.enum(['signed_in_remitly_business']),
+  "sourceUrl": zod.string(),
+  "observedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "recipientHash": zod.string(),
+  "evidenceHash": zod.string()
+}).nullable(),
+  "approvedQuoteHash": zod.string().nullable(),
+  "checker": zod.object({
+  "status": zod.enum(['passed', 'needs_attention']),
+  "checkedAt": zod.coerce.date(),
+  "actor": zod.string().optional(),
+  "bindingHash": zod.string().optional(),
+  "attemptId": zod.string().optional(),
+  "quoteHash": zod.string().optional(),
+  "evidence": zod.string().min(1).max(renewPayoutOperatorPreparationLeaseResponseOneOneCheckerOneEvidenceMax).optional(),
+  "historyCoverage": zod.string().optional()
+}).nullable(),
+  "providerLink": zod.string().nullable(),
+  "providerOnboardingStatus": zod.enum(['pending', 'ready']),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "history": zod.array(zod.object({
+  "action": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})).and(zod.object({
+  "creatorName": zod.string(),
+  "attempts": zod.array(zod.object({
+  "id": zod.string(),
+  "maker": zod.string(),
+  "state": zod.string(),
+  "bindingHash": zod.string(),
+  "evidence": zod.record(zod.string(), zod.unknown()),
+  "draftId": zod.string().nullable(),
+  "providerReference": zod.string().nullable(),
+  "activityId": zod.string().nullable(),
+  "leaseUntil": zod.coerce.date(),
+  "createdAt": zod.coerce.date()
+})),
+  "events": zod.array(zod.object({
+  "actor": zod.string(),
+  "action": zod.string(),
+  "evidence": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date()
+})),
+  "balances": zod.object({
+  "availableTicks": zod.string().regex(renewPayoutOperatorPreparationLeaseResponseTwoBalancesAvailableTicksRegExp),
+  "heldTicks": zod.string().regex(renewPayoutOperatorPreparationLeaseResponseTwoBalancesHeldTicksRegExp),
+  "reservedTicks": zod.string().regex(renewPayoutOperatorPreparationLeaseResponseTwoBalancesReservedTicksRegExp),
+  "availableCoins": zod.string().regex(renewPayoutOperatorPreparationLeaseResponseTwoBalancesAvailableCoinsRegExp),
+  "heldCoins": zod.string().regex(renewPayoutOperatorPreparationLeaseResponseTwoBalancesHeldCoinsRegExp),
+  "reservedCoins": zod.string().regex(renewPayoutOperatorPreparationLeaseResponseTwoBalancesReservedCoinsRegExp),
+  "availableUsd": zod.string().regex(renewPayoutOperatorPreparationLeaseResponseTwoBalancesAvailableUsdRegExp),
+  "heldUsd": zod.string().regex(renewPayoutOperatorPreparationLeaseResponseTwoBalancesHeldUsdRegExp),
+  "reservedUsd": zod.string().regex(renewPayoutOperatorPreparationLeaseResponseTwoBalancesReservedUsdRegExp)
+})
+}))
+
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Maker marks interrupted preparation unknown without refund while holding the fenced browser lease
+ */
+export const ReleasePayoutOperatorPreparationLeaseParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const releasePayoutOperatorPreparationLeaseBodyDataEvidenceMax = 5000;
+
+
+
+export const ReleasePayoutOperatorPreparationLeaseBody = zod.object({
+  "leaseId": zod.string(),
+  "data": zod.object({
+  "attemptId": zod.string(),
+  "quoteHash": zod.string(),
+  "evidence": zod.string().min(1).max(releasePayoutOperatorPreparationLeaseBodyDataEvidenceMax)
+})
+})
+
+export const releasePayoutOperatorPreparationLeaseResponseOneOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneSendAmountCentsMin = 0;
+export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneSendAmountCentsMax = 1500;
+
+export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneFeeCentsMin = 0;
+export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneFeeCentsMax = 1500;
+
+export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneTaxCentsMin = 0;
+export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneTaxCentsMax = 1500;
+
+export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOnePromotionalDiscountCentsMin = 0;
+export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOnePromotionalDiscountCentsMax = 1500;
+
+export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneTotalEarningsDeductedCentsMin = 0;
+export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+
+export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
+export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneProviderMinimumSendCentsMin = 0;
+export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneProviderMinimumSendCentsMax = 1500;
+
+export const releasePayoutOperatorPreparationLeaseResponseOneOneCheckerOneEvidenceMax = 5000;
+
+export const releasePayoutOperatorPreparationLeaseResponseTwoBalancesAvailableTicksRegExp = new RegExp('^\\d+$');
+export const releasePayoutOperatorPreparationLeaseResponseTwoBalancesHeldTicksRegExp = new RegExp('^\\d+$');
+export const releasePayoutOperatorPreparationLeaseResponseTwoBalancesReservedTicksRegExp = new RegExp('^\\d+$');
+export const releasePayoutOperatorPreparationLeaseResponseTwoBalancesAvailableCoinsRegExp = new RegExp('^\\d+$');
+export const releasePayoutOperatorPreparationLeaseResponseTwoBalancesHeldCoinsRegExp = new RegExp('^\\d+$');
+export const releasePayoutOperatorPreparationLeaseResponseTwoBalancesReservedCoinsRegExp = new RegExp('^\\d+$');
+export const releasePayoutOperatorPreparationLeaseResponseTwoBalancesAvailableUsdRegExp = new RegExp('^\\d+\\.\\d{4}$');
+export const releasePayoutOperatorPreparationLeaseResponseTwoBalancesHeldUsdRegExp = new RegExp('^\\d+\\.\\d{4}$');
+export const releasePayoutOperatorPreparationLeaseResponseTwoBalancesReservedUsdRegExp = new RegExp('^\\d+\\.\\d{4}$');
+
+
+export const ReleasePayoutOperatorPreparationLeaseResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.number(),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "grossCents": zod.literal(1500),
+  "methodId": zod.string(),
+  "recipient": zod.object({
+  "legalFirstName": zod.string(),
+  "legalLastName": zod.string(),
+  "secondSurname": zod.string().nullish(),
+  "countryCode": zod.string().regex(releasePayoutOperatorPreparationLeaseResponseOneOneRecipientCountryCodeRegExp),
+  "email": zod.string(),
+  "phone": zod.string(),
+  "revision": zod.number().optional(),
+  "status": zod.enum(['contact_saved']).optional()
+}),
+  "route": zod.object({
+  "providerId": zod.string(),
+  "provider": zod.string(),
+  "countryCode": zod.string(),
+  "country": zod.string(),
+  "method": zod.string(),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string()
+}),
+  "quote": zod.object({
+  "hash": zod.string(),
+  "methodId": zod.string(),
+  "sendAmountCents": zod.number().min(releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneSendAmountCentsMin).max(releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneSendAmountCentsMax),
+  "feeCents": zod.number().min(releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneFeeCentsMin).max(releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneFeeCentsMax),
+  "taxCents": zod.number().min(releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneTaxCentsMin).max(releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneTaxCentsMax),
+  "promotionalDiscountCents": zod.number().min(releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOnePromotionalDiscountCentsMin).max(releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOnePromotionalDiscountCentsMax),
+  "totalEarningsDeductedCents": zod.number().min(releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneTotalEarningsDeductedCentsMin).max(releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneTotalEarningsDeductedCentsMax),
+  "receiveAmount": zod.string().regex(releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneReceiveAmountRegExp),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string(),
+  "providerMinimumSendCents": zod.number().min(releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneProviderMinimumSendCentsMin).max(releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneProviderMinimumSendCentsMax),
+  "source": zod.enum(['signed_in_remitly_business']),
+  "sourceUrl": zod.string(),
+  "observedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "recipientHash": zod.string(),
+  "evidenceHash": zod.string()
+}).nullable(),
+  "approvedQuoteHash": zod.string().nullable(),
+  "checker": zod.object({
+  "status": zod.enum(['passed', 'needs_attention']),
+  "checkedAt": zod.coerce.date(),
+  "actor": zod.string().optional(),
+  "bindingHash": zod.string().optional(),
+  "attemptId": zod.string().optional(),
+  "quoteHash": zod.string().optional(),
+  "evidence": zod.string().min(1).max(releasePayoutOperatorPreparationLeaseResponseOneOneCheckerOneEvidenceMax).optional(),
+  "historyCoverage": zod.string().optional()
+}).nullable(),
+  "providerLink": zod.string().nullable(),
+  "providerOnboardingStatus": zod.enum(['pending', 'ready']),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "history": zod.array(zod.object({
+  "action": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})).and(zod.object({
+  "creatorName": zod.string(),
+  "attempts": zod.array(zod.object({
+  "id": zod.string(),
+  "maker": zod.string(),
+  "state": zod.string(),
+  "bindingHash": zod.string(),
+  "evidence": zod.record(zod.string(), zod.unknown()),
+  "draftId": zod.string().nullable(),
+  "providerReference": zod.string().nullable(),
+  "activityId": zod.string().nullable(),
+  "leaseUntil": zod.coerce.date(),
+  "createdAt": zod.coerce.date()
+})),
+  "events": zod.array(zod.object({
+  "actor": zod.string(),
+  "action": zod.string(),
+  "evidence": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date()
+})),
+  "balances": zod.object({
+  "availableTicks": zod.string().regex(releasePayoutOperatorPreparationLeaseResponseTwoBalancesAvailableTicksRegExp),
+  "heldTicks": zod.string().regex(releasePayoutOperatorPreparationLeaseResponseTwoBalancesHeldTicksRegExp),
+  "reservedTicks": zod.string().regex(releasePayoutOperatorPreparationLeaseResponseTwoBalancesReservedTicksRegExp),
+  "availableCoins": zod.string().regex(releasePayoutOperatorPreparationLeaseResponseTwoBalancesAvailableCoinsRegExp),
+  "heldCoins": zod.string().regex(releasePayoutOperatorPreparationLeaseResponseTwoBalancesHeldCoinsRegExp),
+  "reservedCoins": zod.string().regex(releasePayoutOperatorPreparationLeaseResponseTwoBalancesReservedCoinsRegExp),
+  "availableUsd": zod.string().regex(releasePayoutOperatorPreparationLeaseResponseTwoBalancesAvailableUsdRegExp),
+  "heldUsd": zod.string().regex(releasePayoutOperatorPreparationLeaseResponseTwoBalancesHeldUsdRegExp),
+  "reservedUsd": zod.string().regex(releasePayoutOperatorPreparationLeaseResponseTwoBalancesReservedUsdRegExp)
+})
+}))
+
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Maker or reconciler flags uncertainty; no browser lease or refund required
+ */
+export const MarkPayoutOperatorUnknownParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const markPayoutOperatorUnknownBodyDataReasonMax = 5000;
+
+
+
+export const MarkPayoutOperatorUnknownBody = zod.object({
+  "data": zod.object({
+  "reason": zod.string().min(1).max(markPayoutOperatorUnknownBodyDataReasonMax),
+  "status": zod.enum(['unknown', 'expired']).optional()
+})
+})
+
+export const markPayoutOperatorUnknownResponseOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+export const markPayoutOperatorUnknownResponseOneQuoteOneSendAmountCentsMin = 0;
+export const markPayoutOperatorUnknownResponseOneQuoteOneSendAmountCentsMax = 1500;
+
+export const markPayoutOperatorUnknownResponseOneQuoteOneFeeCentsMin = 0;
+export const markPayoutOperatorUnknownResponseOneQuoteOneFeeCentsMax = 1500;
+
+export const markPayoutOperatorUnknownResponseOneQuoteOneTaxCentsMin = 0;
+export const markPayoutOperatorUnknownResponseOneQuoteOneTaxCentsMax = 1500;
+
+export const markPayoutOperatorUnknownResponseOneQuoteOnePromotionalDiscountCentsMin = 0;
+export const markPayoutOperatorUnknownResponseOneQuoteOnePromotionalDiscountCentsMax = 1500;
+
+export const markPayoutOperatorUnknownResponseOneQuoteOneTotalEarningsDeductedCentsMin = 0;
+export const markPayoutOperatorUnknownResponseOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+
+export const markPayoutOperatorUnknownResponseOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
+export const markPayoutOperatorUnknownResponseOneQuoteOneProviderMinimumSendCentsMin = 0;
+export const markPayoutOperatorUnknownResponseOneQuoteOneProviderMinimumSendCentsMax = 1500;
+
+export const markPayoutOperatorUnknownResponseOneCheckerOneEvidenceMax = 5000;
+
+
+
+export const MarkPayoutOperatorUnknownResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.number(),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "grossCents": zod.literal(1500),
+  "methodId": zod.string(),
+  "recipient": zod.object({
+  "legalFirstName": zod.string(),
+  "legalLastName": zod.string(),
+  "secondSurname": zod.string().nullish(),
+  "countryCode": zod.string().regex(markPayoutOperatorUnknownResponseOneRecipientCountryCodeRegExp),
+  "email": zod.string(),
+  "phone": zod.string(),
+  "revision": zod.number().optional(),
+  "status": zod.enum(['contact_saved']).optional()
+}),
+  "route": zod.object({
+  "providerId": zod.string(),
+  "provider": zod.string(),
+  "countryCode": zod.string(),
+  "country": zod.string(),
+  "method": zod.string(),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string()
+}),
+  "quote": zod.object({
+  "hash": zod.string(),
+  "methodId": zod.string(),
+  "sendAmountCents": zod.number().min(markPayoutOperatorUnknownResponseOneQuoteOneSendAmountCentsMin).max(markPayoutOperatorUnknownResponseOneQuoteOneSendAmountCentsMax),
+  "feeCents": zod.number().min(markPayoutOperatorUnknownResponseOneQuoteOneFeeCentsMin).max(markPayoutOperatorUnknownResponseOneQuoteOneFeeCentsMax),
+  "taxCents": zod.number().min(markPayoutOperatorUnknownResponseOneQuoteOneTaxCentsMin).max(markPayoutOperatorUnknownResponseOneQuoteOneTaxCentsMax),
+  "promotionalDiscountCents": zod.number().min(markPayoutOperatorUnknownResponseOneQuoteOnePromotionalDiscountCentsMin).max(markPayoutOperatorUnknownResponseOneQuoteOnePromotionalDiscountCentsMax),
+  "totalEarningsDeductedCents": zod.number().min(markPayoutOperatorUnknownResponseOneQuoteOneTotalEarningsDeductedCentsMin).max(markPayoutOperatorUnknownResponseOneQuoteOneTotalEarningsDeductedCentsMax),
+  "receiveAmount": zod.string().regex(markPayoutOperatorUnknownResponseOneQuoteOneReceiveAmountRegExp),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string(),
+  "providerMinimumSendCents": zod.number().min(markPayoutOperatorUnknownResponseOneQuoteOneProviderMinimumSendCentsMin).max(markPayoutOperatorUnknownResponseOneQuoteOneProviderMinimumSendCentsMax),
+  "source": zod.enum(['signed_in_remitly_business']),
+  "sourceUrl": zod.string(),
+  "observedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "recipientHash": zod.string(),
+  "evidenceHash": zod.string()
+}).nullable(),
+  "approvedQuoteHash": zod.string().nullable(),
+  "checker": zod.object({
+  "status": zod.enum(['passed', 'needs_attention']),
+  "checkedAt": zod.coerce.date(),
+  "actor": zod.string().optional(),
+  "bindingHash": zod.string().optional(),
+  "attemptId": zod.string().optional(),
+  "quoteHash": zod.string().optional(),
+  "evidence": zod.string().min(1).max(markPayoutOperatorUnknownResponseOneCheckerOneEvidenceMax).optional(),
+  "historyCoverage": zod.string().optional()
+}).nullable(),
+  "providerLink": zod.string().nullable(),
+  "providerOnboardingStatus": zod.enum(['pending', 'ready']),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "history": zod.array(zod.object({
+  "action": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Stateless role-scoped Streamable HTTP MCP transport
+ */
+export const CallPayoutOperatorMcpBody = zod.object({
+  "jsonrpc": zod.enum(['2.0']),
+  "method": zod.string(),
+  "id": zod.union([zod.string(),zod.number()]).optional(),
+  "params": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+export const CallPayoutOperatorMcpResponse = zod.record(zod.string(), zod.unknown()).describe('Stateless MCP JSON-RPC response; tools are role-scoped. No human decision or payment-sending tools.')
+
+
+/**
  * Creator-scoped authenticated wallet withdrawal; no automatic payments.
  * @summary Read existing wallet coins, reserved withdrawals and enrollment policy
  */

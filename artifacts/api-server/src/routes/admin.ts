@@ -6,6 +6,7 @@ import { pool } from "@workspace/db";
 import { verificationEnvironment } from "../lib/didit";
 import { adminCatalogRouter } from "./payout-catalog";
 import { adminWithdrawalsRouter } from "./withdrawals";
+import { adminPayoutOperatorsRouter } from "./payout-operators";
 import { CLERK_PROXY_PATH } from "../middlewares/clerkProxyMiddleware";
 
 export function adminAuthConfig() {
@@ -88,6 +89,7 @@ router.get("/config", (_req, res) => {
 router.use(adminGuard);
 router.use("/payout-catalog", adminCatalogRouter);
 router.use("/withdrawals", adminWithdrawalsRouter);
+router.use("/payout-operators", adminPayoutOperatorsRouter);
 const safe =
   (fn: RequestHandler): RequestHandler =>
   async (req, res, next) => {

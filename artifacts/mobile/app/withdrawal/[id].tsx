@@ -1,6 +1,5 @@
 import { File, Paths } from "expo-file-system";
 import * as Crypto from "expo-crypto";
-import * as Sharing from "expo-sharing";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -99,8 +98,18 @@ export default function WithdrawalScreen() {
   );
   const download = async () => {
     const account = api.userId;
-    if (Platform.OS !== "web" && !(await Sharing.isAvailableAsync()))
-      throw new Error("Sharing is unavailable on this device.");
+    // Older installed builds may not contain ExpoSharing. Load it only for
+    // native statement export so its missing module cannot break route startup.
+    let sharing: typeof import("expo-sharing") | undefined;
+    if (Platform.OS !== "web") {
+      try {
+        sharing = await import("expo-sharing");
+        if (!(await sharing.isAvailableAsync()))
+          throw new Error("Sharing is unavailable on this device.");
+      } catch {
+        throw new Error("Sharing is unavailable on this device.");
+      }
+    }
     if (owner.current !== account) return;
     const content = await api.statement();
     if (owner.current !== account) return;
@@ -122,7 +131,7 @@ export default function WithdrawalScreen() {
         file.create();
         file.write(content);
         if (owner.current === account)
-          await Sharing.shareAsync(file.uri, {
+          await sharing!.shareAsync(file.uri, {
             dialogTitle: t("Withdrawal statement"),
             mimeType: "text/plain",
             UTI: "public.plain-text",

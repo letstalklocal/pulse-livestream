@@ -7,14 +7,19 @@
     "node": ">=22"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./src/index.d.mts",
+      "default": "./src/index.mjs"
+    },
+    "./stdio": "./src/stdio.mjs",
+    "./playbooks/*.json": "./playbooks/*.json"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node tests/protocol.test.mjs"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.32.0",
+    "@modelcontextprotocol/sdk": "1.32.0",
     "zod": "catalog:"
   },
   "devDependencies": {

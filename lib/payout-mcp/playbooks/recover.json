@@ -1,0 +1,20 @@
+{
+  "name": "recover",
+  "version": "2026-10-04.1",
+  "role": "all",
+  "instructions": [
+    "Stop browser actions and scheduled work for the affected role/account before attempting recovery. Never delete local or backend leases to force parallel access.",
+    "Read the existing backend attempt and audit history. Record what was observed and what remains unknown; retain all coin reservations while an action may have reached Remitly.",
+    "On an expired/lost browser or attempt lease, do not continue a provider mutation. A reconciler must inspect current provider homepage/drafts/activity and match exact identifiers before any new preparation.",
+    "Browser logout/MFA/CAPTCHA requires human session recovery. Changed provider selectors, unverified link patterns, method restrictions or changed account identity require an updated validated playbook; do not guess.",
+    "An expired scheduled draft is not proof of funding return or absence of other drafts. Verify actual provider cancellation/return and historical coverage before releasing coins or retrying.",
+    "A human decline before any provider attempt can cancel and refund through the protected backend. A decline after an attempt blocks release and retains coins until provider reconciliation verifies resolution.",
+    "Revoked/expired role credentials stop the job. The owner issues a replacement credential for the same intended environment/account/role, and the local Mac Keychain stores it without putting the token in commands, files or logs.",
+    "A crashed local run keeps its local lock. Confirm its process is stopped, record provider investigation in the backend and note the expected run ID before using the explicit local recovery command. Local cleanup does not change backend state or authorize another provider action.",
+    "If computer sleep/app closure interrupts an automation, treat possible provider actions as uncertain; no catch-up run may blindly replay draft creation. Obtain new identity/health checks and leases on resume.",
+    "If browser capability or custom MCP access is unavailable in the actual Codex automation, report the blocked capability and leave the item unchanged. Manual installation/verification is separate from delivery of this package.",
+    "Complete with only a redacted status/count summary. The human alone performs final sending or link issuance; recovery does not waive that boundary."
+  ],
+  "humanFinalDecisionRequired": true,
+  "autoSendAllowed": false
+}
