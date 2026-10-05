@@ -9,7 +9,7 @@ function render(preview, coins = 0, buying = false, feedbackOverlay, onDrawerHei
   const sent = [], writes = [], closes = [], slots = [buying, null];
   let cursor = 0, visible = true, effects = [];
   const react = { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
-    useState: () => { const i = cursor++; return [slots[i], value => { slots[i] = value; writes.push(value); }]; },
+    useState: initial => { const i = cursor++; if (!(i in slots)) slots[i] = initial; return [slots[i], value => { slots[i] = value; writes.push(value); }]; },
     useEffect: effect => effects.push(effect) };
   const mod = { exports: {} };
   vm.runInNewContext(code, { module: mod, exports: mod.exports, require: id => {
@@ -68,9 +68,25 @@ preview.openLuxury();
 assert.equal(preview.nodes.filter(n => n.props.testID?.startsWith('send-gift-')).length, 3, 'Luxury tab contains exactly its three gifts');
 assert.deepEqual(preview.nodes.filter(n => n.props.testID?.startsWith('send-gift-')).map(n => n.props.testID), ['send-gift-kisses', 'send-gift-luxury_rocket', 'send-gift-dragon']);
 assert.equal(preview.nodes.find(n => n.props.testID === 'send-gift-kisses').props.accessibilityLabel, 'Kisses');
-assert.equal(preview.nodes.find(n => n.props.testID === 'send-gift-luxury_rocket').props.accessibilityLabel, 'Rocket');
+assert.equal(preview.nodes.find(n => n.props.testID === 'send-gift-luxury_rocket').props.accessibilityLabel, 'Blast Off');
 assert.equal(preview.nodes.find(n => n.props.testID === 'send-gift-dragon').props.accessibilityLabel, 'Dragon');
 assert.equal(preview.nodes.filter(n => n.type === 'LuxuryGiftArtwork').length, 3, 'Luxury tab uses native SVGA artwork rather than static previews');
+const luxuryTiles = render(false, 9999);
+luxuryTiles.nodes.find(n => n.type === 'ScrollView').props.onLayout({ nativeEvent: { layout: { height: 196 } } });
+luxuryTiles.openLuxury();
+const luxuryGrid = luxuryTiles.nodes.find(n => n.type === 'ScrollView');
+assert.equal(luxuryGrid.props.style[1].height, 196, 'Luxury retains the measured Popular viewport height');
+assert.equal(luxuryGrid.props.style[1].maxHeight, 248, 'both tabs keep room for two rows');
+for (const id of ['kisses', 'luxury_rocket', 'dragon']) {
+  const tile = luxuryTiles.nodes.find(n => n.props.testID === `send-gift-${id}`);
+  const selectionArea = tile.props.children.find(n => n?.type === 'View');
+  assert.equal(selectionArea.props.pointerEvents, 'none', 'native animation and labels pass touches to the full gift tile');
+  const before = luxuryTiles.sent.length;
+  luxuryTiles.send(id);
+  assert.equal(luxuryTiles.sent.length, before, 'first Luxury tap selects only');
+  luxuryTiles.send(id);
+  assert.equal(luxuryTiles.sent.at(-1), id, 'second Luxury tap sends the selected gift');
+}
 preview.openPopular();
 assert.ok(!render(true, 0, true).nodes.some(node => node.type === 'CoinStore'), 'even stale purchase state cannot expose checkout in preview');
 const normal = render(undefined, 0);

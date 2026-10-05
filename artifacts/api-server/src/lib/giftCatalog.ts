@@ -14,6 +14,6 @@ export const PREMIUM_GIFT_CATALOG = {
 export const GIFT_CATALOG = {
   ...PREMIUM_GIFT_CATALOG,
   kisses: { id: "kisses", name: "Kisses", emoji: "💋", coinCost: 1_999 },
-  luxury_rocket: { id: "luxury_rocket", name: "Rocket", emoji: "🚀", coinCost: 4_999 },
+  luxury_rocket: { id: "luxury_rocket", name: "Blast Off", emoji: "🚀", coinCost: 4_999 },
   dragon: { id: "dragon", name: "Dragon", emoji: "🐉", coinCost: 9_999 },
 } as const;

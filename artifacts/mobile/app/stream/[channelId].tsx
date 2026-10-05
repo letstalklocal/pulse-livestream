@@ -454,7 +454,7 @@ export default function StreamScreen() {
     if (giftId && !giftPresentation.current.claim(giftId, nativeExpected)) return;
     const inVideo = giftId ? giftPresentation.current.inVideo(giftId) : nativeExpected;
     const x = Math.random() * (SCREEN_W * 0.55) + 16;
-    setFloatingGifts(prev => mergeGiftFloater(prev, { id: giftId ?? `${Date.now()}-${Math.random()}`, emoji: gift.emoji, name: gift.name, senderName, x, size: gift.size, inVideo,
+    setFloatingGifts(prev => mergeGiftFloater(prev, { id: giftId ?? `${Date.now()}-${Math.random()}`, catalogId: gift.id, emoji: gift.emoji, name: gift.name, senderName, x, size: gift.size, inVideo,
       comboId: combo?.id, comboCount: combo?.count, comboLabel: combo ? `×${appNumber(combo.count)}` : undefined }));
   };
 
@@ -526,7 +526,7 @@ export default function StreamScreen() {
             setRealtimeCoins(previous => Math.max(previous ?? 0, msg.coins!));
           } else if (msg.type === "gift" && msg.giftName) {
             if (typeof msg.coins === "number") setRealtimeCoins(previous => Math.max(previous ?? 0, msg.coins!));
-            const gift = GIFTS.find((g) => g.name === msg.giftName);
+            const gift = GIFTS.find((g) => (g.name === msg.giftName || (g.id === "luxury_rocket" && msg.giftName === "Rocket")) && g.coins === msg.amount) ?? GIFTS.find((g) => g.name === msg.giftName);
             if (gift) spawnGift(gift, msg.senderName ?? "Viewer", msg.giftId, msg.amount ?? gift.coins, msg.combo);
           }
         } catch { /* ignore */ }
@@ -951,6 +951,7 @@ export default function StreamScreen() {
       <GiftFloater
         key={fg.comboId ?? fg.id}
         gift={fg}
+        fullPageLuxury
         onDone={(id) => setFloatingGifts((prev) => prev.filter((g) => g.id !== id))}
       />
     ))}

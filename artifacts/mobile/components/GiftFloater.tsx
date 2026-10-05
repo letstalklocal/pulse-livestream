@@ -1,13 +1,14 @@
-import { GiftImageArtwork, hasGiftImage } from "@/components/GiftImageArtwork";
+import { GiftImageArtwork, hasGiftImage, hasLuxuryGiftAnimation, LuxuryGiftArtwork } from "@/components/GiftImageArtwork";
 import { CrownArtwork } from "./CrownArtwork";
 import { GiftComboBadge } from "./GiftComboBadge";
-import React, { useEffect, useRef } from "react";
-import { Animated, Easing, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Animated, Easing, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 export interface FloatingGift {
   id: string;
   emoji: string;
   name: string;
+  catalogId?: string;
   senderName: string;
   x: number;
   size: number;
@@ -21,6 +22,7 @@ export interface FloatingGift {
 interface Props {
   gift: FloatingGift;
   onDone: (id: string) => void;
+  fullPageLuxury?: boolean;
 }
 
 // Visible top edges inside the existing 180 × 220 contain boxes, measured
@@ -29,15 +31,36 @@ const artworkTop: Record<string, number> = {
   Rose: 35, Heart: 54, Lips: 59, Strawberry: 29, Crown: 31,
 };
 
-export function GiftFloater({ gift, onDone }: Props) {
+export function GiftFloater({ gift, onDone, fullPageLuxury = false }: Props) {
+  const { width, height } = useWindowDimensions();
+  const artworkId = gift.catalogId ?? gift.name;
+  const fullPage = fullPageLuxury && hasLuxuryGiftAnimation(artworkId) && !gift.reduceMotion;
+  const [playbackFailed, setPlaybackFailed] = useState(false);
+  const playbackUnavailable = useCallback(() => setPlaybackFailed(true), []);
+  const blastOff = fullPage && artworkId === "luxury_rocket";
+  const artworkSize = fullPage ? Math.round(width * (blastOff ? 1.12 : 1)) : 180;
+  const artworkStyle = {
+    width: artworkSize,
+    height: fullPage ? Math.round(height * (blastOff ? 1.12 : 1)) : 220,
+    opacity: gift.inVideo ? 0 : 1,
+    ...(blastOff ? { position: "absolute" as const, left: -(artworkSize - width) / 2, top: -Math.round(height * 0.1) } : {}),
+  };
   const visibleTop = artworkTop[gift.name] ?? 20;
   const translateY = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.35)).current;
   const latest = useRef({ id: gift.id, onDone });
   latest.current = { id: gift.id, onDone };
+  const playbackFinished = useCallback(() => latest.current.onDone(latest.current.id), []);
 
   useEffect(() => {
+    // Luxury SVGA owns its duration: show one complete playback, then let its
+    // native onFinish remove the overlay. Only unavailable/static fallbacks
+    // use the old floating timer, so errors cannot leave a permanent overlay.
+    if (fullPage && !playbackFailed) {
+      opacity.setValue(1);
+      return;
+    }
     const continuing = (gift.comboCount ?? 1) > 1;
     // Combo updates reuse this mounted gift. Stop the entrance/exit and hold
     // the artwork steady until two seconds pass without another paid gift.
@@ -98,18 +121,18 @@ export function GiftFloater({ gift, onDone }: Props) {
     animation.start(({ finished }) => { if (finished) latest.current.onDone(latest.current.id); });
     return () => animation.stop();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gift.comboCount]);
+  }, [gift.comboCount, fullPage, playbackFailed]);
 
   return (
     <Animated.View
-      style={[styles.wrapper, { transform: [{ translateY }, { scale }], opacity }]}
+      style={[styles.wrapper, { ...(fullPage ? {} : { transform: [{ translateY }, { scale }] }), opacity }]}
       pointerEvents="none"
     >
-      <View style={styles.giftFrame}>
+      <View style={fullPage ? { width, height, alignItems: "center", justifyContent: "center" } : styles.giftFrame}>
       {gift.name === "Crown" ? (
         <CrownArtwork size={180} style={{ height: 220, opacity: gift.inVideo ? 0 : 1 }} />
-      ) : hasGiftImage(gift.name) ? <GiftImageArtwork gift={gift.name} size={180} style={{ height: 220, opacity: gift.inVideo ? 0 : 1 }} /> : <Text style={[styles.emoji, gift.inVideo && { opacity: 0 }]}>{gift.emoji}</Text>}
-      {gift.comboCount != null && <View style={[styles.comboCorner, { bottom: 220 - visibleTop }]}><GiftComboBadge plain count={gift.comboCount} label={gift.comboLabel ?? `×${gift.comboCount}`} reduceMotion={gift.reduceMotion} /></View>}
+      ) : hasLuxuryGiftAnimation(artworkId) && !gift.reduceMotion ? <LuxuryGiftArtwork gift={artworkId} size={artworkSize} style={artworkStyle} playOnce={fullPage} onFinish={fullPage ? playbackFinished : undefined} onPlaybackUnavailable={fullPage ? playbackUnavailable : undefined} /> : hasGiftImage(artworkId) ? <GiftImageArtwork gift={artworkId} size={180} style={{ height: 220, opacity: gift.inVideo ? 0 : 1 }} /> : <Text style={[styles.emoji, gift.inVideo && { opacity: 0 }]}>{gift.emoji}</Text>}
+      {gift.comboCount != null && <View style={[styles.comboCorner, fullPage ? { top: 48 } : { bottom: 220 - visibleTop }]}><GiftComboBadge plain count={gift.comboCount} label={gift.comboLabel ?? `×${gift.comboCount}`} reduceMotion={gift.reduceMotion} /></View>}
       </View>
     </Animated.View>
   );

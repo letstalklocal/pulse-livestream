@@ -552,9 +552,9 @@ export default function GoLiveScreen() {
             playGiftSound();
           }
           if (msg.type === "gift" && msg.giftName) {
-            const gift = GIFTS.find((g) => g.name === msg.giftName) ?? GIFTS[0]!;
+            const gift = GIFTS.find((g) => (g.name === msg.giftName || (g.id === "luxury_rocket" && msg.giftName === "Rocket")) && g.coins === msg.amount) ?? GIFTS.find((g) => g.name === msg.giftName) ?? GIFTS[0]!;
             const x = 60 + Math.random() * 200;
-            setFloatingGifts(prev => mergeGiftFloater(prev, { id: msg.giftId ?? `${Date.now()}-${Math.random()}`, emoji: gift.emoji, name: gift.name, senderName: msg.senderName ?? "Viewer", x, size: gift.size, inVideo: msg.giftId ? giftPresentation.current.inVideo(msg.giftId) : nativeGift,
+            setFloatingGifts(prev => mergeGiftFloater(prev, { id: msg.giftId ?? `${Date.now()}-${Math.random()}`, catalogId: gift.id, emoji: gift.emoji, name: gift.name, senderName: msg.senderName ?? "Viewer", x, size: gift.size, inVideo: msg.giftId ? giftPresentation.current.inVideo(msg.giftId) : nativeGift,
               comboId: msg.combo?.id, comboCount: msg.combo?.count, comboLabel: msg.combo ? `×${appNumber(msg.combo.count)}` : undefined }));
           }
           if (msg.type === "stream_ended") {
@@ -1532,6 +1532,7 @@ export default function GoLiveScreen() {
           <GiftFloater
             key={fg.comboId ?? fg.id}
             gift={fg}
+            fullPageLuxury
             onDone={(id) => setFloatingGifts((prev) => prev.filter((g) => g.id !== id))}
           />
         ))}

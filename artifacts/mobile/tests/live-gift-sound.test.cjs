@@ -61,4 +61,12 @@ f.pending[0].onGiftVisible(); f.pending[0].onFallback(); assert.equal(f.played.l
 f.send({ giftId: 'fallback-crown', giftName: 'Crown', amount: 500 }); f.pending[1].onFallback(); f.pending[1].onFallback(); assert.equal(f.played.at(-1), 'Crown'); assert.equal(f.played.length, 3);
 f.scope.pausedRef.current = true; f.send({ giftId: 'paused-rose' }); f.send({ giftId: 'paused-crown', giftName: 'Crown', amount: 500 });
 assert.equal(f.played.length, 3); assert.equal(f.pending.length, 2, 'Paused live cannot restart recording or gift audio');
+const luxury = fixture();
+luxury.scope.GIFTS.push({ id: 'rocket', name: 'Rocket', coins: 100 }, { id: 'luxury_rocket', name: 'Blast Off', coins: 4999 });
+luxury.send({ giftId: 'luxury-rocket', giftName: 'Rocket', amount: 4999, combo: { id: 'luxury-combo', count: 2, totalCoins: 9998 } });
+assert.equal(luxury.floaters.at(-1).catalogId, 'luxury_rocket', 'Luxury lookup uses individual price, not cumulative combo price');
+luxury.send({ giftId: 'blast-off', giftName: 'Blast Off', amount: 4999 });
+assert.equal(luxury.floaters.at(-1).catalogId, 'luxury_rocket', 'renamed Blast Off uses the same catalog ID and animation');
+luxury.send({ giftId: 'popular-rocket', giftName: 'Rocket', amount: 100 });
+assert.equal(luxury.floaters.at(-1).catalogId, 'rocket', 'Popular Rocket remains distinct');
 console.log('PASS: custom/default sounds, cache/failure fallback, host publication, bounded voices, transaction deduplication, party recipient, Crown recording/fallback and paused silence. Native audio mocked.');

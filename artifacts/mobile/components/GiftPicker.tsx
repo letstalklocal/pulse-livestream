@@ -38,7 +38,7 @@ export const POPULAR_GIFTS: Gift[] = [
 
 export const LUXURY_GIFTS: Gift[] = [
   { id: "kisses", emoji: "💋", name: "Kisses", coins: 1_999, size: 44 },
-  { id: "luxury_rocket", emoji: "🚀", name: "Rocket", coins: 4_999, size: 44 },
+  { id: "luxury_rocket", emoji: "🚀", name: "Blast Off", coins: 4_999, size: 44 },
   { id: "dragon", emoji: "🐉", name: "Dragon", coins: 9_999, size: 44 },
 ];
 
@@ -71,6 +71,7 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
   const [buyingCoins, setBuyingCoins] = useState(false);
   const [selectedGiftId, setSelectedGiftId] = useState<string | null>(null);
   const [activeGiftTab, setActiveGiftTab] = useState<"popular" | "luxury">("popular");
+  const [popularGridHeight, setPopularGridHeight] = useState<number | undefined>();
   const displayedGifts = activeGiftTab === "luxury" ? LUXURY_GIFTS : POPULAR_GIFTS;
   useEffect(() => { if (!visible) { setBuyingCoins(false); setSelectedGiftId(null); } }, [visible]);
 
@@ -115,7 +116,8 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
         </View> : null}
         {/* Four columns; fit existing gifts, capped at three rows before scrolling. */}
         <ScrollView
-          style={[styles.gridViewport, { maxHeight: 124 * Math.min(3, Math.ceil(displayedGifts.length / 4)) }]}
+          style={[styles.gridViewport, { maxHeight: 124 * Math.min(3, Math.ceil(Math.max(POPULAR_GIFTS.length, displayedGifts.length) / 4)), height: activeGiftTab === "luxury" ? popularGridHeight : undefined }]}
+          onLayout={event => { if (activeGiftTab === "popular") setPopularGridHeight(event.nativeEvent.layout.height); }}
           showsVerticalScrollIndicator
           contentContainerStyle={styles.grid}
           keyboardShouldPersistTaps="handled"
@@ -144,7 +146,7 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
                   style={[styles.giftCell, selected && styles.selectedGift, !canAfford && styles.giftCellDisabled]}
                   activeOpacity={0.8}
                 >
-                  <View style={styles.giftSelection}>
+                  <View pointerEvents="none" style={styles.giftSelection}>
                     <View style={styles.artwork}>
                       {gift.id === "crown" ? <CrownArtwork size={gift.size} /> : hasLuxuryGiftAnimation(gift.id) ? <LuxuryGiftArtwork gift={gift.id} size={gift.size} /> : hasGiftImage(gift.id) ? <GiftImageArtwork gift={gift.id} size={gift.size} /> : <Text style={[styles.giftEmoji, { fontSize: gift.size }]}>{gift.emoji}</Text>}
                     </View>

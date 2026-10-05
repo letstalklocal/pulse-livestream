@@ -1,6 +1,6 @@
 import { Asset } from "expo-asset";
-import React, { useEffect, useState } from "react";
-import { Image, Platform, type ImageStyle, type StyleProp } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Image, Platform, StyleSheet, type ImageStyle, type StyleProp } from "react-native";
 import { useAppLanguage } from "@/i18n";
 const artwork = {
   rose: { source: require("../assets/gifts/rose.png"), label: "Rose" },
@@ -8,12 +8,12 @@ const artwork = {
   lips: { source: require("../assets/gifts/lips.png"), label: "Lips" },
   strawberry: { source: require("../assets/gifts/strawberry.png"), label: "Strawberry" },
   kisses: { source: require("../assets/gifts/luxury/kisses.png"), label: "Kisses" },
-  luxury_rocket: { source: require("../assets/gifts/luxury/rocket-love.png"), label: "Rocket" },
+  luxury_rocket: { source: require("../assets/gifts/luxury/blast-off.png"), label: "Blast Off" },
   dragon: { source: require("../assets/gifts/luxury/fiery-dragon.png"), label: "Dragon" },
 };
 const luxuryAnimations = {
   kisses: require("../assets/gifts/luxury/Virtual-Kiss-Gift.svga"),
-  luxury_rocket: require("../assets/gifts/luxury/Rocket-Love-Gift.svga"),
+  luxury_rocket: require("../assets/gifts/luxury/Blast-Off-Gift.svga"),
   dragon: require("../assets/gifts/luxury/Fiery-Dragon-Gift.svga"),
 };
 
@@ -23,6 +23,7 @@ type SvgaPlayerComponent = React.ComponentType<{
   muteBuiltInAudio?: boolean;
   style?: StyleProp<ImageStyle>;
   onError?: () => void;
+  onFinish?: () => void;
 }>;
 
 // Do not import the native player at module scope. Existing development/store
@@ -55,21 +56,29 @@ export function hasLuxuryGiftAnimation(gift?: string): boolean {
 }
 
 /** Native builds play the supplied SVGA; web and initial asset loading use the matching still artwork. */
-export function LuxuryGiftArtwork({ gift, size }: { gift: string; size: number }) {
+export function LuxuryGiftArtwork({ gift, size, style, playOnce = false, onFinish, onPlaybackUnavailable }: { gift: string; size: number; style?: StyleProp<ImageStyle>; playOnce?: boolean; onFinish?: () => void; onPlaybackUnavailable?: () => void }) {
   const key = gift.toLowerCase() as keyof typeof luxuryAnimations;
   const [source, setSource] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const unavailable = useRef(onPlaybackUnavailable);
+  unavailable.current = onPlaybackUnavailable;
+  const SvgaPlayer = getSvgaPlayer();
   useEffect(() => {
-    if (Platform.OS === "web" || !hasLuxuryGiftAnimation(gift)) return;
+    if (!SvgaPlayer || !hasLuxuryGiftAnimation(gift)) {
+      unavailable.current?.();
+      return;
+    }
     let active = true;
     const asset = Asset.fromModule(luxuryAnimations[key]);
     void asset.downloadAsync().then(() => {
       if (active) setSource(asset.localUri ?? asset.uri);
-    }).catch(() => { if (active) setFailed(true); });
+    }).catch(() => { if (active) { setFailed(true); unavailable.current?.(); } });
     return () => { active = false; };
-  }, [gift, key]);
+  }, [gift, key, SvgaPlayer]);
 
-  const SvgaPlayer = getSvgaPlayer();
-  if (!SvgaPlayer || !source || failed) return <GiftImageArtwork gift={gift} size={size} />;
-  return <SvgaPlayer source={source} loops={0} muteBuiltInAudio style={{ width: size, height: size }} onError={() => setFailed(true)} />;
+  // Live playback waits invisibly for the animation asset. Drawer previews
+  // keep their still image while loading; real failures still use fallback art.
+  if (playOnce && SvgaPlayer && !source && !failed) return null;
+  if (!SvgaPlayer || !source || failed) return <GiftImageArtwork gift={gift} size={size} style={style} />;
+  return <SvgaPlayer source={source} loops={playOnce ? 1 : 0} muteBuiltInAudio style={StyleSheet.flatten([{ width: size, height: size }, style])} onFinish={onFinish} onError={() => { setFailed(true); unavailable.current?.(); }} />;
 }

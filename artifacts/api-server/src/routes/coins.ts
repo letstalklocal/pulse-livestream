@@ -193,7 +193,7 @@ router.post("/coins/spend", async (req, res) => {
         };
       }
 
-      const comboEligible = !!channelId && !!effectiveRecipientUid && Object.values(GIFT_CATALOG).some(gift => gift.name === giftName && gift.coinCost === amount);
+      const comboEligible = !!channelId && !!effectiveRecipientUid && Object.values(GIFT_CATALOG).some(gift => (gift.name === giftName || (gift.id === "luxury_rocket" && giftName === "Rocket")) && gift.coinCost === amount);
       const [previousGift] = comboEligible ? await tx.select().from(coinTransactionsTable).where(and(eq(coinTransactionsTable.fromUserId, uid), eq(coinTransactionsTable.toUserId, effectiveRecipientUid!), eq(coinTransactionsTable.channelId, channelId!), eq(coinTransactionsTable.type, "gift"))).orderBy(desc(coinTransactionsTable.createdAt), desc(coinTransactionsTable.id)).limit(1) : [];
       const continuesCombo = previousGift?.giftComboId && !previousGift.giftComboClosedAt && previousGift.giftName === giftName && previousGift.amount === amount && Math.max(0, requestedAt.getTime() - previousGift.createdAt.getTime()) <= 2000 && (previousGift.giftComboTotalCoins ?? 0) <= 2147483647 - amount;
       const combo = comboEligible ? {
