@@ -1,4 +1,4 @@
-import { PREMIUM_GIFT_CATALOG } from "../lib/giftCatalog";
+import { GIFT_CATALOG } from "../lib/giftCatalog";
 import { purchaseMediaPack } from "../lib/mediaPackPurchase";
 import { StickerError } from "../lib/liveStickers";
 import { pushEarnings } from "../lib/wsHub";
@@ -62,10 +62,10 @@ router.post("/media-packs", async (req, res): Promise<any> => {
   const user = await requireUser(req, res); if (!user) return;
   const { name, items, giftId } = req.body ?? {};
   normalizeDurations(items);
-  if (typeof giftId !== "string" || !Object.hasOwn(PREMIUM_GIFT_CATALOG, giftId)) return res.status(400).json({ error: "Choose a valid sticker gift" });
+  if (typeof giftId !== "string" || !Object.hasOwn(GIFT_CATALOG, giftId)) return res.status(400).json({ error: "Choose a valid sticker gift" });
   if (typeof name !== "string" || !name.trim() || name.trim().length > 80 || !Array.isArray(items) || items.length < 1 || items.length > 20 || items.some((x) => !x || typeof x.objectPath !== "string" || !x.objectPath.startsWith("/objects/") || typeof x.contentType !== "string" || (!x.contentType.startsWith("image/") && !x.contentType.startsWith("video/")) || !Number.isInteger(x.width) || x.width <= 0 || x.width > 2147483647 || !Number.isInteger(x.height) || x.height <= 0 || x.height > 2147483647 || !validDuration(x.durationMs))) return res.status(400).json({ error: "Invalid pack" });
   const pack = await db.transaction(async (tx) => {
-    const [created] = await tx.insert(mediaPacksTable).values({ ownerUserId: user.uid, name: name.trim(), coinPrice: PREMIUM_GIFT_CATALOG[giftId as keyof typeof PREMIUM_GIFT_CATALOG].coinCost, giftId }).returning();
+    const [created] = await tx.insert(mediaPacksTable).values({ ownerUserId: user.uid, name: name.trim(), coinPrice: GIFT_CATALOG[giftId as keyof typeof GIFT_CATALOG].coinCost, giftId }).returning();
     await tx.insert(mediaPackItemsTable).values(items.map((x: any, position: number) => ({ packId: created!.id, position, objectPath: x.objectPath, contentType: x.contentType, width: x.width, height: x.height, durationMs: x.durationMs ?? null })));
     return created!;
   });
@@ -77,7 +77,7 @@ router.put("/media-packs/:packId", async (req, res): Promise<any> => {
   const id = Number(req.params.packId);
   const { giftId, items } = req.body ?? {};
   normalizeDurations(items);
-  if (!Number.isSafeInteger(id) || id <= 0 || id > 2147483647 || typeof giftId !== "string" || !Object.hasOwn(PREMIUM_GIFT_CATALOG, giftId) || !Array.isArray(items) || items.length < 1 || items.length > 20) return res.status(400).json({ error: "Invalid pack" });
+  if (!Number.isSafeInteger(id) || id <= 0 || id > 2147483647 || typeof giftId !== "string" || !Object.hasOwn(GIFT_CATALOG, giftId) || !Array.isArray(items) || items.length < 1 || items.length > 20) return res.status(400).json({ error: "Invalid pack" });
   const retainedIds: number[] = [];
   for (const item of items) {
     if (!item || typeof item !== "object") return res.status(400).json({ error: "Invalid pack item" });
@@ -106,7 +106,7 @@ router.put("/media-packs/:packId", async (req, res): Promise<any> => {
           await tx.insert(mediaPackItemsTable).values({ packId: id, position, objectPath: item.objectPath, contentType: item.contentType, width: item.width, height: item.height, durationMs: item.durationMs ?? null });
         }
       }
-      const [updated] = await tx.update(mediaPacksTable).set({ giftId, coinPrice: PREMIUM_GIFT_CATALOG[giftId as keyof typeof PREMIUM_GIFT_CATALOG].coinCost }).where(eq(mediaPacksTable.id, id)).returning();
+      const [updated] = await tx.update(mediaPacksTable).set({ giftId, coinPrice: GIFT_CATALOG[giftId as keyof typeof GIFT_CATALOG].coinCost }).where(eq(mediaPacksTable.id, id)).returning();
       return updated;
     });
     res.json({ pack: await packResponse(pack, true, true, true) });

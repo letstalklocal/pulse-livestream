@@ -218,6 +218,8 @@ Latest gift-tile interaction: the first tap anywhere on an affordable gift selec
 
 ## Luxury gift drawer tab — October 5, 2026
 
+Latest user decision supersedes the initial sticker exclusion below: all three Luxury gifts are selectable for gift stickers and media-pack creation/editing, using the full ordinary gift catalog on client/server. Premium admission/timed requests and private-invitation requirements remain Popular-only. DM also uses the same full-page Luxury renderer as live and preserves catalog IDs; old 4,999-coin Rocket receipts display Blast Off artwork without changing historical payments. See the latest sticker and chat requirements.
+
 The ordinary gift drawer has a second **Luxury** tab immediately beside **Popular**. It contains exactly three gifts supplied by the user: **Kisses** (1,999 coins), **Blast Off** (4,999 coins), and **Dragon** (9,999 coins). The first tab remains the eight Popular gifts; switching tabs clears any current selection. Luxury gifts retain the ordinary drawer’s select-then-full-tile-send behavior, wallet/recipient/payment guards, open-sheet behavior, and gold coin artwork.
 
 October 5 naming decision: rename the Luxury Rocket to **Blast Off**, including the animation file `Blast-Off-Gift.svga` (bundled and supplied original) and preview `blast-off.png`. Preserve the existing `luxury_rocket` catalog ID, 4,999-coin price and historical receipts. Older clients sending `Rocket` for 4,999 coins still resolve to Blast Off; the Popular Rocket remains 100 coins.

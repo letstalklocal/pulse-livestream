@@ -7,7 +7,14 @@ runInNewContext(ts.transpileModule(readFileSync(require.resolve('../utils/dmGift
 const { parseDmGiftReceipt } = exportsObject;
 const rose = { id: 'rose', name: 'Rose', emoji: '🌹', coins: 9 };
 const crown = { id: 'crown', name: 'Crown', emoji: '👑', coins: 500 };
-const gifts = [rose, crown];
+const rocket = { id: 'rocket', name: 'Rocket', emoji: '🚀', coins: 100 };
+const blastOff = { id: 'luxury_rocket', name: 'Blast Off', emoji: '🚀', coins: 4999 };
+const gifts = [rose, crown, rocket, blastOff];
+assert.equal(parseDmGiftReceipt('🎁 🚀 Blast Off gift • 4999 coins', gifts).gift, blastOff);
+assert.equal(parseDmGiftReceipt('🎁 🚀 Rocket gift • 4999 coins', gifts).gift, blastOff, 'Legacy Luxury Rocket uses Blast Off artwork');
+assert.equal(parseDmGiftReceipt('🎁 🚀 Rocket gift • 9998 coins ×2', gifts).gift, blastOff);
+assert.equal(parseDmGiftReceipt('🎁 🚀 Rocket gift • 100 coins', gifts).gift, rocket);
+assert.equal(parseDmGiftReceipt('🎁 🚀 Rocket gift • 5000 coins ×50', gifts).gift, rocket, 'Popular combos cannot become Luxury');
 assert.equal(parseDmGiftReceipt('🎁 🌹 Rose gift • 1 coin', gifts).coins, 1, 'activation receipt keeps historical price despite a catalog price change');
 assert.equal(parseDmGiftReceipt('🎁 👑 Crown gift • 500 coins', gifts).gift, crown);
 assert.equal(parseDmGiftReceipt('🎁 🌹 Rose gift • 5 coins ×5', gifts).count, 5);

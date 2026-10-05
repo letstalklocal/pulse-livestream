@@ -1,6 +1,6 @@
 import { pushPrivateGift } from "../lib/incognito";
 import { assertStickerAccess, StickerError } from "../lib/liveStickers";
-import { GIFT_CATALOG, PREMIUM_GIFT_CATALOG } from "../lib/giftCatalog";
+import { GIFT_CATALOG } from "../lib/giftCatalog";
 import { requireContactAllowed } from "../lib/userSafety";
 import { lockParty, scorePartyGift, findParty, partyStreams, partyChannels } from "../lib/liveParty";
 import { Router } from "express";
@@ -161,7 +161,7 @@ router.post("/coins/spend", async (req, res) => {
         const [session] = await tx.select().from(liveStreamSessionsTable).where(eq(liveStreamSessionsTable.channelId, channelId)).for("update");
         await assertStickerAccess(session, { uid, clerkId });
         const sticker = session?.stickers.find(s => s.id === req.body.stickerId && s.kind === "gift");
-        const gift = sticker && PREMIUM_GIFT_CATALOG[sticker.giftId as keyof typeof PREMIUM_GIFT_CATALOG];
+        const gift = sticker && GIFT_CATALOG[sticker.giftId as keyof typeof GIFT_CATALOG];
         if (!gift || session.hostUserId !== recipientUid || uid === recipientUid || amount !== gift.coinCost || giftName !== gift.name) throw new StickerError(409, "Sticker unavailable or changed");
       }
 

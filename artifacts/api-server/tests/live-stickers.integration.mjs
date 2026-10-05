@@ -127,6 +127,16 @@ try {
   assert.equal((await validateStickers([{ kind: "pack", giftId: "rose", packId: savedId }], host))[0].giftId, "diamond", "Server uses saved pack artwork even if a stale client sends a different gift");
   const savedItemId = created.body.pack.items[0].id;
   const edit = (uid, body) => call(packs, "/media-packs/:packId", "put", uid, body, { packId: String(savedId) });
+  for (const [giftId, price] of [["kisses", 1999], ["luxury_rocket", 4999], ["dragon", 9999]]) {
+    assert.equal((await validateStickers([{ kind: "gift", giftId }], host))[0].giftId, giftId);
+    const luxuryPack = await call(packs, "/media-packs", "post", host, { ...createBody, giftId, price: 1 });
+    assert.equal(luxuryPack.statusCode, 201);
+    assert.equal(luxuryPack.body.pack.price, price, "Luxury pack pricing is server-derived");
+    const luxuryEdit = await edit(host, { giftId, items: [{ id: savedItemId }] });
+    assert.equal(luxuryEdit.statusCode, 200);
+    assert.equal(luxuryEdit.body.pack.price, price);
+    assert.equal((await validateStickers([{ kind: "pack", giftId: "rose", packId: savedId }], host))[0].giftId, giftId);
+  }
   const editBody = { giftId: "rocket", items: [{ id: savedItemId }, { objectPath: `/objects/${prefix}/added`, contentType: "video/mp4", mediaType: "video", width: 100, height: 100, durationMs: 1000 }] };
   assert.equal((await edit(null, editBody)).statusCode, 401);
   assert.equal((await edit(other, editBody)).statusCode, 404, "Other accounts cannot edit packs");
@@ -641,6 +651,20 @@ try {
     404,
     "Stale replacement cannot overwrite the new offer",
   );
+  await pool.query("update coin_balances set balance=100000 where user_id=$1", [buyer]);
+  for (const [giftId, name, amount] of [["kisses", "Kisses", 1999], ["luxury_rocket", "Blast Off", 4999], ["dragon", "Dragon", 9999]]) {
+    const [offer] = await validateStickers([{ kind: "gift", giftId }], host);
+    await pool.query("update live_stream_sessions set stickers=$1::jsonb where id=$2", [JSON.stringify([offer]), sessionId]);
+    const metadata = (await status()).body.stickers[0];
+    assert.equal(metadata.giftId, giftId); assert.equal(metadata.name, name); assert.equal(metadata.price, amount);
+    const before = await balances();
+    const body = { ...giftBody, giftName: name, amount, stickerId: offer.id, idempotencyKey: randomUUID() };
+    assert.equal((await call(coins, "/coins/spend", "post", buyer, body)).statusCode, 200);
+    assert.equal((await call(coins, "/coins/spend", "post", buyer, body)).statusCode, 200);
+    const after = await balances();
+    assert.equal(after.find(row => row.user_id === buyer).balance, before.find(row => row.user_id === buyer).balance - amount, "Luxury sticker retries debit once");
+    assert.equal(after.find(row => row.user_id === host).balance, before.find(row => row.user_id === host).balance + amount, "Luxury sticker credits exact catalog price");
+  }
   await pool.query(
     "update live_stream_sessions set ended_at=now() where id=$1",
     [sessionId],

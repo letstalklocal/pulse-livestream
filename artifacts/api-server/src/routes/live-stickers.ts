@@ -13,7 +13,7 @@ import {
   StickerError,
   validateStickers,
 } from "../lib/liveStickers";
-import { PREMIUM_GIFT_CATALOG } from "../lib/giftCatalog";
+import { GIFT_CATALOG } from "../lib/giftCatalog";
 const router = Router();
 router.get("/streams/:channelId/stickers", async (req, res): Promise<any> => {
   const user = await authenticatedUser(req);
@@ -30,8 +30,8 @@ router.get("/streams/:channelId/stickers", async (req, res): Promise<any> => {
     const stickers = await Promise.all(
       session.stickers.map(async (sticker) => {
         const gift =
-          PREMIUM_GIFT_CATALOG[
-            sticker.giftId as keyof typeof PREMIUM_GIFT_CATALOG
+          GIFT_CATALOG[
+            sticker.giftId as keyof typeof GIFT_CATALOG
           ];
         if (!gift) return null;
         if (sticker.kind === "gift")

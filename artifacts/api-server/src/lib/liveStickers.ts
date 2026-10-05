@@ -7,7 +7,7 @@ import {
   premiumStreamAdmissionsTable,
 } from "@workspace/db";
 import { canAccessChannel } from "./privateChannelAccess";
-import { PREMIUM_GIFT_CATALOG } from "./giftCatalog";
+import { GIFT_CATALOG } from "./giftCatalog";
 
 export type LiveSticker = {
   id: string;
@@ -36,7 +36,7 @@ export async function validateStickers(
       !item ||
       !["gift", "pack"].includes(item.kind) ||
       typeof item.giftId !== "string" ||
-      !Object.hasOwn(PREMIUM_GIFT_CATALOG, item.giftId)
+      !Object.hasOwn(GIFT_CATALOG, item.giftId)
     )
       throw new StickerError(400, "Choose a valid sticker gift");
     let giftId = item.giftId;

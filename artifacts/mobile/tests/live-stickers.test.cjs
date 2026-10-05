@@ -154,7 +154,9 @@ function fixture(component) {
       stickerApi: api,
       stickerQueryKey: (ch, uid) => ["live-stickers", ch, uid],
     },
-    "./GiftPicker": { GIFTS: [gift] },
+    "./GiftPicker": { GIFTS: [gift, ...[
+      ["kisses", "Kisses", 1999], ["luxury_rocket", "Blast Off", 4999], ["dragon", "Dragon", 9999],
+    ].map(([id, name, coins]) => ({ id, name, coins, emoji: "gift", size: 44 }))] },
     "./LiveStickerCard": { LiveStickerCard: "Card" },
     "./LiveStickerSetup": { LiveStickerPicker: "Picker" },
     "./CrownArtwork": { CrownArtwork: "Crown" },
@@ -461,6 +463,15 @@ function fixture(component) {
   tree = picker.render({ ...pickerProps, disabled: true });
   nodes(tree).find(n => n.props.testID === "sticker-pack-option-7").props.onPress();
   assert.equal(selected, null, "Disabled picker cannot add a pack");
+  for (const giftId of ["kisses", "luxury_rocket", "dragon"]) {
+    const luxuryPicker = fixture("LiveStickerPicker");
+    const luxuryProps = { ...pickerProps, initialKind: "gift" };
+    let luxuryTree = luxuryPicker.render(luxuryProps);
+    nodes(luxuryTree).find(n => n.type === "Card" && n.props.sticker.giftId === giftId).props.onPress();
+    luxuryTree = luxuryPicker.render(luxuryProps);
+    nodes(luxuryTree).find(n => n.props.testID === "sticker-picker-next").props.onPress();
+    assert.equal(selected.giftId, giftId, "Every Luxury gift can be selected as a sticker");
+  }
   const empty = fixture("LiveStickerPicker");
   empty.state.packs = [];
   tree = empty.render(pickerProps);

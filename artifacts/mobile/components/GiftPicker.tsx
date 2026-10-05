@@ -42,7 +42,8 @@ export const LUXURY_GIFTS: Gift[] = [
   { id: "dragon", emoji: "🐉", name: "Dragon", coins: 9_999, size: 44 },
 ];
 
-// All known ordinary gifts. Selection-only surfaces intentionally use POPULAR_GIFTS.
+// Shared ordinary gift, sticker and pack catalog. Premium/private requirements
+// intentionally retain POPULAR_GIFTS.
 export const GIFTS: Gift[] = [...POPULAR_GIFTS, ...LUXURY_GIFTS];
 
 interface Props {

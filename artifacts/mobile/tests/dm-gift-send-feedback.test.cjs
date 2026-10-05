@@ -49,6 +49,11 @@ async function test() {
   assert.equal(animations.length, 1, 'late payment never animates in another conversation');
   assert.equal(scope.pendingGiftPayments.current, 0);
   assert.equal(source.includes('sendingGiftId={sendingGiftId}'), false, 'DM drawer is not disabled by an active gift payment');
+  scope.activeGiftPeer.current = '2';
+  send({ id: 'luxury_rocket', name: 'Blast Off', emoji: '🚀', coins: 4999 });
+  payments[6].resolve({ ok: true, balance: 0, combo: { id: 'luxury-combo', count: 1, totalCoins: 4999 } }); await tick();
+  assert.equal(animations.at(-1).catalogId, 'luxury_rocket', 'DM shares live animation catalog identity, not the old Rocket name');
+  assert.match(source, /<GiftFloater\s[^>]*fullPageLuxury/, 'DM uses shared full-page completion-driven Luxury renderer');
   console.log('PASS: concurrent immediate taps, unique payment keys, out-of-order counter protection, final wallet refresh, uncertain retries, failure and conversation isolation.');
 }
 test().catch(error => { console.error(error); process.exitCode = 1; });

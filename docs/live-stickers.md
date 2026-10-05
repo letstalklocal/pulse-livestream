@@ -1,5 +1,11 @@
 # Live gift and pack stickers
 
+## Luxury choices — October 5, 2026
+
+Gift stickers and media-pack creation/editing use the full shared ordinary gift catalog, including Kisses (1,999), Blast Off (4,999, ID `luxury_rocket`) and Dragon (9,999). This supersedes the earlier Popular-only sticker restriction. The server validates against the same catalog and derives pack prices; sticker metadata and normal gift payments accept all three. Premium admission/timed requests and private-invitation requirements remain Popular-only. Preserve two sticker slots, owner-only configuration, saved pack identity/access, current-price confirmation and payment idempotency. Android/iPhone selection, artwork, purchase/animation and existing stream regressions remain device-pending.
+
+Automated verification: mobile/API types, API build, required stream suite, DM receipt/send/drawer and shared animation/selection tests, coin authorization, and real-database sticker integration pass. New integration coverage verifies all three Luxury gift/pack choices, create/edit catalog pricing, live metadata, exact debit/credit and retry deduplication. Development API rebuilt/restarted preserving its environment; health returned 200 and running sticker/pack/gift endpoints returned expected unauthenticated 401. Authenticated purchase coverage is through actual handlers/PostgreSQL, not signed-in device HTTP. No new native build or production deployment was started.
+
 Approved September 21, 2026. These are optional offers, separate from Premium entry and timed requests.
 
 ## Accepted behavior

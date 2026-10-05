@@ -73,6 +73,16 @@ try {
   assert.match(luxury.body.message.text, /Dragon gift • 9999 coins/);
   const [luxuryLedger] = (await pool.query('select amount,gift_name from coin_transactions where idempotency_key=$1', [keys.at(-1)])).rows;
   assert.deepEqual(luxuryLedger, { amount: 9999, gift_name: 'Dragon' });
+  for (const [giftId, name, amount] of [['kisses', 'Kisses', 1999], ['luxury_rocket', 'Blast Off', 4999], ['rocket', 'Rocket', 100]]) {
+    await pool.query('update coin_balances set balance=10000 where user_id=$1', [sender]);
+    const saved = await send(giftId);
+    assert.equal(saved.statusCode, 200);
+    assert.equal(saved.body.balance, 10000 - amount);
+    const storedCombo = (await pool.query('select gift_id from dm_gift_combos where id=$1', [saved.body.combo.id])).rows[0];
+    assert.equal(storedCombo.gift_id, giftId);
+    const persisted = (await pool.query('select text from direct_messages where id=$1', [saved.body.message.id])).rows[0];
+    assert.match(persisted.text, new RegExp(`${name} gift • ${amount} coins$`), 'Stored receipt preserves selected gift identity');
+  }
   console.log('PASS: actual database gift payment/receipt atomicity, including Luxury catalog pricing, same-card counts, expiry/gift/recipient boundaries, failure reset, retry/concurrent deduplication, balanced ledger and unique 5/10 milestones.');
 } finally {
   await pool.query(`DROP TRIGGER IF EXISTS ${triggerName} ON dm_gift_combo_payments`);

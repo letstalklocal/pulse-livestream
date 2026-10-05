@@ -177,7 +177,7 @@ export default function DmScreen() {
     return () => { activeGiftPeer.current = null; };
   }, [peerIdStr]);
   const giftFeedback = floatingGifts.map((gift) => (
-    <GiftFloater key={gift.comboId ?? gift.id} gift={gift}
+    <GiftFloater key={gift.comboId ?? gift.id} gift={gift} fullPageLuxury
       onDone={(id) => setFloatingGifts((previous) => previous.filter((item) => item.id !== id))} />
   ));
   const [showPackPicker, setShowPackPicker] = useState(false);
@@ -720,7 +720,7 @@ export default function DmScreen() {
               // Payment and the grouped receipt have committed together.
               if (activeGiftPeer.current === peerIdStr) {
                 setFloatingGifts((previous) => mergeGiftFloater(previous, {
-                  id: createGiftRequestKey(), emoji: gift.emoji, name: gift.name,
+                  id: createGiftRequestKey(), emoji: gift.emoji, name: gift.name, catalogId: gift.id,
                   senderName: user.name ?? "You", x: 0, size: gift.size,
                   comboId: combo.id, comboCount: combo.count,
                   comboLabel: `×${appNumber(combo.count)}`, reduceMotion,
