@@ -19,6 +19,14 @@ This produces the development client used with the running Replit Metro server. 
 
 ## Preserve the working environment
 
+### Next Android build: enable native compilation caching — October 5, 2026
+
+User approved enabling native compilation caching for the **next Android development build**. Before starting that build, add `android.env.EAS_USE_CACHE: "1"` to the existing `development` profile in `artifacts/mobile/eas.json`, preserving other profile settings and app identifiers. Do not apply this to iOS or change builder size/CPU architectures as part of this decision. This explicit authorization supersedes the general restriction below only for this caching setting.
+
+The October 5 Android build log reported `EAS_USE_CACHE=0` on a four-CPU builder. Enabling caching saves/restores native compilation results; the first successful cache-enabled build populates the cache, and later builds may be faster. Avoid `--clear-cache` for ordinary builds unless troubleshooting specifically requires it. Verify the next build log reports the effective setting and cache behavior; no specific time reduction has been measured. See [Expo caching documentation](https://docs.expo.dev/build-reference/caching/).
+
+Implemented October 5 before the user's next rebuild: `development.android.env.EAS_USE_CACHE` is now `"1"` in `artifacts/mobile/eas.json`. Build-log confirmation and measured speed improvement remain pending.
+
 - Read this workflow before giving Android build commands.
 - Do not substitute `npx eas-cli@latest`, install/reinstall EAS, or update the CLI as part of a routine build request. Use the installed `eas` executable.
 - Do not switch to `preview` or change EAS profiles, environment variables, dependency versions, or package-manager configuration just to provide the build command.

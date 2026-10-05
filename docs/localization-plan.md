@@ -1,5 +1,15 @@
 # App localization plan
 
+## First-launch phone language repair — October 5, 2026
+
+User reported a Spanish-language iPhone in Colombia opening TestFlight in English before sign-in. Pulse now reads `expo-localization.getLocales()[0].languageTag` synchronously for its initial language and device-based formatting, rather than relying on the JavaScript runtime's default `Intl` locale. Declare all ten supported languages through the Expo localization plugin so iOS can select Spanish for the app. Preserve a saved manual app-language choice; foreground refresh only follows the device when the preference is `device`. Root startup waits for language storage initialization before showing screens or hiding the splash. Language selection requires neither sign-in nor IP lookup/network access. `supportsRTL: false` preserves approved layout direction; existing Arabic text styles remain.
+
+SDK-compatible `expo-localization` is installed. This native dependency and language declaration require a new iOS/Android binary; no build or deployment was started. App identity and existing user-owned build config changes are preserved. [Expo localization guidance](https://docs.expo.dev/guides/localization/) documents native language reading and supported-locale declarations.
+
+Existing binaries without `ExpoLocalization` must remain usable. Load the module inside the locale-detection error guard, falling back to the runtime Intl locale (then English) if native loading fails. Preserve saved manual language preferences. Accurate native phone-language detection still requires the new binary; this fallback does not establish Spanish first-launch detection on an older client.
+
+Mobile types, first-launch native-locale mock checks, signup-flow checks and full localization checks pass (1,163 strings in ten catalogs). Resolved Expo native config contains all ten language declarations and unchanged identifiers; frozen offline dependency installation passes. Fresh install on an actual Spanish-language iPhone/Android, without a saved manual choice and before sign-in, remains pending. The reported tester manually switched to Spanish; that is not evidence of automatic detection. Her saved choice must remain unchanged.
+
 ## Required scope and terminology — user decision, September 11, 2026
 
 This is a language-only update. Preserve existing functionality, payment and gift identifiers, navigation, camera/media behavior, chat preferences, gestures, and approved layouts. Add interface localization without redesigning screens or changing how features work.

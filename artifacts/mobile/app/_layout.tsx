@@ -115,7 +115,7 @@ export default function RootLayout() {
       },
     },
   }));
-  const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
+  const { t, localizedTextStyle, appLocale, appNumber, ready: languageReady } = useAppLanguage();
   useEffect(() => {
     void initializeAppLanguage();
     const listener = AppState.addEventListener("change", state => { if (state === "active") refreshPhoneAppLanguage(); });
@@ -129,12 +129,12 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
+    if ((fontsLoaded || fontError) && languageReady) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError]);
+  }, [fontsLoaded, fontError, languageReady]);
 
-  if (!fontsLoaded && !fontError) return null;
+  if ((!fontsLoaded && !fontError) || !languageReady) return null;
   if (!publishableKey) return <BuildConfigurationError />;
 
   return (

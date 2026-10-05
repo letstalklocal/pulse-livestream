@@ -15,14 +15,22 @@ export { APP_LANGUAGES } from "./core";
 export type { AppLanguagePreference } from "./core";
 const catalogs: Record<AppLanguage, Catalog> = { en, es, "pt-BR": pt, ar, de, fr, "zh-CN": zh, hi, id, ja };
 const storageKey = "pulse:app-language";
-export function phoneAppLanguage(): AppLanguage {
-  try { return resolveAppLanguage(Intl.DateTimeFormat().resolvedOptions().locale); } catch { return "en"; }
+function phoneLocale(): string {
+  try {
+    // Loading this native module can itself throw in clients built before it
+    // was added. Keep the import inside the guard so those clients can open.
+    const { getLocales } = require("expo-localization") as typeof import("expo-localization");
+    const locale = getLocales()[0]?.languageTag;
+    if (locale) return locale;
+  } catch {}
+  try { return Intl.DateTimeFormat().resolvedOptions().locale || "en"; } catch { return "en"; }
 }
+export function phoneAppLanguage(): AppLanguage { return resolveAppLanguage(phoneLocale()); }
 const arabicText = { writingDirection: "rtl" as const, textAlign: "right" as const };
 function snapshot(preference: AppLanguagePreference, language: AppLanguage, ready: boolean) {
   let locale: string = language;
   if (preference === "device") {
-    try { locale = Intl.DateTimeFormat().resolvedOptions().locale; } catch {}
+    locale = phoneLocale();
   }
   return {
     preference, language, ready, locale,

@@ -182,7 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [clerkLoaded, isSignedIn, clerkUser?.id, completeSignup]);
 
   useEffect(() => {
-    if (!isSignedIn || !user?.uid) return;
+    if (!isSignedIn || !user?.uid || user.countryCode) return;
     let active = true;
     let busy = false;
     const uid = user.uid;
@@ -205,7 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void refreshCountry();
     const subscription = AppState.addEventListener("change", state => { if (state === "active") void refreshCountry(); });
     return () => { active = false; subscription.remove(); };
-  }, [isSignedIn, user?.uid, getToken, queryClient]);
+  }, [isSignedIn, user?.uid, user?.countryCode ?? null, getToken, queryClient]);
 
   const updateUser = useCallback(
     (fields: Partial<Omit<User, "uid" | "clerkId">>) => {

@@ -1,5 +1,9 @@
 # Signup onboarding
 
+### First-launch language — October 5, 2026
+
+Follow the phone language from the first visible screen, before profile sign-in or country lookup. Native locale reading and supported language declarations now implement this as described in [the localization repair](localization-plan.md#first-launch-phone-language-repair--october-5-2026). Existing manual app-language selections remain authoritative. Native rebuild and fresh-install phone verification remain pending; the Colombia tester's manual switch to Spanish does not verify automatic detection.
+
 ## Implemented new-account onboarding — September 16, 2026
 
 The existing email signup form now includes **Birthday** with labeled Day/Month/Year inputs, “You must be 18 or older to use Pulse,” and an initially unchecked Terms of Service checkbox with an independently tappable link. Creating an account requires matching passwords, a valid adult birthday and explicit agreement. Reading the terms does not check the box. All new fields, notices, consent wording and errors are bundled in the ten supported app languages; language changes retain entered values. Arabic text direction is preserved, and numeric entry accepts Arabic, Persian, Devanagari and full-width digits.

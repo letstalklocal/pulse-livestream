@@ -34,11 +34,22 @@ try{
  assert.equal((await pool.query('select country_code from users where uid=$1',[uid])).rows[0].country_code,'US');
  const unknown=await call(location,'/location/country','post',true,{},req('127.0.0.1'));
  assert.equal(unknown.body.countryCode,'US');
+ await pool.query('update users set country_code=$1 where uid=$2',['CO',uid]);
+ const retained=await call(location,'/location/country','post',true,{},req('127.0.0.1','8.8.8.8'));
+ assert.deepEqual(retained.body,{countryCode:'CO',country:'Colombia'},'a saved country never follows a later US IP');
+ await pool.query('update users set country_code=null where uid=$1',[uid]);
+ const undecided=await call(location,'/location/country','post',true,{},req('127.0.0.1'));
+ assert.equal(undecided.body.countryCode,null,'an unknown first IP does not invent a country');
+ const simultaneous=await Promise.all([call(location,'/location/country','post',true,{},req('127.0.0.1','8.8.8.8')),call(location,'/location/country','post',true,{},req('127.0.0.1','81.2.69.142'))]);
+ const winner=(await pool.query('select country_code from users where uid=$1',[uid])).rows[0].country_code;
+ assert.ok(['US','GB'].includes(winner));
+ assert.ok(simultaneous.every(result=>result.body.countryCode===winner),'concurrent first detections retain one winning country');
+ await pool.query('update users set country_code=$1 where uid=$2',['US',uid]);
  const profile=await call(users,'/users/:uid','get');assert.equal(profile.body.user.country,'United States');
  await call(privacy,'/privacy/preferences','patch',true,{hideLocation:true});
  const hidden=await call(users,'/users/:uid','get');assert.equal(hidden.body.user.country,undefined);assert.equal(hidden.body.user.countryCode,undefined);
  assert.equal((await call(location,'/location/country','post')).body.countryCode,'US'); // Owner can retrieve their own detected country.
- console.log('PASS: trusted proxy selection, spoof rejection, IPv4/IPv6 lookup, authenticated country persistence, unknown-IP retention, body isolation, and Hide Location redaction.');
+ console.log('PASS: trusted proxy selection, spoof rejection, IPv4/IPv6 lookup, first-success persistence, later-country retention, concurrent first detection, unknown-IP retry, body isolation, and Hide Location redaction.');
 }finally{
  await pool.query('delete from users where uid=$1',[uid]);await pool.end();unlinkSync(output);
 }

@@ -11,8 +11,8 @@ const root=fileURLToPath(new URL('../../mobile/',import.meta.url));
 const out=fileURLToPath(new URL(`.i18n-${randomUUID()}.cjs`,import.meta.url));
 try {
  await build({stdin:{contents:`export * from './i18n';export * from './i18n/core';export * from './i18n/validate';export {formatLastSeen} from './utils/lastSeen';export {storage} from '@react-native-async-storage/async-storage';`,resolveDir:root},bundle:true,platform:'node',format:'cjs',outfile:out,logLevel:'silent',plugins:[{name:'native',setup(b){
-  b.onResolve({filter:/^(react|@react-native-async-storage\/async-storage)$/},a=>({path:a.path,namespace:'mock'}));
-  b.onLoad({filter:/.*/,namespace:'mock'},a=>({contents:a.path==='react'?`export const useSyncExternalStore=(subscribe,snapshot)=>snapshot();`:`export const storage={values:new Map([['pulse:translation:123','unchanged']]),writes:[],fail:false};export default {getItem:async key=>storage.values.get(key)??null,setItem:async(key,value)=>{if(storage.fail)throw new Error('disk unavailable');storage.writes.push([key,value]);storage.values.set(key,value)}};`}));
+  b.onResolve({filter:/^(react|expo-localization|@react-native-async-storage\/async-storage)$/},a=>({path:a.path,namespace:'mock'}));
+  b.onLoad({filter:/.*/,namespace:'mock'},a=>({contents:a.path==='expo-localization'?`export const getLocales=()=>[{languageTag:'es-CO'}];`:a.path==='react'?`export const useSyncExternalStore=(subscribe,snapshot)=>snapshot();`:`export const storage={values:new Map([['pulse:translation:123','unchanged']]),writes:[],fail:false};export default {getItem:async key=>storage.values.get(key)??null,setItem:async(key,value)=>{if(storage.fail)throw new Error('disk unavailable');storage.writes.push([key,value]);storage.values.set(key,value)}};`}));
  }}]});
  const m=require(out);
  assert.equal(m.resolveAppLanguage('es-MX'),'es');assert.equal(m.resolveAppLanguage('pt-PT'),'pt-BR');

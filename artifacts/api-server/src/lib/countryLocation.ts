@@ -1,7 +1,7 @@
 import type { Request } from "express";
 import { isIP } from "node:net";
 import proxyaddr from "proxy-addr";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 
 // The local ingress is trusted; additional public ingress CIDRs must be configured explicitly.
@@ -33,9 +33,15 @@ export async function lookupCountry(ip: string): Promise<string | null> {
   return code && countryName(code) ? code : null;
 }
 export async function updateCountryFromRequest(req: Request, uid: number) {
+  const [existing] = await db.select({ countryCode: usersTable.countryCode }).from(usersTable).where(eq(usersTable.uid, uid));
+  if (existing?.countryCode) return { outcome: "already_set" as const, countryCode: existing.countryCode };
   const ip = visitorIp(req);
-  if (!ip) return;
+  if (!ip) return { outcome: "no_public_ip" as const };
   const code = await lookupCountry(ip);
-  // Unknown/private addresses must never overwrite the last successfully detected country.
-  if (code) await db.update(usersTable).set({ countryCode: code }).where(eq(usersTable.uid, uid));
+  if (!code) return { outcome: "no_country_match" as const, countryCode: null };
+  // First successful lookup wins, even when two devices request it together.
+  const [saved] = await db.update(usersTable).set({ countryCode: code }).where(and(eq(usersTable.uid, uid), isNull(usersTable.countryCode))).returning({ countryCode: usersTable.countryCode });
+  if (saved) return { outcome: "updated" as const, countryCode: saved.countryCode };
+  const [winner] = await db.select({ countryCode: usersTable.countryCode }).from(usersTable).where(eq(usersTable.uid, uid));
+  return { outcome: "already_set" as const, countryCode: winner?.countryCode ?? null };
 }
