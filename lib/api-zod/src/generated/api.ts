@@ -3519,19 +3519,76 @@ export const GetAdminPayoutCatalogResponse = zod.object({
 
 
 /**
- * @summary Validate or atomically import signed-in Remitly Business research, idempotently
+ * @summary Create an audited database provider without deployment configuration
+ */
+export const createPayoutProviderBodyNameMax = 120;
+
+
+
+export const CreatePayoutProviderBody = zod.object({
+  "name": zod.string().min(1).max(createPayoutProviderBodyNameMax)
+})
+
+
+/**
+ * @summary Append an observed fee with history and optimistic revision checks
+ */
+export const addPayoutFeeObservationPathIdMax = 250;
+
+
+
+export const AddPayoutFeeObservationParams = zod.object({
+  "id": zod.coerce.string().max(addPayoutFeeObservationPathIdMax)
+})
+
+
+export const addPayoutFeeObservationBodySendAmountCentsMax = 100000000;
+
+export const addPayoutFeeObservationBodyFeeCentsMin = 0;
+export const addPayoutFeeObservationBodyFeeCentsMax = 100000000;
+
+export const addPayoutFeeObservationBodyDeliveryEstimateMax = 200;
+
+export const addPayoutFeeObservationBodySourceUrlMax = 500;
+
+
+
+export const AddPayoutFeeObservationBody = zod.object({
+  "revision": zod.number().min(1),
+  "sendAmountCents": zod.number().min(1).max(addPayoutFeeObservationBodySendAmountCentsMax),
+  "feeCents": zod.number().min(addPayoutFeeObservationBodyFeeCentsMin).max(addPayoutFeeObservationBodyFeeCentsMax),
+  "fundingMethod": zod.enum(['debit_card', 'credit_card', 'bank_account']),
+  "observedAt": zod.coerce.date(),
+  "deliveryEstimate": zod.string().max(addPayoutFeeObservationBodyDeliveryEstimateMax).nullish(),
+  "taxStatus": zod.enum(['not_observed', 'unresolved', 'none', 'included']),
+  "sourceUrl": zod.string().max(addPayoutFeeObservationBodySourceUrlMax)
+})
+
+export const AddPayoutFeeObservationResponse = zod.object({
+  "id": zod.string(),
+  "inserted": zod.boolean()
+})
+
+
+/**
+ * @summary Preview or atomically import countries, methods and fee observations into the selected provider
  */
 export const importPayoutResearchBodyResearchObservedDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const importPayoutResearchBodyResearchSourceMax = 200;
+
 export const importPayoutResearchBodyResearchComparisonSendAmountsUsdItemMin = 0.01;
 export const importPayoutResearchBodyResearchComparisonSendAmountsUsdItemMax = 100000;
 
 export const importPayoutResearchBodyResearchCountriesItemCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const importPayoutResearchBodyDryRunDefault = true;
+export const importPayoutResearchBodyProviderIdMax = 250;
+
+
 
 export const ImportPayoutResearchBody = zod.object({
   "research": zod.object({
   "observed_date": zod.string().regex(importPayoutResearchBodyResearchObservedDateRegExp),
-  "source": zod.enum(['Signed-in Remitly Business website UI']),
+  "source": zod.string().max(importPayoutResearchBodyResearchSourceMax),
   "source_urls": zod.array(zod.string()),
   "sender_country": zod.enum(['US']),
   "funding_method": zod.enum(['debit_card', 'credit_card', 'bank_account']),
@@ -3545,7 +3602,7 @@ export const ImportPayoutResearchBody = zod.object({
   "country_code": zod.string().regex(importPayoutResearchBodyResearchCountriesItemCountryCodeRegExp),
   "country": zod.string(),
   "receive_currency": zod.string().nullable(),
-  "inspection_status": zod.enum(['link_options', 'manual_only', 'not_in_destination_picker', 'quote_error', 'link_available_no_method_modal']),
+  "inspection_status": zod.enum(['link_options', 'manual_only', 'not_in_destination_picker', 'quote_error', 'link_available_no_method_modal', 'verified_methods']),
   "notes": zod.string(),
   "methods": zod.array(zod.object({
   "label": zod.string(),
@@ -3554,7 +3611,8 @@ export const ImportPayoutResearchBody = zod.object({
 })),
   "observed_at": zod.coerce.date().optional()
 }),
-  "dryRun": zod.boolean().default(importPayoutResearchBodyDryRunDefault)
+  "dryRun": zod.boolean().default(importPayoutResearchBodyDryRunDefault),
+  "providerId": zod.string().max(importPayoutResearchBodyProviderIdMax).optional()
 })
 
 export const ImportPayoutResearchResponse = zod.object({

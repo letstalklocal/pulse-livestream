@@ -92,6 +92,43 @@ router.get("/streams/:channelId/stickers", async (req, res): Promise<any> => {
     throw error;
   }
 });
+// Add one offer without replacing either existing slot. The session lock also
+// serializes concurrent additions, removals, replacements and sticker purchases.
+router.post("/streams/:channelId/stickers", async (req, res): Promise<any> => {
+  const user = await authenticatedUser(req);
+  if (!user) return res.status(401).json({ error: "Authentication required" });
+  try {
+    const requestId = req.body?.requestId;
+    if (typeof requestId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId))
+      throw new StickerError(400, "Invalid sticker request");
+    const [addition] = await validateStickers([req.body], user.uid);
+    addition.id = requestId;
+    await db.transaction(async tx => {
+      const [session] = await tx.select().from(liveStreamSessionsTable)
+        .where(eq(liveStreamSessionsTable.channelId, String(req.params.channelId))).for("update");
+      if (!session || session.hostUserId !== user.uid)
+        throw new StickerError(403, "Only the live host can add stickers");
+      await assertStickerAccess(session, user);
+      // An uncertain client response can retry without occupying a second slot.
+      const existing = session.stickers.find(sticker => sticker.id === requestId);
+      if (existing) {
+        if (existing.kind !== addition.kind || existing.giftId !== addition.giftId || existing.packId !== addition.packId)
+          throw new StickerError(409, "Sticker request already used");
+        return;
+      }
+      if (session.stickers.length >= 2) throw new StickerError(400, "Choose up to two stickers");
+      if (addition.packId && session.stickers.some(sticker => sticker.packId === addition.packId))
+        throw new StickerError(400, "This pack is already on a sticker");
+      await tx.update(liveStreamSessionsTable).set({ stickers: [...session.stickers, addition] })
+        .where(eq(liveStreamSessionsTable.id, session.id));
+    });
+    res.json({ success: true });
+  } catch (error) {
+    if (error instanceof StickerError) return res.status(error.status).json({ error: error.message });
+    throw error;
+  }
+});
+
 router.delete(
   "/streams/:channelId/stickers/:stickerId",
   async (req, res): Promise<any> => {

@@ -67,8 +67,19 @@ export function validateAccountKey(value: unknown): string {
     throw new CatalogError("Invalid provider account scope.");
   return key;
 }
-export function normalizeResearch(input: unknown, accountKey: string) {
+type ProviderTarget = { id: string; name: string; accountKey: string };
+export function normalizeResearch(
+  input: unknown,
+  accountKey: string,
+  provider?: ProviderTarget,
+) {
   validateAccountKey(accountKey);
+  if (provider) {
+    string(provider.id, "provider ID", 250);
+    string(provider.name, "provider name", 120);
+    if (provider.accountKey !== accountKey)
+      throw new CatalogError("Provider does not belong to this catalog.", 404);
+  }
   let serialized: string | undefined;
   try {
     serialized = JSON.stringify(input);
@@ -96,13 +107,17 @@ export function normalizeResearch(input: unknown, accountKey: string) {
     ],
     "Research",
   );
+  const remitly = !provider || /^remitly_[a-f0-9]{24}$/.test(provider.id);
+  const expectedSource = remitly
+    ? "Signed-in Remitly Business website UI"
+    : `Signed-in ${provider!.name} website UI`;
   if (
-    data.source !== "Signed-in Remitly Business website UI" ||
+    data.source !== expectedSource ||
     data.production_fee_schedule !== false ||
     data.live_requote_required !== true
   )
     throw new CatalogError(
-      "Only signed-in Remitly Business observations requiring a live requote are accepted.",
+      `Use source "${expectedSource}" and observations requiring a live requote.`,
     );
   const date = string(data.observed_date, "observed date", 10);
   let observedAt = `${date}T00:00:00.000Z`;
@@ -148,12 +163,13 @@ export function normalizeResearch(input: unknown, accountKey: string) {
     try {
       u = new URL(string(v, "source URL", 500));
     } catch {
-      throw new CatalogError("Invalid Remitly source URL.");
+      throw new CatalogError("Invalid provider source URL.");
     }
     if (
       u.protocol !== "https:" ||
-      u.hostname !== "www.remitly.com" ||
-      !["/us/en/homepage", "/us/en/transfer/send"].includes(u.pathname) ||
+      (remitly &&
+        (u.hostname !== "www.remitly.com" ||
+          !["/us/en/homepage", "/us/en/transfer/send"].includes(u.pathname))) ||
       u.username ||
       u.password ||
       u.port ||
@@ -161,7 +177,7 @@ export function normalizeResearch(input: unknown, accountKey: string) {
       u.hash
     )
       throw new CatalogError(
-        "Only the observed Remitly Business source pages without credentials or queries are accepted.",
+        "Use HTTPS provider source pages without credentials, ports, queries or fragments.",
       );
     return u.toString();
   });
@@ -198,13 +214,14 @@ export function normalizeResearch(input: unknown, accountKey: string) {
     data.discount_note == null
       ? null
       : string(data.discount_note, "discount note", 2000);
-  const providerId = `remitly_${hash(accountKey).slice(0, 24)}`;
+  const providerId = provider?.id ?? `remitly_${hash(accountKey).slice(0, 24)}`;
   const countries: Row[] = [],
     methods: Row[] = [],
     observations: Row[] = [];
   const seenCountries = new Set<string>();
   const statuses = [
     "link_options",
+    "verified_methods",
     "manual_only",
     "not_in_destination_picker",
     "quote_error",
@@ -236,7 +253,8 @@ export function normalizeResearch(input: unknown, accountKey: string) {
         ? "unavailable"
         : inspectionStatus === "quote_error"
           ? "quote_error"
-          : inspectionStatus === "link_options"
+          : inspectionStatus === "link_options" ||
+              (!remitly && inspectionStatus === "verified_methods")
             ? "available"
             : "unverified";
     const notes =
@@ -268,7 +286,7 @@ export function normalizeResearch(input: unknown, accountKey: string) {
         providerId,
         countryId,
         methodId,
-        source: "signed_in_remitly_business",
+        source: remitly ? "signed_in_remitly_business" : "signed_in_provider",
         observedAt,
         availability,
         payload,
@@ -359,8 +377,9 @@ export async function importResearch(
   accountKey: string,
   actor: string,
   dryRun = false,
+  provider?: ProviderTarget,
 ) {
-  const data = normalizeResearch(research, accountKey);
+  const data = normalizeResearch(research, accountKey, provider);
   const summary = {
     dryRun,
     providerId: data.providerId,
@@ -377,9 +396,15 @@ export async function importResearch(
       data.providerId,
     ]);
     await client.query(
-      "INSERT INTO payout_catalog_providers(id,name,account_key) VALUES($1,'Remitly',$2) ON CONFLICT(id) DO NOTHING",
+      "INSERT INTO payout_catalog_providers(id,name,account_key) VALUES($1,$2,$3) ON CONFLICT(id) DO NOTHING",
+      [data.providerId, provider?.name ?? "Remitly", accountKey],
+    );
+    const owner = await client.query(
+      "SELECT id FROM payout_catalog_providers WHERE id=$1 AND account_key=$2",
       [data.providerId, accountKey],
     );
+    if (!owner.rows.length)
+      throw new CatalogError("Provider does not belong to this catalog.", 404);
     for (const c of data.countries) {
       await client.query(
         `INSERT INTO payout_catalog_countries(id,provider_id,country_code,name,availability,last_verified_at) VALUES($1,$2,$3,$4,$5,$6)
@@ -477,6 +502,218 @@ export async function importResearch(
   }
 }
 
+export async function createCatalogProvider(
+  database: Database,
+  accountKey: string,
+  input: unknown,
+  actor: string,
+) {
+  validateAccountKey(accountKey);
+  const body = object(input, ["name"], "Provider");
+  const name = string(body.name, "provider name", 120).trim();
+  const code = name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "");
+  if (!code || code.length > 80)
+    throw new CatalogError(
+      "Use a provider name containing letters or numbers.",
+    );
+  const id = `${code}_${hash(accountKey).slice(0, 24)}`;
+  const client = await database.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [id]);
+    const duplicate = await client.query(
+      "SELECT id FROM payout_catalog_providers WHERE account_key=$1 AND (id=$2 OR lower(name)=lower($3))",
+      [accountKey, id, name],
+    );
+    if (duplicate.rows.length)
+      throw new CatalogError(
+        "This provider already exists. Select it to import methods and fees.",
+        409,
+      );
+    const result = await client.query(
+      "INSERT INTO payout_catalog_providers(id,name,account_key) VALUES($1,$2,$3) RETURNING *",
+      [id, name, accountKey],
+    );
+    await client.query(
+      "INSERT INTO payout_catalog_events(actor,action,target,after_value) VALUES($1,'provider_create',$2,$3)",
+      [actor, id, JSON.stringify(result.rows[0])],
+    );
+    await client.query("COMMIT");
+    return { id, name, enabled: true, revision: 1 };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+// New fee observations retain history instead of overwriting prior quotes.
+export async function addCatalogFee(
+  database: Database,
+  accountKey: string,
+  methodId: string,
+  input: unknown,
+  actor: string,
+) {
+  validateAccountKey(accountKey);
+  const body = object(
+    input,
+    [
+      "revision",
+      "sendAmountCents",
+      "feeCents",
+      "fundingMethod",
+      "observedAt",
+      "deliveryEstimate",
+      "taxStatus",
+      "sourceUrl",
+    ],
+    "Fee observation",
+  );
+  if (!Number.isSafeInteger(body.revision) || body.revision < 1)
+    throw new CatalogError("An expected method revision is required.");
+  const sendAmountCents = cents(body.sendAmountCents, "send amount");
+  if (!sendAmountCents)
+    throw new CatalogError("Send amount must be above zero.");
+  const feeCents = cents(body.feeCents, "fee");
+  if (
+    !["debit_card", "credit_card", "bank_account"].includes(body.fundingMethod)
+  )
+    throw new CatalogError("Unsupported funding method.");
+  const observedAt = string(body.observedAt, "observed timestamp", 24);
+  if (
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(observedAt) ||
+    !Number.isFinite(Date.parse(observedAt)) ||
+    new Date(observedAt).toISOString() !== observedAt ||
+    Date.parse(observedAt) > Date.now()
+  )
+    throw new CatalogError(
+      "Use a valid observation time that is not in the future.",
+    );
+  const deliveryEstimate =
+    body.deliveryEstimate == null || body.deliveryEstimate === ""
+      ? null
+      : string(body.deliveryEstimate, "delivery estimate", 200);
+  if (
+    !["not_observed", "unresolved", "included", "none"].includes(body.taxStatus)
+  )
+    throw new CatalogError("Select the observed tax status.");
+  let url: URL;
+  try {
+    url = new URL(string(body.sourceUrl, "provider source URL", 500));
+  } catch {
+    throw new CatalogError("Use a valid provider source URL.");
+  }
+  if (
+    url.protocol !== "https:" ||
+    url.username ||
+    url.password ||
+    url.port ||
+    url.search ||
+    url.hash
+  )
+    throw new CatalogError(
+      "Use an HTTPS provider page without credentials, ports, queries or fragments.",
+    );
+  const client = await database.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query(
+      `SELECT m.*,c.provider_id,c.country_code FROM payout_catalog_methods m JOIN payout_catalog_countries c ON c.id=m.country_id JOIN payout_catalog_providers p ON p.id=c.provider_id WHERE m.id=$1 AND p.account_key=$2 FOR UPDATE OF m`,
+      [methodId, accountKey],
+    );
+    const method = result.rows[0];
+    if (!method) throw new CatalogError("Catalog method not found.", 404);
+    const remitly = /^remitly_[a-f0-9]{24}$/.test(method.provider_id);
+    if (
+      remitly &&
+      (url.hostname !== "www.remitly.com" ||
+        !["/us/en/homepage", "/us/en/transfer/send"].includes(url.pathname))
+    )
+      throw new CatalogError("Use an observed Remitly Business source page.");
+    if (method.country_code === "BR" && body.taxStatus !== "unresolved")
+      throw new CatalogError(
+        "Brazil taxes remain unresolved until their method-specific requirements are verified.",
+      );
+    const latest = await client.query(
+      "SELECT payload FROM payout_catalog_observations WHERE method_id=$1 ORDER BY observed_at DESC,id DESC LIMIT 1",
+      [methodId],
+    );
+    const evidence = latest.rows[0]?.payload ?? {};
+    const payload = {
+      ...evidence,
+      sendAmountCents,
+      feeCents,
+      feeCurrency: "USD",
+      fundingMethod: body.fundingMethod,
+      senderCountry: "US",
+      receiveCurrency: method.receive_currency,
+      deliveryEstimate,
+      taxStatus: body.taxStatus,
+      sourceUrls: [url.toString()],
+      discountNote: null,
+      discountVerified: false,
+      liveRequoteRequired: true,
+    };
+    const id = `obs_${hash(canonical({ providerId: method.provider_id, countryId: method.country_id, methodId, observedAt, fundingMethod: body.fundingMethod, sendAmountCents })).slice(0, 48)}`;
+    const fingerprint = hash(
+      canonical({ availability: method.availability, payload }),
+    );
+    const existing = await client.query(
+      "SELECT fingerprint FROM payout_catalog_observations WHERE id=$1",
+      [id],
+    );
+    if (existing.rows.length) {
+      if (existing.rows[0].fingerprint !== fingerprint)
+        throw new CatalogError(
+          "This observation already exists with different data. Use a new observation time.",
+          409,
+        );
+      await client.query("COMMIT");
+      return { id, inserted: false };
+    }
+    if (method.revision !== body.revision)
+      throw new CatalogError(
+        "This method changed. Refresh before saving.",
+        409,
+      );
+    await client.query(
+      "INSERT INTO payout_catalog_observations(id,provider_id,country_id,method_id,source,observed_at,availability,payload,fingerprint) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+      [
+        id,
+        method.provider_id,
+        method.country_id,
+        methodId,
+        remitly ? "signed_in_remitly_business" : "signed_in_provider",
+        observedAt,
+        method.availability,
+        JSON.stringify(payload),
+        fingerprint,
+      ],
+    );
+    await client.query(
+      "UPDATE payout_catalog_methods SET last_verified_at=GREATEST(last_verified_at,$2),revision=revision+1,updated_at=now() WHERE id=$1",
+      [methodId, observedAt],
+    );
+    await client.query(
+      "INSERT INTO payout_catalog_events(actor,action,target,after_value) VALUES($1,'fee_observation',$2,$3)",
+      [actor, methodId, JSON.stringify({ id, observedAt, payload })],
+    );
+    await client.query("COMMIT");
+    return { id, inserted: true };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function readCatalog(
   database: Sql,
   accountKey: string | undefined,
@@ -508,7 +745,9 @@ export async function readCatalog(
     revision: r.revision,
   });
   for (const p of result.rows) {
-    if (!admin && !p.enabled) continue;
+    // Catalog setup is separate from integrating a provider's actual payout workflow.
+    if (!admin && (!p.enabled || !/^remitly_[a-f0-9]{24}$/.test(p.id)))
+      continue;
     const countries: Row[] = [];
     for (const c of p.countries as Row[]) {
       if (!admin && (!c.enabled || c.availability !== "available")) continue;

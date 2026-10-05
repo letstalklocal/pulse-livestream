@@ -1027,13 +1027,6 @@ export interface PayoutCatalogEntry {
   revision: number;
 }
 
-export type PayoutResearchSource = typeof PayoutResearchSource[keyof typeof PayoutResearchSource];
-
-
-export const PayoutResearchSource = {
-  'Signed-in_Remitly_Business_website_UI': 'Signed-in Remitly Business website UI',
-} as const;
-
 export type PayoutResearchSenderCountry = typeof PayoutResearchSenderCountry[keyof typeof PayoutResearchSenderCountry];
 
 
@@ -1066,6 +1059,7 @@ export const PayoutResearchCountryInspectionStatus = {
   not_in_destination_picker: 'not_in_destination_picker',
   quote_error: 'quote_error',
   link_available_no_method_modal: 'link_available_no_method_modal',
+  verified_methods: 'verified_methods',
 } as const;
 
 export type PayoutResearchCountryMethodsItem = {
@@ -1087,7 +1081,8 @@ export interface PayoutResearchCountry {
 export interface PayoutResearch {
   /** @pattern ^\d{4}-\d{2}-\d{2}$ */
   observed_date: string;
-  source: PayoutResearchSource;
+  /** @maxLength 200 */
+  source: string;
   source_urls: string[];
   sender_country: PayoutResearchSenderCountry;
   funding_method: PayoutResearchFundingMethod;
@@ -1104,6 +1099,8 @@ export interface PayoutResearch {
 export interface PayoutResearchImportRequest {
   research: PayoutResearch;
   dryRun?: boolean;
+  /** @maxLength 250 */
+  providerId?: string;
 }
 
 export interface PayoutResearchImportResult {
@@ -2002,6 +1999,60 @@ export interface UnlockMediaDmResponse {
   balance: number;
   unlocked: boolean;
   mediaUrl?: string;
+}
+
+export interface PayoutProviderCreate {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name: string;
+}
+
+export type PayoutFeeObservationInputFundingMethod = typeof PayoutFeeObservationInputFundingMethod[keyof typeof PayoutFeeObservationInputFundingMethod];
+
+
+export const PayoutFeeObservationInputFundingMethod = {
+  debit_card: 'debit_card',
+  credit_card: 'credit_card',
+  bank_account: 'bank_account',
+} as const;
+
+export type PayoutFeeObservationInputTaxStatus = typeof PayoutFeeObservationInputTaxStatus[keyof typeof PayoutFeeObservationInputTaxStatus];
+
+
+export const PayoutFeeObservationInputTaxStatus = {
+  not_observed: 'not_observed',
+  unresolved: 'unresolved',
+  none: 'none',
+  included: 'included',
+} as const;
+
+export interface PayoutFeeObservationInput {
+  /** @minimum 1 */
+  revision: number;
+  /**
+     * @minimum 1
+     * @maximum 100000000
+     */
+  sendAmountCents: number;
+  /**
+     * @minimum 0
+     * @maximum 100000000
+     */
+  feeCents: number;
+  fundingMethod: PayoutFeeObservationInputFundingMethod;
+  observedAt: string;
+  /** @maxLength 200 */
+  deliveryEstimate?: string | null;
+  taxStatus: PayoutFeeObservationInputTaxStatus;
+  /** @maxLength 500 */
+  sourceUrl: string;
+}
+
+export interface PayoutFeeObservationResult {
+  id: string;
+  inserted: boolean;
 }
 
 export type ListPayoutOperatorWithdrawalsParams = {

@@ -94,6 +94,8 @@ function StickerSession({
     },
   });
   const [replacement, setReplacement] = useState<LiveSticker | null>(null);
+  const [adding, setAdding] = useState<"gift" | "pack" | null>(null);
+  const additionKeys = useRef(new Map<string, string>());
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const mounted = useRef(true);
@@ -105,6 +107,7 @@ function StickerSession({
     if (!enabled) {
       controller.current?.abort();
       setReplacement(null);
+      setAdding(null);
     }
   }, [enabled]);
   useEffect(() => {
@@ -279,6 +282,32 @@ function StickerSession({
       if (mounted.current) setBusy(false);
     }
   };
+  const add = async (draft: StickerDraft) => {
+    if (!isHost || !adding || busyRef.current || !active.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    controller.current = new AbortController();
+    const draftKey = `${draft.kind}:${draft.giftId}:${draft.packId ?? ""}`;
+    let requestId = additionKeys.current.get(draftKey);
+    if (!requestId) {
+      requestId = Crypto.randomUUID();
+      additionKeys.current.set(draftKey, requestId);
+    }
+    try {
+      await stickerApi(`/streams/${encodeURIComponent(channelId)}/stickers`, getToken,
+        "POST", { ...draft, requestId }, controller.current.signal);
+      additionKeys.current.delete(draftKey);
+      if (mounted.current && active.current) setAdding(null);
+      await client.invalidateQueries({ queryKey: key });
+    } catch (error) {
+      // Keep the key and picker for a safe retry after a lost response.
+      if (mounted.current && active.current)
+        Alert.alert(t("Please try again."), t(error instanceof Error ? error.message : "Please try again."));
+    } finally {
+      busyRef.current = false;
+      if (mounted.current) setBusy(false);
+    }
+  };
   const stickers = query.isError
     ? []
     : (query.data?.stickers ?? []).filter(
@@ -324,7 +353,12 @@ function StickerSession({
               <Text style={{ color: "#FFF", fontSize: 20, marginBottom: 16 }}>{t("Change sticker")}</Text>
               {query.isLoading ? <Text style={{ color: "#FFF" }}>{t("Loading…")}</Text> : null}
               {query.isError ? <TouchableOpacity onPress={() => void query.refetch()} style={{ padding: 16 }}><Text style={{ color: "#FFF" }}>{t("Please try again.")}</Text></TouchableOpacity> : null}
-              {query.isSuccess && stickers.length === 0 ? <Text style={{ color: "#FFF", paddingVertical: 12 }}>{t("Add stickers before going live.")}</Text> : null}
+              {query.isSuccess && (query.data?.stickers.length ?? 0) < 2 ? (["gift", "pack"] as const).map(kind => (
+                <TouchableOpacity key={kind} testID={`manage-live-add-${kind}`} accessibilityRole="button" disabled={busy}
+                  style={{ paddingVertical: 16 }} onPress={() => { onManageClose?.(); setAdding(kind); }}>
+                  <Text style={{ color: "#FFF", fontSize: 16 }}>{t(kind === "gift" ? "Add gift sticker" : "Add pack sticker")}</Text>
+                </TouchableOpacity>
+              )) : null}
               {stickers.map(sticker => <TouchableOpacity key={sticker.id} testID={`manage-live-sticker-${sticker.id}`} accessibilityRole="button"
                 disabled={busy} style={{ flexDirection: "row", alignItems: "center", gap: 16, paddingVertical: 10 }}
                 onPress={() => { onManageClose?.(); setReplacement(sticker); }}>
@@ -336,17 +370,17 @@ function StickerSession({
           </View>
         </Modal>
       ) : null}
-      {replacement && enabled ? (
+      {(replacement || adding) && isHost && enabled ? (
         <LiveStickerPicker
-          key={replacement.id}
-          initialKind={replacement.kind}
-          replacing
+          key={replacement?.id ?? `add-${adding}`}
+          initialKind={replacement?.kind ?? adding!}
+          replacing={!!replacement}
           excludedPackIds={(query.data?.stickers ?? [])
-            .filter((s) => s.id !== replacement.id && s.packId !== undefined)
+            .filter((s) => s.id !== replacement?.id && s.packId !== undefined)
             .map((s) => s.packId!)}
           disabled={busy}
-          onClose={() => setReplacement(null)}
-          onSelect={(draft) => void replace(draft)}
+          onClose={() => { if (!busyRef.current) { setReplacement(null); setAdding(null); } }}
+          onSelect={(draft) => { if (replacement) void replace(draft); else void add(draft); }}
         />
       ) : null}
     </>

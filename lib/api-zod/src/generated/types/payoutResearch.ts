@@ -9,12 +9,12 @@ import type { PayoutResearchCountry } from './payoutResearchCountry';
 import type { PayoutResearchFeeCurrency } from './payoutResearchFeeCurrency';
 import type { PayoutResearchFundingMethod } from './payoutResearchFundingMethod';
 import type { PayoutResearchSenderCountry } from './payoutResearchSenderCountry';
-import type { PayoutResearchSource } from './payoutResearchSource';
 
 export interface PayoutResearch {
   /** @pattern ^\d{4}-\d{2}-\d{2}$ */
   observed_date: string;
-  source: PayoutResearchSource;
+  /** @maxLength 200 */
+  source: string;
   source_urls: string[];
   sender_country: PayoutResearchSenderCountry;
   funding_method: PayoutResearchFundingMethod;

@@ -10,4 +10,6 @@ import type { PayoutResearch } from './payoutResearch';
 export interface PayoutResearchImportRequest {
   research: PayoutResearch;
   dryRun?: boolean;
+  /** @maxLength 250 */
+  providerId?: string;
 }

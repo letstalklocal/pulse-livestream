@@ -15,4 +15,5 @@ export const PayoutResearchCountryInspectionStatus = {
   not_in_destination_picker: 'not_in_destination_picker',
   quote_error: 'quote_error',
   link_available_no_method_modal: 'link_available_no_method_modal',
+  verified_methods: 'verified_methods',
 } as const;

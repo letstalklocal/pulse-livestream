@@ -74,6 +74,8 @@ import type {
   PayoutCatalogUpdate,
   PayoutEstimate,
   PayoutEstimateRequest,
+  PayoutFeeObservationInput,
+  PayoutFeeObservationResult,
   PayoutMcpRequest,
   PayoutMcpResponse,
   PayoutOperatorBrowserLease,
@@ -98,6 +100,7 @@ import type {
   PayoutOperatorReleased,
   PayoutOperatorRevoked,
   PayoutOperatorUnknownInput,
+  PayoutProviderCreate,
   PayoutResearchImportRequest,
   PayoutResearchImportResult,
   PostActivity,
@@ -3451,6 +3454,149 @@ export function useGetAdminPayoutCatalog<TData = Awaited<ReturnType<typeof getAd
 
 
 
+export const getCreatePayoutProviderUrl = () => {
+
+
+
+
+  return `/api/admin-data/payout-catalog/providers`
+}
+
+/**
+ * @summary Create an audited database provider without deployment configuration
+ */
+export const createPayoutProvider = async (payoutProviderCreate: PayoutProviderCreate, options?: RequestInit): Promise<PayoutCatalogEntry> => {
+
+  return customFetch<PayoutCatalogEntry>(getCreatePayoutProviderUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      payoutProviderCreate,)
+  }
+);}
+
+
+
+
+export const getCreatePayoutProviderMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPayoutProvider>>, TError,{data: BodyType<PayoutProviderCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPayoutProvider>>, TError,{data: BodyType<PayoutProviderCreate>}, TContext> => {
+
+const mutationKey = ['createPayoutProvider'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPayoutProvider>>, {data: BodyType<PayoutProviderCreate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPayoutProvider(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePayoutProviderMutationResult = NonNullable<Awaited<ReturnType<typeof createPayoutProvider>>>
+    export type CreatePayoutProviderMutationBody = BodyType<PayoutProviderCreate>
+    export type CreatePayoutProviderMutationError = ErrorType<void>
+
+    /**
+ * @summary Create an audited database provider without deployment configuration
+ */
+export const useCreatePayoutProvider = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPayoutProvider>>, TError,{data: BodyType<PayoutProviderCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPayoutProvider>>,
+        TError,
+        {data: BodyType<PayoutProviderCreate>},
+        TContext
+      > => {
+      return useMutation(getCreatePayoutProviderMutationOptions(options));
+    }
+
+export const getAddPayoutFeeObservationUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin-data/payout-catalog/methods/${id}/fees`
+}
+
+/**
+ * @summary Append an observed fee with history and optimistic revision checks
+ */
+export const addPayoutFeeObservation = async (id: string,
+    payoutFeeObservationInput: PayoutFeeObservationInput, options?: RequestInit): Promise<PayoutFeeObservationResult> => {
+
+  return customFetch<PayoutFeeObservationResult>(getAddPayoutFeeObservationUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      payoutFeeObservationInput,)
+  }
+);}
+
+
+
+
+export const getAddPayoutFeeObservationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addPayoutFeeObservation>>, TError,{id: string;data: BodyType<PayoutFeeObservationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addPayoutFeeObservation>>, TError,{id: string;data: BodyType<PayoutFeeObservationInput>}, TContext> => {
+
+const mutationKey = ['addPayoutFeeObservation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addPayoutFeeObservation>>, {id: string;data: BodyType<PayoutFeeObservationInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  addPayoutFeeObservation(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddPayoutFeeObservationMutationResult = NonNullable<Awaited<ReturnType<typeof addPayoutFeeObservation>>>
+    export type AddPayoutFeeObservationMutationBody = BodyType<PayoutFeeObservationInput>
+    export type AddPayoutFeeObservationMutationError = ErrorType<void>
+
+    /**
+ * @summary Append an observed fee with history and optimistic revision checks
+ */
+export const useAddPayoutFeeObservation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addPayoutFeeObservation>>, TError,{id: string;data: BodyType<PayoutFeeObservationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addPayoutFeeObservation>>,
+        TError,
+        {id: string;data: BodyType<PayoutFeeObservationInput>},
+        TContext
+      > => {
+      return useMutation(getAddPayoutFeeObservationMutationOptions(options));
+    }
+
 export const getImportPayoutResearchUrl = () => {
 
 
@@ -3460,7 +3606,7 @@ export const getImportPayoutResearchUrl = () => {
 }
 
 /**
- * @summary Validate or atomically import signed-in Remitly Business research, idempotently
+ * @summary Preview or atomically import countries, methods and fee observations into the selected provider
  */
 export const importPayoutResearch = async (payoutResearchImportRequest: PayoutResearchImportRequest, options?: RequestInit): Promise<PayoutResearchImportResult> => {
 
@@ -3509,7 +3655,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ImportPayoutResearchMutationError = ErrorType<void>
 
     /**
- * @summary Validate or atomically import signed-in Remitly Business research, idempotently
+ * @summary Preview or atomically import countries, methods and fee observations into the selected provider
  */
 export const useImportPayoutResearch = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importPayoutResearch>>, TError,{data: BodyType<PayoutResearchImportRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}

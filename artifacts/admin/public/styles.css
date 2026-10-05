@@ -1437,3 +1437,27 @@ dd {
     max-width: 60%;
   }
 }
+
+/* Provider setup and observed fee entry share the catalog controls. */
+.catalog-editor select,
+.catalog-editor input {
+  max-width: 100%;
+}
+.catalog-fee-editor {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+.catalog-fee-editor label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.catalog-fee-editor select {
+  padding: 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #171820;
+  color: inherit;
+}

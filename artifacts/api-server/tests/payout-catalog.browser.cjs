@@ -23,8 +23,9 @@ const root = path.resolve(__dirname, '../../admin/public');
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
     const errors = []; page.on('pageerror', e => errors.push(e.message));
     let denied = false, failing = false, conflict = false, dryRun = 0, imports = 0, patch;
+    const providers = []; let created = false, feeSaved = false;
     let holdImport = false, releaseImport, signalImport;
-    const provider = { id: '1', name: 'Remitly', enabled: true, revision: 1, countries: [
+    const provider = { id: 'remitly_000000000000000000000000', name: 'Remitly', enabled: true, revision: 1, countries: [
       { id: '2', name: 'Colombia', countryCode: 'CO', availability: 'link_options', enabled: true, revision: 1, lastVerifiedAt: '2026-10-04', observations: [{ observedAt: '2026-10-04', inspectionStatus: 'link_options', notes: '<img src=x onerror=alert(1)>', discountNote: 'Separate USD 50 discount, not a fee', sourceUrls: ['https://www.remitly.com/us/en/transfer/send'] }], methods: [
         { id: '3', name: 'Mobile wallet', code: 'mobile_wallet', enabled: true, revision: 1, receiveCurrency: 'COP', availability: 'available', lastVerifiedAt: '2026-10-04', observations: [
           { sendAmountCents: 1500, feeCents: 99, feeCurrency: 'USD', fundingMethod: 'debit_card', observedAt: '2026-10-04', deliveryEstimate: '5 minutes', taxStatus: 'not_resolved' },
@@ -40,13 +41,22 @@ const root = path.resolve(__dirname, '../../admin/public');
       if (denied) return route.fulfill({ status: 403, json: { error: 'Access removed' } });
       if (pathname.endsWith('/session')) return route.fulfill({ json: { role: 'owner', environment: 'development' } });
       if (pathname.endsWith('/payout-catalog/import')) {
-        const body = req.postDataJSON(); assert.deepEqual(Object.keys(body).sort(), ['dryRun', 'research']);
+        const body = req.postDataJSON(); assert.deepEqual(Object.keys(body).sort(), ['dryRun', 'providerId', 'research']);
         if (body.dryRun) dryRun++; else imports++;
         if (holdImport) {
           holdImport = false;
           await new Promise(resolve => { releaseImport = resolve; signalImport(); });
         }
         return route.fulfill({ json: { dryRun: body.dryRun, countries: 2, methods: 1, observations: 4 } });
+      }
+      if (pathname.endsWith('/payout-catalog/providers') && req.method() === 'POST') {
+        const body = req.postDataJSON(); assert.equal(body.name, 'Payoneer'); created = true;
+        const added = {id:'payoneer_fixture', name:body.name, enabled:true, revision:1, countries:[]}; providers.push(added);
+        return route.fulfill({status:201, json:added});
+      }
+      if (pathname.endsWith('/methods/3/fees')) {
+        const body = req.postDataJSON(); assert.equal(body.sendAmountCents,1401); assert.equal(body.feeCents,99); feeSaved = true;
+        return route.fulfill({json:{id:'new-fee',inserted:true}});
       }
       if (req.method() === 'PATCH') {
         patch = req.postDataJSON();
@@ -55,7 +65,7 @@ const root = path.resolve(__dirname, '../../admin/public');
         return route.fulfill({ json: provider });
       }
       if (failing) return route.fulfill({ status: 503, json: { error: 'Temporary failure' } });
-      if (pathname.endsWith('/payout-catalog')) return route.fulfill({ json: { providers: [provider], asOf: '2026-10-04' } });
+      if (pathname.endsWith('/payout-catalog')) return route.fulfill({ json: { providers: [provider, ...providers], asOf: '2026-10-04' } });
       return route.fulfill({ json: {} });
     });
     await page.goto(base + '/admin/#payout-methods');
@@ -65,7 +75,7 @@ const root = path.resolve(__dirname, '../../admin/public');
     assert.equal(await page.locator('.catalog-method tbody tr').count(), 2);
     assert.match(await page.locator('.catalog-method table').textContent(), /\$15\.00.*debit_card.*\$0\.99/);
     assert.match(await page.locator('.catalog-method table').textContent(), /\$500\.00.*debit_card.*\$0\.00/);
-    await page.locator('.catalog-country').first().locator('.catalog-evidence summary').click();
+    await page.locator('.catalog-country').first().locator('.catalog-evidence summary').first().click();
     assert.equal(await page.locator('#catalog-records img').count(), 0);
     assert.match(await page.locator('#catalog-records').textContent(), /Separate USD 50 discount/);
     assert.match(await page.locator('#catalog-records').textContent(), /quote_error/);
@@ -75,6 +85,13 @@ const root = path.resolve(__dirname, '../../admin/public');
     assert.deepEqual(patch, { name: 'Remitly', enabled: false, revision: 1 });
     await page.getByText('Colombia · CO', { exact: false }).click();
     assert.match(await page.locator('.catalog-method').textContent(), /parent is disabled/);
+    const feeForm = page.locator('.catalog-fee-editor').first();
+    await page.locator('.catalog-method .catalog-evidence summary').first().click();
+    await feeForm.locator('[name=sendAmount]').fill('14.01'); await feeForm.locator('[name=fee]').fill('0.99');
+    await feeForm.locator('[name=observedAt]').fill('2026-10-04T12:00');
+    await feeForm.locator('[name=sourceUrl]').fill('https://www.remitly.com/us/en/transfer/send');
+    await Promise.all([page.waitForResponse(r => r.url().endsWith('/methods/3/fees')), feeForm.getByRole('button', {name:'Save fee observation'}).click()]); assert.equal(feeSaved,true);
+    await page.locator('#catalog-provider').waitFor();
     conflict = true;
     await page.locator('#catalog-records > .catalog-editor').getByRole('button', { name: 'Save' }).click();
     await page.getByText('This record changed. Refresh the catalog before saving again.').waitFor();
@@ -97,13 +114,31 @@ const root = path.resolve(__dirname, '../../admin/public');
     await page.waitForResponse(r => r.url().endsWith('/payout-catalog/import'));
     assert.equal(await page.locator('#commit-catalog-import').isDisabled(), true);
     assert.equal(imports, 1);
+    await page.locator('#catalog-add-provider input').fill('Payoneer');
+    await page.locator('#catalog-add-provider button').click();
+    await page.waitForFunction(() => document.querySelector('#catalog-provider')?.value === 'payoneer_fixture');
+    assert.equal(created,true); assert.match(await page.locator('#catalog-import-provider').textContent(), /Payoneer/);
+    assert.equal(await page.locator('#commit-catalog-import').isDisabled(),true);
+    await page.locator('#catalog-provider').selectOption(provider.id);
+    assert.equal(await page.locator('#commit-catalog-import').isDisabled(),true);
+    // A provider change also invalidates an in-flight preview for the old provider.
+    const providerPreviewStarted = new Promise(resolve => {signalImport=resolve;}); holdImport=true;
+    await page.locator('#preview-catalog-import').click(); await providerPreviewStarted;
+    await page.locator('#catalog-provider').selectOption('payoneer_fixture'); releaseImport();
+    await page.waitForResponse(r => r.url().endsWith('/payout-catalog/import'));
+    assert.equal(await page.locator('#commit-catalog-import').isDisabled(),true);
+    await page.screenshot({path:'/tmp/payout-catalog-desktop.png',fullPage:true});
+    await page.locator('#catalog-provider').selectOption(provider.id);
     failing = true; await page.locator('#refresh-catalog').click();
     await page.getByText('Temporary failure', { exact: true }).waitFor();
     assert.equal(await page.locator('.catalog-country').count(), 0);
     failing = false; await page.locator('#refresh-catalog').click(); await page.locator('#catalog-provider').waitFor();
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByText('Colombia · CO', { exact: false }).click();
+    await page.locator('.catalog-method .catalog-evidence summary').first().click();
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    assert.equal(await page.locator('#catalog-add-provider .catalog-feedback').textContent(), 'Provider added.');
+    await page.screenshot({path:'/tmp/payout-catalog-mobile-width.png',fullPage:true});
     denied = true; await page.locator('#refresh-catalog').click();
     await page.getByRole('heading', { name: 'Admin access required' }).waitFor();
     assert.equal(await page.locator('#catalog-records').count(), 0);

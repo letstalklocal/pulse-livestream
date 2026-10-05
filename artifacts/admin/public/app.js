@@ -13,7 +13,8 @@ const icons = {
     '<rect x="3" y="5" width="18" height="15" rx="3"/><path d="M3 8V5l14-3v3M16 12h5v5h-5z"/>',
   "Payout methods": '<path d="M3 12h18M12 3v18M5 5h14v14H5z"/>',
   "Payout desk": '<path d="M4 5h16v15H4zM8 9h8m-8 4h5m-5 4h3M15 16l2 2 4-5"/>',
-  "Payout operators": '<circle cx="8" cy="9" r="4"/><path d="m11 12 9 9m-3-3 3-3m-6 0 3-3"/>',
+  "Payout operators":
+    '<circle cx="8" cy="9" r="4"/><path d="m11 12 9 9m-3-3 3-3m-6 0 3-3"/>',
   Moderation: '<path d="M5 21V3m0 1h14l-3 5 3 5H5"/>',
   "Audit log":
     '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6m-6 4h6m-6 4h4"/>',
@@ -69,7 +70,12 @@ const payoutDesk = {
   enrollment: null,
   mutationVersion: 0,
 };
-const operatorCredentials = { version: 0, busy: false, records: [], token: null };
+const operatorCredentials = {
+  version: 0,
+  busy: false,
+  records: [],
+  token: null,
+};
 const operations = {
   "Live streams": {
     endpoint: "live-streams",
@@ -525,7 +531,7 @@ async function loadOverview() {
   }
 }
 function catalogPage() {
-  return `<section class="panel catalog-panel"><div class="panel-heading"><div><h2>Payout-method catalog</h2><p>Signed-in Business account observations. Saved fees are estimates; verify the actual quote before preparing payment.</p></div><button class="page-button" id="refresh-catalog">Refresh</button></div><div class="catalog-content"><p id="catalog-status" role="status">Loading catalog…</p><div id="catalog-records"></div></div></section><section class="panel catalog-import"><div class="panel-heading"><div><h2>Import signed-in research</h2><p>Preview the JSON before importing. Account scope is controlled by the server.</p></div></div><div class="catalog-content"><label for="catalog-file">Research JSON file</label><input id="catalog-file" type="file" accept="application/json,.json"><div class="catalog-actions"><button class="page-button" id="preview-catalog-import" disabled>Preview import</button><button class="primary-button" id="commit-catalog-import" disabled>Import research</button></div><p id="catalog-import-status" role="status">No file selected. Import does not send payments.</p></div></section>`;
+  return `<section class="panel catalog-panel"><div class="panel-heading"><div><h2>Payout providers, countries and fees</h2><p>Manage providers and their observed payout options. Saved fees are estimates; verify the actual quote before preparing payment.</p></div><button class="page-button" id="refresh-catalog">Refresh</button></div><div class="catalog-content"><form id="catalog-add-provider" class="catalog-editor"><label>Provider name<input name="name" required maxlength="120" placeholder="Remitly, Payoneer…"></label><button class="primary-button" type="submit">Add provider</button><span class="catalog-feedback" role="status"></span></form><p id="catalog-status" role="status">Loading catalog…</p><div id="catalog-records"></div></div></section><section class="panel catalog-import"><div class="panel-heading"><div><h2>Import countries, methods and fees</h2><p id="catalog-import-provider">Add and select a provider above, then preview its JSON before importing.</p></div></div><div class="catalog-content"><label for="catalog-file">Research JSON file</label><input id="catalog-file" type="file" accept="application/json,.json"><div class="catalog-actions"><button class="page-button" id="download-catalog-template" disabled>Download import template</button><button class="page-button" id="preview-catalog-import" disabled>Preview import</button><button class="primary-button" id="commit-catalog-import" disabled>Import research</button></div><p id="catalog-import-status" role="status">No file selected. Import does not send payments.</p></div></section>`;
 }
 const catalogMoney = (cents, currency = "USD") => {
   if (!Number.isFinite(cents)) return "Unknown";
@@ -561,6 +567,69 @@ function catalogRouteEvidence(record) {
       : "";
   return `<details class="catalog-evidence"><summary>Route research and quote errors (${observations.length} observations)</summary>${observations.map((o) => `<p class="catalog-notes"><strong>${esc(catalogDate(o.observedAt))} · ${esc(o.inspectionStatus)}</strong><br>${esc(o.notes || "No additional notes.")}${o.discountNote ? `<br>Promotion observation (separate from fees): ${esc(o.discountNote)}` : ""}${o.sourceUrls?.length ? `<br>Sources: ${o.sourceUrls.map(esc).join(" · ")}` : ""}</p>`).join("")}</details>`;
 }
+function catalogFeeEditor(method) {
+  const latest = method.observations?.[0] || {};
+  return `<details class="catalog-evidence"><summary>Update observed fee</summary><form class="catalog-fee-editor catalog-editor" data-method-id="${esc(method.id)}" data-revision="${esc(method.revision)}"><label>Send amount · USD<input name="sendAmount" type="text" inputmode="decimal" required placeholder="15.00"></label><label>Observed fee · USD<input name="fee" type="text" inputmode="decimal" required placeholder="0.99"></label><label>Funding method<select name="fundingMethod"><option value="debit_card">Debit card</option><option value="credit_card">Credit card</option><option value="bank_account">Bank account</option></select></label><label>Observed at · local time<input name="observedAt" type="datetime-local" required></label><label>Delivery estimate<input name="deliveryEstimate" maxlength="200" value="${esc(latest.deliveryEstimate || "")}"></label><label>Taxes<select name="taxStatus"><option value="not_observed">Not observed</option><option value="unresolved">Unresolved</option><option value="none">Confirmed none</option><option value="included">Confirmed included</option></select></label><label>Provider source page<input name="sourceUrl" type="url" required maxlength="500" value="${esc(latest.sourceUrls?.[0] || "")}" placeholder="https://…"></label><button class="page-button" type="submit">Save fee observation</button><span class="catalog-feedback" role="status"></span></form><p>Enter a fee observed in the provider account for this exact send amount and funding method. Saving retains previous observations and does not change existing withdrawal quotes.</p></details>`;
+}
+function catalogCents(value) {
+  if (!/^(0|[1-9]\d*)(\.\d{1,2})?$/.test(value))
+    throw new Error("Enter USD amounts with at most two decimal places.");
+  const [whole, fraction = ""] = value.split(".");
+  return Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
+}
+function resetCatalogPreview() {
+  catalogPreviewed = false;
+  document.getElementById("commit-catalog-import").disabled = true;
+}
+function downloadCatalogTemplate() {
+  const provider = catalog?.providers?.find((p) => p.id === catalogProviderId);
+  if (!provider) return;
+  const template = {
+    observed_date: new Date().toISOString().slice(0, 10),
+    source: /^remitly_[a-f0-9]{24}$/.test(provider.id)
+      ? "Signed-in Remitly Business website UI"
+      : `Signed-in ${provider.name} website UI`,
+    source_urls: /^remitly_[a-f0-9]{24}$/.test(provider.id)
+      ? ["https://www.remitly.com/us/en/transfer/send"]
+      : [],
+    sender_country: "US",
+    funding_method: "debit_card",
+    comparison_send_amounts_usd: [15],
+    fee_currency: "USD",
+    production_fee_schedule: false,
+    live_requote_required: true,
+    scope: "Replace with the scope of your signed-in provider observations.",
+    countries: [
+      {
+        country_code: "",
+        country: "",
+        receive_currency: "",
+        inspection_status: /^remitly_[a-f0-9]{24}$/.test(provider.id)
+          ? "link_options"
+          : "verified_methods",
+        notes: "Replace with your actual country and method observations.",
+        methods: [
+          {
+            label: "",
+            delivery_estimate: null,
+            fee_cents_at_15_usd_send: null,
+          },
+        ],
+      },
+    ],
+  };
+  const blob = new Blob([JSON.stringify(template, null, 2)], {
+    type: "application/json",
+  });
+  const url = URL.createObjectURL(blob),
+    link = document.createElement("a");
+  link.href = url;
+  link.download = "payout-provider-import.json";
+  link.click();
+  URL.revokeObjectURL(url);
+  document.getElementById("catalog-import-status").textContent =
+    "Template downloaded. Add country records with country_code, country, receive_currency, inspection_status, notes and methods. Each method needs label, delivery_estimate and fee_cents_at_15_usd_send. Fees are integer USD cents. Fill in the country and method records before previewing.";
+}
 function renderCatalogRecords() {
   const target = document.getElementById("catalog-records");
   if (!target || !catalog) return;
@@ -570,10 +639,15 @@ function renderCatalogRecords() {
     providers[0];
   catalogProviderId = provider?.id ?? null;
   if (!provider) {
-    target.innerHTML = "<p>No providers imported yet.</p>";
+    target.innerHTML =
+      "<p>No providers yet. Add a provider above, then import its countries, methods and fees.</p>";
+    document.getElementById("download-catalog-template").disabled = true;
     return;
   }
-  target.innerHTML = `<label class="catalog-provider">Provider<select id="catalog-provider">${providers.map((p) => `<option value="${esc(p.id)}" ${p === provider ? "selected" : ""}>${esc(p.name)}${p.enabled ? "" : " (disabled)"}</option>`).join("")}</select></label>${catalogEditor("providers", provider)}<div class="catalog-countries">${(provider.countries || []).map((c) => `<details class="catalog-country"><summary>${esc(c.name)} · ${esc(c.countryCode)} <span>${esc(c.availability)}${c.enabled ? "" : " · Disabled"}</span></summary><p>Receive currency: ${esc(c.receiveCurrency || c.methods?.[0]?.receiveCurrency || "Not observed")} · Last verified: ${esc(catalogDate(c.lastVerifiedAt))} · Inspection: ${esc(c.inspectionStatus || c.availability)}</p>${catalogRouteEvidence(c)}${catalogEditor("countries", c, !provider.enabled)}${(c.methods || []).map((m) => `<section class="catalog-method"><h3>${esc(m.name)}</h3><p>${esc(m.receiveCurrency || "Currency not observed")} · ${esc(m.availability)} · Last verified: ${esc(catalogDate(m.lastVerifiedAt))}</p>${catalogEditor("methods", m, !provider.enabled || !c.enabled)}<div class="table-scroll"><table><caption>Observed fees by send amount and funding method</caption><thead><tr><th>Amount sent · USD</th><th>Funding method</th><th>Provider fee</th><th>Delivery estimate</th><th>Observed · UTC</th><th>Taxes</th></tr></thead><tbody>${catalogObservationRows(m.observations)}</tbody></table></div></section>`).join("") || "<p>No selectable delivery methods observed. The route remains in this catalog for review.</p>"}</details>`).join("")}</div>`;
+  document.getElementById("download-catalog-template").disabled = false;
+  document.getElementById("catalog-import-provider").textContent =
+    `Import into ${provider.name}. Upload countries, delivery methods and observed fees for this provider.`;
+  target.innerHTML = `<label class="catalog-provider">Provider<select id="catalog-provider">${providers.map((p) => `<option value="${esc(p.id)}" ${p === provider ? "selected" : ""}>${esc(p.name)}${p.enabled ? "" : " (disabled)"}</option>`).join("")}</select></label>${catalogEditor("providers", provider)}${/^remitly_[a-f0-9]{24}$/.test(provider.id) ? "" : "<p>Provider information can be managed here. Its actual withdrawal workflow requires a separate integration before it appears in the mobile app.</p>"}<div class="catalog-countries">${(provider.countries || []).map((c) => `<details class="catalog-country"><summary>${esc(c.name)} · ${esc(c.countryCode)} <span>${esc(c.availability)}${c.enabled ? "" : " · Disabled"}</span></summary><p>Receive currency: ${esc(c.receiveCurrency || c.methods?.[0]?.receiveCurrency || "Not observed")} · Last verified: ${esc(catalogDate(c.lastVerifiedAt))} · Inspection: ${esc(c.inspectionStatus || c.availability)}</p>${catalogRouteEvidence(c)}${catalogEditor("countries", c, !provider.enabled)}${(c.methods || []).map((m) => `<section class="catalog-method"><h3>${esc(m.name)}</h3><p>${esc(m.receiveCurrency || "Currency not observed")} · ${esc(m.availability)} · Last verified: ${esc(catalogDate(m.lastVerifiedAt))}</p>${catalogEditor("methods", m, !provider.enabled || !c.enabled)}${catalogFeeEditor(m)}<div class="table-scroll"><table><caption>Observed fees by send amount and funding method</caption><thead><tr><th>Amount sent · USD</th><th>Funding method</th><th>Provider fee</th><th>Delivery estimate</th><th>Observed · UTC</th><th>Taxes</th></tr></thead><tbody>${catalogObservationRows(m.observations)}</tbody></table></div></section>`).join("") || "<p>No selectable delivery methods observed. The route remains in this catalog for review.</p>"}</details>`).join("")}</div>`;
 }
 async function loadCatalog() {
   if (!authorized || section !== "Payout methods") return;
@@ -610,7 +684,9 @@ async function catalogImportAction(dryRun) {
   )
     return;
   const version = catalogVersion,
-    research = catalogImport;
+    research = catalogImport,
+    providerId = catalogProviderId;
+  if (!providerId) return;
   const status = document.getElementById("catalog-import-status");
   document.getElementById("preview-catalog-import").disabled = true;
   document.getElementById("commit-catalog-import").disabled = true;
@@ -619,22 +695,33 @@ async function catalogImportAction(dryRun) {
   try {
     const result = await api("/payout-catalog/import", {
       method: "POST",
-      body: JSON.stringify({ research, dryRun }),
+      body: JSON.stringify({ research, dryRun, providerId }),
     });
-    if (version !== catalogVersion || !authorized || research !== catalogImport)
+    if (
+      version !== catalogVersion ||
+      !authorized ||
+      research !== catalogImport ||
+      providerId !== catalogProviderId
+    )
       return;
     status.textContent = `${dryRun ? "Preview validated" : "Imported"}: ${result.countries} countries, ${result.methods} methods, ${result.observations} observations.${dryRun ? " Select Import research to apply." : " Re-importing the same research does not duplicate observations."}`;
     catalogPreviewed = dryRun;
     if (!dryRun) await loadCatalog();
   } catch (e) {
-    if (version !== catalogVersion || research !== catalogImport) return;
+    if (
+      version !== catalogVersion ||
+      research !== catalogImport ||
+      providerId !== catalogProviderId
+    )
+      return;
     if (accessError(e)) return;
     status.textContent = e.message;
   } finally {
     if (
       authorized &&
       section === "Payout methods" &&
-      research === catalogImport
+      research === catalogImport &&
+      providerId === catalogProviderId
     ) {
       document.getElementById("preview-catalog-import").disabled = false;
       document.getElementById("commit-catalog-import").disabled =
@@ -643,6 +730,66 @@ async function catalogImportAction(dryRun) {
   }
 }
 document.addEventListener("submit", async (event) => {
+  const specialForm = event.target.closest(
+    "#catalog-add-provider, .catalog-fee-editor",
+  );
+  if (specialForm) {
+    event.preventDefault();
+    if (!authorized || section !== "Payout methods") return;
+    const version = catalogVersion,
+      button = specialForm.querySelector("button"),
+      feedback = specialForm.querySelector(".catalog-feedback");
+    button.disabled = true;
+    feedback.textContent = "Saving…";
+    try {
+      const fields = specialForm.elements;
+      let result;
+      if (specialForm.id === "catalog-add-provider") {
+        result = await api("/payout-catalog/providers", {
+          method: "POST",
+          body: JSON.stringify({ name: fields.name.value.trim() }),
+        });
+      } else {
+        result = await api(
+          `/payout-catalog/methods/${encodeURIComponent(specialForm.dataset.methodId)}/fees`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              revision: Number(specialForm.dataset.revision),
+              sendAmountCents: catalogCents(fields.sendAmount.value.trim()),
+              feeCents: catalogCents(fields.fee.value.trim()),
+              fundingMethod: fields.fundingMethod.value,
+              observedAt: new Date(fields.observedAt.value).toISOString(),
+              deliveryEstimate: fields.deliveryEstimate.value.trim(),
+              taxStatus: fields.taxStatus.value,
+              sourceUrl: fields.sourceUrl.value.trim(),
+            }),
+          },
+        );
+      }
+      if (
+        version !== catalogVersion ||
+        !authorized ||
+        section !== "Payout methods"
+      )
+        return;
+      if (specialForm.id === "catalog-add-provider") {
+        catalogProviderId = result.id;
+        specialForm.reset();
+        feedback.textContent = "Provider added.";
+        resetCatalogPreview();
+        document.getElementById("catalog-import-status").textContent =
+          `Provider added. Choose a JSON file to import into ${result.name}.`;
+      }
+      await loadCatalog();
+    } catch (error) {
+      if (version !== catalogVersion || accessError(error)) return;
+      feedback.textContent = error.message;
+    } finally {
+      if (specialForm.isConnected) button.disabled = false;
+    }
+    return;
+  }
   const form = event.target.closest(".catalog-editor");
   if (!form) return;
   event.preventDefault();
@@ -680,7 +827,12 @@ document.addEventListener("submit", async (event) => {
 document.addEventListener("change", async (event) => {
   if (!authorized || section !== "Payout methods") return;
   if (event.target.id === "catalog-provider") {
+    ++catalogVersion;
     catalogProviderId = event.target.value;
+    resetCatalogPreview();
+    document.getElementById("preview-catalog-import").disabled = !catalogImport;
+    document.getElementById("catalog-import-status").textContent =
+      "Provider changed. Preview the file for this provider before importing.";
     renderCatalogRecords();
   }
   if (event.target.id !== "catalog-file") return;
@@ -716,7 +868,12 @@ document.addEventListener("change", async (event) => {
 });
 document.addEventListener("click", (event) => {
   if (!authorized || section !== "Payout methods") return;
-  if (event.target.id === "refresh-catalog") loadCatalog();
+  if (event.target.id === "refresh-catalog") {
+    resetCatalogPreview();
+    loadCatalog();
+  }
+  if (event.target.id === "download-catalog-template")
+    downloadCatalogTemplate();
   if (event.target.id === "preview-catalog-import") catalogImportAction(true);
   if (event.target.id === "commit-catalog-import") catalogImportAction(false);
 });
@@ -896,9 +1053,7 @@ async function start() {
       ? new URL(config.proxyUrl, window.location.origin).href
       : undefined;
     const scriptOrigin = proxyUrl || config.frontendApi;
-    await loadScript(
-      scriptOrigin + "/npm/@clerk/ui@1/dist/ui.browser.js",
-    );
+    await loadScript(scriptOrigin + "/npm/@clerk/ui@1/dist/ui.browser.js");
     await loadScript(
       scriptOrigin + "/npm/@clerk/clerk-js@6/dist/clerk.browser.js",
       {
@@ -1973,7 +2128,12 @@ async function loadOperatorCredentials() {
   const version = ++operatorCredentials.version;
   try {
     const data = await api("/payout-operators");
-    if (!authorized || section !== "Payout operators" || version !== operatorCredentials.version) return;
+    if (
+      !authorized ||
+      section !== "Payout operators" ||
+      version !== operatorCredentials.version
+    )
+      return;
     operatorCredentials.records = data.credentials;
     renderOperatorCredentials();
   } catch (error) {
@@ -1985,9 +2145,13 @@ async function loadOperatorCredentials() {
 document.addEventListener("submit", async (event) => {
   if (!event.target.matches("#issue-operator")) return;
   event.preventDefault();
-  if (!authorized || section !== "Payout operators" || operatorCredentials.busy) return;
-  const form = event.target, values = new FormData(form), version = operatorCredentials.version;
-  const button = form.querySelector("button[type=submit]"), feedback = document.getElementById("operator-feedback");
+  if (!authorized || section !== "Payout operators" || operatorCredentials.busy)
+    return;
+  const form = event.target,
+    values = new FormData(form),
+    version = operatorCredentials.version;
+  const button = form.querySelector("button[type=submit]"),
+    feedback = document.getElementById("operator-feedback");
   const busy = {};
   operatorCredentials.busy = busy;
   operatorCredentials.token = null;
@@ -1996,18 +2160,37 @@ document.addEventListener("submit", async (event) => {
   feedback.textContent = "Issuing scoped credential…";
   try {
     const expiresAt = String(values.get("expiresAt") || "").trim();
-    const body = { name: String(values.get("name") || "").trim(), role: String(values.get("role")), ...(expiresAt ? { expiresAt } : {}) };
-    const result = await api("/payout-operators/issue", { method: "POST", body: JSON.stringify(body) });
-    if (!authorized || section !== "Payout operators" || version !== operatorCredentials.version) return;
+    const body = {
+      name: String(values.get("name") || "").trim(),
+      role: String(values.get("role")),
+      ...(expiresAt ? { expiresAt } : {}),
+    };
+    const result = await api("/payout-operators/issue", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    if (
+      !authorized ||
+      section !== "Payout operators" ||
+      version !== operatorCredentials.version
+    )
+      return;
     operatorCredentials.token = result.token;
     const secret = document.getElementById("operator-secret");
-    secret.innerHTML = '<section class="payout-quote"><h3>Credential shown once</h3><p>Save this in macOS Keychain now. It disappears when you hide or leave this page and cannot be retrieved later.</p><label>Operator credential<input id="operator-token" type="password" readonly autocomplete="off" spellcheck="false"/></label><div class="catalog-actions"><button class="page-button" id="copy-operator-token">Copy credential</button><button class="page-button" id="dismiss-operator-token">Dismiss</button></div><p id="operator-copy-feedback" role="status"></p></section>';
+    secret.innerHTML =
+      '<section class="payout-quote"><h3>Credential shown once</h3><p>Save this in macOS Keychain now. It disappears when you hide or leave this page and cannot be retrieved later.</p><label>Operator credential<input id="operator-token" type="password" readonly autocomplete="off" spellcheck="false"/></label><div class="catalog-actions"><button class="page-button" id="copy-operator-token">Copy credential</button><button class="page-button" id="dismiss-operator-token">Dismiss</button></div><p id="operator-copy-feedback" role="status"></p></section>';
     document.getElementById("operator-token").value = result.token;
-    feedback.textContent = "Credential issued. Human payout approval remains separate.";
+    feedback.textContent =
+      "Credential issued. Human payout approval remains separate.";
     form.reset();
     await loadOperatorCredentials();
   } catch (error) {
-    if (!authorized || version !== operatorCredentials.version || accessError(error)) return;
+    if (
+      !authorized ||
+      version !== operatorCredentials.version ||
+      accessError(error)
+    )
+      return;
     feedback.textContent = `${error.message} If a save may have completed without showing its credential, refresh and revoke that entry before issuing another.`;
   } finally {
     if (form.isConnected) button.disabled = false;
@@ -2016,7 +2199,8 @@ document.addEventListener("submit", async (event) => {
 });
 document.addEventListener("click", async (event) => {
   if (!authorized || section !== "Payout operators") return;
-  if (event.target.id === "refresh-operators" && !operatorCredentials.busy) return loadOperatorCredentials();
+  if (event.target.id === "refresh-operators" && !operatorCredentials.busy)
+    return loadOperatorCredentials();
   if (event.target.id === "dismiss-operator-token") {
     operatorCredentials.token = null;
     document.getElementById("operator-secret").replaceChildren();
@@ -2024,23 +2208,43 @@ document.addEventListener("click", async (event) => {
   }
   if (event.target.id === "copy-operator-token" && operatorCredentials.token) {
     const feedback = document.getElementById("operator-copy-feedback");
-    try { await navigator.clipboard.writeText(operatorCredentials.token); if (feedback.isConnected) feedback.textContent = "Copied. Save in Keychain, then dismiss."; }
-    catch { if (feedback.isConnected) feedback.textContent = "Clipboard unavailable. Select the credential field to copy it manually."; }
+    try {
+      await navigator.clipboard.writeText(operatorCredentials.token);
+      if (feedback.isConnected)
+        feedback.textContent = "Copied. Save in Keychain, then dismiss.";
+    } catch {
+      if (feedback.isConnected)
+        feedback.textContent =
+          "Clipboard unavailable. Select the credential field to copy it manually.";
+    }
     return;
   }
-  const id = event.target.closest("[data-revoke-operator]")?.dataset.revokeOperator;
+  const id = event.target.closest("[data-revoke-operator]")?.dataset
+    .revokeOperator;
   if (!id || operatorCredentials.busy) return;
-  if (!confirm("Revoke this operator credential? Future calls will be denied. Existing payout reservations and uncertain attempts remain for review.")) return;
-  const version = operatorCredentials.version, busy = {};
+  if (
+    !confirm(
+      "Revoke this operator credential? Future calls will be denied. Existing payout reservations and uncertain attempts remain for review.",
+    )
+  )
+    return;
+  const version = operatorCredentials.version,
+    busy = {};
   operatorCredentials.busy = busy;
   try {
-    await api("/payout-operators/" + encodeURIComponent(id) + "/revoke", { method: "POST", body: "{}" });
+    await api("/payout-operators/" + encodeURIComponent(id) + "/revoke", {
+      method: "POST",
+      body: "{}",
+    });
     if (authorized && version === operatorCredentials.version) {
       operatorCredentials.token = null;
       document.getElementById("operator-secret").replaceChildren();
       await loadOperatorCredentials();
     }
   } catch (error) {
-    if (version === operatorCredentials.version && !accessError(error)) document.getElementById("operator-feedback").textContent = error.message;
-  } finally { if (operatorCredentials.busy === busy) operatorCredentials.busy = false; }
+    if (version === operatorCredentials.version && !accessError(error))
+      document.getElementById("operator-feedback").textContent = error.message;
+  } finally {
+    if (operatorCredentials.busy === busy) operatorCredentials.busy = false;
+  }
 });
