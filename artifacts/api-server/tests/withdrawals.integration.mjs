@@ -46,7 +46,7 @@ try {
   process.env.NODE_ENV = "test";
   await build({
     stdin: {
-      contents: `import express from 'express';import creator,{adminWithdrawalsRouter} from './src/routes/withdrawals';import {adminGuard} from './src/routes/admin';export * from './src/lib/creatorWithdrawals';export {importResearch} from './src/lib/payoutCatalog';export {pool} from '@workspace/db';export {GetWithdrawalOverviewResponse,GetWithdrawalDetailResponse,GetAdminWithdrawalDetailResponse,ListAdminWithdrawalsResponse,PreviewWithdrawalEnrollmentResponse,EnrollWithdrawalCreatorResponse} from '@workspace/api-zod';export function testApp(){const app=express();app.use(express.json());app.use((req,res,next)=>{req.auth=()=>({userId:req.get('x-test-user')||null,sessionId:req.get('x-test-user')?'test-session':null,sessionClaims:{fva:req.get('x-test-mfa')?[0,0]:[0,-1]},tokenType:'session_token'});next();});app.use(creator);app.use('/admin',adminGuard,adminWithdrawalsRouter);return app;}`,
+      contents: `import express from 'express';import creator,{adminWithdrawalsRouter} from './src/routes/withdrawals';import {adminGuard} from './src/routes/admin';export * from './src/lib/creatorWithdrawals';export {importResearch} from './src/lib/payoutCatalog';export {pool} from '@workspace/db';export {GetWithdrawalOverviewResponse,GetWithdrawalDetailResponse,GetAdminWithdrawalDetailResponse,ListAdminWithdrawalsResponse,PreviewWithdrawalEnrollmentResponse,EnrollWithdrawalCreatorResponse} from '@workspace/api-zod';export function testApp(){const app=express();app.use(express.json());app.use((req,res,next)=>{req.auth=()=>({userId:req.get('x-test-user')||null,sessionId:req.get('x-test-user')?'test-session':null,sessionClaims:req.get('x-test-mfa')?{fva:[0,0]}:{},tokenType:'session_token'});next();});app.use(creator);app.use('/admin',adminGuard,adminWithdrawalsRouter);return app;}`,
       resolveDir: root,
     },
     outfile: output,
@@ -127,7 +127,20 @@ try {
     403,
   );
   process.env.NODE_ENV = "production";
+  assert.equal((await call("/admin", { user: "owner" })).status, 200);
+  assert.equal((await call("/admin", { user: "creator" })).status, 403);
+  assert.equal((await call("/admin", { user: null })).status, 401);
+  assert.equal(
+    (await call("/admin", { user: "owner", bearer: false })).status,
+    401,
+  );
+  await pool.query(
+    "UPDATE admin_staff SET enabled=false WHERE clerk_user_id='owner'",
+  );
   assert.equal((await call("/admin", { user: "owner" })).status, 403);
+  await pool.query(
+    "UPDATE admin_staff SET enabled=true WHERE clerk_user_id='owner'",
+  );
   process.env.NODE_ENV = "test";
   assert.equal(
     (
@@ -158,7 +171,7 @@ try {
     400,
   );
   console.log(
-    "PASS creator bearer auth, admin owner/MFA and distinct configured operator roles",
+    "PASS creator bearer auth, authenticated enabled admin owner and distinct configured operator roles",
   );
   const research = JSON.parse(
     readFileSync(

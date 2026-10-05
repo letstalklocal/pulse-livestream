@@ -60,7 +60,7 @@ creatorCatalogRouter.post(
     );
   }),
 );
-// The parent admin router mounts this AFTER the owner/MFA guard.
+// The parent admin router mounts this AFTER the authenticated enabled-owner guard.
 export const adminCatalogRouter = Router();
 adminCatalogRouter.get(
   "/",

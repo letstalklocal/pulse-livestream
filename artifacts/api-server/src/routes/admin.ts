@@ -53,18 +53,8 @@ export const adminGuard: RequestHandler = async (req, res, next) => {
         .status(403)
         .json({ error: "This account does not have admin access." });
     }
-    // This gate applies only to admin routes; no global Clerk/mobile MFA changes.
-    const factorAge = (auth.sessionClaims as { fva?: number[] } | null)
-      ?.fva?.[1];
-    if (
-      environment() === "production" &&
-      !(typeof factorAge === "number" && factorAge >= 0)
-    ) {
-      return void res.status(403).json({
-        error:
-          "Admin access requires a sign-in with a second factor in production.",
-      });
-    }
+    // Replit-managed Clerk does not support end-user MFA. The approved policy
+    // uses an authenticated session and enabled owner membership in every environment.
     res.locals.adminId = auth.userId;
     next();
   } catch {

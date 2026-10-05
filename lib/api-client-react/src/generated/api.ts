@@ -2266,7 +2266,7 @@ export const getListAdminWithdrawalsUrl = () => {
 }
 
 /**
- * Enabled owner bearer and production MFA required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Read account-scoped payout queue, exceptions and latest attempt deadlines
  */
 export const listAdminWithdrawals = async ( options?: RequestInit): Promise<AdminWithdrawalQueue> => {
@@ -2351,7 +2351,7 @@ export const getPreviewWithdrawalEnrollmentUrl = (params: PreviewWithdrawalEnrol
 }
 
 /**
- * Enabled owner bearer and production MFA required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Preview selected creator wallet; bought, gifted and granted coins are all redeemable
  */
 export const previewWithdrawalEnrollment = async (params: PreviewWithdrawalEnrollmentParams, options?: RequestInit): Promise<WithdrawalEnrollmentPreview> => {
@@ -2429,7 +2429,7 @@ export const getEnrollWithdrawalCreatorUrl = () => {
 }
 
 /**
- * Enabled owner bearer and production MFA required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Enable one creator using matching wallet snapshot; never mint or backfill earnings
  */
 export const enrollWithdrawalCreator = async (withdrawalEnrollmentInput: WithdrawalEnrollmentInput, options?: RequestInit): Promise<WithdrawalEnrollmentResult> => {
@@ -2501,7 +2501,7 @@ export const getSetWithdrawalPreparationPauseUrl = () => {
 }
 
 /**
- * Enabled owner bearer and production MFA required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Pause new preparation while reconciliation remains available
  */
 export const setWithdrawalPreparationPause = async (withdrawalPauseInput: WithdrawalPauseInput, options?: RequestInit): Promise<WithdrawalPauseResult> => {
@@ -2573,7 +2573,7 @@ export const getGetAdminWithdrawalDetailUrl = (id: string,) => {
 }
 
 /**
- * Enabled owner bearer and production MFA required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Read protected attempts, legal contacts, evidence and audit identities
  */
 export const getAdminWithdrawalDetail = async (id: string, options?: RequestInit): Promise<AdminWithdrawalDetail> => {
@@ -2651,7 +2651,7 @@ export const getRecordWithdrawalQuoteUrl = (id: string,) => {
 }
 
 /**
- * Enabled owner bearer and production MFA required. Additionally requires configured maker operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Additionally requires configured maker operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Record actual signed-in provider quote and invalidate earlier approval/checks
  */
 export const recordWithdrawalQuote = async (id: string,
@@ -2724,7 +2724,7 @@ export const getBeginWithdrawalPreparationUrl = (id: string,) => {
 }
 
 /**
- * Enabled owner bearer and production MFA required. Additionally requires configured maker operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Additionally requires configured maker operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Allocate durable attempt before possible provider creation; preparation pause applies
  */
 export const beginWithdrawalPreparation = async (id: string,
@@ -2797,7 +2797,7 @@ export const getRecordWithdrawalPreparationUrl = (id: string,) => {
 }
 
 /**
- * Enabled owner bearer and production MFA required. Additionally requires configured maker operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Additionally requires configured maker operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Record first-time link plan or one-time draft with auto-send off
  */
 export const recordWithdrawalPreparation = async (id: string,
@@ -2870,7 +2870,7 @@ export const getCheckWithdrawalPreparationUrl = (id: string,) => {
 }
 
 /**
- * Enabled owner bearer and production MFA required. Additionally requires configured checker operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Additionally requires configured checker operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Independently check exact attempt version; maker cannot self-check
  */
 export const checkWithdrawalPreparation = async (id: string,
@@ -2943,7 +2943,7 @@ export const getRecordHumanWithdrawalReleaseUrl = (id: string,) => {
 }
 
 /**
- * Enabled owner bearer and production MFA required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Record human approval and actual external Remitly action; does not send payment
  */
 export const recordHumanWithdrawalRelease = async (id: string,
@@ -3016,7 +3016,7 @@ export const getDeclineWithdrawalUrl = (id: string,) => {
 }
 
 /**
- * Enabled owner bearer and production MFA required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Final human decline; refund before attempt or retain reserve pending provider cancellation
  */
 export const declineWithdrawal = async (id: string,
@@ -3089,7 +3089,7 @@ export const getMarkWithdrawalInvestigationUrl = (id: string,) => {
 }
 
 /**
- * Enabled owner bearer and production MFA required. Additionally requires configured reconciler operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Additionally requires configured reconciler operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Record unknown/expired outcome without releasing coins or allowing retries
  */
 export const markWithdrawalInvestigation = async (id: string,
@@ -3162,7 +3162,7 @@ export const getReconcileWithdrawalUrl = (id: string,) => {
 }
 
 /**
- * Enabled owner bearer and production MFA required. Additionally requires configured reconciler operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Additionally requires configured reconciler operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Record verified provider observations; wallet refunds require authoritative return
  */
 export const reconcileWithdrawal = async (id: string,

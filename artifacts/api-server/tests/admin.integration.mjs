@@ -9,7 +9,7 @@ const root = fileURLToPath(new URL("..", import.meta.url)),
   out = `${root}/tests/.admin-${id}.cjs`;
 await build({
   stdin: {
-    contents: `import express from 'express';import router from './src/routes/admin';export {pool} from '@workspace/db';export function testApp(){const app=express();app.use((req,res,next)=>{req.auth=()=>({userId:req.get('x-test-user')||null,sessionId:req.get('x-test-user')?'test-session':null,sessionClaims:{fva:req.get('x-test-mfa')?[0,0]:[0,-1]},tokenType:'session_token'});next();});app.get('/mobile-probe',(req,res)=>res.json({signedIn:!!req.auth().userId}));app.use('/admin-data',router);return app}`,
+    contents: `import express from 'express';import router from './src/routes/admin';export {pool} from '@workspace/db';export function testApp(){const app=express();app.use((req,res,next)=>{req.auth=()=>({userId:req.get('x-test-user')||null,sessionId:req.get('x-test-user')?'test-session':null,sessionClaims:req.get('x-test-mfa')?{fva:[0,0]}:{},tokenType:'session_token'});next();});app.get('/mobile-probe',(req,res)=>res.json({signedIn:!!req.auth().userId}));app.use('/admin-data',router);return app}`,
     resolveDir: root,
   },
   outfile: out,
@@ -275,24 +275,41 @@ try {
   );
   assert.equal((await call("/users/2147483647")).status, 404);
   process.env.NODE_ENV = "production";
-  assert.equal((await call("/session")).status, 403);
-  assert.equal(
-    (await call("/session", staff, { "x-test-mfa": "yes" })).status,
-    200,
-  );
+  assert.equal((await call("/session")).status, 200);
   for (const route of [
+    "/session",
     "/account-removals",
     "/verification-reviews",
     "/live-streams",
     "/moderation",
   ]) {
-    assert.equal((await call(route)).status, 403);
     assert.equal(
-      (await call(route, staff, { "x-test-mfa": "yes" })).status,
+      (await call(route)).status,
       200,
+      "enabled owner needs no second factor",
+    );
+    assert.equal(
+      (await call(route, other)).status,
+      403,
+      "ordinary users cannot access owner routes",
+    );
+    assert.equal(
+      (await call(route, null)).status,
+      401,
+      "missing session is denied",
+    );
+    assert.equal(
+      (await call(route, null, { Authorization: "Bearer forged-owner-token" }))
+        .status,
+      401,
+      "bearer alone cannot forge a Clerk session",
+    );
+    assert.equal(
+      (await call(route, staff, { Authorization: "" })).status,
+      401,
+      "owner session still requires a bearer token",
     );
   }
-  process.env.NODE_ENV = "test";
   await pool.query(
     "UPDATE admin_staff SET enabled=false WHERE clerk_user_id=$1",
     [staff],
@@ -309,6 +326,7 @@ try {
     "/moderation",
   ])
     assert.equal((await call(route)).status, 403);
+  process.env.NODE_ENV = "test";
   const mobile = await fetch(base + "/mobile-probe", {
     headers: { "x-test-user": staff },
   });
@@ -333,7 +351,7 @@ try {
     ) > 0,
   );
   console.log(
-    "PASS: auth isolation, staff removal, production-only MFA, search, filters, precise pagination, validation, response field allowlist, audit, unchanged ordinary profile.",
+    "PASS: auth isolation, staff removal, production enabled-owner access without MFA, search, filters, precise pagination, validation, response field allowlist, audit, unchanged ordinary profile.",
   );
 } finally {
   process.env.NODE_ENV = priorEnv;

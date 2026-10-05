@@ -2034,7 +2034,7 @@ export const DownloadWithdrawalStatementParams = zod.object({
 
 
 /**
- * Enabled owner bearer and production MFA required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Read account-scoped payout queue, exceptions and latest attempt deadlines
  */
 export const listAdminWithdrawalsResponseWithdrawalsItemOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
@@ -2145,7 +2145,7 @@ export const ListAdminWithdrawalsResponse = zod.object({
 
 
 /**
- * Enabled owner bearer and production MFA required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Preview selected creator wallet; bought, gifted and granted coins are all redeemable
  */
 
@@ -2169,7 +2169,7 @@ export const PreviewWithdrawalEnrollmentResponse = zod.object({
 
 
 /**
- * Enabled owner bearer and production MFA required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Enable one creator using matching wallet snapshot; never mint or backfill earnings
  */
 
@@ -2213,7 +2213,7 @@ export const EnrollWithdrawalCreatorResponse = zod.object({
 
 
 /**
- * Enabled owner bearer and production MFA required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Pause new preparation while reconciliation remains available
  */
 export const setWithdrawalPreparationPauseBodyReasonMax = 2000;
@@ -2231,7 +2231,7 @@ export const SetWithdrawalPreparationPauseResponse = zod.object({
 
 
 /**
- * Enabled owner bearer and production MFA required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Read protected attempts, legal contacts, evidence and audit identities
  */
 export const GetAdminWithdrawalDetailParams = zod.object({
@@ -2371,7 +2371,7 @@ export const GetAdminWithdrawalDetailResponse = zod.object({
 
 
 /**
- * Enabled owner bearer and production MFA required. Additionally requires configured maker operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Additionally requires configured maker operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Record actual signed-in provider quote and invalidate earlier approval/checks
  */
 export const RecordWithdrawalQuoteParams = zod.object({
@@ -2508,7 +2508,7 @@ export const RecordWithdrawalQuoteResponse = zod.object({
 
 
 /**
- * Enabled owner bearer and production MFA required. Additionally requires configured maker operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Additionally requires configured maker operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Allocate durable attempt before possible provider creation; preparation pause applies
  */
 export const BeginWithdrawalPreparationParams = zod.object({
@@ -2619,7 +2619,7 @@ export const BeginWithdrawalPreparationResponse = zod.object({
 
 
 /**
- * Enabled owner bearer and production MFA required. Additionally requires configured maker operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Additionally requires configured maker operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Record first-time link plan or one-time draft with auto-send off
  */
 export const RecordWithdrawalPreparationParams = zod.object({
@@ -2739,7 +2739,7 @@ export const RecordWithdrawalPreparationResponse = zod.object({
 
 
 /**
- * Enabled owner bearer and production MFA required. Additionally requires configured checker operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Additionally requires configured checker operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Independently check exact attempt version; maker cannot self-check
  */
 export const CheckWithdrawalPreparationParams = zod.object({
@@ -2856,7 +2856,7 @@ export const CheckWithdrawalPreparationResponse = zod.object({
 
 
 /**
- * Enabled owner bearer and production MFA required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Record human approval and actual external Remitly action; does not send payment
  */
 export const RecordHumanWithdrawalReleaseParams = zod.object({
@@ -2969,7 +2969,7 @@ export const RecordHumanWithdrawalReleaseResponse = zod.object({
 
 
 /**
- * Enabled owner bearer and production MFA required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Final human decline; refund before attempt or retain reserve pending provider cancellation
  */
 export const DeclineWithdrawalParams = zod.object({
@@ -3077,7 +3077,7 @@ export const DeclineWithdrawalResponse = zod.object({
 
 
 /**
- * Enabled owner bearer and production MFA required. Additionally requires configured reconciler operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Additionally requires configured reconciler operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Record unknown/expired outcome without releasing coins or allowing retries
  */
 export const MarkWithdrawalInvestigationParams = zod.object({
@@ -3186,7 +3186,7 @@ export const MarkWithdrawalInvestigationResponse = zod.object({
 
 
 /**
- * Enabled owner bearer and production MFA required. Additionally requires configured reconciler operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * Authenticated owner bearer and enabled membership required. Additionally requires configured reconciler operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Record verified provider observations; wallet refunds require authoritative return
  */
 export const ReconcileWithdrawalParams = zod.object({

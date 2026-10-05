@@ -48,7 +48,7 @@ try {
   process.env.PULSE_PAYOUT_CATALOG_ACCOUNT = "operator-business";
   await build({
     stdin: {
-      contents: `import express from 'express';import operators,{adminPayoutOperatorsRouter} from './src/routes/payout-operators';import creator,{adminWithdrawalsRouter} from './src/routes/withdrawals';import {adminGuard} from './src/routes/admin';import {createPayoutMcpRouter} from './src/routes/payout-mcp';export * from './src/lib/creatorWithdrawals';export * from './src/lib/payoutOperators';export {importResearch} from './src/lib/payoutCatalog';export {pool} from '@workspace/db';export function testApp(){const app=express();app.use('/api/payout-mcp',createPayoutMcpRouter());app.use(express.json({limit:'64kb'}));app.use('/api/payout-operator',operators);app.use((req,res,next)=>{req.auth=()=>({userId:req.get('x-test-user')||null,sessionId:req.get('x-test-user')?'session':null,sessionClaims:{fva:req.get('x-test-mfa')?[0,0]:[0,-1]},tokenType:'session_token'});next();});app.use('/admin-data/payout-operators',adminGuard,adminPayoutOperatorsRouter);app.use('/admin-data/withdrawals',adminGuard,adminWithdrawalsRouter);app.use(creator);return app;}`,
+      contents: `import express from 'express';import operators,{adminPayoutOperatorsRouter} from './src/routes/payout-operators';import creator,{adminWithdrawalsRouter} from './src/routes/withdrawals';import {adminGuard} from './src/routes/admin';import {createPayoutMcpRouter} from './src/routes/payout-mcp';export * from './src/lib/creatorWithdrawals';export * from './src/lib/payoutOperators';export {importResearch} from './src/lib/payoutCatalog';export {pool} from '@workspace/db';export function testApp(){const app=express();app.use('/api/payout-mcp',createPayoutMcpRouter());app.use(express.json({limit:'64kb'}));app.use('/api/payout-operator',operators);app.use((req,res,next)=>{req.auth=()=>({userId:req.get('x-test-user')||null,sessionId:req.get('x-test-user')?'session':null,sessionClaims:req.get('x-test-mfa')?{fva:[0,0]}:{},tokenType:'session_token'});next();});app.use('/admin-data/payout-operators',adminGuard,adminPayoutOperatorsRouter);app.use('/admin-data/withdrawals',adminGuard,adminWithdrawalsRouter);app.use(creator);return app;}`,
       resolveDir: root,
     },
     outfile: output,
@@ -143,10 +143,33 @@ try {
       await call("/admin-data/payout-operators/issue", {
         user: "owner",
         method: "POST",
-        body: { name: "blocked", role: "maker" },
+        body: { name: "production-owner-without-mfa", role: "maker" },
       })
     ).status,
+    201,
+  );
+  assert.equal(
+    (await call("/admin-data/payout-operators", { user: "creator" })).status,
     403,
+  );
+  assert.equal((await call("/admin-data/payout-operators")).status, 401);
+  assert.equal(
+    (
+      await call("/admin-data/payout-operators", {
+        token: "forged-owner-token",
+      })
+    ).status,
+    401,
+  );
+  await pool.query(
+    "UPDATE admin_staff SET enabled=false WHERE clerk_user_id='owner'",
+  );
+  assert.equal(
+    (await call("/admin-data/payout-operators", { user: "owner" })).status,
+    403,
+  );
+  await pool.query(
+    "UPDATE admin_staff SET enabled=true WHERE clerk_user_id='owner'",
   );
   process.env.NODE_ENV = "test";
   assert.equal(
@@ -274,7 +297,7 @@ try {
     401,
   );
   console.log(
-    "PASS opaque hashed credentials, owner/MFA issuance, role boundaries, no human capabilities, environment/account isolation, expiry and revocation",
+    "PASS opaque hashed credentials, authenticated enabled-owner issuance, role boundaries, no human capabilities, environment/account isolation, expiry and revocation",
   );
   await runMcpIntegration({ base, maker, checker, reconciler });
   await pool.query(

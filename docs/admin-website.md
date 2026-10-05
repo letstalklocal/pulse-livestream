@@ -1,12 +1,28 @@
 # Admin website
 
+## Replit-managed production access — October 5, 2026
+
+This project's Clerk tenant is managed by **Replit Project Editor → Auth**, as already recorded in [the onboarding setup](onboarding.md#google-sign-in-through-clerk--september-16-2026) and the proxy middleware. The user does not have an external Clerk dashboard for this tenant. Direct Clerk-dashboard instructions for creating the production user or changing MFA settings were incorrect for this project; use the existing Replit Auth controls and preserve its managed tenant/keys. Do not create another Clerk application or change authentication providers to obtain admin access.
+
+On October 5, the user selected their existing **Google-sign-in production account `sixarmedia@gmail.com`** as the production owner, superseding `one.espana@gmail.com` for production. The existing development owner is unchanged. The user reports that production `admin_staff` currently has zero rows. Production enablement requires the genuine verified User ID for that account and an audited owner membership in the intended production database; email and login provider alone do not determine staff privileges. The current `bootstrap-admin.mjs` hardcodes the earlier approved email and must not be used unchanged to provision the new production owner. Google sign-in is valid for admin; no separate password is required. The user supplied production User ID `user_3JJ7roIjFeLukMbmmU9YWqKRvoZ`. A single-statement, atomic, audited [production owner grant](../artifacts/api-server/scripts/provision-production-owner.sql) is prepared for their production SQL console. It grants only while the staff table is empty and does not replace or re-enable any existing membership. Disposable PostgreSQL verification passed for visible results, replay/concurrent replay, preserved existing/disabled staff and rollback on audit failure. The production SQL Console rejected explicit BEGIN/COMMIT with: "To run statements in a transaction - select multiple statements and run, SQL Console will automatically wrap them in a transaction(batch)." The grant file was changed to one data-modifying CTE statement with its audit and result, removing explicit transaction statements. The user subsequently executed the single-statement grant in the Production SQL console and reported the resulting row: clerk_user_id=user_3JJ7roIjFeLukMbmmU9YWqKRvoZ, role=owner, enabled=true. This confirms the reported production membership. The user subsequently signed in with Google and confirmed that the production second-factor gate caused the denial; the October 5 policy below supersedes that gate. Actual owner access after republishing remains pending. Workspace development credentials and development identities must not be used as substitutes. Replit publication alone does not prove an authenticated production owner session works. The available workspace was checked on October 5 and exposes development Clerk credentials; production access must be confirmed separately before executing provisioning.
+
+### Production access denial after owner grant — October 5
+
+The user successfully signed in with Google after the production owner grant and confirmed the exact denial: **Admin access requires a sign-in with a second factor in production.** [Replit's managed Clerk documentation](https://docs.replit.com/features/auth-and-identity/clerk-auth) confirms that this managed integration does not support end-user MFA.
+
+The user explicitly approved the replacement policy: **Google sign-in plus enabled owner membership is sufficient; additional authentication can be added later.** This supersedes earlier production staff MFA requirements in this document and the payout handoff. The admin guard now requires an authenticated Clerk bearer token with a user and session, plus an enabled `owner` row checked on every request, in both development and production. It no longer requires Clerk's second-factor `fva` claim. Missing or invalid credentials, ordinary users and disabled staff remain denied. Existing payout role checks and maker/checker separation remain required. The managed Clerk tenant, mobile authentication and provider authentication are unchanged.
+
+Republish the Replit backend to apply this server-only change, then retry the existing Google owner login at `/api/admin/`. No new TestFlight build is needed for this access-policy change. Actual post-publication owner login remains a separate user verification.
+
+Verification: the admin, catalog, withdrawal and payout-operator integration suites passed against disposable PostgreSQL fixtures, including production owner access without a second factor, denial of ordinary/disabled users and missing/forged credentials, and unchanged maker/checker and scoped MCP protections. Public auth configuration tests, generated contracts/library types, API type check/build and whitespace checks passed. The development API was restarted with its existing arguments, working directory and environment preserved; running health/admin/config return 200 and session/catalog/withdrawal/operator admin endpoints reject missing or forged credentials with 401. These automated checks do not establish an actual Google owner browser session in production.
+
 ## Payout operator credentials — October 4, 2026
 
-The owner-only **Payout operators** page issues separately scoped maker, checker and reconciler service credentials and revokes future access. Production retains the existing owner/MFA gate. Credentials are shown once in a masked field, copied only by explicit action, and removed on dismissal/navigation/access loss; the browser does not persist them. The list shows role, environment, account alias, expiry and last use without secrets. Default expiry is seven days, maximum thirty. Revocation quarantines interrupted preparation without releasing uncertain wallet reservations.
+The owner-only **Payout operators** page issues separately scoped maker, checker and reconciler service credentials and revokes future access. Admin access follows the authenticated enabled-owner policy recorded above. Credentials are shown once in a masked field, copied only by explicit action, and removed on dismissal/navigation/access loss; the browser does not persist them. The list shows role, environment, account alias, expiry and last use without secrets. Default expiry is seven days, maximum thirty. Revocation quarantines interrupted preparation without releasing uncertain wallet reservations.
 
 After publishing the updated backend, connect Codex on the Mac to `https://chimbalivestream.replit.app/api/payout-mcp`, or use the [Keychain-backed JavaScript bridge](../artifacts/payout-operator/README.md). The Mac requires setup, not an app/backend build. Scheduled service tools cannot make the final payout decision or send money. Admin continues to provide the human payout desk. See [the delivery and remaining Mac/production checks](remitly-launch-handoff.md#mcp-and-mac-operator-delivery--october-4).
 
-Credential browser fixtures, scoped service/MCP integration and running development authorization checks passed. Actual owner login/MFA, Mac setup and production publication remain separate checks.
+Credential browser fixtures, scoped service/MCP integration and running development authorization checks passed. Actual owner login, Mac setup and production publication remain separate checks.
 
 ## Production sign-in proxy correction — October 4, 2026
 
@@ -39,7 +55,7 @@ The user approved the first visual design and requested a plan to connect live d
 ### 1. Staff access foundation
 
 - Add staff sign-in using the existing Clerk integration. Identify the initial owner's Clerk account explicitly; never make the first visitor or every signed-in app user an administrator.
-- Store staff membership and permissions on the server. Start with owner-only access; add support, finance, and moderator permissions when their responsibilities are agreed. Require MFA for staff before production use.
+- Store staff membership and permissions on the server. Start with owner-only access; add support, finance, and moderator permissions when their responsibilities are agreed. Use the October 5 authenticated enabled-owner policy; additional staff authentication is deferred.
 - Protect every admin data endpoint with session validation and server-owned permissions. Protect both host/path aliases consistently. Client navigation and a dedicated subdomain are not authorization.
 - Keep the public design preview limited to sample data while access is being implemented. Authenticated screens must clear private data on logout, account changes, and permission loss; sensitive responses use `Cache-Control: no-store`.
 - Add an audit foundation for staff access and subsequent privileged actions, recording actor, action, target, timestamp, outcome, and reason where applicable. Never record tokens or identity documents.
@@ -124,7 +140,7 @@ To remove staff access, set `admin_staff.enabled=false` for the intended Clerk u
 
 Admin logout calls Clerk sign-out with the current browser session ID only, rather than revoking all of the account's sessions. The mobile app uses its own session. No mobile sign-in code or shared Clerk settings were changed.
 
-Production admin endpoints additionally require evidence of a completed second authentication factor in the Clerk session's `fva` claim. The initial owner does not currently have MFA enrolled. Production enrollment and an end-to-end second-factor test remain launch work; this gate is restricted to admin routes and does not impose MFA on mobile endpoints. Development admin access works with the current sign-in method.
+Admin endpoints require an authenticated Clerk session and enabled owner membership in every environment. The October 5 user decision removed the unsupported production second-factor gate; additional authentication is deferred. This policy applies only to admin access and does not change mobile permissions.
 
 The embedded sign-in form inherits the existing Clerk application's “Stream Connect” branding. Its global branding and provider settings were left unchanged. The SDK is loaded from the configured Clerk frontend origin following [Clerk's JavaScript quickstart](https://clerk.com/docs/js-frontend/getting-started/quickstart), and logout uses the [session-specific sign-out option](https://clerk.com/docs/reference/objects/clerk#signout).
 
@@ -135,7 +151,7 @@ The embedded sign-in form inherits the existing Clerk application's “Stream Co
 - API build, generated library type checks, and API type check passed. The development API was restarted preserving its runtime environment. Its admin shell/config return 200, missing/forged tokens return 401, and public-site/health routes remain 200.
 - The actual Replit sign-in form was rendered in Chromium with no page/console errors. Automated checks do not sign in as the owner's account; the owner must complete their normal sign-in to verify their actual authenticated browser session. No account password, sign-in ticket, or existing mobile session was used for testing.
 
-Subdomain/DNS connection, production MFA completion, and the later live-data phases remain open. The development milestone does not mark A4 production-ready.
+Subdomain/DNS connection, actual production owner access after publication, and the later live-data phases remain open. The development milestone does not mark A4 production-ready.
 
 ### Admin sign-in password prompt correction — September 13, 2026
 

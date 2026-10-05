@@ -27,7 +27,7 @@ try {
   process.env.DATABASE_URL = `postgresql://catalog_test@localhost/postgres?host=${encodeURIComponent(temporary)}`;
   process.env.NODE_ENV = 'test';
   process.env.PULSE_PAYOUT_CATALOG_ACCOUNT = account;
-  await build({ stdin: { contents: `import express from 'express'; import admin from './src/routes/admin'; import creator from './src/routes/payout-catalog'; export * from './src/lib/payoutCatalog'; export {pool} from '@workspace/db'; export {GetPayoutCatalogResponse,GetAdminPayoutCatalogResponse,EstimatePayoutMethodResponse} from '@workspace/api-zod'; export function testApp(){const app=express();app.use(express.json());app.use((req,res,next)=>{req.auth=()=>({userId:req.get('x-test-user')||null,sessionId:req.get('x-test-user')?'test-session':null,sessionClaims:{fva:req.get('x-test-mfa')?[0,0]:[0,-1]},tokenType:'session_token'});next();});app.use('/admin-data',admin);app.use(creator);return app;}`, resolveDir: root }, outfile: output, bundle: true, platform: 'node', format: 'cjs', external: ['pg-native'], logLevel: 'silent' });
+  await build({ stdin: { contents: `import express from 'express'; import admin from './src/routes/admin'; import creator from './src/routes/payout-catalog'; export * from './src/lib/payoutCatalog'; export {pool} from '@workspace/db'; export {GetPayoutCatalogResponse,GetAdminPayoutCatalogResponse,EstimatePayoutMethodResponse} from '@workspace/api-zod'; export function testApp(){const app=express();app.use(express.json());app.use((req,res,next)=>{req.auth=()=>({userId:req.get('x-test-user')||null,sessionId:req.get('x-test-user')?'test-session':null,sessionClaims:req.get('x-test-mfa')?{fva:[0,0]}:{},tokenType:'session_token'});next();});app.use('/admin-data',admin);app.use(creator);return app;}`, resolveDir: root }, outfile: output, bundle: true, platform: 'node', format: 'cjs', external: ['pg-native'], logLevel: 'silent' });
   const api = createRequire(import.meta.url)(output);
   pool = api.pool;
   for (const migration of ['20260913_admin_access.sql', '20261004_payout_catalog.sql']) await pool.query(readFileSync(join(root, '../../lib/db/migrations', migration), 'utf8'));
@@ -224,13 +224,15 @@ try {
   assert.equal((await call('/payout-catalog/estimate', { user: null, method: 'POST', body: { methodId: zeroFee.id, withdrawalCents: 1500, fundingMethod: 'debit_card' } })).status, 401);
   assert.equal((await call('/payout-catalog/estimate', { method: 'POST', body: { methodId: zeroFee.id, withdrawalCents: 1501, fundingMethod: 'debit_card' } })).status, 400);
   process.env.NODE_ENV = 'production';
-  assert.equal((await call('/admin-data/payout-catalog', { user: staff })).status, 403);
-  assert.equal((await call('/admin-data/payout-catalog', { user: staff, mfa: true })).status, 200);
-  process.env.NODE_ENV = 'test';
+  assert.equal((await call('/admin-data/payout-catalog', { user: staff })).status, 200);
+  assert.equal((await call('/admin-data/payout-catalog', { user: ordinary })).status, 403);
+  assert.equal((await call('/admin-data/payout-catalog', { user: null })).status, 401);
+  assert.equal((await call('/admin-data/payout-catalog', { user: staff, bearer: false })).status, 401);
   await pool.query('UPDATE admin_staff SET enabled=false WHERE clerk_user_id=$1', [staff]);
   assert.equal((await call('/admin-data/payout-catalog', { user: staff })).status, 403);
+  process.env.NODE_ENV = 'test';
   assert.equal((await call('/payout-catalog')).status, 200, 'admin disable does not affect ordinary creator access');
-  console.log('PASS real HTTP route authorization, bearer requirement, staff enforcement, production MFA, stale edit conflict');
+  console.log('PASS real HTTP route authorization, bearer requirement, staff enforcement, production enabled-owner access without MFA, stale edit conflict');
 } finally {
   if (server) await new Promise(resolve => server.close(resolve));
   if (pool) await pool.end();

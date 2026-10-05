@@ -149,7 +149,7 @@ creator.get(
     );
   }),
 );
-// Parent mounts after the existing owner/MFA guard. Explicit role lists are independent
+// Parent mounts after the authenticated enabled-owner guard. Explicit role lists are independent
 // configuration, never writable by agent credentials or self-provisioned in this router.
 const requireRole =
   (role: "maker" | "checker" | "reconciler"): RequestHandler =>
