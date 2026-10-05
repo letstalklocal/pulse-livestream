@@ -340,6 +340,59 @@ function fixture(component) {
   assert.equal(manager.calls.length, 0, "Cancelling a menu replacement never saves/pays");
   tree = manager.render({ ...managerProps, isHost: false });
   assert.ok(!nodes(tree).some(n => n.props.testID === "manage-live-stickers"), "Viewers cannot open host sticker management");
+  for (const kind of ["gift", "pack"]) {
+    const empty = fixture("LiveStickerOverlay");
+    empty.data.set(JSON.stringify(empty.key), { hostUid: 2, stickers: [] });
+    const addProps = { ...empty.props, isHost: true, manageVisible: true };
+    tree = empty.render(addProps);
+    nodes(tree).find(n => n.props.testID === `manage-live-add-${kind}`).props.onPress();
+    tree = empty.render({ ...addProps, manageVisible: false });
+    let addPicker = nodes(tree).find(n => n.type === "Picker");
+    assert.equal(addPicker.props.initialKind, kind);
+    assert.equal(addPicker.props.replacing, false);
+    assert.deepEqual(Array.from(addPicker.props.excludedPackIds), []);
+    addPicker.props.onClose();
+    assert.equal(empty.calls.length, 0, "Cancelling addition never saves or pays");
+    tree = empty.render(addProps);
+    nodes(tree).find(n => n.props.testID === `manage-live-add-${kind}`).props.onPress();
+    tree = empty.render({ ...addProps, manageVisible: false });
+    addPicker = nodes(tree).find(n => n.type === "Picker");
+    const draft = { kind, giftId: "rose", ...(kind === "pack" ? { packId: 7 } : {}) };
+    empty.state.fail = true;
+    addPicker.props.onSelect(draft);
+    addPicker.props.onSelect(draft);
+    await tick();
+    assert.equal(empty.calls.length, 1, "Rapid addition taps send one mutation");
+    assert.equal(empty.calls[0].method, "POST");
+    assert.equal(empty.calls[0].path, "/streams/live/stickers");
+    const retryKey = empty.calls[0].body.requestId;
+    tree = empty.render({ ...addProps, manageVisible: false });
+    addPicker = nodes(tree).find(n => n.type === "Picker");
+    assert.ok(addPicker, "Failed addition retains picker");
+    empty.state.fail = false;
+    addPicker.props.onSelect(draft);
+    await tick();
+    assert.equal(empty.calls[1].body.requestId, retryKey, "Retry reuses addition identity");
+    assert.ok(!nodes(empty.render({ ...addProps, manageVisible: false })).some(n => n.type === "Picker"), "Success closes addition picker");
+  }
+  tree = manager.render(managerProps);
+  assert.ok(nodes(tree).some(n => n.props.testID === "manage-live-add-gift"), "One sticker leaves an available slot");
+  manager.data.set(JSON.stringify(manager.key), { hostUid: 2, stickers: [{ ...sticker }, { id: "gift", kind: "gift", giftId: "rose" }] });
+  tree = manager.render(managerProps);
+  assert.ok(!nodes(tree).some(n => n.props.testID?.startsWith("manage-live-add-")), "Two stickers hide addition controls");
+  const lateAddition = fixture("LiveStickerOverlay");
+  lateAddition.data.set(JSON.stringify(lateAddition.key), { hostUid: 2, stickers: [] });
+  let finishAddition;
+  lateAddition.state.wait = new Promise(resolve => { finishAddition = resolve; });
+  tree = lateAddition.render({ ...lateAddition.props, isHost: true, manageVisible: true });
+  nodes(tree).find(n => n.props.testID === "manage-live-add-gift").props.onPress();
+  tree = lateAddition.render({ ...lateAddition.props, isHost: true });
+  nodes(tree).find(n => n.type === "Picker").props.onSelect({ kind: "gift", giftId: "rose" });
+  lateAddition.unmount();
+  lateAddition.state.fail = true;
+  finishAddition();
+  await tick();
+  assert.equal(lateAddition.alerts.length, 0, "Leaving suppresses late addition errors");
   const host = fixture("LiveStickerOverlay");
   tree = host.render({ ...host.props, isHost: true });
   const hostCard = nodes(tree).find((n) => n.type === "Card");
@@ -450,7 +503,7 @@ function fixture(component) {
     "Two stickers disables both add buttons",
   );
   console.log(
-    "PASS: setup limit/edit cancellation, pack confirmation, View pack DM navigation/dismissal, no repurchase, retry key reuse, hidden controls and late-response cleanup. Mocked UI, not device proof.",
+    "PASS: empty-live gift/pack additions, capacity controls, cancellation/retry/rapid-tap and late-error guards, setup limit/edit cancellation, pack confirmation, View pack DM navigation/dismissal, no repurchase, retry key reuse, hidden controls and late-response cleanup. Mocked UI, not device proof.",
   );
 })().catch((e) => {
   console.error(e);

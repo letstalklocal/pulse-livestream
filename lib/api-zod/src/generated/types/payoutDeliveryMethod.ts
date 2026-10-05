@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { PayoutDeliveryMethodAvailability } from './payoutDeliveryMethodAvailability';
+import type { PayoutDeliveryMethodDefaultFundingMethod } from './payoutDeliveryMethodDefaultFundingMethod';
 import type { PayoutFeeObservation } from './payoutFeeObservation';
 
 export interface PayoutDeliveryMethod {
@@ -19,4 +20,10 @@ export interface PayoutDeliveryMethod {
   availability: PayoutDeliveryMethodAvailability;
   lastVerifiedAt: Date;
   observations: PayoutFeeObservation[];
+  /**
+     * @minimum 0
+     * @maximum 100000000
+     */
+  defaultFeeCents?: number | null;
+  defaultFundingMethod?: PayoutDeliveryMethodDefaultFundingMethod;
 }

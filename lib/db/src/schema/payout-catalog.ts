@@ -75,6 +75,8 @@ export const payoutCatalogMethodsTable = pgTable(
     lastVerifiedAt: timestamp("last_verified_at", {
       withTimezone: true,
     }).notNull(),
+    defaultFeeCents: integer("default_fee_cents"),
+    defaultFundingMethod: text("default_funding_method"),
     ...version(),
   },
   (t) => [

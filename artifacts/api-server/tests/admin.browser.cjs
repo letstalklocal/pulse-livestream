@@ -7,6 +7,8 @@ const base = process.env.ADMIN_TEST_BASE || "http://localhost:8080";
 (async () => {
   const browser = await chromium.launch({
     headless: true,
+    executablePath:
+      process.env.PULSE_CHROMIUM_EXECUTABLE || "/repl/tools/bin/chromium",
     args: ["--no-sandbox"],
   });
   try {
@@ -18,6 +20,12 @@ const base = process.env.ADMIN_TEST_BASE || "http://localhost:8080";
     const config = await (await fetch(base + "/api/admin-data/config")).json();
     let denied = false,
       fail = false;
+    const enrollmentPosts = [];
+    const previewCalls = [];
+    let delayedPreviewUid = null,
+      previewReached,
+      releasePreview;
+    let enrollmentConflict = false;
     let overviewFailure = false,
       overviewZero = false;
     const overviewFixture = {
@@ -47,6 +55,12 @@ const base = process.env.ADMIN_TEST_BASE || "http://localhost:8080";
       uid: 100 + i,
       name: i === 0 ? "<img src=x onerror=alert(1)>" : "Test Account " + i,
       countryCode: i % 2 ? "ES" : null,
+      email:
+        i === 0
+          ? "<img src=x onerror=alert(1)>@example.test"
+          : `user${i}@example.test`,
+      emailUnavailable: false,
+      withdrawalsEnabled: false,
       createdAt: "2026-09-13T00:00:00.000Z",
       verification: {
         status: i % 2 ? "verified" : "not_started",
@@ -97,6 +111,41 @@ const base = process.env.ADMIN_TEST_BASE || "http://localhost:8080";
         }
         return route.fulfill({ json: data });
       }
+      if (u.pathname.endsWith("/withdrawals/enrollment-preview")) {
+        const uid = Number(u.searchParams.get("userId"));
+        previewCalls.push(uid);
+        if (uid === delayedPreviewUid) {
+          delayedPreviewUid = null;
+          const wait = new Promise((resolve) => {
+            releasePreview = resolve;
+          });
+          previewReached();
+          await wait;
+        }
+        const user = records.find((r) => r.uid === uid);
+        return route.fulfill({
+          json: {
+            userId: uid,
+            name: user.name,
+            walletCoins: "10000",
+            availableUsd: "25.00",
+            alreadyEnrolled: user.withdrawalsEnabled,
+          },
+        });
+      }
+      if (u.pathname.endsWith("/withdrawals/enroll")) {
+        const body = route.request().postDataJSON();
+        enrollmentPosts.push(body);
+        if (enrollmentConflict)
+          return route.fulfill({
+            status: 409,
+            json: {
+              error: "Wallet balance changed. Preview again before enrollment.",
+            },
+          });
+        records.find((r) => r.uid === body.userId).withdrawalsEnabled = true;
+        return route.fulfill({ json: { enrolled: true, userId: body.userId } });
+      }
       const detail = u.pathname.match(/\/users\/(\d+)$/);
       if (detail)
         return route.fulfill({
@@ -127,6 +176,83 @@ const base = process.env.ADMIN_TEST_BASE || "http://localhost:8080";
       0,
       "user names are escaped",
     );
+    assert.ok(
+      await page
+        .getByRole("columnheader", { name: "Email", exact: true })
+        .isVisible(),
+    );
+    assert.ok(
+      (
+        await page.locator(".users-panel tbody tr").first().innerText()
+      ).includes(records[0].email),
+    );
+    await page.locator('[data-enable-withdrawals="100"]').click();
+    await page
+      .locator(".users-panel tbody tr")
+      .first()
+      .getByText("Enabled", { exact: true })
+      .waitFor();
+    assert.deepEqual(enrollmentPosts[0], {
+      userId: 100,
+      expectedWalletCoins: "10000",
+      reason: "Enabled from the user directory.",
+    });
+    assert.equal(
+      await page.locator("dialog").isVisible(),
+      false,
+      "row enable avoids manual UID entry and a confirmation form",
+    );
+    enrollmentConflict = true;
+    await page.locator('[data-enable-withdrawals="101"]').click();
+    await page
+      .getByText("The account changed. Click again to refresh and retry.")
+      .waitFor();
+    assert.equal(
+      await page.locator('[data-enable-withdrawals="101"]').isEnabled(),
+      true,
+    );
+    enrollmentConflict = false;
+    await page.locator('[data-enable-withdrawals="101"]').click();
+    await page
+      .locator(".users-panel tbody tr")
+      .nth(1)
+      .getByText("Enabled", { exact: true })
+      .waitFor();
+    assert.equal(enrollmentPosts.length, 3);
+    delayedPreviewUid = 102;
+    const reached = new Promise((resolve) => {
+      previewReached = resolve;
+    });
+    await page.locator('[data-enable-withdrawals="102"]').evaluate((button) => {
+      button.click();
+      button.click();
+    });
+    await reached;
+    assert.equal(
+      previewCalls.filter((uid) => uid === 102).length,
+      1,
+      "double click has one preview",
+    );
+    assert.equal(
+      await page.locator('[data-enable-withdrawals="102"]').isDisabled(),
+      true,
+    );
+    await page.locator("#next-page").click();
+    await page.getByText("UID 120", { exact: true }).waitFor();
+    const lateResponse = page.waitForResponse((response) =>
+      response.url().includes("enrollment-preview?userId=102"),
+    );
+    releasePreview();
+    await (await lateResponse).finished();
+    await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    assert.equal(
+      enrollmentPosts.length,
+      3,
+      "late preview after navigation cannot enable an old row",
+    );
+    await page.locator("#previous-page").click();
+    await page.getByText("UID 100", { exact: true }).waitFor();
+
     await page.locator("#next-page").click();
     await page.getByText("UID 120", { exact: true }).waitFor();
     assert.equal(await page.locator("tbody tr").count(), 2);
@@ -140,6 +266,23 @@ const base = process.env.ADMIN_TEST_BASE || "http://localhost:8080";
       .locator("dialog dd")
       .getByText("selfie", { exact: true })
       .waitFor();
+    assert.ok(
+      (await page.locator("dialog dd").allTextContents()).includes(
+        "user21@example.test",
+      ),
+    );
+    await page.locator('dialog [data-enable-withdrawals="121"]').click();
+    await page
+      .locator("dialog")
+      .getByText("Enabled", { exact: true })
+      .waitFor();
+    assert.equal(
+      await page
+        .locator('.users-panel [data-enable-withdrawals="121"]')
+        .count(),
+      0,
+      "detail activation updates the table too",
+    );
     await page.keyboard.press("Escape");
     assert.equal(await page.locator("dialog").isVisible(), false);
     await page.locator("#search").fill("nothing-matches");
@@ -149,7 +292,7 @@ const base = process.env.ADMIN_TEST_BASE || "http://localhost:8080";
     await page.getByText("UID 101", { exact: true }).waitFor();
     assert.equal(await page.locator("tbody tr").count(), 11);
     await page.screenshot({
-      path: "/home/runner/workspace/screenshots/admin-live-users-desktop.png",
+      path: "/tmp/admin-live-users-desktop.png",
       fullPage: true,
     });
     await page.setViewportSize({ width: 390, height: 844 });
@@ -160,7 +303,7 @@ const base = process.env.ADMIN_TEST_BASE || "http://localhost:8080";
       false,
     );
     await page.screenshot({
-      path: "/home/runner/workspace/screenshots/admin-live-users-mobile.png",
+      path: "/tmp/admin-live-users-mobile.png",
       fullPage: true,
     });
     fail = true;
@@ -205,13 +348,13 @@ const base = process.env.ADMIN_TEST_BASE || "http://localhost:8080";
       false,
     );
     await page.screenshot({
-      path: "/home/runner/workspace/screenshots/admin-overview-mobile.png",
+      path: "/tmp/admin-overview-mobile.png",
       fullPage: true,
     });
     await page.setViewportSize({ width: 1440, height: 1100 });
     await page.locator(".chart-data summary").click();
     await page.screenshot({
-      path: "/home/runner/workspace/screenshots/admin-overview-desktop.png",
+      path: "/tmp/admin-overview-desktop.png",
       fullPage: true,
     });
     overviewFailure = true;

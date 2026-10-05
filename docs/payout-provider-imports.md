@@ -44,3 +44,7 @@ Non-Remitly `verified_methods` records country/method research only. Remitly ret
 For routine fee changes, expand the country and method, open **Update observed fee**, enter the exact send amount, fee, funding method, observation time, delivery estimate, taxes and source page, then save. Old observations remain in the database. Fee saving does not verify previously unverified methods, silently enable disabled entries or modify an existing withdrawal's approved quote. Brazil tax readiness remains unresolved until independently verified.
 
 Payout data entry and actual provider sending are separate. The existing creator/provider payment workflow remains Remitly-specific; adding another provider's catalog requires its payment integration before it can be selected by creators.
+
+## Normal fee rows
+
+Each country shows one row per payout type. Use **Add default fee** or **Edit fee** to save the normal USD fee and funding method. Positive imported $15 samples initialize unset reference defaults; zero samples remain unset because promotion status is unverified. Defaults survive new research imports and do not replace the provider's actual quote for a withdrawal. Existing quoted fees stay in secondary quote history. The retired $500 comparison samples are deleted by the October 5 default-fee migration and removed from the bundled research file.

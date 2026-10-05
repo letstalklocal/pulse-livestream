@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { PayoutCatalogUpdateDefaultFundingMethod } from './payoutCatalogUpdateDefaultFundingMethod';
 
 export interface PayoutCatalogUpdate {
   /** @minimum 1 */
@@ -15,4 +16,10 @@ export interface PayoutCatalogUpdate {
      */
   name?: string;
   enabled?: boolean;
+  /**
+     * @minimum 0
+     * @maximum 100000000
+     */
+  defaultFeeCents?: number | null;
+  defaultFundingMethod?: PayoutCatalogUpdateDefaultFundingMethod;
 }

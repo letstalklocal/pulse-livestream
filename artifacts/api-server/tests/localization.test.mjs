@@ -142,6 +142,16 @@ try {
    // Approved prototype sticker controls, compact replacement action and processing bar.
    if(file.endsWith('/app/video-prototype.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='value'&&n.initializer?.getText(a)==='{stickers}')return;
    if(file.endsWith('/components/CreatorVideoSheet.tsx')&&ts.isJsxAttribute(n)&&((n.name.getText(a)==='name'&&n.initializer?.text==='swap-horizontal-outline')||(n.name.getText(a)==='testID'&&n.initializer?.text==='creator-video-progress-bar')))return;
+   // Approved linked withdrawal inputs and method rows deliberately change these UI attributes.
+   // Actual handlers, conversion, limits, remaining balance, navigation and contact writes are exercised in withdrawals.test.cjs.
+   if(file.endsWith('/app/withdraw-money.tsx')) {
+    if(ts.isJsxSelfClosingElement(n)&&n.tagName.getText(a)==='TextInput'&&n.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='value'&&(['{amount}','{coinAmount}'].includes(p.initializer?.getText(a)) || /firstWithdrawal \? "(?:6000|15\.00)" : (?:coinAmount|amount)/.test(p.initializer?.getText(a)))))return;
+    if(ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.parent.parent.tagName?.getText(a)==='Ionicons'&&n.initializer?.getText(a).includes('methodId'))return;
+    if(ts.isJsxAttribute(n)&&n.name.getText(a)==='key'&&n.initializer?.getText(a)==='{item.id}'&&n.parent.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='onPress'&&p.initializer?.getText(a).includes('setMethod(item.id)')))return;
+   }
+   // User-requested withdrawal country and history menus add only these decorative icons.
+   // Its open/select/close handlers and existing financial guards are checked in withdrawals.test.cjs.
+   if(file.endsWith('/app/withdraw-money.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.parent.parent.tagName?.getText(a)==='Ionicons'&&['chevron-down','close','ellipsis-horizontal'].includes(n.initializer?.text))return;
    // Approved anonymous avatar uses a generic person icon instead of identifying initials.
    if(file.endsWith('/components/Avatar.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='person')return;
    // Approved Premium entry checkbox is additive; retain all existing admission controls.

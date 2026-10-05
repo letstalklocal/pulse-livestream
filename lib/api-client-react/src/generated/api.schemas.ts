@@ -897,6 +897,15 @@ export const PayoutDeliveryMethodAvailability = {
   unverified: 'unverified',
 } as const;
 
+export type PayoutDeliveryMethodDefaultFundingMethod = typeof PayoutDeliveryMethodDefaultFundingMethod[keyof typeof PayoutDeliveryMethodDefaultFundingMethod] | null;
+
+
+export const PayoutDeliveryMethodDefaultFundingMethod = {
+  debit_card: 'debit_card',
+  credit_card: 'credit_card',
+  bank_account: 'bank_account',
+} as const;
+
 export interface PayoutDeliveryMethod {
   id: string;
   name: string;
@@ -908,6 +917,12 @@ export interface PayoutDeliveryMethod {
   availability: PayoutDeliveryMethodAvailability;
   lastVerifiedAt: string;
   observations: PayoutFeeObservation[];
+  /**
+     * @minimum 0
+     * @maximum 100000000
+     */
+  defaultFeeCents?: number | null;
+  defaultFundingMethod?: PayoutDeliveryMethodDefaultFundingMethod;
 }
 
 export type PayoutCountryAvailability = typeof PayoutCountryAvailability[keyof typeof PayoutCountryAvailability];
@@ -1008,6 +1023,15 @@ export interface PayoutEstimate {
   message: string;
 }
 
+export type PayoutCatalogUpdateDefaultFundingMethod = typeof PayoutCatalogUpdateDefaultFundingMethod[keyof typeof PayoutCatalogUpdateDefaultFundingMethod] | null;
+
+
+export const PayoutCatalogUpdateDefaultFundingMethod = {
+  debit_card: 'debit_card',
+  credit_card: 'credit_card',
+  bank_account: 'bank_account',
+} as const;
+
 export interface PayoutCatalogUpdate {
   /** @minimum 1 */
   revision: number;
@@ -1017,6 +1041,12 @@ export interface PayoutCatalogUpdate {
      */
   name?: string;
   enabled?: boolean;
+  /**
+     * @minimum 0
+     * @maximum 100000000
+     */
+  defaultFeeCents?: number | null;
+  defaultFundingMethod?: PayoutCatalogUpdateDefaultFundingMethod;
 }
 
 export interface PayoutCatalogEntry {
@@ -1193,6 +1223,9 @@ export interface AdminUser {
   countryCode: string | null;
   createdAt: string;
   verification: AdminVerification;
+  email: string | null;
+  emailUnavailable: boolean;
+  withdrawalsEnabled: boolean;
 }
 
 export type AdminSessionRole = typeof AdminSessionRole[keyof typeof AdminSessionRole];

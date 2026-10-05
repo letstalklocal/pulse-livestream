@@ -3329,6 +3329,9 @@ export const getPayoutCatalogResponseProvidersItemCountriesItemMethodsItemObserv
 
 export const getPayoutCatalogResponseProvidersItemCountriesItemMethodsItemObservationsItemFeeCentsMin = 0;
 
+export const getPayoutCatalogResponseProvidersItemCountriesItemMethodsItemDefaultFeeCentsMin = 0;
+export const getPayoutCatalogResponseProvidersItemCountriesItemMethodsItemDefaultFeeCentsMax = 100000000;
+
 
 
 export const GetPayoutCatalogResponse = zod.object({
@@ -3370,7 +3373,9 @@ export const GetPayoutCatalogResponse = zod.object({
   "sourceUrls": zod.array(zod.string()).optional(),
   "discountNote": zod.string().nullish(),
   "discountVerified": zod.boolean().optional()
-}))
+})),
+  "defaultFeeCents": zod.number().min(getPayoutCatalogResponseProvidersItemCountriesItemMethodsItemDefaultFeeCentsMin).max(getPayoutCatalogResponseProvidersItemCountriesItemMethodsItemDefaultFeeCentsMax).nullish(),
+  "defaultFundingMethod": zod.enum(['debit_card', 'credit_card', 'bank_account']).nullish()
 })),
   "observations": zod.array(zod.object({
   "id": zod.string(),
@@ -3450,6 +3455,9 @@ export const getAdminPayoutCatalogResponseProvidersItemCountriesItemMethodsItemO
 
 export const getAdminPayoutCatalogResponseProvidersItemCountriesItemMethodsItemObservationsItemFeeCentsMin = 0;
 
+export const getAdminPayoutCatalogResponseProvidersItemCountriesItemMethodsItemDefaultFeeCentsMin = 0;
+export const getAdminPayoutCatalogResponseProvidersItemCountriesItemMethodsItemDefaultFeeCentsMax = 100000000;
+
 
 
 export const GetAdminPayoutCatalogResponse = zod.object({
@@ -3491,7 +3499,9 @@ export const GetAdminPayoutCatalogResponse = zod.object({
   "sourceUrls": zod.array(zod.string()).optional(),
   "discountNote": zod.string().nullish(),
   "discountVerified": zod.boolean().optional()
-}))
+})),
+  "defaultFeeCents": zod.number().min(getAdminPayoutCatalogResponseProvidersItemCountriesItemMethodsItemDefaultFeeCentsMin).max(getAdminPayoutCatalogResponseProvidersItemCountriesItemMethodsItemDefaultFeeCentsMax).nullish(),
+  "defaultFundingMethod": zod.enum(['debit_card', 'credit_card', 'bank_account']).nullish()
 })),
   "observations": zod.array(zod.object({
   "id": zod.string(),
@@ -3640,12 +3650,17 @@ export const UpdatePayoutCatalogEntryParams = zod.object({
 
 export const updatePayoutCatalogEntryBodyNameMax = 160;
 
+export const updatePayoutCatalogEntryBodyDefaultFeeCentsMin = 0;
+export const updatePayoutCatalogEntryBodyDefaultFeeCentsMax = 100000000;
+
 
 
 export const UpdatePayoutCatalogEntryBody = zod.object({
   "revision": zod.number().min(1),
   "name": zod.string().min(1).max(updatePayoutCatalogEntryBodyNameMax).optional(),
-  "enabled": zod.boolean().optional()
+  "enabled": zod.boolean().optional(),
+  "defaultFeeCents": zod.number().min(updatePayoutCatalogEntryBodyDefaultFeeCentsMin).max(updatePayoutCatalogEntryBodyDefaultFeeCentsMax).nullish(),
+  "defaultFundingMethod": zod.enum(['debit_card', 'credit_card', 'bank_account']).nullish()
 })
 
 
@@ -3764,7 +3779,10 @@ export const ListAdminUsersResponse = zod.object({
   "method": zod.enum(['selfie', 'id']).nullable(),
   "upgradeStatus": zod.string(),
   "environment": zod.string()
-})
+}),
+  "email": zod.string().nullable(),
+  "emailUnavailable": zod.boolean(),
+  "withdrawalsEnabled": zod.boolean()
 })),
   "nextCursor": zod.string().nullable(),
   "asOf": zod.coerce.date(),
@@ -3794,7 +3812,10 @@ export const GetAdminUserResponse = zod.object({
   "method": zod.enum(['selfie', 'id']).nullable(),
   "upgradeStatus": zod.string(),
   "environment": zod.string()
-})
+}),
+  "email": zod.string().nullable(),
+  "emailUnavailable": zod.boolean(),
+  "withdrawalsEnabled": zod.boolean()
 })
 
 

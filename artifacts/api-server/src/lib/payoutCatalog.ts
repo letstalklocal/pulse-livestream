@@ -784,6 +784,12 @@ export async function readCatalog(
           receiveCurrency: m.receive_currency,
           availability: m.availability,
           lastVerifiedAt: m.last_verified_at,
+          ...(admin
+            ? {
+                defaultFeeCents: m.default_fee_cents ?? null,
+                defaultFundingMethod: m.default_funding_method ?? null,
+              }
+            : {}),
           observations: observations.map((o) =>
             admin
               ? o
@@ -852,19 +858,42 @@ export async function updateCatalog(
   validateAccountKey(accountKey);
   const patch = object(
     input,
-    ["revision", "name", "enabled"],
+    ["revision", "name", "enabled", "defaultFeeCents", "defaultFundingMethod"],
     "Catalog update",
   );
   if (
     !Number.isSafeInteger(patch.revision) ||
     patch.revision < 1 ||
     (patch.enabled !== undefined && typeof patch.enabled !== "boolean") ||
-    (patch.name === undefined && patch.enabled === undefined)
+    (patch.name === undefined &&
+      patch.enabled === undefined &&
+      patch.defaultFeeCents === undefined)
   )
     throw new CatalogError(
       "An expected revision and name or enabled change are required.",
     );
   if (patch.name !== undefined) string(patch.name, "display name");
+  const defaultChange = patch.defaultFeeCents !== undefined;
+  if (patch.defaultFundingMethod !== undefined && !defaultChange)
+    throw new CatalogError("Provide the default fee with its funding method.");
+  if (defaultChange) {
+    if (kind !== "methods")
+      throw new CatalogError("Default fees belong to payout types.");
+    if (patch.defaultFeeCents === null) {
+      if (patch.defaultFundingMethod !== null)
+        throw new CatalogError(
+          "Clear the default funding method with the fee.",
+        );
+    } else {
+      cents(patch.defaultFeeCents, "default fee");
+      if (
+        !["debit_card", "credit_card", "bank_account"].includes(
+          patch.defaultFundingMethod,
+        )
+      )
+        throw new CatalogError("Select a funding method for the default fee.");
+    }
+  }
   const client = await database.connect();
   try {
     await client.query("BEGIN");
@@ -886,8 +915,15 @@ export async function updateCatalog(
         409,
       );
     const updated = await client.query(
-      `UPDATE ${table} SET name=$2,enabled=$3,revision=revision+1,updated_at=now() WHERE id=$1 RETURNING *`,
-      [id, patch.name ?? before.name, patch.enabled ?? before.enabled],
+      `UPDATE ${table} SET name=$2,enabled=$3,revision=revision+1,updated_at=now()${defaultChange ? ",default_fee_cents=$4,default_funding_method=$5" : ""} WHERE id=$1 RETURNING *`,
+      [
+        id,
+        patch.name ?? before.name,
+        patch.enabled ?? before.enabled,
+        ...(defaultChange
+          ? [patch.defaultFeeCents, patch.defaultFundingMethod]
+          : []),
+      ],
     );
     await client.query(
       "INSERT INTO payout_catalog_events(actor,action,target,before_value,after_value) VALUES($1,'catalog_update',$2,$3,$4)",

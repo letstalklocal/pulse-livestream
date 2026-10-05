@@ -154,6 +154,7 @@ function clearPrivate() {
     s.next = null;
   });
   users = [];
+  enablingWithdrawals.clear();
   removalCursor = null;
   removalHistory = [];
   removalNext = null;
@@ -212,15 +213,74 @@ function accessError(error) {
   }
   return false;
 }
+const enablingWithdrawals = new Map();
+function withdrawalAccess(u) {
+  return `<div class="withdrawal-access">${u.withdrawalsEnabled ? '<span class="status verified">Enabled</span>' : `<button class="page-button" data-enable-withdrawals="${esc(u.uid)}" ${enablingWithdrawals.has(String(u.uid)) ? "disabled" : ""}>Enable withdrawals</button>`}<span class="user-withdrawal-feedback" role="status"></span></div>`;
+}
+async function enableUserWithdrawals(uid, button) {
+  if (!authorized || enablingWithdrawals.has(uid)) return;
+  const version = requestVersion,
+    activeSession = sessionId;
+  const feedback = button
+    .closest(".withdrawal-access")
+    .querySelector(".user-withdrawal-feedback");
+  const current = () =>
+    authorized &&
+    sessionId === activeSession &&
+    window.Clerk?.session?.id === activeSession &&
+    requestVersion === version &&
+    button.isConnected;
+  const attempt = {};
+  enablingWithdrawals.set(uid, attempt);
+  button.disabled = true;
+  feedback.textContent = "Enabling…";
+  try {
+    const preview = await api(
+      "/withdrawals/enrollment-preview?" + new URLSearchParams({ userId: uid }),
+    );
+    if (!current()) return;
+    if (!preview.alreadyEnrolled) {
+      await api("/withdrawals/enroll", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: Number(uid),
+          expectedWalletCoins: preview.walletCoins,
+          reason: "Enabled from the user directory.",
+        }),
+      });
+    }
+    if (!current()) return;
+    const user = users.find((u) => String(u.uid) === uid);
+    if (user) user.withdrawalsEnabled = true;
+    document
+      .querySelectorAll(`[data-enable-withdrawals="${uid}"]`)
+      .forEach((control) => {
+        control
+          .closest(".withdrawal-access")
+          .querySelector(".user-withdrawal-feedback").textContent = "";
+        control.outerHTML = '<span class="status verified">Enabled</span>';
+      });
+  } catch (error) {
+    if (!current() || accessError(error)) return;
+    feedback.textContent =
+      error.status === 409
+        ? "The account changed. Click again to refresh and retry."
+        : error.message;
+  } finally {
+    if (enablingWithdrawals.get(uid) === attempt)
+      enablingWithdrawals.delete(uid);
+    if (current()) button.disabled = false;
+  }
+}
 function rows() {
   return (
     users
       .map(
         (u) =>
-          `<tr><td><button class="user-button" data-user="${u.uid}"><span class="avatar rose">${esc(initials(u.name))}</span><span>${esc(u.name)}<small>UID ${u.uid}</small></span></button></td><td>${esc(country(u.countryCode))}</td><td>${badge(u.verification)}</td><td>${esc(date(u.createdAt))}</td><td><button class="row-action" data-user="${u.uid}" aria-label="View ${esc(u.name)}">↗</button></td></tr>`,
+          `<tr><td><button class="user-button" data-user="${u.uid}"><span class="avatar rose">${esc(initials(u.name))}</span><span>${esc(u.name)}<small>UID ${u.uid}</small></span></button></td><td class="user-email">${esc(u.emailUnavailable ? "Unavailable" : u.email || "—")}</td><td>${esc(country(u.countryCode))}</td><td>${badge(u.verification)}</td><td>${esc(date(u.createdAt))}</td><td>${withdrawalAccess(u)}</td><td><button class="row-action" data-user="${u.uid}" aria-label="View ${esc(u.name)}">↗</button></td></tr>`,
       )
       .join("") ||
-    '<tr><td colspan="5" class="empty">No accounts match your search.</td></tr>'
+    '<tr><td colspan="7" class="empty">No accounts match your search.</td></tr>'
   );
 }
 function table() {
@@ -236,7 +296,7 @@ function table() {
     )
     .join(
       "",
-    )}</select></div><div class="table-scroll"><table><thead><tr><th>User</th><th>Country</th><th>Verification</th><th>Joined · UTC</th><th><span class="sr-only">Details</span></th></tr></thead><tbody><tr><td colspan="5" class="empty">Loading accounts…</td></tr></tbody></table></div><div class="table-footer"><span id="result-count" role="status">Loading…</span><div><button class="page-button" id="previous-page" disabled>← Previous</button><button class="page-button" id="next-page" disabled>Next →</button></div></div></section>`;
+    )}</select></div><div class="table-scroll"><table><thead><tr><th>User</th><th>Email</th><th>Country</th><th>Verification</th><th>Joined · UTC</th><th>Withdrawals</th><th><span class="sr-only">Details</span></th></tr></thead><tbody><tr><td colspan="7" class="empty">Loading accounts…</td></tr></tbody></table></div><div class="table-footer"><span id="result-count" role="status">Loading…</span><div><button class="page-button" id="previous-page" disabled>← Previous</button><button class="page-button" id="next-page" disabled>Next →</button></div></div></section>`;
 }
 function operationsPage() {
   const state = operations[section],
@@ -531,7 +591,7 @@ async function loadOverview() {
   }
 }
 function catalogPage() {
-  return `<section class="panel catalog-panel"><div class="panel-heading"><div><h2>Payout providers, countries and fees</h2><p>Manage providers and their observed payout options. Saved fees are estimates; verify the actual quote before preparing payment.</p></div><button class="page-button" id="refresh-catalog">Refresh</button></div><div class="catalog-content"><form id="catalog-add-provider" class="catalog-editor"><label>Provider name<input name="name" required maxlength="120" placeholder="Remitly, Payoneer…"></label><button class="primary-button" type="submit">Add provider</button><span class="catalog-feedback" role="status"></span></form><p id="catalog-status" role="status">Loading catalog…</p><div id="catalog-records"></div></div></section><section class="panel catalog-import"><div class="panel-heading"><div><h2>Import countries, methods and fees</h2><p id="catalog-import-provider">Add and select a provider above, then preview its JSON before importing.</p></div></div><div class="catalog-content"><label for="catalog-file">Research JSON file</label><input id="catalog-file" type="file" accept="application/json,.json"><div class="catalog-actions"><button class="page-button" id="download-catalog-template" disabled>Download import template</button><button class="page-button" id="preview-catalog-import" disabled>Preview import</button><button class="primary-button" id="commit-catalog-import" disabled>Import research</button></div><p id="catalog-import-status" role="status">No file selected. Import does not send payments.</p></div></section>`;
+  return `<section class="panel catalog-import"><div class="panel-heading"><div><h2>Import methods and fees</h2></div></div><div class="catalog-content"><p id="catalog-import-provider">Select a provider below, then preview its JSON before importing.</p><label for="catalog-file">Research JSON file</label><input id="catalog-file" type="file" accept="application/json,.json"><div class="catalog-actions"><button class="page-button" id="download-catalog-template" disabled>Download import template</button><button class="page-button" id="preview-catalog-import" disabled>Preview import</button><button class="primary-button" id="commit-catalog-import" disabled>Import research</button></div><p id="catalog-import-status" role="status">No file selected. Import does not send payments.</p></div></section><section class="panel catalog-panel"><div class="panel-heading"><div><h2>Payout providers, countries and fees</h2><p>Manage providers and their observed payout options. Saved fees are estimates; verify the actual quote before preparing payment.</p></div><button class="page-button" id="refresh-catalog">Refresh</button></div><div class="catalog-content"><form id="catalog-add-provider" class="catalog-editor"><label>Provider name<input name="name" required maxlength="120" placeholder="Remitly, Payoneer…"></label><button class="primary-button" type="submit">Add provider</button><span class="catalog-feedback" role="status"></span></form><p id="catalog-status" role="status">Loading catalog…</p><div id="catalog-records"></div></div></section>`;
 }
 const catalogMoney = (cents, currency = "USD") => {
   if (!Number.isFinite(cents)) return "Unknown";
@@ -545,31 +605,69 @@ const catalogMoney = (cents, currency = "USD") => {
 };
 const catalogDate = (value) =>
   value && !Number.isNaN(Date.parse(value)) ? date(value) : "Not verified";
-function catalogEditor(kind, record, inheritedDisabled = false) {
-  return `<form class="catalog-editor" data-catalog-kind="${kind}" data-catalog-id="${esc(record.id)}" data-catalog-revision="${esc(record.revision)}"><label>Display name<input name="name" required maxlength="120" value="${esc(record.name)}"></label><label class="catalog-toggle"><input name="enabled" type="checkbox" ${record.enabled ? "checked" : ""}> Enabled</label><button class="page-button" type="submit">Save</button><span class="catalog-feedback" role="status"></span>${inheritedDisabled ? '<p class="catalog-inherited">Unavailable to creators because a parent is disabled.</p>' : ""}</form>`;
+function catalogPencil(kind, record) {
+  const label =
+    kind === "countries"
+      ? "country"
+      : kind === "methods"
+        ? "payout type"
+        : "provider";
+  return `<button class="catalog-pencil" type="button" data-edit-catalog="${esc(record.id)}" aria-label="Edit ${label} name" title="Edit ${label} name" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 3 5 5-12 12-6 1 1-6Z"/><path d="m14 5 5 5"/></svg></button>`;
 }
+function catalogEditor(kind, record, inheritedDisabled = false) {
+  return `<form class="catalog-editor catalog-inline-editor" data-catalog-kind="${kind}" data-catalog-id="${esc(record.id)}" data-catalog-revision="${esc(record.revision)}"><label class="catalog-name-field" hidden>Name<input name="name" required maxlength="120" value="${esc(record.name)}"></label><label class="catalog-toggle"><input name="enabled" type="checkbox" ${record.enabled ? "checked" : ""}> Enabled</label><button class="page-button" type="submit" hidden>Save</button><button class="page-button" type="button" data-cancel-catalog hidden>Cancel</button><span class="catalog-feedback" role="status"></span>${inheritedDisabled ? '<p class="catalog-inherited">Unavailable to creators because a parent is disabled.</p>' : ""}</form>`;
+}
+const catalogFundingName = (value) =>
+  ({
+    debit_card: "Debit card",
+    credit_card: "Credit card",
+    bank_account: "Bank account",
+  })[value] ||
+  value ||
+  "—";
 function catalogObservationRows(observations = []) {
+  const groups = new Map();
+  for (const observation of observations) {
+    const key = JSON.stringify([
+      observation.feeCents,
+      observation.feeCurrency,
+      observation.fundingMethod,
+      observation.deliveryEstimate,
+      observation.taxStatus,
+    ]);
+    if (!groups.has(key))
+      groups.set(key, { observation, amounts: new Set(), dates: new Set() });
+    const group = groups.get(key);
+    group.amounts.add(catalogMoney(observation.sendAmountCents));
+    group.dates.add(catalogDate(observation.observedAt));
+  }
   return (
-    observations
+    Array.from(groups.values())
       .map(
-        (o) =>
-          `<tr><td>${esc(catalogMoney(o.sendAmountCents))}</td><td>${esc(o.fundingMethod)}</td><td>${esc(catalogMoney(o.feeCents, o.feeCurrency))}</td><td>${esc(o.deliveryEstimate || "Not observed")}</td><td>${esc(catalogDate(o.observedAt))}</td><td>${esc(o.taxStatus || "Not resolved")}</td></tr>`,
+        ({ observation: o, amounts, dates }) =>
+          `<tr><td>${esc(Array.from(amounts).join(", "))}</td><td>${esc(catalogFundingName(o.fundingMethod))}</td><td>${esc(catalogMoney(o.feeCents, o.feeCurrency))}${o.feeCents === 0 ? "<small>Promotion status unverified</small>" : ""}</td><td>${esc(o.deliveryEstimate || "—")}</td><td>${esc(Array.from(dates).join(", "))}</td><td>${esc(o.taxStatus || "Unknown")}</td></tr>`,
       )
       .join("") ||
-    '<tr><td colspan="6" class="empty">No fee observations.</td></tr>'
+    '<tr><td colspan="6" class="empty">No quotes recorded.</td></tr>'
   );
 }
-function catalogRouteEvidence(record) {
-  const observations = record.observations || [];
-  if (!observations.length)
-    return record.notes
-      ? `<p class="catalog-notes">${esc(record.notes)}</p>`
-      : "";
-  return `<details class="catalog-evidence"><summary>Route research and quote errors (${observations.length} observations)</summary>${observations.map((o) => `<p class="catalog-notes"><strong>${esc(catalogDate(o.observedAt))} · ${esc(o.inspectionStatus)}</strong><br>${esc(o.notes || "No additional notes.")}${o.discountNote ? `<br>Promotion observation (separate from fees): ${esc(o.discountNote)}` : ""}${o.sourceUrls?.length ? `<br>Sources: ${o.sourceUrls.map(esc).join(" · ")}` : ""}</p>`).join("")}</details>`;
+function catalogDefaultFeeEditor(method) {
+  return `<form class="catalog-default-fee-editor catalog-editor" data-method-id="${esc(method.id)}" data-revision="${esc(method.revision)}"><label>Default fee · USD<input name="fee" required inputmode="decimal" placeholder="0.99" value="${method.defaultFeeCents == null ? "" : (method.defaultFeeCents / 100).toFixed(2)}"></label><label>Funding method<select name="fundingMethod"><option value="debit_card" ${method.defaultFundingMethod === "debit_card" ? "selected" : ""}>Debit card</option><option value="credit_card" ${method.defaultFundingMethod === "credit_card" ? "selected" : ""}>Credit card</option><option value="bank_account" ${method.defaultFundingMethod === "bank_account" ? "selected" : ""}>Bank account</option></select></label><button class="page-button" type="submit">Save default fee</button><button class="page-button" type="button" data-close-fee-row>Cancel</button><span class="catalog-feedback" role="status"></span></form><p class="catalog-fee-note">Enter the normal fee, excluding temporary promotions. Actual payouts still require a current provider quote.</p>`;
+}
+function catalogMethodsTable(country, provider) {
+  if (!country.methods?.length)
+    return "<p>No payout types available for this country.</p>";
+  return `<div class="table-scroll"><table class="catalog-methods-table"><thead><tr><th>Payout type</th><th>Default fee · USD</th><th>Funding</th><th>Receive currency</th><th>Delivery</th><th>Status</th><th>Actions</th></tr></thead>${country.methods
+    .map((method) => {
+      const latest = method.observations?.[0] || {};
+      const inherited = !provider.enabled || !country.enabled;
+      return `<tbody class="catalog-method"><tr class="catalog-method-row"><td><div class="catalog-method-heading"><h3>${esc(method.name)}</h3>${catalogPencil("methods", method)}</div></td><td>${method.defaultFeeCents == null ? '<span class="catalog-unset">Not set</span>' : esc(catalogMoney(method.defaultFeeCents))}</td><td>${esc(catalogFundingName(method.defaultFundingMethod))}</td><td>${esc(method.receiveCurrency || "—")}</td><td>${esc(latest.deliveryEstimate || "—")}</td><td>${esc(!method.enabled ? "Disabled" : inherited ? "Parent disabled" : method.availability === "available" ? "Available" : "Needs review")}</td><td><div class="catalog-row-actions"><button class="page-button" type="button" data-default-fee="${esc(method.id)}">${method.defaultFeeCents == null ? "Add default fee" : "Edit fee"}</button><button class="catalog-history-button" type="button" data-fee-history="${esc(method.id)}" aria-expanded="false">Quote history</button></div></td></tr><tr class="catalog-method-controls" data-catalog-editor-row hidden><td colspan="7">${catalogEditor("methods", method, inherited)}</td></tr><tr class="catalog-method-controls" data-default-fee-row="${esc(method.id)}" hidden><td colspan="7">${catalogDefaultFeeEditor(method)}</td></tr><tr class="catalog-method-controls" data-fee-history-row="${esc(method.id)}" hidden><td colspan="7">${catalogFeeEditor(method)}<table class="catalog-quote-table"><caption>Recorded quotes · zero fees may be promotional</caption><thead><tr><th>Send amount · USD</th><th>Funding</th><th>Quoted fee</th><th>Delivery</th><th>Recorded</th><th>Taxes</th></tr></thead><tbody>${catalogObservationRows(method.observations)}</tbody></table></td></tr></tbody>`;
+    })
+    .join("")}</table></div>`;
 }
 function catalogFeeEditor(method) {
   const latest = method.observations?.[0] || {};
-  return `<details class="catalog-evidence"><summary>Update observed fee</summary><form class="catalog-fee-editor catalog-editor" data-method-id="${esc(method.id)}" data-revision="${esc(method.revision)}"><label>Send amount · USD<input name="sendAmount" type="text" inputmode="decimal" required placeholder="15.00"></label><label>Observed fee · USD<input name="fee" type="text" inputmode="decimal" required placeholder="0.99"></label><label>Funding method<select name="fundingMethod"><option value="debit_card">Debit card</option><option value="credit_card">Credit card</option><option value="bank_account">Bank account</option></select></label><label>Observed at · local time<input name="observedAt" type="datetime-local" required></label><label>Delivery estimate<input name="deliveryEstimate" maxlength="200" value="${esc(latest.deliveryEstimate || "")}"></label><label>Taxes<select name="taxStatus"><option value="not_observed">Not observed</option><option value="unresolved">Unresolved</option><option value="none">Confirmed none</option><option value="included">Confirmed included</option></select></label><label>Provider source page<input name="sourceUrl" type="url" required maxlength="500" value="${esc(latest.sourceUrls?.[0] || "")}" placeholder="https://…"></label><button class="page-button" type="submit">Save fee observation</button><span class="catalog-feedback" role="status"></span></form><p>Enter a fee observed in the provider account for this exact send amount and funding method. Saving retains previous observations and does not change existing withdrawal quotes.</p></details>`;
+  return `<details class="catalog-evidence"><summary>Record a provider quote</summary><form class="catalog-fee-editor catalog-editor" data-method-id="${esc(method.id)}" data-revision="${esc(method.revision)}"><label>Send amount · USD<input name="sendAmount" type="text" inputmode="decimal" required placeholder="15.00"></label><label>Quoted fee · USD<input name="fee" type="text" inputmode="decimal" required placeholder="0.99"></label><label>Funding method<select name="fundingMethod"><option value="debit_card">Debit card</option><option value="credit_card">Credit card</option><option value="bank_account">Bank account</option></select></label><label>Quoted at · local time<input name="observedAt" type="datetime-local" required></label><label>Delivery estimate<input name="deliveryEstimate" maxlength="200" value="${esc(latest.deliveryEstimate || "")}"></label><label>Taxes<select name="taxStatus"><option value="not_observed">Not observed</option><option value="unresolved">Unresolved</option><option value="none">Confirmed none</option><option value="included">Confirmed included</option></select></label><label>Provider source page<input name="sourceUrl" type="url" required maxlength="500" value="${esc(latest.sourceUrls?.[0] || "")}" placeholder="https://…"></label><button class="page-button" type="submit">Save quote</button><span class="catalog-feedback" role="status"></span></form><p>Enter a fee observed in the provider account for this exact send amount and funding method. Saving retains previous observations and does not change existing withdrawal quotes.</p></details>`;
 }
 function catalogCents(value) {
   if (!/^(0|[1-9]\d*)(\.\d{1,2})?$/.test(value))
@@ -647,10 +745,15 @@ function renderCatalogRecords() {
   document.getElementById("download-catalog-template").disabled = false;
   document.getElementById("catalog-import-provider").textContent =
     `Import into ${provider.name}. Upload countries, delivery methods and observed fees for this provider.`;
-  target.innerHTML = `<label class="catalog-provider">Provider<select id="catalog-provider">${providers.map((p) => `<option value="${esc(p.id)}" ${p === provider ? "selected" : ""}>${esc(p.name)}${p.enabled ? "" : " (disabled)"}</option>`).join("")}</select></label>${catalogEditor("providers", provider)}${/^remitly_[a-f0-9]{24}$/.test(provider.id) ? "" : "<p>Provider information can be managed here. Its actual withdrawal workflow requires a separate integration before it appears in the mobile app.</p>"}<div class="catalog-countries">${(provider.countries || []).map((c) => `<details class="catalog-country"><summary>${esc(c.name)} · ${esc(c.countryCode)} <span>${esc(c.availability)}${c.enabled ? "" : " · Disabled"}</span></summary><p>Receive currency: ${esc(c.receiveCurrency || c.methods?.[0]?.receiveCurrency || "Not observed")} · Last verified: ${esc(catalogDate(c.lastVerifiedAt))} · Inspection: ${esc(c.inspectionStatus || c.availability)}</p>${catalogRouteEvidence(c)}${catalogEditor("countries", c, !provider.enabled)}${(c.methods || []).map((m) => `<section class="catalog-method"><h3>${esc(m.name)}</h3><p>${esc(m.receiveCurrency || "Currency not observed")} · ${esc(m.availability)} · Last verified: ${esc(catalogDate(m.lastVerifiedAt))}</p>${catalogEditor("methods", m, !provider.enabled || !c.enabled)}${catalogFeeEditor(m)}<div class="table-scroll"><table><caption>Observed fees by send amount and funding method</caption><thead><tr><th>Amount sent · USD</th><th>Funding method</th><th>Provider fee</th><th>Delivery estimate</th><th>Observed · UTC</th><th>Taxes</th></tr></thead><tbody>${catalogObservationRows(m.observations)}</tbody></table></div></section>`).join("") || "<p>No selectable delivery methods observed. The route remains in this catalog for review.</p>"}</details>`).join("")}</div>`;
+  target.innerHTML = `<div class="catalog-provider-row"><label class="catalog-provider">Provider<select id="catalog-provider">${providers.map((p) => `<option value="${esc(p.id)}" ${p === provider ? "selected" : ""}>${esc(p.name)}${p.enabled ? "" : " (disabled)"}</option>`).join("")}</select></label>${catalogPencil("providers", provider)}</div>${catalogEditor("providers", provider)}${/^remitly_[a-f0-9]{24}$/.test(provider.id) ? "" : "<p>Provider information can be managed here. Its actual withdrawal workflow requires a separate integration before it appears in the mobile app.</p>"}<div class="catalog-countries">${(provider.countries || []).map((c) => `<details class="catalog-country" data-catalog-country-id="${esc(c.id)}"><summary><span class="catalog-country-name">${esc(c.name)} · ${esc(c.countryCode)}</span>${catalogPencil("countries", c)} <span>${esc(c.availability)}${c.enabled ? "" : " · Disabled"}</span></summary><p>Receive currency: ${esc(c.receiveCurrency || c.methods?.[0]?.receiveCurrency || "Not observed")} · Last verified: ${esc(catalogDate(c.lastVerifiedAt))} · Inspection: ${esc(c.inspectionStatus || c.availability)}</p>${catalogEditor("countries", c, !provider.enabled)}${catalogMethodsTable(c, provider)}</details>`).join("")}</div>`;
 }
 async function loadCatalog() {
   if (!authorized || section !== "Payout methods") return;
+  const openCountries = new Set(
+    Array.from(document.querySelectorAll(".catalog-country[open]")).map(
+      (node) => node.dataset.catalogCountryId,
+    ),
+  );
   const version = ++catalogVersion;
   catalog = null;
   document.getElementById("catalog-records").replaceChildren();
@@ -665,6 +768,8 @@ async function loadCatalog() {
       return;
     catalog = data;
     renderCatalogRecords();
+    for (const node of document.querySelectorAll(".catalog-country"))
+      node.open = openCountries.has(node.dataset.catalogCountryId);
     document.getElementById("catalog-status").textContent =
       `Updated ${catalogDate(data.asOf)}. Availability and pricing are account-specific. Taxes and promotions are separate from fees. No payments are sent here.`;
   } catch (e) {
@@ -731,7 +836,7 @@ async function catalogImportAction(dryRun) {
 }
 document.addEventListener("submit", async (event) => {
   const specialForm = event.target.closest(
-    "#catalog-add-provider, .catalog-fee-editor",
+    "#catalog-add-provider, .catalog-fee-editor, .catalog-default-fee-editor",
   );
   if (specialForm) {
     event.preventDefault();
@@ -749,6 +854,18 @@ document.addEventListener("submit", async (event) => {
           method: "POST",
           body: JSON.stringify({ name: fields.name.value.trim() }),
         });
+      } else if (specialForm.matches(".catalog-default-fee-editor")) {
+        result = await api(
+          `/payout-catalog/methods/${encodeURIComponent(specialForm.dataset.methodId)}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({
+              revision: Number(specialForm.dataset.revision),
+              defaultFeeCents: catalogCents(fields.fee.value.trim()),
+              defaultFundingMethod: fields.fundingMethod.value,
+            }),
+          },
+        );
       } else {
         result = await api(
           `/payout-catalog/methods/${encodeURIComponent(specialForm.dataset.methodId)}/fees`,
@@ -826,6 +943,11 @@ document.addEventListener("submit", async (event) => {
 });
 document.addEventListener("change", async (event) => {
   if (!authorized || section !== "Payout methods") return;
+  const editor = event.target.closest(".catalog-inline-editor");
+  if (editor && event.target.name === "enabled") {
+    editor.querySelector('[type="submit"]').hidden = false;
+    editor.querySelector("[data-cancel-catalog]").hidden = false;
+  }
   if (event.target.id === "catalog-provider") {
     ++catalogVersion;
     catalogProviderId = event.target.value;
@@ -868,6 +990,75 @@ document.addEventListener("change", async (event) => {
 });
 document.addEventListener("click", (event) => {
   if (!authorized || section !== "Payout methods") return;
+  const feeButton = event.target.closest(
+    "[data-default-fee], [data-fee-history]",
+  );
+  if (feeButton) {
+    const defaultEdit = feeButton.hasAttribute("data-default-fee");
+    const id = defaultEdit
+      ? feeButton.dataset.defaultFee
+      : feeButton.dataset.feeHistory;
+    const rows = document.querySelectorAll(
+      defaultEdit ? "[data-default-fee-row]" : "[data-fee-history-row]",
+    );
+    const row = Array.from(rows).find(
+      (node) =>
+        (defaultEdit
+          ? node.dataset.defaultFeeRow
+          : node.dataset.feeHistoryRow) === id,
+    );
+    if (row) {
+      row.hidden = !row.hidden;
+      feeButton.setAttribute("aria-expanded", String(!row.hidden));
+      if (defaultEdit && !row.hidden) row.querySelector("input").focus();
+    }
+    return;
+  }
+  const closeFeeRow = event.target.closest("[data-close-fee-row]");
+  if (closeFeeRow) {
+    const row = closeFeeRow.closest("[data-default-fee-row]");
+    row.querySelector("form").reset();
+    row.hidden = true;
+    return;
+  }
+  const pencil = event.target.closest("[data-edit-catalog]");
+  if (pencil) {
+    event.preventDefault();
+    const form = Array.from(
+      document.querySelectorAll(".catalog-inline-editor"),
+    ).find((node) => node.dataset.catalogId === pencil.dataset.editCatalog);
+    if (!form) return;
+    const country = form.closest(".catalog-country");
+    if (country) country.open = true;
+    const editorRow = form.closest("[data-catalog-editor-row]");
+    if (editorRow) editorRow.hidden = false;
+    form.querySelector(".catalog-name-field").hidden = false;
+    form.querySelector('[type="submit"]').hidden = false;
+    form.querySelector("[data-cancel-catalog]").hidden = false;
+    pencil.setAttribute("aria-expanded", "true");
+    form.elements.name.focus();
+    form.elements.name.select();
+    return;
+  }
+  const cancel = event.target.closest("[data-cancel-catalog]");
+  if (cancel) {
+    const form = cancel.closest("form");
+    form.reset();
+    const editorRow = form.closest("[data-catalog-editor-row]");
+    if (editorRow) editorRow.hidden = true;
+    form.querySelector(".catalog-name-field").hidden = true;
+    form.querySelector('[type="submit"]').hidden = true;
+    cancel.hidden = true;
+    form.querySelector(".catalog-feedback").textContent = "";
+    const button = Array.from(
+      document.querySelectorAll("[data-edit-catalog]"),
+    ).find((node) => node.dataset.editCatalog === form.dataset.catalogId);
+    if (button) {
+      button.setAttribute("aria-expanded", "false");
+      button.focus();
+    }
+    return;
+  }
   if (event.target.id === "refresh-catalog") {
     resetCatalogPreview();
     loadCatalog();
@@ -902,7 +1093,7 @@ function render() {
     else a.removeAttribute("aria-current");
   });
   document.getElementById("breadcrumb").textContent = section;
-  main.innerHTML = `<div class="page-heading"><div><div class="eyebrow">PULSE WORKSPACE</div><h1>${section}</h1><p>${section === "Overview" ? "Welcome back. Your community workspace." : section === "Users" ? "Find and review the people who make Pulse." : section === "Payout desk" ? "Review creator withdrawals and record verified provider outcomes." : "Your space for " + section.toLowerCase() + "."}</p></div><div class="date-label">${section === "Payout methods" ? "Catalog management" : section === "Payout desk" ? "Human release required" : section === "Payout operators" ? "Credential management" : "Read-only access"}</div></div>${section === "Overview" ? overview() : section === "Users" ? table() : section === "Account removals" ? removals() : section === "Verification" ? reviews() : section === "Payout methods" ? catalogPage() : section === "Payout desk" ? payoutDeskPage() : section === "Payout operators" ? operatorCredentialsPage() : operations[section] ? operationsPage() : `<section class="panel coming-soon"><span class="empty-icon">${icon(section)}</span><span class="tag">COMING NEXT</span><h2>${section}</h2><p>This section is not connected yet.</p><a class="primary-button" href="#users">Open user directory →</a></section>`}`;
+  main.innerHTML = `<div class="page-heading"><div><div class="eyebrow">PULSE WORKSPACE</div><h1>${section}</h1><p>${section === "Overview" ? "Welcome back. Your community workspace." : section === "Users" ? "Find and review the people who make Pulse." : section === "Payout desk" ? "Review creator withdrawals and record verified provider outcomes." : "Your space for " + section.toLowerCase() + "."}</p></div><div class="date-label">${section === "Payout methods" ? "Catalog management" : section === "Payout desk" ? "Human release required" : section === "Payout operators" ? "Credential management" : section === "Users" ? "Account management" : "Read-only access"}</div></div>${section === "Overview" ? overview() : section === "Users" ? table() : section === "Account removals" ? removals() : section === "Verification" ? reviews() : section === "Payout methods" ? catalogPage() : section === "Payout desk" ? payoutDeskPage() : section === "Payout operators" ? operatorCredentialsPage() : operations[section] ? operationsPage() : `<section class="panel coming-soon"><span class="empty-icon">${icon(section)}</span><span class="tag">COMING NEXT</span><h2>${section}</h2><p>This section is not connected yet.</p><a class="primary-button" href="#users">Open user directory →</a></section>`}`;
   if (section === "Users" || section === "Overview") loadUsers();
   if (section === "Overview") loadOverview();
   if (section === "Account removals") loadRemovals();
@@ -919,7 +1110,7 @@ async function loadUsers() {
   const tbody = document.querySelector(".users-panel tbody");
   if (!tbody) return;
   tbody.innerHTML =
-    '<tr><td colspan="5" class="empty">Loading accounts…</td></tr>';
+    '<tr><td colspan="7" class="empty">Loading accounts…</td></tr>';
   document.getElementById("result-count").textContent = "Loading…";
   document.getElementById("next-page").disabled = true;
   document.getElementById("previous-page").disabled = true;
@@ -942,7 +1133,7 @@ async function loadUsers() {
   } catch (e) {
     if (version !== requestVersion) return;
     if (accessError(e)) return;
-    tbody.innerHTML = `<tr><td colspan="5" class="empty">${esc(e.message)} <button class="page-button" id="retry-users">Retry</button></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="empty">${esc(e.message)} <button class="page-button" id="retry-users">Retry</button></td></tr>`;
     document.getElementById("result-count").textContent =
       "Unable to load accounts";
     document.getElementById("previous-page").disabled = !history.length;
@@ -958,6 +1149,7 @@ async function details(uid) {
     const v = u.verification;
     document.getElementById("detail-content").innerHTML =
       `<span class="avatar large rose">${esc(initials(u.name))}</span><h2>${esc(u.name)}</h2><p class="muted">UID ${u.uid}</p>${badge(v)}<dl>${[
+        ["Email", u.emailUnavailable ? "Unavailable" : u.email || "—"],
         ["Country", country(u.countryCode)],
         ["Joined (UTC)", date(u.createdAt)],
         ["Verification status", v.status.replaceAll("_", " ")],
@@ -966,7 +1158,7 @@ async function details(uid) {
         ["Verification environment", v.environment],
       ]
         .map(([k, val]) => `<div><dt>${k}</dt><dd>${esc(val)}</dd></div>`)
-        .join("")}</dl>`;
+        .join("")}</dl>${withdrawalAccess(u)}`;
   } catch (e) {
     if (version !== detailVersion) return;
     if (!accessError(e))
@@ -1154,6 +1346,11 @@ document.addEventListener("click", (e) => {
   }
   if (["refresh-removals", "retry-removals"].includes(e.target.id))
     loadRemovals();
+  const enable = e.target.closest("[data-enable-withdrawals]");
+  if (enable && authorized) {
+    void enableUserWithdrawals(enable.dataset.enableWithdrawals, enable);
+    return;
+  }
   const user = e.target.closest("[data-user]");
   if (user && authorized) details(user.dataset.user);
   if (e.target.id === "next-page" && nextCursor) {

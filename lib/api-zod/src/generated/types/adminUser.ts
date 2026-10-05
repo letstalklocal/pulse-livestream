@@ -13,4 +13,7 @@ export interface AdminUser {
   countryCode: string | null;
   createdAt: Date;
   verification: AdminVerification;
+  email: string | null;
+  emailUnavailable: boolean;
+  withdrawalsEnabled: boolean;
 }

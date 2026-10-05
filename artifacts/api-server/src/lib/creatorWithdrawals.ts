@@ -201,9 +201,10 @@ export async function enrollmentPreview(db: Sql, uid: number) {
     walletCoins: b.availableCoins,
     availableUsd: b.availableUsd,
     alreadyEnrolled: !!(
-      await db.query("SELECT 1 FROM creator_cash_accounts WHERE user_id=$1", [
-        uid,
-      ])
+      await db.query(
+        "SELECT 1 FROM creator_cash_accounts WHERE user_id=$1 AND enabled=true",
+        [uid],
+      )
     ).rows.length,
   };
 }
@@ -226,7 +227,7 @@ export async function enroll(db: Database, input: unknown, actor: string) {
     if (p.walletCoins !== expected)
       fail("Wallet balance changed. Preview again before enrollment.", 409);
     await c.query(
-      "INSERT INTO creator_cash_accounts(user_id,enrolled_by) VALUES($1,$2)",
+      "INSERT INTO creator_cash_accounts(user_id,enrolled_by) VALUES($1,$2) ON CONFLICT(user_id) DO UPDATE SET enabled=true",
       [uid, actor],
     );
     await event(c, uid, actor, "enrolled", { ...p, reason, policy: POLICY });

@@ -299,7 +299,10 @@ async function verifyQuoteScreen() {
     cancel: async () => {
       withdrawal.status = "canceled";
     },
-    statement: async () => { statementRequests++; return "Pulse statement\nReserved gross USD: 15.00"; },
+    statement: async () => {
+      statementRequests++;
+      return "Pulse statement\nReserved gross USD: 15.00";
+    },
   };
   const module = { exports: {} };
   vm.runInNewContext(
@@ -345,7 +348,8 @@ async function verifyQuoteScreen() {
           };
         if (id === "expo-sharing") {
           sharingImports++;
-          if (sharingMissing) throw new Error("Cannot find native module 'ExpoSharing'");
+          if (sharingMissing)
+            throw new Error("Cannot find native module 'ExpoSharing'");
           return {
             isAvailableAsync: async () => sharingAvailable,
             shareAsync: async (url, options) => {
@@ -427,11 +431,19 @@ async function verifyQuoteScreen() {
     };
   }
   let v = render();
-  assert.equal(sharingImports, 0, "An older native build can load and render the route without ExpoSharing");
+  assert.equal(
+    sharingImports,
+    0,
+    "An older native build can load and render the route without ExpoSharing",
+  );
   v.button("Download statement").props.onPress();
   await new Promise((r) => setImmediate(r));
   assert.equal(sharingImports, 1);
-  assert.equal(statementRequests, 0, "Missing native sharing fails before requesting a statement");
+  assert.equal(
+    statementRequests,
+    0,
+    "Missing native sharing fails before requesting a statement",
+  );
   assert.ok(render().texts.includes("Sharing is unavailable on this device."));
   sharingMissing = false;
   assert.ok(v.texts.includes("Reserved withdrawal: $15.00"));
@@ -542,7 +554,8 @@ async function verifyWalletRequestScreen() {
     routes = [],
     contactEffects = [];
   let si = 0,
-    ri = 0;
+    ri = 0,
+    keyboardDismisses = 0;
   const react = {
     createElement: (type, props, ...children) => ({
       type,
@@ -683,6 +696,7 @@ async function verifyWalletRequestScreen() {
               [
                 "ActivityIndicator",
                 "KeyboardAvoidingView",
+                "Modal",
                 "RefreshControl",
                 "ScrollView",
                 "Text",
@@ -692,6 +706,7 @@ async function verifyWalletRequestScreen() {
               ].map((key) => [key, key]),
             ),
             StyleSheet: { create: (x) => x },
+            Keyboard: { dismiss: () => keyboardDismisses++ },
             Platform: { OS: "ios" },
           };
         if (id === "expo-router")
@@ -703,6 +718,10 @@ async function verifyWalletRequestScreen() {
             }),
           };
         if (id === "@expo/vector-icons") return { Ionicons: "Ionicons" };
+        if (id === "@/components/KeyboardAwareScrollViewCompat")
+          return {
+            KeyboardAwareScrollViewCompat: "KeyboardAwareScrollViewCompat",
+          };
         if (id === "@/components/GoldCoinIcon")
           return { GoldCoinIcon: "GoldCoinIcon" };
         if (id === "react-native-safe-area-context")
@@ -752,16 +771,284 @@ async function verifyWalletRequestScreen() {
     };
   }
   let v = render();
-  assert.ok(v.texts.includes("10,000 coins"));
-  assert.ok(v.texts.includes("$25.00"));
   assert.ok(
-    v.texts.includes("Maximum withdrawal: $15.00, including fees and taxes."),
+    !v.texts.includes("Withdrawal history"),
+    "history is removed from the withdrawal form",
   );
+  assert.ok(!v.texts.includes("No withdrawals yet."));
+  const more = () => v.nodes.find((n) => n.props.accessibilityLabel === "More");
+  more().props.onPress();
+  v = render();
+  assert.ok(v.nodes.some((n) => n.type === "Modal"));
+  assert.ok(
+    !v.texts.includes("No withdrawals yet."),
+    "menu lists actions, not history records",
+  );
+  v.button("Withdrawal history").props.onPress();
+  v = render();
+  assert.ok(v.texts.includes("No withdrawals yet."));
+  v.nodes.find((n) => n.type === "Modal").props.onRequestClose();
+  v = render();
+  assert.ok(
+    !v.texts.includes("Withdrawal history"),
+    "system back returns to the unchanged form",
+  );
+  overview.withdrawals = [
+    {
+      id: "wd-old",
+      grossCents: 1400,
+      status: "delivered",
+      createdAt: "2026-10-04T00:00:00.000Z",
+    },
+  ];
+  more().props.onPress();
+  v = render();
+  v.button("Withdrawal history").props.onPress();
+  v = render();
+  assert.ok(v.texts.includes("Paid"));
+  v.nodes
+    .find(
+      (n) =>
+        n.type === "TouchableOpacity" &&
+        n.props.children.some(
+          (child) =>
+            child?.type === "View" &&
+            child.props.children.some(
+              (text) =>
+                text?.type === "Text" && text.props.children.includes("$14.00"),
+            ),
+        ),
+    )
+    .props.onPress();
+  assert.equal(
+    routes.pop().params.id,
+    "wd-old",
+    "history keeps withdrawal detail navigation",
+  );
+  v = render();
+  assert.ok(!v.nodes.some((n) => n.type === "Modal"));
+  assert.equal(states[3], "15.00");
+  assert.equal(states[9], "6000");
+  assert.equal(states[8], 0, "history preserves the amount-entry step");
+  overview.withdrawals = [];
+  v = render();
+  const input = (label) =>
+    v.nodes.find(
+      (n) => n.type === "TextInput" && n.props.accessibilityLabel === label,
+    );
+  assert.ok(
+    !v.texts.some((value) => value.includes("After completing your request")),
+    "Remitly message is absent on amount screen",
+  );
+  assert.equal(input("Coins").props.value, "6000");
+  assert.equal(input("Dollars (USD)").props.value, "15.00");
+  assert.equal(input("Coins").props.editable, false);
+  assert.equal(input("Dollars (USD)").props.editable, false);
+  input("Coins").props.onChangeText("2000");
+  input("Dollars (USD)").props.onChangeText("5.00");
+  v = render();
+  assert.equal(input("Coins").props.value, "6000");
+  assert.equal(input("Dollars (USD)").props.value, "15.00");
+  overview.withdrawals = [
+    { id: "failed", status: "failed" },
+    { id: "canceled", status: "canceled" },
+  ];
+  v = render();
+  assert.equal(
+    input("Coins").props.editable,
+    false,
+    "failed or canceled attempts retain fixed first amount",
+  );
+  overview.withdrawals = [{ id: "returned", status: "returned" }];
+  v = render();
+  assert.equal(
+    input("Coins").props.editable,
+    true,
+    "returned previously delivered withdrawal follows server repeat classification",
+  );
+  overview.withdrawals = [{ id: "delivered", status: "delivered" }];
+  v = render();
+  assert.equal(input("Coins").props.editable, true);
+  assert.equal(input("Dollars (USD)").props.editable, true);
+  assert.ok(v.nodes.some((n) => n.type === "GoldCoinIcon"));
+  assert.ok(v.texts.includes("Remaining coins: 4,000"));
+  assert.ok(!v.button("Request withdrawal"), "amount comes before submission");
+  assert.ok(
+    !v.nodes.some((n) => n.props.accessibilityLabel === "Select country"),
+  );
+  input("Coins").props.onChangeText("2000");
+  v = render();
+  assert.equal(input("Dollars (USD)").props.value, "5.00");
+  assert.ok(v.texts.includes("Remaining coins: 8,000"));
+  assert.equal(v.button("Next").props.disabled, true, "minimum enforced");
+  input("Coins").props.onChangeText("6001");
+  v = render();
+  assert.equal(
+    v.button("Next").props.disabled,
+    true,
+    "fractional cents are not rounded into a charge",
+  );
+  input("Dollars (USD)").props.onChangeText("25.01");
+  v = render();
+  assert.equal(input("Coins").props.value, "10004");
+  assert.equal(
+    v.button("Next").props.disabled,
+    true,
+    "cap and wallet funds enforced before navigation",
+  );
+  assert.ok(v.texts.includes("Remaining coins: —"));
+  input("Dollars (USD)").props.onChangeText("15.00");
+  v = render();
+  assert.equal(input("Coins").props.value, "6000");
+  assert.equal(v.button("Next").props.disabled, false);
+  assert.ok(
+    v.texts.includes(
+      "Your first withdrawal must be $15. After your first withdrawal, the minimum is $25. Fees are deducted from the withdrawal amount based on the delivery method you select next.",
+    ),
+  );
+  assert.ok(
+    !v.texts.some(
+      (value) =>
+        value.startsWith("Minimum withdrawal:") ||
+        value.startsWith("Maximum withdrawal:"),
+    ),
+    "simplified policy replaces duplicate limits",
+  );
+  v.button("Next").props.onPress();
+  v = render();
+  assert.equal(states[8], 1);
+  assert.ok(
+    v.texts.some((value) => value.includes("After completing your request")),
+  );
+  states[0] = "";
+  v = render();
+  assert.ok(
+    !v.texts.some((value) => value.includes("After completing your request")),
+    "provider must be selected for Remitly message",
+  );
+  const catalogProvider = api.catalog.data.providers[0];
+  catalogProvider.id = "payoneer";
+  states[0] = "payoneer";
+  v = render();
+  assert.ok(
+    !v.texts.some((value) => value.includes("After completing your request")),
+    "other providers do not inherit Remitly wording",
+  );
+  catalogProvider.id = "remitly";
+  states[0] = "remitly";
+  v = render();
+  assert.equal(
+    v.nodes.some(
+      (n) =>
+        n.props.accessibilityRole === "radio" &&
+        n.props.children.some(
+          (child) =>
+            child?.type === "Text" && child.props.children.includes("Colombia"),
+        ),
+    ),
+    false,
+    "country choices do not appear inline",
+  );
+  const countryButton = v.nodes.find(
+    (n) =>
+      n.type === "TouchableOpacity" &&
+      n.props.accessibilityLabel === "Select country",
+  );
+  const beforeDismiss = keyboardDismisses;
+  countryButton.props.onPress();
+  v = render();
+  assert.equal(keyboardDismisses, beforeDismiss + 1);
+  assert.ok(v.nodes.some((n) => n.type === "Modal"));
+  const countryOption = v.nodes.find(
+    (n) =>
+      n.props.accessibilityRole === "radio" &&
+      n.props.children.some(
+        (child) =>
+          child?.type === "Text" && child.props.children.includes("Colombia"),
+      ),
+  );
+  assert.ok(countryOption);
+  countryOption.props.onPress();
+  v = render();
+  assert.equal(
+    v.nodes.some((n) => n.type === "Modal"),
+    false,
+  );
+  assert.equal(
+    states[2],
+    "",
+    "country selection clears the previous payout type",
+  );
+  countryButton.props.onPress();
+  v = render();
+  v.nodes.find((n) => n.type === "Modal").props.onRequestClose();
+  v = render();
+  assert.equal(
+    v.nodes.some((n) => n.type === "Modal"),
+    false,
+    "system back closes the country menu",
+  );
+  v.button("Next").props.onPress();
+  v = render();
+  assert.equal(states[8], 2);
+  assert.ok(v.texts.includes("Fee: $0.99"));
+  assert.ok(v.texts.includes("Delivery: 5 mins"));
+  assert.ok(!v.texts.some((value) => value.includes("Observed fee")));
+  assert.equal(
+    v.button("Next").props.disabled,
+    true,
+    "method must be selected",
+  );
+  v.nodes.find((n) => n.props.accessibilityRole === "radio").props.onPress();
+  v = render();
+  v.button("Next").props.onPress();
+  v = render();
+  assert.equal(states[8], 3);
+  assert.ok(v.texts.includes("Remaining coins: 4,000"));
+  v.nodes.find((n) => n.props.accessibilityLabel === "Back").props.onPress();
+  v = render();
+  assert.equal(states[8], 2);
+  assert.equal(states[3], "15.00", "back retains amount");
+  v.button("Next").props.onPress();
+  v = render();
+  assert.ok(
+    v.texts.includes(
+      "After completing your request, you will receive a link to confirm your preferred payment method.",
+    ),
+  );
+  assert.ok(v.texts.includes("$25.00"));
+  assert.ok(v.texts.includes("10,000"));
+  assert.ok(v.texts.includes("Conversion: 400 coins = $1"));
+  assert.ok(
+    !v.texts.some((value) =>
+      value.includes("Withdrawals use your wallet coins"),
+    ),
+  );
+
   assert.ok(v.texts.includes("Amount sent: awaiting a current quote"));
   assert.ok(v.nodes.some((n) => n.type === "GoldCoinIcon"));
   assert.ok(!v.texts.includes("Disabled method"));
   assert.ok(!v.texts.includes("Unavailable country"));
-  assert.ok(v.texts.some((value) => value.includes("Observed fee: $0.99")));
+  assert.ok(!v.texts.some((value) => value.includes("Observed fee")));
+  assert.ok(
+    !v.texts.some(
+      (value) => value.startsWith("Reserved:") || value.startsWith("On hold:"),
+    ),
+    "zero holds do not clutter the balance card",
+  );
+  overview.balances.reservedCoins = "400";
+  overview.balances.reservedTicks = "400";
+  overview.balances.heldCoins = "2000";
+  overview.balances.heldTicks = "2000";
+  v = render();
+  assert.ok(v.texts.includes("Reserved: 400 = $1.00"));
+  assert.ok(v.texts.includes("On hold: 2,000 = $5.00"));
+  overview.balances.reservedCoins =
+    overview.balances.reservedTicks =
+    overview.balances.heldCoins =
+    overview.balances.heldTicks =
+      "0";
+  overview.withdrawals = [{ id: "delivered", status: "delivered" }];
   states[3] = "25.00";
   v = render();
   assert.equal(
@@ -770,7 +1057,22 @@ async function verifyWalletRequestScreen() {
     "USD25 wallet cannot exceed USD15 withdrawal cap",
   );
   states[3] = "15.00";
+  overview.withdrawals = [];
   overview.enrolled = false;
+  states[8] = 0;
+  v = render();
+  assert.ok(v.texts.includes("Withdrawals have not been Enabled"));
+  assert.equal(v.button("Next").props.disabled, true);
+  assert.ok(
+    v.nodes.indexOf(v.button("Next")) <
+      v.nodes.findIndex(
+        (n) =>
+          n.type === "Text" &&
+          n.props.children.includes("Withdrawals have not been Enabled"),
+      ),
+    "enrollment notice sits below Next",
+  );
+  states[8] = 3;
   v = render();
   assert.equal(
     v.button("Request withdrawal").props.disabled,

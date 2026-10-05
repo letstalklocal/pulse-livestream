@@ -221,6 +221,39 @@ try {
     "insert into live_stream_sessions(channel_id,host_user_id,host_name,title,category,is_private) values($1,$2,$3,$3,$3,true)",
     [second, other, prefix],
   );
+  const addingChannel = `${prefix}-adding`;
+  await pool.query(
+    "insert into live_stream_sessions(channel_id,host_user_id,host_name,title,category,is_private) values($1,$2,$3,$3,$3,true)",
+    [addingChannel, host, prefix],
+  );
+  const add = (uid, body) => call(stickers, "/streams/:channelId/stickers", "post", uid, body, { channelId: addingChannel });
+  const firstAddition = { kind: "pack", packId, giftId: "rose", requestId: randomUUID() };
+  assert.equal((await add(null, firstAddition)).statusCode, 401);
+  assert.equal((await add(other, { kind: "gift", giftId: "rose", requestId: randomUUID() })).statusCode, 403);
+  assert.equal((await add(host, { ...firstAddition, requestId: "invalid" })).statusCode, 400);
+  assert.equal((await add(host, { ...firstAddition, kind: "gift", giftId: "bad" })).statusCode, 400);
+  assert.equal((await add(buyer, firstAddition)).statusCode, 400, "Adding requires ownership of the selected pack");
+  const beforeAddBalances = await balances();
+  assert.equal((await add(host, firstAddition)).statusCode, 200, "Host can add to an initially empty live");
+  let addedList = await status(buyer, addingChannel);
+  assert.equal(addedList.body.stickers.length, 1, "Viewers receive the added sticker");
+  assert.equal(addedList.body.stickers[0].id, firstAddition.requestId);
+  assert.equal((await add(host, { ...firstAddition, requestId: randomUUID() })).statusCode, 400, "Duplicate pack cannot occupy another slot");
+  await pool.query("update live_stream_sessions set required_gift_id='rose',required_gift_coin_cost=1 where channel_id=$1", [addingChannel]);
+  const contenders = ["heart", "rose"].map(giftId => ({ kind: "gift", giftId, requestId: randomUUID() }));
+  const concurrentAdds = await Promise.all(contenders.map(draft => add(host, draft)));
+  assert.deepEqual(concurrentAdds.map(res => res.statusCode).sort(), [200, 400], "Concurrent additions respect the two-slot limit, including Premium");
+  assert.equal((await add(host, firstAddition)).statusCode, 200, "Retry succeeds without consuming a slot even when full");
+  assert.equal((await add(host, { kind: "gift", giftId: "heart", requestId: firstAddition.requestId })).statusCode, 409, "Cannot reuse an addition identity for a changed offer");
+  await pool.query("update live_stream_sessions set required_gift_id=null where channel_id=$1", [addingChannel]);
+  addedList = await status(buyer, addingChannel);
+  assert.equal(addedList.body.stickers.length, 2);
+  assert.equal(addedList.body.stickers[0].id, firstAddition.requestId, "Adding second sticker preserves the first");
+  assert.deepEqual(await balances(), beforeAddBalances, "Adding stickers never spends coins");
+  await pool.query("update live_stream_sessions set last_heartbeat_at=now()-interval '2 minutes' where channel_id=$1", [addingChannel]);
+  assert.equal((await add(host, firstAddition)).statusCode, 404, "Stale live rejects additions");
+  await pool.query("update live_stream_sessions set last_heartbeat_at=now(),ended_at=now() where channel_id=$1", [addingChannel]);
+  assert.equal((await add(host, firstAddition)).statusCode, 404, "Ended live rejects additions");
   // Keep synthetic sessions out of the shared development Discovery feed.
   assert.equal(
     (
@@ -624,7 +657,7 @@ try {
     "Ended stream cannot sell",
   );
   console.log(
-    "PASS: real DB sticker metadata/auth/ownership, shared DM purchase, concurrent retries, exact balances/receipts/earnings/rankings, Premium/block rules, gift validation and removed/ended offers.",
+    "PASS: empty-live additions, viewer refresh, concurrent capacity/retry identity, stale/ended additions and no-charge checks; real DB sticker metadata/auth/ownership, shared DM purchase, concurrent retries, exact balances/receipts/earnings/rankings, Premium/block rules, gift validation and removed/ended offers.",
   );
 } finally {
   await pool.query(

@@ -244,6 +244,35 @@ try {
     ).status,
     409,
   );
+  await pool.query(
+    "UPDATE creator_cash_accounts SET enabled=false WHERE user_id=1",
+  );
+  const reenablePreview = await api.enrollmentPreview(pool, 1);
+  assert.equal(
+    reenablePreview.alreadyEnrolled,
+    false,
+    "disabled access can be enabled again",
+  );
+  await api.enroll(
+    pool,
+    {
+      userId: 1,
+      expectedWalletCoins: reenablePreview.walletCoins,
+      reason: "Enabled from the user directory.",
+    },
+    "owner",
+  );
+  const reenabled = (
+    await pool.query("SELECT * FROM creator_cash_accounts WHERE user_id=1")
+  ).rows[0];
+  assert.equal(reenabled.enabled, true);
+  assert.equal(reenabled.repeat_allowed, false);
+  assert.equal(
+    (await pool.query("SELECT balance FROM coin_balances WHERE user_id=1"))
+      .rows[0].balance,
+    10000,
+    "reenabling does not mint or deduct coins",
+  );
   await api.saveRecipient(pool, 1, {
     legalFirstName: "Test",
     legalLastName: "Recipient",

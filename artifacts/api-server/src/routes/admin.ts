@@ -1,4 +1,5 @@
 import { readAdminStreams, readAdminReports } from "../lib/adminOperations";
+import { readAdminUserEmails } from "../lib/adminUserEmails";
 import { readAdminOverview } from "../lib/adminOverview";
 import { Router, type RequestHandler } from "express";
 import { getAuth } from "@clerk/express";
@@ -278,15 +279,21 @@ router.get(
   }),
 );
 
-// Explicit field allowlist; do not select provider sessions, documents, preferences or money.
-const fields = `u.uid,u.name,u.country_code,u.created_at,
+// Private staff allowlist: identity key is only used server-side for email lookup; never return it.
+const fields = `u.uid,u.clerk_id,u.name,u.country_code,u.created_at,COALESCE(ca.enabled,false) AS withdrawals_enabled,
   COALESCE(v.status,'not_started') AS status,COALESCE(v.is_verified,false) AS is_verified,
   v.verification_type,COALESCE(v.upgrade_status,'not_started') AS upgrade_status`;
-const from = `FROM users u LEFT JOIN identity_verifications v ON v.user_id=u.uid AND v.environment=$1`;
-function serialize(row: Record<string, any>) {
+const from = `FROM users u LEFT JOIN identity_verifications v ON v.user_id=u.uid AND v.environment=$1 LEFT JOIN creator_cash_accounts ca ON ca.user_id=u.uid`;
+function serialize(
+  row: Record<string, any>,
+  contact?: { email: string | null; emailUnavailable: boolean },
+) {
   return {
     uid: row.uid,
     name: row.name,
+    email: contact?.email ?? null,
+    emailUnavailable: contact?.emailUnavailable ?? false,
+    withdrawalsEnabled: row.withdrawals_enabled,
     countryCode: row.country_code,
     createdAt: row.created_at,
     verification: {
@@ -367,9 +374,10 @@ router.get(
     const more = result.rows.length > Number(limit),
       rows = result.rows.slice(0, Number(limit)),
       last = rows.at(-1);
+    const emails = await readAdminUserEmails(rows.map((row) => row.clerk_id));
     await audit(res.locals.adminId, "users.list");
     res.json({
-      users: rows.map(serialize),
+      users: rows.map((row) => serialize(row, emails.get(row.clerk_id))),
       nextCursor:
         more && last
           ? Buffer.from(
@@ -399,7 +407,9 @@ router.get(
     if (!result.rows[0])
       return void res.status(404).json({ error: "Account not found." });
     await audit(res.locals.adminId, "users.view", String(uid));
-    res.json(serialize(result.rows[0]));
+    const row = result.rows[0];
+    const emails = await readAdminUserEmails([row.clerk_id]);
+    res.json(serialize(row, emails.get(row.clerk_id)));
   }),
 );
 export default router;

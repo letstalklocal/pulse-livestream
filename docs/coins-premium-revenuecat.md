@@ -18,6 +18,10 @@ Updated: 2026-09-15. This is the shared entry point for the implemented changes 
 
 The timed Premium request prompt currently has **no Buy Coins flow**. **Planned later (user decision, 2026-09-15): add a quick refill in that prompt with 500, 1,000, and 2,000 coin options.** This is a recorded follow-up, not an implemented feature. The existing ordinary gift drawer purchase sheet does not add checkout to a running request. No change to deadlines or gift-payment/access rules was requested. Website checkout and web purchase links remain deferred.
 
+## October 5 withdrawal amount display
+
+The user finalized Withdraw Money with a large available **dollar** balance and the shared gold coin icon/count to its right on the same row (latest user correction, superseding the earlier placement below). A text-only **Conversion: 400 coins = $1** line sits below and outside the balance card, indented 16 points to align with its content. The user explicitly removed the icon from this conversion line only; balance and amount-box gold icons remain. The initial amount uses two linked boxes, coins with gold artwork and dollars. The first withdrawal has read-only boxes fixed at **6,000 = USD 15**; subsequent-entry boxes remain linked. Show remaining coins as they edit, and again before requesting. The latest explicit request for the coin icon supersedes the intermediate request to remove it from this screen. Other coin/purchase/gift displays retain their established behavior. The conversion is 400 coins per dollar; current withdrawal limits are unchanged. See [the withdrawal screen handoff](remitly-launch-handoff.md#october-5-withdraw-money-screen-decisions). Automated handler/type/localization checks passed; physical-device appearance remains pending.
+
 ## Gold coin artwork and purchase UI
 
 - Replaced the account-header system coin emoji, which looked white on iPhone, with explicit-gold SVG artwork. The shared `GoldCoinIcon` defaults to 16 points.

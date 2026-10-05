@@ -18,6 +18,21 @@ await build({
   format: "cjs",
   external: ["pg-native"],
   logLevel: "silent",
+  plugins: [
+    {
+      name: "fixture-admin-emails",
+      setup(b) {
+        b.onResolve({ filter: /adminUserEmails$/ }, () => ({
+          path: "emails",
+          namespace: "fixture-emails",
+        }));
+        b.onLoad({ filter: /.*/, namespace: "fixture-emails" }, () => ({
+          contents: `export async function readAdminUserEmails(ids){return new Map(ids.filter(Boolean).map(id=>[id,{email:'directory@example.test',emailUnavailable:false}]))}`,
+          loader: "js",
+        }));
+      },
+    },
+  ],
 });
 const { pool, testApp } = createRequire(import.meta.url)(out),
   staff = "admin-test-" + id,
@@ -249,11 +264,28 @@ try {
   assert.deepEqual(Object.keys(detail.body).sort(), [
     "countryCode",
     "createdAt",
+    "email",
+    "emailUnavailable",
     "name",
     "uid",
     "verification",
+    "withdrawalsEnabled",
   ]);
   assert.equal(JSON.stringify(detail.body).includes("sessionUrl"), false);
+  assert.equal(detail.body.email, "directory@example.test");
+  assert.equal(detail.body.withdrawalsEnabled, false);
+  assert.equal(JSON.stringify(detail.body).includes("clerk_id"), false);
+  await pool.query(
+    "INSERT INTO creator_cash_accounts(user_id,enrolled_by) VALUES($1,$2)",
+    [uid, staff],
+  );
+  assert.equal((await call("/users/" + uid)).body.withdrawalsEnabled, true);
+  assert.equal(
+    (await call("/users?q=" + prefix)).body.users.find((u) => u.uid === uid)
+      .withdrawalsEnabled,
+    true,
+  );
+
   for (const path of [
     "/users?limit=500",
     "/users?limit=2x",
@@ -363,6 +395,10 @@ try {
   await pool.query("DELETE FROM admin_staff WHERE clerk_user_id=$1", [staff]);
   await pool.query(
     "DELETE FROM account_deletion_requests WHERE user_id BETWEEN $1 AND $2",
+    [uid, uid + 2],
+  );
+  await pool.query(
+    "DELETE FROM creator_cash_accounts WHERE user_id BETWEEN $1 AND $2",
     [uid, uid + 2],
   );
   await pool.query("DELETE FROM users WHERE uid BETWEEN $1 AND $2", [
