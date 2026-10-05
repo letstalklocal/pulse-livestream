@@ -62,8 +62,10 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
+    "@dasimems/react-native-svga": "0.1.4",
     "@revenuecat/purchases-js-hybrid-mappings": "18.37.0",
     "expo-application": "~57.0.2",
+    "expo-asset": "~57.0.16",
     "expo-build-properties": "~57.0.17",
     "expo-dev-client": "~57.0.18",
     "expo-image-manipulator": "~57.0.16",
@@ -72,6 +74,7 @@
     "expo-video": "~57.0.4",
     "libphonenumber-js": "^1.13.14",
     "react-native-agora": "^4.5.4",
+    "react-native-nitro-modules": "0.37.1",
     "react-native-purchases": "^10.9.1",
     "react-native-purchases-ui": "^10.9.1"
   }

@@ -7,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getGetStreamViewersQueryKey, useGetStreamViewers } from "@workspace/api-client-react";
 import { Avatar } from "./Avatar";
-import { GIFTS } from "./GiftPicker";
+import { POPULAR_GIFTS } from "./GiftPicker";
 
 export function LivePremiumSheet({ channelId, onClose, onConfirm }: {
   channelId: string; onClose: () => void;
@@ -30,7 +30,7 @@ export function LivePremiumSheet({ channelId, onClose, onConfirm }: {
   const showViewers = step === "viewers" && !noViewers;
   const nextIsViewers = !showViewers && !noViewers;
   const checkingViewers = !!giftId && !showViewers && viewers.isLoading;
-  const gift = GIFTS.find(item => item.id === giftId);
+  const gift = POPULAR_GIFTS.find(item => item.id === giftId);
   const close = () => { if (!busy) onClose(); };
   return (
     <Modal visible transparent animationType="slide" statusBarTranslucent onRequestClose={close}>
@@ -47,7 +47,7 @@ export function LivePremiumSheet({ channelId, onClose, onConfirm }: {
           </View>
           {!showViewers ? (
             <ScrollView contentContainerStyle={styles.grid}>
-              {GIFTS.map(item => <TouchableOpacity key={item.id} style={[styles.option, giftId === item.id && styles.selected]} onPress={() => setGiftId(item.id)} accessibilityRole="radio" accessibilityState={{ selected: giftId === item.id }}>
+              {POPULAR_GIFTS.map(item => <TouchableOpacity key={item.id} style={[styles.option, giftId === item.id && styles.selected]} onPress={() => setGiftId(item.id)} accessibilityRole="radio" accessibilityState={{ selected: giftId === item.id }}>
                 {giftId === item.id ? <Ionicons name="checkmark-circle" color="#FF1966" size={20} style={{ position: "absolute", top: 6, right: 6 }} /> : null}
                 {item.id === "crown" ? <CrownArtwork size={31} /> : hasGiftImage(item.id) ? <GiftImageArtwork gift={item.id} size={31} /> : <Text style={{ fontSize: 31 }}>{item.emoji}</Text>}<Text style={styles.giftName}>{item.name}</Text><Text style={styles.cost}>🪙 {item.coins}</Text>
               </TouchableOpacity>)}

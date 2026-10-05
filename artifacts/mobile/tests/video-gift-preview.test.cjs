@@ -18,7 +18,7 @@ function render(preview, coins = 0, buying = false, feedbackOverlay, onDrawerHei
     if (id === 'react-native-safe-area-context') return { useSafeAreaInsets: () => ({ bottom: 0 }) };
     if (id === '@/i18n') return { useAppLanguage: () => ({ t: x => x, appLocale: () => 'en', localizedTextStyle: () => ({}) }) };
     if (id === './CoinStoreContent') return { CoinStoreContent: 'CoinStore' };
-    if (id === '@/components/GiftImageArtwork') return { GiftImageArtwork: 'GiftImageArtwork', hasGiftImage: gift => ['rose','heart','lips','strawberry'].includes(gift?.toLowerCase()) };
+    if (id === '@/components/GiftImageArtwork') return { GiftImageArtwork: 'GiftImageArtwork', LuxuryGiftArtwork: 'LuxuryGiftArtwork', hasGiftImage: gift => ['rose','heart','lips','strawberry','kisses','luxury_rocket','dragon'].includes(gift?.toLowerCase()), hasLuxuryGiftAnimation: gift => ['kisses','luxury_rocket','dragon'].includes(gift?.toLowerCase()) };
     if (id === './CrownArtwork') return { CrownArtwork: 'CrownArtwork' };
     if (id === './GoldCoinIcon') return { GoldCoinIcon: 'GoldCoinIcon' };
     if (id === './Avatar') return { Avatar: 'Avatar' };
@@ -35,6 +35,8 @@ function render(preview, coins = 0, buying = false, feedbackOverlay, onDrawerHei
   };
   result.select = name => { result.nodes.find(n => n.props.accessibilityRole === 'radio' && n.props.accessibilityLabel === name).props.onPress(); update(); };
   result.send = id => { result.nodes.find(n => n.props.testID === `send-gift-${id}`).props.onPress(); update(); };
+  result.openLuxury = () => { result.nodes.find(n => n.props.testID === 'gift-tab-luxury').props.onPress(); update(); };
+  result.openPopular = () => { result.nodes.find(n => n.props.testID === 'gift-tab-popular').props.onPress(); update(); };
   result.reopen = () => { visible = false; update(); visible = true; update(); };
   update();
   return result;
@@ -62,6 +64,14 @@ assert.equal(badge.props.disabled, true, 'preview cannot open a coin purchase');
 assert.equal(preview.nodes.filter(n => n.props.testID?.startsWith('send-gift-')).length, 8, 'Each gift tile is the full-tile tap target');
 sendAll(preview);
 assert.equal(preview.sent.join(','), 'rose,heart,party,strawberry,diamond,lips,rocket,crown');
+preview.openLuxury();
+assert.equal(preview.nodes.filter(n => n.props.testID?.startsWith('send-gift-')).length, 3, 'Luxury tab contains exactly its three gifts');
+assert.deepEqual(preview.nodes.filter(n => n.props.testID?.startsWith('send-gift-')).map(n => n.props.testID), ['send-gift-kisses', 'send-gift-luxury_rocket', 'send-gift-dragon']);
+assert.equal(preview.nodes.find(n => n.props.testID === 'send-gift-kisses').props.accessibilityLabel, 'Kisses');
+assert.equal(preview.nodes.find(n => n.props.testID === 'send-gift-luxury_rocket').props.accessibilityLabel, 'Rocket');
+assert.equal(preview.nodes.find(n => n.props.testID === 'send-gift-dragon').props.accessibilityLabel, 'Dragon');
+assert.equal(preview.nodes.filter(n => n.type === 'LuxuryGiftArtwork').length, 3, 'Luxury tab uses native SVGA artwork rather than static previews');
+preview.openPopular();
 assert.ok(!render(true, 0, true).nodes.some(node => node.type === 'CoinStore'), 'even stale purchase state cannot expose checkout in preview');
 const normal = render(undefined, 0);
 sendAll(normal);
@@ -92,7 +102,7 @@ const giftCells = preview.nodes.filter(node => node.props.testID?.startsWith('se
 assert.equal(giftCells.length, 8);
 const grid = preview.nodes.find(node => node.type === 'ScrollView');
 assert.ok(!grid.props.horizontal, 'Gifts scroll vertically');
-assert.equal(grid.props.style.maxHeight, 124 * Math.min(3, Math.ceil(cards.length / 4)), 'Viewport fits content up to its row cap');
+assert.equal(grid.props.style[1].maxHeight, 124 * Math.min(3, Math.ceil(cards.length / 4)), 'Viewport fits content up to its row cap');
 assert.ok(giftCells.every(n => n.props.style[0].height === undefined && n.props.style[0].paddingBottom === 0), 'Gift border wraps content through the bottom of Send');
 assert.ok(normal.nodes.filter(node => node.props.testID?.startsWith('send-gift-')).every(node => node.props.accessibilityLabel !== 'Send Rose, 1'), 'Unaffordable gifts cannot become send-ready');
 

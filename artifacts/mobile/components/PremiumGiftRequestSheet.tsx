@@ -15,7 +15,7 @@ import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Crypto from "expo-crypto";
 import { useAppLanguage } from "@/i18n";
-import { GIFTS } from "./GiftPicker";
+import { POPULAR_GIFTS } from "./GiftPicker";
 import { CrownArtwork } from "./CrownArtwork";
 import {
   premiumGiftRequestApi,
@@ -112,7 +112,7 @@ export function PremiumGiftRequestSheet({
                 )}
               </Text>
               <ScrollView contentContainerStyle={styles.grid}>
-                {GIFTS.map((gift) => (
+                {POPULAR_GIFTS.map((gift) => (
                   <TouchableOpacity
                     key={gift.id}
                     disabled={busy}

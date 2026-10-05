@@ -19,7 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useAppLanguage } from "@/i18n";
-import { GIFTS } from "./GiftPicker";
+import { GIFTS, POPULAR_GIFTS } from "./GiftPicker";
 import { LiveStickerCard } from "./LiveStickerCard";
 import {
   stickerApi,
@@ -385,7 +385,7 @@ export function LiveStickerPicker({
               ) : (
                 <>
                   <View style={styles.gifts}>
-                    {GIFTS.map((gift) => {
+                    {POPULAR_GIFTS.map((gift) => {
                       const draft: StickerDraft = {
                         kind: "gift",
                         giftId: gift.id,

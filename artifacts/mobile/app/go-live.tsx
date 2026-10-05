@@ -99,7 +99,7 @@ import {
 } from "@/utils/agora";
 import { setIsBroadcasting } from "@/utils/agoraState";
 import { GiftFloater, type FloatingGift } from "@/components/GiftFloater";
-import { GIFTS } from "@/components/GiftPicker";
+import { GIFTS, POPULAR_GIFTS } from "@/components/GiftPicker";
 import { LivePremiumSheet } from "@/components/LivePremiumSheet";
 import { switchBroadcastChannel } from "@/utils/switchBroadcastChannel";
 import { GoldCoinIcon } from "@/components/GoldCoinIcon";
@@ -1822,7 +1822,7 @@ export default function GoLiveScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={styles.giftSheetGrid} showsVerticalScrollIndicator={false}>
-              {GIFTS.map((gift) => {
+              {POPULAR_GIFTS.map((gift) => {
                 const selected = draftRequiredGiftId === gift.id;
                 return (
                   <TouchableOpacity

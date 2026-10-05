@@ -66,7 +66,14 @@ try {
   await pool.query('update coin_balances set balance=100 where user_id=$1', [sender]);
   const afterFailure = await send(); assert.equal(afterFailure.body.combo.count, 1, 'failed payment ends the combo');
   assert.equal((await pool.query('select count(*)::int as n from dm_gift_combo_payments where idempotency_key=any($1::text[])', [keys])).rows[0].n, 18);
-  console.log('PASS: actual database gift payment/receipt atomicity, same-card counts, expiry/gift/recipient boundaries, failure reset, retry/concurrent deduplication, balanced ledger and unique 5/10 milestones.');
+  await pool.query('update coin_balances set balance=10000 where user_id=$1', [sender]);
+  const luxury = await send('dragon');
+  assert.equal(luxury.statusCode, 200); assert.equal(luxury.body.balance, 1);
+  assert.equal(luxury.body.combo.totalCoins, 9999);
+  assert.match(luxury.body.message.text, /Dragon gift • 9999 coins/);
+  const [luxuryLedger] = (await pool.query('select amount,gift_name from coin_transactions where idempotency_key=$1', [keys.at(-1)])).rows;
+  assert.deepEqual(luxuryLedger, { amount: 9999, gift_name: 'Dragon' });
+  console.log('PASS: actual database gift payment/receipt atomicity, including Luxury catalog pricing, same-card counts, expiry/gift/recipient boundaries, failure reset, retry/concurrent deduplication, balanced ledger and unique 5/10 milestones.');
 } finally {
   await pool.query(`DROP TRIGGER IF EXISTS ${triggerName} ON dm_gift_combo_payments`);
   await pool.query(`DROP FUNCTION IF EXISTS ${triggerName}()`);

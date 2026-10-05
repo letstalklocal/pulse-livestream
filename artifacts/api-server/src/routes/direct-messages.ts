@@ -7,7 +7,7 @@ import { createPrivateGetUrl } from "../lib/objectStorage";
 import { endRuntimeStream } from "./streams";
 import { expirePrivateInvitation } from "./private-stream-invitations";
 import { purchaseDmGift } from "../lib/dmGiftPurchase";
-import { PREMIUM_GIFT_CATALOG } from "../lib/giftCatalog";
+import { GIFT_CATALOG } from "../lib/giftCatalog";
 
 const router = Router();
 const MAX_MESSAGE_LENGTH = 2_000;
@@ -86,13 +86,13 @@ router.post("/dms/gifts", async (req, res): Promise<any> => {
   const requestedAt = new Date();
   const sender = await requireUser(req, res); if (!sender) return;
   const { recipientId, giftId, idempotencyKey } = req.body ?? {};
-  if (!Number.isSafeInteger(recipientId) || recipientId <= 0 || recipientId === sender.uid || typeof giftId !== "string" || !Object.hasOwn(PREMIUM_GIFT_CATALOG, giftId) || typeof idempotencyKey !== "string" || !idempotencyKey.length || idempotencyKey.length > 100) return res.status(400).json({ error: "Invalid gift request" });
+  if (!Number.isSafeInteger(recipientId) || recipientId <= 0 || recipientId === sender.uid || typeof giftId !== "string" || !Object.hasOwn(GIFT_CATALOG, giftId) || typeof idempotencyKey !== "string" || !idempotencyKey.length || idempotencyKey.length > 100) return res.status(400).json({ error: "Invalid gift request" });
   if (!await requireContactAllowed(res, sender.uid, recipientId)) return;
   if (!await requireChatAllowed(res, sender.uid, recipientId)) return;
   const [recipient] = await db.select().from(usersTable).where(eq(usersTable.uid, recipientId)).limit(1);
   if (!recipient) return res.status(404).json({ error: "Recipient not found" });
   try {
-    const result = await purchaseDmGift(sender.uid, recipientId, giftId as keyof typeof PREMIUM_GIFT_CATALOG, idempotencyKey, requestedAt);
+    const result = await purchaseDmGift(sender.uid, recipientId, giftId as keyof typeof GIFT_CATALOG, idempotencyKey, requestedAt);
     if (result.error) return res.status(result.error === "conflict" ? 409 : 402).json({ error: result.error === "conflict" ? "This request was already used for a different gift." : "Insufficient coins" });
     const shareRead = (await db.select().from(messagePreferencesTable).where(eq(messagePreferencesTable.userId, recipientId)).limit(1))[0]?.readReceipts ?? true;
     return res.json({ balance: result.balance, duplicate: result.duplicate, combo: { id: result.combo.id, count: result.combo.count, totalCoins: result.combo.totalCoins }, message: await messageResponse(result.message, new Map([[sender.uid, sender.name], [recipientId, recipient.name]]), sender.uid, new Set(), undefined, shareRead) });

@@ -8,3 +8,12 @@ export const PREMIUM_GIFT_CATALOG = {
   rocket: { id: "rocket", name: "Rocket", emoji: "🚀", coinCost: 100 },
   crown: { id: "crown", name: "Crown", emoji: "👑", coinCost: 500 },
 } as const;
+
+// Luxury gifts are ordinary gifts only. Keep them out of Premium/admission,
+// private-invitation and sticker configuration selectors.
+export const GIFT_CATALOG = {
+  ...PREMIUM_GIFT_CATALOG,
+  kisses: { id: "kisses", name: "Kisses", emoji: "💋", coinCost: 1_999 },
+  luxury_rocket: { id: "luxury_rocket", name: "Rocket", emoji: "🚀", coinCost: 4_999 },
+  dragon: { id: "dragon", name: "Dragon", emoji: "🐉", coinCost: 9_999 },
+} as const;

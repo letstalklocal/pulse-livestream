@@ -1,7 +1,7 @@
 import { GiftImageArtwork, hasGiftImage } from "@/components/GiftImageArtwork";
 import { DirectVideoThumbnail } from "@/components/DirectVideoThumbnail";
 import { GoldCoinIcon } from "@/components/GoldCoinIcon";
-import { GIFTS } from "@/components/GiftPicker";
+import { POPULAR_GIFTS } from "@/components/GiftPicker";
 import { CrownArtwork } from "@/components/CrownArtwork";
 import { useQueryClient } from "@tanstack/react-query";
 import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
@@ -432,7 +432,7 @@ export default function MediaPacksScreen() {
               testID="pack-gift-options"
               style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
             >
-              {GIFTS.map((gift) => (
+              {POPULAR_GIFTS.map((gift) => (
                 <TouchableOpacity
                   key={gift.id}
                   testID={`pack-gift-${gift.id}`}

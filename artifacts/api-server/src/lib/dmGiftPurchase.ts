@@ -2,10 +2,10 @@ import { randomUUID } from "node:crypto";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db, coinBalancesTable, coinTransactionsTable, directMessagesTable, dmGiftCombosTable, dmGiftComboPaymentsTable, dmGiftComboMilestonesTable } from "@workspace/db";
 import { lockParty } from "./liveParty";
-import { PREMIUM_GIFT_CATALOG } from "./giftCatalog";
+import { GIFT_CATALOG } from "./giftCatalog";
 
-export async function purchaseDmGift(senderId: number, recipientId: number, giftId: keyof typeof PREMIUM_GIFT_CATALOG, idempotencyKey: string, requestedAt = new Date()) {
-  const gift = PREMIUM_GIFT_CATALOG[giftId];
+export async function purchaseDmGift(senderId: number, recipientId: number, giftId: keyof typeof GIFT_CATALOG, idempotencyKey: string, requestedAt = new Date()) {
+  const gift = GIFT_CATALOG[giftId];
   return db.transaction(async tx => {
     // Match the wallet's existing lock order, then serialize this conversation.
     await lockParty(tx);

@@ -43,7 +43,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useRtm, type DmMessage } from "@/context/RtmContext";
 import { useColors } from "@/hooks/useColors";
 import { Avatar } from "@/components/Avatar";
-import { GiftPicker, GIFTS, type Gift } from "@/components/GiftPicker";
+import { GiftPicker, GIFTS, POPULAR_GIFTS, type Gift } from "@/components/GiftPicker";
 import { GiftFloater, type FloatingGift } from "@/components/GiftFloater";
 import { GiftComboBadge } from "@/components/GiftComboBadge";
 import { mergeGiftFloater } from "@/utils/giftPresentation";
@@ -749,7 +749,7 @@ export default function DmScreen() {
            <TouchableOpacity style={[styles.packOption, { borderColor: colors.border }, !inviteGiftId && styles.inviteChoice]} onPress={() => setInviteGiftId(null)}><Text style={[localizedTextStyle(), [styles.packOptionName, { color: colors.foreground }]]}>{t("Free")}</Text><Text style={[localizedTextStyle(), [styles.packOptionMeta, { color: colors.mutedForeground }]]}>{t("No gift required")}</Text></TouchableOpacity>
            <Text style={[localizedTextStyle(), [styles.packOptionMeta, { color: colors.mutedForeground }]]}>{t("Paid — recipient pays when accepting")}</Text>
            <ScrollView style={styles.inviteGiftViewport} contentContainerStyle={styles.inviteGiftGrid} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator>
-             {GIFTS.map((gift) => <View key={gift.id} style={styles.inviteGiftSlot}>
+             {POPULAR_GIFTS.map((gift) => <View key={gift.id} style={styles.inviteGiftSlot}>
                <TouchableOpacity style={[styles.inviteGiftCell, { borderColor: colors.border }, inviteGiftId === gift.id && styles.inviteChoice]}
                  onPress={() => setInviteGiftId(gift.id)} accessibilityRole="radio" accessibilityState={{ checked: inviteGiftId === gift.id }} accessibilityLabel={`${gift.name}, ${appNumber(gift.coins)}`}>
                  <View style={styles.inviteGiftArtwork}>

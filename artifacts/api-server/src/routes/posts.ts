@@ -1,4 +1,4 @@
-import { PREMIUM_GIFT_CATALOG } from "../lib/giftCatalog";
+import { GIFT_CATALOG } from "../lib/giftCatalog";
 import { canViewPosts } from "../lib/privacy";
 import { Router } from "express";
 import { and, desc, eq, lt, count, or, sql } from "drizzle-orm";
@@ -89,11 +89,11 @@ router.put("/posts/:postId/activity", async (req, res) => {
 router.post("/posts/:postId/gifts", async (req, res) => {
   const user = await requireUser(req, res); if (!user) return;
   const { giftId, requestId } = req.body ?? {};
-  if (typeof giftId !== "string" || !Object.hasOwn(PREMIUM_GIFT_CATALOG, giftId) ||
+  if (typeof giftId !== "string" || !Object.hasOwn(GIFT_CATALOG, giftId) ||
       typeof requestId !== "string" || !/^[a-zA-Z0-9-]{16,80}$/.test(requestId)) {
     return void res.status(400).json({ error: "Invalid gift request" });
   }
-  const gift = PREMIUM_GIFT_CATALOG[giftId as keyof typeof PREMIUM_GIFT_CATALOG];
+  const gift = GIFT_CATALOG[giftId as keyof typeof GIFT_CATALOG];
   const post = await accessiblePost(req, res, user.uid); if (!post) return;
   if (post.ownerUserId === user.uid) return void res.status(400).json({ error: "You cannot gift your own post" });
   const key = `post-gift:${user.uid}:${requestId}`;

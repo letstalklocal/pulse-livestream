@@ -3,6 +3,10 @@ const path = require("path");
 
 const config = getDefaultConfig(__dirname);
 
+// Treat bundled SVGA gift animations as assets so Expo Asset can provide a
+// device-local URI to the native SVGA player.
+config.resolver.assetExts.push("svga");
+
 // Redirect ALL imports of expo-secure-store to an AsyncStorage-backed stub.
 // expo-secure-store requires a compiled native module (ExpoSecureStore) that
 // is not available in Expo Go or development builds that predate adding it.

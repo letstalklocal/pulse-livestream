@@ -110,6 +110,7 @@ onlyBuiltDependencies:
   - core-js
   - esbuild
   - msw
+  - react-native-nitro-modules
   - unrs-resolver
 
 # pnpm 11 uses allowBuilds in place of onlyBuiltDependencies. EAS Build
@@ -121,6 +122,7 @@ allowBuilds:
   core-js: true
   esbuild: true
   msw: true
+  react-native-nitro-modules: true
   unrs-resolver: true
 
 overrides:

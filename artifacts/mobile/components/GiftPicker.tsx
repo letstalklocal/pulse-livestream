@@ -1,4 +1,4 @@
-import { GiftImageArtwork, hasGiftImage } from "@/components/GiftImageArtwork";
+import { GiftImageArtwork, hasGiftImage, hasLuxuryGiftAnimation, LuxuryGiftArtwork } from "@/components/GiftImageArtwork";
 import { t, useAppLanguage, localizedTextStyle, appLocale } from "@/i18n";
 import { CrownArtwork } from "./CrownArtwork";
 import { GoldCoinIcon } from "./GoldCoinIcon";
@@ -25,7 +25,7 @@ export interface Gift {
   size: number;
 }
 
-export const GIFTS: Gift[] = [
+export const POPULAR_GIFTS: Gift[] = [
   { id: "rose",    emoji: "🌹", name: "Rose",    coins: 1,   size: 36 },
   { id: "heart",   emoji: "❤️",  name: "Heart",   coins: 5,   size: 36 },
   { id: "party",   emoji: "🎉", name: "Party",   coins: 10,  size: 36 },
@@ -35,6 +35,15 @@ export const GIFTS: Gift[] = [
   { id: "rocket",  emoji: "🚀", name: "Rocket",  coins: 100, size: 40 },
   { id: "crown",   emoji: "👑", name: "Crown",   coins: 500, size: 36 },
 ];
+
+export const LUXURY_GIFTS: Gift[] = [
+  { id: "kisses", emoji: "💋", name: "Kisses", coins: 1_999, size: 44 },
+  { id: "luxury_rocket", emoji: "🚀", name: "Rocket", coins: 4_999, size: 44 },
+  { id: "dragon", emoji: "🐉", name: "Dragon", coins: 9_999, size: 44 },
+];
+
+// All known ordinary gifts. Selection-only surfaces intentionally use POPULAR_GIFTS.
+export const GIFTS: Gift[] = [...POPULAR_GIFTS, ...LUXURY_GIFTS];
 
 interface Props {
   visible: boolean;
@@ -61,6 +70,8 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
   const { height: windowHeight } = useWindowDimensions();
   const [buyingCoins, setBuyingCoins] = useState(false);
   const [selectedGiftId, setSelectedGiftId] = useState<string | null>(null);
+  const [activeGiftTab, setActiveGiftTab] = useState<"popular" | "luxury">("popular");
+  const displayedGifts = activeGiftTab === "luxury" ? LUXURY_GIFTS : POPULAR_GIFTS;
   useEffect(() => { if (!visible) { setBuyingCoins(false); setSelectedGiftId(null); } }, [visible]);
 
   return (
@@ -81,7 +92,14 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
 
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[localizedTextStyle(), styles.title]}>{t("Popular")}</Text>
+          <View style={styles.giftTabs} accessibilityRole="tablist">
+            <TouchableOpacity testID="gift-tab-popular" onPress={() => { setActiveGiftTab("popular"); setSelectedGiftId(null); }} accessibilityRole="tab" accessibilityState={{ selected: activeGiftTab === "popular" }}>
+              <Text style={[localizedTextStyle(), styles.title, activeGiftTab !== "popular" && styles.inactiveTitle]}>{t("Popular")}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity testID="gift-tab-luxury" onPress={() => { setActiveGiftTab("luxury"); setSelectedGiftId(null); }} accessibilityRole="tab" accessibilityState={{ selected: activeGiftTab === "luxury" }}>
+              <Text style={[localizedTextStyle(), styles.title, activeGiftTab !== "luxury" && styles.inactiveTitle]}>{t("Luxury")}</Text>
+            </TouchableOpacity>
+          </View>
           <TouchableOpacity style={styles.coinBadge} hitSlop={8} disabled={preview} onPress={() => setBuyingCoins(true)}
             accessibilityRole="button" accessibilityLabel={t(preview ? "Preview gifts" : "Buy Coins")} activeOpacity={0.75}>
             <GoldCoinIcon size={14} />
@@ -97,12 +115,12 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
         </View> : null}
         {/* Four columns; fit existing gifts, capped at three rows before scrolling. */}
         <ScrollView
-          style={styles.gridViewport}
+          style={[styles.gridViewport, { maxHeight: 124 * Math.min(3, Math.ceil(displayedGifts.length / 4)) }]}
           showsVerticalScrollIndicator
           contentContainerStyle={styles.grid}
           keyboardShouldPersistTaps="handled"
         >
-          {GIFTS.map((gift) => {
+          {displayedGifts.map((gift) => {
             const canAfford = preview || coins >= gift.coins;
             const selected = selectedGiftId === gift.id;
             const sending = sendingGiftId === gift.id;
@@ -128,7 +146,7 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
                 >
                   <View style={styles.giftSelection}>
                     <View style={styles.artwork}>
-                      {gift.id === "crown" ? <CrownArtwork size={gift.size} /> : hasGiftImage(gift.id) ? <GiftImageArtwork gift={gift.id} size={gift.size} /> : <Text style={[styles.giftEmoji, { fontSize: gift.size }]}>{gift.emoji}</Text>}
+                      {gift.id === "crown" ? <CrownArtwork size={gift.size} /> : hasLuxuryGiftAnimation(gift.id) ? <LuxuryGiftArtwork gift={gift.id} size={gift.size} /> : hasGiftImage(gift.id) ? <GiftImageArtwork gift={gift.id} size={gift.size} /> : <Text style={[styles.giftEmoji, { fontSize: gift.size }]}>{gift.emoji}</Text>}
                     </View>
                     <Text style={[styles.giftName, localizedTextStyle()]} numberOfLines={1}>{gift.name}</Text>
                     <View style={styles.giftCost}>
@@ -192,6 +210,8 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontFamily: "Inter_700Bold",
   },
+  inactiveTitle: { color: "rgba(255,255,255,0.45)" },
+  giftTabs: { flexDirection: "row", alignItems: "center", gap: 16 },
   coinBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -205,7 +225,6 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
   },
   gridViewport: {
-    maxHeight: 124 * Math.min(3, Math.ceil(GIFTS.length / 4)),
     flexGrow: 0,
     flexShrink: 1,
   },
