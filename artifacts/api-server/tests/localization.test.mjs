@@ -145,7 +145,8 @@ try {
    // Approved linked withdrawal inputs and method rows deliberately change these UI attributes.
    // Actual handlers, conversion, limits, remaining balance, navigation and contact writes are exercised in withdrawals.test.cjs.
    if(file.endsWith('/app/withdraw-money.tsx')) {
-    if(ts.isJsxSelfClosingElement(n)&&n.tagName.getText(a)==='TextInput'&&n.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='value'&&(['{amount}','{coinAmount}'].includes(p.initializer?.getText(a)) || /firstWithdrawal \? "(?:6000|15\.00)" : (?:coinAmount|amount)/.test(p.initializer?.getText(a)))))return;
+    if(ts.isJsxAttribute(n)&&n.name.getText(a)==='key'&&n.parent.parent.tagName?.getText(a)==='KeyboardAwareScrollViewCompat'&&n.initializer?.getText(a)==='{step}')return;
+    if(ts.isJsxSelfClosingElement(n)&&n.tagName.getText(a)==='TextInput'&&n.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='value'&&(['{amount}','{coinAmount}','{callingCode}','{nationalPhone}'].includes(p.initializer?.getText(a)) || /firstWithdrawal \? "(?:6000|15\.00)" : (?:coinAmount|amount)/.test(p.initializer?.getText(a)))))return;
     if(ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.parent.parent.tagName?.getText(a)==='Ionicons'&&n.initializer?.getText(a).includes('methodId'))return;
     if(ts.isJsxAttribute(n)&&n.name.getText(a)==='key'&&n.initializer?.getText(a)==='{item.id}'&&n.parent.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='onPress'&&p.initializer?.getText(a).includes('setMethod(item.id)')))return;
    }

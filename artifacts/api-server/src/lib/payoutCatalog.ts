@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 // This catalog contains observations, never an executable payment authorization.
-export const MAX_WITHDRAWAL_CENTS = 1500;
+export const MAX_WITHDRAWAL_CENTS = 50000;
 export class CatalogError extends Error {
   constructor(
     message: string,
@@ -954,7 +954,7 @@ export function estimateCatalog(catalog: { providers: Row[] }, input: unknown) {
   const withdrawalCents = cents(request.withdrawalCents, "withdrawal amount");
   if (withdrawalCents <= 0 || withdrawalCents > MAX_WITHDRAWAL_CENTS)
     throw new CatalogError(
-      "Withdrawal must be above zero and no more than USD 15 including fees.",
+      "Withdrawal must be above zero and no more than USD 500 including fees.",
     );
   const fundingMethod = request.fundingMethod ?? "debit_card";
   string(fundingMethod, "funding method", 40);

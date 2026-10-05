@@ -20,17 +20,17 @@ export interface WithdrawalReconcileInput {
   methodId: string;
   /**
      * @minimum 0
-     * @maximum 1500
+     * @maximum 50000
      */
   sendAmountCents: number;
   /**
      * @minimum 0
-     * @maximum 1500
+     * @maximum 50000
      */
   feeCents: number;
   /**
      * @minimum 0
-     * @maximum 1500
+     * @maximum 50000
      */
   taxCents: number;
   receiveAmount: string;

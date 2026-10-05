@@ -11,6 +11,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,6 +22,12 @@ import { useWithdrawals, type PayoutRecipient } from "@/hooks/useWithdrawals";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { GoldCoinIcon } from "@/components/GoldCoinIcon";
 import { usdCents, withdrawalStatus } from "@/utils/withdrawals";
+import {
+  getCountryCallingCode,
+  isSupportedCountry,
+  parsePhoneNumberFromString,
+  type CountryCode,
+} from "libphonenumber-js/min";
 const emptyRecipient: PayoutRecipient = {
   legalFirstName: "",
   legalLastName: "",
@@ -29,10 +36,28 @@ const emptyRecipient: PayoutRecipient = {
   email: "",
   phone: "",
 };
+const normalizedPhone = (phone: string) =>
+  phone.trim().replace(/[\s().-]/g, "");
+const validContact = (
+  contact?: Pick<
+    PayoutRecipient,
+    "legalFirstName" | "legalLastName" | "email" | "phone"
+  > | null,
+) =>
+  !!contact?.legalFirstName.trim() &&
+  !!contact?.legalLastName.trim() &&
+  /^\+\d{8,15}$/.test(normalizedPhone(contact?.phone ?? "")) &&
+  /^\S+@\S+\.\S+$/.test(contact?.email.trim() ?? "");
 export default function WithdrawMoneyScreen() {
   const { t, localizedTextStyle, appLocale } = useAppLanguage();
   const c = useColors();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const countryListRef = useRef<ScrollView>(null);
+  const countryMenuHeight = Math.min(
+    windowHeight * 0.75,
+    Math.max(0, windowHeight - insets.top - insets.bottom - 48),
+  );
   const router = useRouter();
   const api = useWithdrawals();
   const owner = useRef(api.userId);
@@ -48,6 +73,8 @@ export default function WithdrawMoneyScreen() {
   const [step, setStep] = useState(0);
   const [coinAmount, setCoinAmount] = useState("6000");
   const [moreView, setMoreView] = useState<"menu" | "history" | null>(null);
+  const [usingSavedMethod, setUsingSavedMethod] = useState(false);
+  const [phonePrefix, setPhonePrefix] = useState("");
   useEffect(() => {
     setProvider("");
     setCountry("");
@@ -60,10 +87,17 @@ export default function WithdrawMoneyScreen() {
     setBusy(false);
     setCountryMenuOpen(false);
     setMoreView(null);
+    setUsingSavedMethod(false);
+    setPhonePrefix("");
   }, [api.userId]);
   useEffect(() => {
     const saved = api.overview.data?.recipient;
-    if (saved)
+    if (saved) {
+      setPhonePrefix(
+        parsePhoneNumberFromString(saved.phone)?.countryCallingCode
+          ? `+${parsePhoneNumberFromString(saved.phone)!.countryCallingCode}`
+          : "",
+      );
       setRecipient({
         legalFirstName: saved.legalFirstName,
         legalLastName: saved.legalLastName,
@@ -72,6 +106,7 @@ export default function WithdrawMoneyScreen() {
         phone: saved.phone,
         ...(saved.secondSurname ? { secondSurname: saved.secondSurname } : {}),
       });
+    }
   }, [api.overview.data?.recipient]);
   useFocusEffect(
     useCallback(() => {
@@ -94,11 +129,13 @@ export default function WithdrawMoneyScreen() {
           setMethod(api.pending.methodId);
           setAmount((api.pending.withdrawalCents / 100).toFixed(2));
           setCoinAmount(String(api.pending.withdrawalCents * 4));
-          setStep(3);
+          setStep(4);
         }
   }, [api.pending, api.catalog.data]);
   const providers = api.catalog.data?.providers.filter((p) => p.enabled) ?? [];
-  const provider = providers.find((p) => p.id === providerId);
+  const selectedProviderId =
+    providers.length === 1 ? providers[0].id : providerId;
+  const provider = providers.find((p) => p.id === selectedProviderId);
   const isRemitly =
     !!provider &&
     (provider.id === "remitly" || /^remitly_[a-f0-9]{24}$/.test(provider.id));
@@ -121,6 +158,12 @@ export default function WithdrawMoneyScreen() {
   const firstWithdrawal = !overview?.withdrawals.some(
     (w) => w.status === "delivered" || w.status === "returned",
   );
+  useEffect(() => {
+    if (!firstWithdrawal && !api.pending && amount === "15.00") {
+      setAmount("25.00");
+      setCoinAmount("10000");
+    }
+  }, [firstWithdrawal, api.pending]);
   const amountReadOnly = busy || !!api.pending || firstWithdrawal;
   const cents = usdCents(firstWithdrawal && !api.pending ? "15.00" : amount);
   const money = (value: number, compact = false) =>
@@ -160,6 +203,7 @@ export default function WithdrawMoneyScreen() {
     items: { id: string; name: string }[],
     selected: string,
     onSelect: (id: string) => void,
+    showSelectionIcon = true,
   ) =>
     items.map((item) => (
       <TouchableOpacity
@@ -174,15 +218,21 @@ export default function WithdrawMoneyScreen() {
         style={[
           styles.option,
           card,
-          { borderColor: item.id === selected ? c.primary : c.border },
+          {
+            borderColor: item.id === selected ? c.primary : c.border,
+            backgroundColor:
+              !showSelectionIcon && item.id === selected ? c.secondary : c.card,
+          },
         ]}
       >
         {text(item.name)}
-        <Ionicons
-          name={item.id === selected ? "radio-button-on" : "radio-button-off"}
-          size={22}
-          color={c.primary}
-        />
+        {showSelectionIcon && (
+          <Ionicons
+            name={item.id === selected ? "radio-button-on" : "radio-button-off"}
+            size={22}
+            color={c.primary}
+          />
+        )}
       </TouchableOpacity>
     ));
   const field = (
@@ -213,8 +263,98 @@ export default function WithdrawMoneyScreen() {
       />
     </View>
   );
+  const dialingCountry = country?.countryCode as CountryCode | undefined;
+  const callingCode =
+    phonePrefix ||
+    (dialingCountry && isSupportedCountry(dialingCountry)
+      ? `+${getCountryCallingCode(dialingCountry)}`
+      : "+");
+  const fullPhone = normalizedPhone(recipient.phone);
+  const nationalPhone = fullPhone.startsWith(callingCode)
+    ? fullPhone.slice(callingCode.length)
+    : fullPhone.replace(/^\+/, "");
+  const recipientValid = validContact(recipient);
+  const savedRoute = (() => {
+    const saved = overview?.recipient;
+    if (firstWithdrawal || !validContact(saved)) return null;
+    for (const withdrawal of overview?.withdrawals ?? []) {
+      if (
+        !["delivered", "returned"].includes(withdrawal.status) ||
+        withdrawal.providerOnboardingStatus !== "ready"
+      )
+        continue;
+      if (
+        [
+          "legalFirstName",
+          "legalLastName",
+          "secondSurname",
+          "email",
+          "phone",
+          "countryCode",
+        ].some(
+          (key) =>
+            (
+              (
+                withdrawal.recipient as unknown as
+                  | Record<string, string>
+                  | undefined
+              )?.[key] ?? ""
+            ).trim() !==
+            ((saved as unknown as Record<string, string>)[key] ?? "").trim(),
+        )
+      )
+        continue;
+      for (const p of providers)
+        for (const co of p.countries) {
+          if (
+            !co.enabled ||
+            co.availability !== "available" ||
+            co.countryCode !== saved?.countryCode
+          )
+            continue;
+          const m = co.methods.find(
+            (item) =>
+              item.id === withdrawal.methodId &&
+              item.enabled &&
+              item.availability === "available",
+          );
+          if (m)
+            return { provider: p, country: co, method: m, recipient: saved! };
+        }
+    }
+    return null;
+  })();
+  const reviewRow = (label: string, value: string) => (
+    <View style={styles.reviewRow}>
+      <View style={{ flexShrink: 0, maxWidth: "45%" }}>
+        {text(t(label), true)}
+      </View>
+      <View style={{ flex: 1, minWidth: 0, alignItems: "flex-end" }}>
+        {label === "Email address" ? (
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}
+            style={[
+              localizedTextStyle(),
+              styles.text,
+              { color: c.foreground, width: "100%", textAlign: "right" },
+            ]}
+          >
+            {value}
+          </Text>
+        ) : (
+          text(value)
+        )}
+      </View>
+    </View>
+  );
   const submit = async () => {
-    if (busy || (!api.pending && (!method || !country || cents === null)))
+    if (
+      busy ||
+      (!api.pending &&
+        (step !== 4 || !valid || !method || !country || cents === null))
+    )
       return;
     const submittingOwner = api.userId;
     setBusy(true);
@@ -233,16 +373,11 @@ export default function WithdrawMoneyScreen() {
         return;
       }
       if (!method || !country || cents === null) return;
-      if (
-        !recipient.legalFirstName.trim() ||
-        !recipient.legalLastName.trim() ||
-        !/^\+\d{8,15}$/.test(recipient.phone.trim()) ||
-        !/^\S+@\S+\.\S+$/.test(recipient.email.trim())
-      )
+      if (!recipientValid)
         throw new Error(
           "Enter your legal name, email and phone number with country code.",
         );
-      if (!api.pending)
+      if (!api.pending && !usingSavedMethod)
         await api.saveRecipient({
           legalFirstName: recipient.legalFirstName.trim(),
           legalLastName: recipient.legalLastName.trim(),
@@ -250,7 +385,7 @@ export default function WithdrawMoneyScreen() {
             ? { secondSurname: recipient.secondSurname.trim() }
             : {}),
           email: recipient.email.trim(),
-          phone: recipient.phone.trim(),
+          phone: normalizedPhone(recipient.phone),
           countryCode: country.countryCode,
         });
       if (owner.current !== submittingOwner) return;
@@ -278,12 +413,13 @@ export default function WithdrawMoneyScreen() {
     !!overview?.enrolled &&
     !!overview?.policy.fundingPolicyReady &&
     cents !== null &&
-    cents >= overview.policy.firstMinimumCents &&
-    cents <= overview.policy.maxWithdrawalCents &&
+    cents >= (firstWithdrawal ? overview.policy.firstMinimumCents : 2500) &&
+    cents <= (firstWithdrawal ? 1500 : overview.policy.maxWithdrawalCents) &&
     (!!api.pending || cents <= availableCents);
   const valid = amountValid && !!method;
-  const remainingCoins =
-    cents !== null && cents <= availableCents
+  const remainingCoins = api.pending
+    ? Number(overview?.balances.availableCoins ?? 0)
+    : cents !== null && cents <= availableCents
       ? Number(overview?.balances.availableCoins ?? 0) - cents * 4
       : null;
   const remaining = () => (
@@ -301,7 +437,31 @@ export default function WithdrawMoneyScreen() {
   );
   const next = () => {
     Keyboard.dismiss();
+    if (step === 3 && !recipientValid) {
+      setError(
+        "Enter your legal name, email and phone number with country code.",
+      );
+      return;
+    }
     setError("");
+    if (step === 0 && savedRoute) {
+      setProvider(savedRoute.provider.id);
+      setCountry(savedRoute.country.id);
+      setMethod(savedRoute.method.id);
+      const saved = savedRoute.recipient;
+      setRecipient({
+        legalFirstName: saved.legalFirstName,
+        legalLastName: saved.legalLastName,
+        secondSurname: saved.secondSurname ?? "",
+        countryCode: saved.countryCode,
+        email: saved.email,
+        phone: saved.phone,
+      });
+      setUsingSavedMethod(true);
+      setStep(4);
+      return;
+    }
+    if (step === 0) setUsingSavedMethod(false);
     setStep(step + 1);
   };
   const feeSample = (item: (typeof methods)[number]) =>
@@ -317,6 +477,13 @@ export default function WithdrawMoneyScreen() {
           Math.abs(a.sendAmountCents - 1500) -
           Math.abs(b.sendAmountCents - 1500),
       )[0];
+  const methodFee = (item: (typeof methods)[number]) =>
+    item.defaultFeeCents ?? feeSample(item)?.feeCents ?? null;
+  const estimatedFee = method ? methodFee(method) : null;
+  const estimatedDeposit =
+    cents !== null && estimatedFee !== null && estimatedFee <= cents
+      ? cents - estimatedFee
+      : null;
   return (
     <View style={{ flex: 1, backgroundColor: c.background }}>
       <View
@@ -335,7 +502,8 @@ export default function WithdrawMoneyScreen() {
           onPress={() => {
             Keyboard.dismiss();
             setCountryMenuOpen(false);
-            if (step > 0 && !api.pending) setStep(step - 1);
+            if (step === 4 && usingSavedMethod && !api.pending) setStep(0);
+            else if (step > 0 && !api.pending) setStep(step - 1);
             else router.back();
           }}
         >
@@ -344,7 +512,13 @@ export default function WithdrawMoneyScreen() {
         <Text
           style={[localizedTextStyle(), styles.title, { color: c.foreground }]}
         >
-          {t("Withdraw Money")}
+          {t(
+            step === 1
+              ? "Select Provider and Country"
+              : step === 4
+                ? "Review withdrawal"
+                : "Withdraw Money",
+          )}
         </Text>
         <TouchableOpacity
           accessibilityRole="button"
@@ -365,6 +539,7 @@ export default function WithdrawMoneyScreen() {
         </TouchableOpacity>
       </View>
       <KeyboardAwareScrollViewCompat
+        key={step}
         style={{ flex: 1 }}
         bottomOffset={32}
         keyboardShouldPersistTaps="handled"
@@ -392,7 +567,7 @@ export default function WithdrawMoneyScreen() {
           </View>
         ) : (
           <>
-            {overview && (
+            {step === 0 && !api.pending && overview && (
               <View style={[styles.card, card]}>
                 {text(t("Available to withdraw"))}
                 <View style={styles.balanceRow}>
@@ -440,7 +615,7 @@ export default function WithdrawMoneyScreen() {
                   )}
               </View>
             )}
-            {overview && (
+            {step === 0 && !api.pending && overview && (
               <View style={styles.conversion}>
                 {text(
                   t("Conversion: {v0} coins = {v1}", {
@@ -451,14 +626,8 @@ export default function WithdrawMoneyScreen() {
                 )}
               </View>
             )}
-            {step > 0 &&
-              isRemitly &&
-              text(
-                t(
-                  "After completing your request, you will receive a link to confirm your preferred payment method.",
-                ),
-              )}
             {!!api.pending &&
+              !method &&
               button("Request withdrawal", () => void submit(), busy)}
             {!!error && !method && (
               <Text
@@ -533,12 +702,26 @@ export default function WithdrawMoneyScreen() {
             )}
             {step === 1 && (
               <>
-                {text(t("Provider"))}
-                {options(providers, providerId, (id) => {
-                  setProvider(id);
-                  setCountry("");
-                  setMethod("");
-                })}
+                {providers.length === 1 ? (
+                  <View style={styles.amountLabel}>
+                    {text(`${t("Provider")}:`, true)}
+                    {text(providers[0].name)}
+                  </View>
+                ) : (
+                  <>
+                    {text(t("Provider"))}
+                    {options(
+                      providers,
+                      providerId,
+                      (id) => {
+                        setProvider(id);
+                        setCountry("");
+                        setMethod("");
+                      },
+                      false,
+                    )}
+                  </>
+                )}
                 {!!provider && (
                   <>
                     {text(t("Country"))}
@@ -575,79 +758,145 @@ export default function WithdrawMoneyScreen() {
             )}
             {step === 2 && (
               <>
-                {text(t("Payment method"))}
-                {methods.map((item) => {
-                  const sample = feeSample(item);
-                  const delivery = sample?.deliveryEstimate;
-                  const minutes = delivery?.match(/^(\d+) minutes?$/i);
-                  return (
-                    <TouchableOpacity
-                      key={item.id}
-                      accessibilityRole="radio"
-                      accessibilityState={{
-                        selected: item.id === methodId,
-                        disabled: busy || !!api.pending,
-                      }}
-                      disabled={busy || !!api.pending}
-                      onPress={() => setMethod(item.id)}
-                      style={[
-                        styles.option,
-                        card,
-                        {
-                          borderColor:
-                            item.id === methodId ? c.primary : c.border,
-                        },
-                      ]}
-                    >
-                      <View style={styles.methodRow}>
-                        <View style={styles.methodName}>{text(item.name)}</View>
-                        <View style={styles.methodInfo}>
-                          {text(
-                            t("Fee: {v0}", {
-                              v0: sample ? money(sample.feeCents) : "—",
-                            }),
-                            true,
-                          )}
-                        </View>
-                        <View style={styles.methodInfo}>
-                          {text(
-                            t("Delivery: {v0}", {
-                              v0: minutes
+                {text(t("Select payment method"))}
+                <View style={styles.methodsTable}>
+                  <View style={[styles.methodRow, styles.methodHeader]}>
+                    <View style={styles.methodName}>
+                      {text(t("Method"), true)}
+                    </View>
+                    <View style={styles.methodFee}>{text(t("Fee"), true)}</View>
+                    <View style={styles.methodDelivery}>
+                      {text(t("Delivery"), true)}
+                    </View>
+                  </View>
+                  {methods.map((item) => {
+                    const sample = feeSample(item);
+                    const delivery =
+                      sample?.deliveryEstimate ||
+                      item.observations.find(
+                        (o) =>
+                          o.fundingMethod === "debit_card" &&
+                          o.senderCountry === "US" &&
+                          o.deliveryEstimate,
+                      )?.deliveryEstimate;
+                    const minutes = delivery?.match(/^(\d+) minutes?$/i);
+                    return (
+                      <TouchableOpacity
+                        key={item.id}
+                        accessibilityRole="radio"
+                        accessibilityState={{
+                          selected: item.id === methodId,
+                          disabled: busy || !!api.pending,
+                        }}
+                        disabled={busy || !!api.pending}
+                        onPress={() => setMethod(item.id)}
+                        style={[
+                          styles.option,
+                          card,
+                          {
+                            borderColor:
+                              item.id === methodId ? c.primary : c.border,
+                            backgroundColor:
+                              item.id === methodId ? c.secondary : c.card,
+                          },
+                        ]}
+                      >
+                        <View style={styles.methodRow}>
+                          <View style={styles.methodName}>
+                            {text(item.name)}
+                          </View>
+                          <View style={styles.methodFee}>
+                            {text(
+                              methodFee(item) === null
+                                ? "—"
+                                : money(methodFee(item)!),
+                              true,
+                            )}
+                          </View>
+                          <View style={styles.methodDelivery}>
+                            {text(
+                              minutes
                                 ? t("{v0} mins", { v0: minutes[1] })
                                 : delivery || "—",
-                            }),
-                            true,
-                          )}
+                              true,
+                            )}
+                          </View>
                         </View>
-                      </View>
-                      <Ionicons
-                        name={
-                          item.id === methodId
-                            ? "radio-button-on"
-                            : "radio-button-off"
-                        }
-                        size={22}
-                        color={c.primary}
-                      />
-                    </TouchableOpacity>
-                  );
-                })}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
                 {button("Next", next, busy || !method || !amountValid)}
               </>
             )}
-            {(step === 3 || !!api.pending) && !!method && (
+            {step === 3 && !api.pending && !!method && (
               <>
                 <View style={[styles.card, card]}>
                   {text(t("Your contact details"))}
+                  {isRemitly &&
+                    text(
+                      t(
+                        "After completing your request, you will receive a link to confirm your preferred payment method.",
+                      ),
+                    )}
                   {field("Legal first name", "legalFirstName")}
                   {field("Legal last name", "legalLastName")}
                   {field("Second surname (optional)", "secondSurname")}
                   {field("Email address", "email", "email-address")}
-                  {field(
-                    "Phone number with country code",
-                    "phone",
-                    "phone-pad",
-                  )}
+                  <View style={styles.amountRow}>
+                    <View style={{ width: 100 }}>
+                      {text(t("Country code"), true)}
+                      <TextInput
+                        accessibilityLabel={t("Country code")}
+                        keyboardType="phone-pad"
+                        editable={!busy}
+                        value={callingCode}
+                        onChangeText={(value) => {
+                          const prefix = `+${value.replace(/\D/g, "")}`;
+                          setPhonePrefix(prefix);
+                          setRecipient((previous) => ({
+                            ...previous,
+                            phone: `${prefix}${nationalPhone}`,
+                          }));
+                        }}
+                        style={[
+                          localizedTextStyle(),
+                          styles.input,
+                          card,
+                          { color: c.foreground },
+                        ]}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      {text(t("Phone number"), true)}
+                      <TextInput
+                        accessibilityLabel={t("Phone number")}
+                        keyboardType="phone-pad"
+                        editable={!busy}
+                        value={nationalPhone}
+                        onChangeText={(value) => {
+                          const entered = normalizedPhone(value);
+                          const parsed = entered.startsWith("+")
+                            ? parsePhoneNumberFromString(entered)
+                            : undefined;
+                          if (parsed)
+                            setPhonePrefix(`+${parsed.countryCallingCode}`);
+                          setRecipient((previous) => ({
+                            ...previous,
+                            phone: entered.startsWith("+")
+                              ? entered
+                              : `${callingCode}${entered}`,
+                          }));
+                        }}
+                        style={[
+                          localizedTextStyle(),
+                          styles.input,
+                          card,
+                          { color: c.foreground },
+                        ]}
+                      />
+                    </View>
+                  </View>
                   {isRemitly &&
                     text(
                       t(
@@ -655,22 +904,6 @@ export default function WithdrawMoneyScreen() {
                       ),
                       true,
                     )}
-                </View>
-                <View style={[styles.card, card]}>
-                  {text(
-                    t("Total earnings deducted: {v0}", {
-                      v0: cents === null ? "—" : money(cents),
-                    }),
-                  )}
-                  {!api.pending && remaining()}
-                  {text(t("Amount sent: awaiting a current quote"))}
-                  {text(t("Fee and tax: awaiting a current quote"))}
-                  {text(
-                    t(
-                      "Your earnings are reserved when you request a withdrawal. You will review the exact quote before preparation.",
-                    ),
-                    true,
-                  )}
                 </View>
                 {!!error && (
                   <Text
@@ -680,12 +913,86 @@ export default function WithdrawMoneyScreen() {
                     {t(error)}
                   </Text>
                 )}
-                {!api.pending &&
-                  button(
-                    busy ? "Please wait…" : "Request withdrawal",
-                    () => void submit(),
-                    busy || !valid || !api.pendingReady,
+                {button("Next", next, busy)}
+              </>
+            )}
+            {(step === 4 || !!api.pending) && !!method && (
+              <>
+                <View style={[styles.card, card]}>
+                  {text(t("Contact"))}
+                  {reviewRow(
+                    "Recipient",
+                    [
+                      recipient.legalFirstName,
+                      recipient.legalLastName,
+                      recipient.secondSurname,
+                    ]
+                      .filter(Boolean)
+                      .map((value) => value!.trim())
+                      .join(" "),
                   )}
+                  {reviewRow("Email address", recipient.email.trim())}
+                  {reviewRow("Phone number", normalizedPhone(recipient.phone))}
+                </View>
+                <View style={[styles.card, card]}>
+                  {text(t("Withdrawal details"))}
+                  {reviewRow(
+                    "Total earnings to withdraw",
+                    cents === null ? "—" : money(cents),
+                  )}
+                  {reviewRow(
+                    "Fee deduction",
+                    estimatedFee === null ? "—" : money(-estimatedFee),
+                  )}
+                  {reviewRow(
+                    "Estimated deposit",
+                    estimatedDeposit === null ? "—" : money(estimatedDeposit),
+                  )}
+                  {reviewRow("Selected method", method.name)}
+                  <View style={styles.reviewRow}>
+                    <View style={{ flex: 1 }}>
+                      {text(t("Remaining coins"), true)}
+                    </View>
+                    <View style={styles.amountLabel}>
+                      <GoldCoinIcon size={16} />
+                      {text(
+                        remainingCoins === null
+                          ? "—"
+                          : remainingCoins.toLocaleString(appLocale()),
+                      )}
+                    </View>
+                  </View>
+                </View>
+                {text(
+                  t(
+                    "These amounts are estimates based on your selected delivery method.",
+                  ),
+                  true,
+                )}
+                {usingSavedMethod
+                  ? text(t("Your saved payment method will be used."))
+                  : isRemitly &&
+                    text(
+                      t(
+                        "You will receive an email from Remitly to confirm your payment method.",
+                      ),
+                    )}
+                {!!error && (
+                  <Text
+                    accessibilityRole="alert"
+                    style={[localizedTextStyle(), { color: "#FF6075" }]}
+                  >
+                    {t(error)}
+                  </Text>
+                )}
+                {button(
+                  busy ? "Please wait…" : "Request withdrawal",
+                  () => void submit(),
+                  busy ||
+                    !valid ||
+                    !api.pendingReady ||
+                    (!api.pending && !recipientValid),
+                )}
               </>
             )}
           </>
@@ -701,6 +1008,7 @@ export default function WithdrawMoneyScreen() {
             transparent
             animationType="fade"
             onRequestClose={() => setCountryMenuOpen(false)}
+            onShow={() => countryListRef.current?.flashScrollIndicators?.()}
           >
             <View
               style={[
@@ -717,7 +1025,14 @@ export default function WithdrawMoneyScreen() {
                 onPress={() => setCountryMenuOpen(false)}
                 style={styles.menuBackdrop}
               />
-              <View accessibilityViewIsModal style={[styles.menuPanel, card]}>
+              <View
+                accessibilityViewIsModal
+                style={[
+                  styles.menuPanel,
+                  card,
+                  { height: countryMenuHeight, maxHeight: countryMenuHeight },
+                ]}
+              >
                 <View style={styles.menuHeader}>
                   <Text
                     accessibilityRole="header"
@@ -738,13 +1053,36 @@ export default function WithdrawMoneyScreen() {
                     <Ionicons name="close" size={24} color={c.foreground} />
                   </TouchableOpacity>
                 </View>
-                <ScrollView contentContainerStyle={styles.menuOptions}>
+                <ScrollView
+                  ref={countryListRef}
+                  style={styles.countryList}
+                  showsVerticalScrollIndicator
+                  persistentScrollbar
+                  indicatorStyle="white"
+                  contentContainerStyle={styles.menuOptions}
+                >
                   {options(countries, countryId, (id) => {
                     setCountry(id);
+                    setPhonePrefix("");
+                    if (id !== countryId)
+                      setRecipient((previous) => ({ ...previous, phone: "" }));
                     setMethod("");
                     setCountryMenuOpen(false);
                   })}
                 </ScrollView>
+                <View
+                  style={[styles.countryMenuFooter, { borderColor: c.border }]}
+                >
+                  <Text
+                    style={[
+                      localizedTextStyle(),
+                      styles.menuHint,
+                      { color: c.mutedForeground },
+                    ]}
+                  >
+                    {t("Scroll to see all countries")}
+                  </Text>
+                </View>
               </View>
             </View>
           </Modal>
@@ -869,12 +1207,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   title: { fontSize: 21, fontFamily: "Inter_700Bold", flex: 1 },
+  reviewRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 16,
+  },
   amountRow: { flexDirection: "row", gap: 12 },
   amountBox: { flex: 1, gap: 8 },
   amountLabel: { flexDirection: "row", alignItems: "center", gap: 6 },
   methodRow: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8 },
-  methodName: { flex: 1.2 },
-  methodInfo: { flex: 1 },
+  methodsTable: { gap: 8 },
+  methodHeader: { flex: 0, paddingHorizontal: 17, paddingBottom: 4 },
+  methodName: { flex: 1.4 },
+  methodFee: { flex: 0.8 },
+  methodDelivery: { flex: 1 },
   content: { padding: 20, gap: 14 },
   conversion: { paddingHorizontal: 16 },
   text: { fontSize: 15, lineHeight: 23 },
@@ -922,6 +1269,14 @@ const styles = StyleSheet.create({
   },
   menuTitle: { flex: 1, fontSize: 18, fontFamily: "Inter_600SemiBold" },
   menuOptions: { padding: 12, gap: 8 },
+  countryList: { flex: 1, minHeight: 0 },
+  countryMenuFooter: {
+    flexShrink: 0,
+    borderTopWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  menuHint: { fontSize: 13, lineHeight: 18 },
   field: { gap: 8 },
   input: {
     borderWidth: 1,

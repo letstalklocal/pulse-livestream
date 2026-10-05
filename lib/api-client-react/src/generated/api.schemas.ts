@@ -119,7 +119,7 @@ export type WithdrawalPolicyMaxWithdrawalCents = typeof WithdrawalPolicyMaxWithd
 
 
 export const WithdrawalPolicyMaxWithdrawalCents = {
-  NUMBER_1500: 1500,
+  NUMBER_50000: 50000,
 } as const;
 
 export type WithdrawalPolicyFirstMinimumCents = typeof WithdrawalPolicyFirstMinimumCents[keyof typeof WithdrawalPolicyFirstMinimumCents];
@@ -169,13 +169,6 @@ export const CreatorWithdrawalStatus = {
   unknown: 'unknown',
 } as const;
 
-export type CreatorWithdrawalGrossCents = typeof CreatorWithdrawalGrossCents[keyof typeof CreatorWithdrawalGrossCents];
-
-
-export const CreatorWithdrawalGrossCents = {
-  NUMBER_1500: 1500,
-} as const;
-
 export type WithdrawalRecipientStatus = typeof WithdrawalRecipientStatus[keyof typeof WithdrawalRecipientStatus];
 
 
@@ -217,27 +210,27 @@ export interface WithdrawalQuote {
   methodId: string;
   /**
      * @minimum 0
-     * @maximum 1500
+     * @maximum 50000
      */
   sendAmountCents: number;
   /**
      * @minimum 0
-     * @maximum 1500
+     * @maximum 50000
      */
   feeCents: number;
   /**
      * @minimum 0
-     * @maximum 1500
+     * @maximum 50000
      */
   taxCents: number;
   /**
      * @minimum 0
-     * @maximum 1500
+     * @maximum 50000
      */
   promotionalDiscountCents: number;
   /**
      * @minimum 0
-     * @maximum 1500
+     * @maximum 50000
      */
   totalEarningsDeductedCents: number;
   /** @pattern ^\d+(\.\d{1,8})?$ */
@@ -246,7 +239,7 @@ export interface WithdrawalQuote {
   fundingMethod: string;
   /**
      * @minimum 0
-     * @maximum 1500
+     * @maximum 50000
      */
   providerMinimumSendCents: number;
   source: WithdrawalQuoteSource;
@@ -292,7 +285,11 @@ export interface CreatorWithdrawal {
   id: string;
   userId: number;
   status: CreatorWithdrawalStatus;
-  grossCents: CreatorWithdrawalGrossCents;
+  /**
+     * @minimum 1500
+     * @maximum 50000
+     */
+  grossCents: number;
   methodId: string;
   recipient: WithdrawalRecipient;
   route: WithdrawalRoute;
@@ -463,22 +460,22 @@ export interface WithdrawalQuoteInput {
   methodId: string;
   /**
      * @minimum 0
-     * @maximum 1500
+     * @maximum 50000
      */
   sendAmountCents: number;
   /**
      * @minimum 0
-     * @maximum 1500
+     * @maximum 50000
      */
   feeCents: number;
   /**
      * @minimum 0
-     * @maximum 1500
+     * @maximum 50000
      */
   taxCents: number;
   /**
      * @minimum 0
-     * @maximum 1500
+     * @maximum 50000
      */
   promotionalDiscountCents: number;
   /** @pattern ^\d+(\.\d{1,8})?$ */
@@ -487,7 +484,7 @@ export interface WithdrawalQuoteInput {
   fundingMethod: string;
   /**
      * @minimum 0
-     * @maximum 1500
+     * @maximum 50000
      */
   providerMinimumSendCents: number;
   source: WithdrawalQuoteInputSource;
@@ -599,17 +596,17 @@ export interface WithdrawalReconcileInput {
   methodId: string;
   /**
      * @minimum 0
-     * @maximum 1500
+     * @maximum 50000
      */
   sendAmountCents: number;
   /**
      * @minimum 0
-     * @maximum 1500
+     * @maximum 50000
      */
   feeCents: number;
   /**
      * @minimum 0
-     * @maximum 1500
+     * @maximum 50000
      */
   taxCents: number;
   receiveAmount: string;
@@ -697,20 +694,17 @@ export interface WithdrawalOverview {
   withdrawals: CreatorWithdrawal[];
 }
 
-export type WithdrawalRequestInputWithdrawalCents = typeof WithdrawalRequestInputWithdrawalCents[keyof typeof WithdrawalRequestInputWithdrawalCents];
-
-
-export const WithdrawalRequestInputWithdrawalCents = {
-  NUMBER_1500: 1500,
-} as const;
-
 export interface WithdrawalRequestInput {
   /**
      * @minLength 1
      * @maxLength 250
      */
   methodId: string;
-  withdrawalCents: WithdrawalRequestInputWithdrawalCents;
+  /**
+     * @minimum 1500
+     * @maximum 50000
+     */
+  withdrawalCents: number;
   /**
      * @minLength 1
      * @maxLength 100
@@ -962,7 +956,7 @@ export type PayoutCatalogMaxWithdrawalCents = typeof PayoutCatalogMaxWithdrawalC
 
 
 export const PayoutCatalogMaxWithdrawalCents = {
-  NUMBER_1500: 1500,
+  NUMBER_50000: 50000,
 } as const;
 
 export type PayoutCatalogEnvironment = typeof PayoutCatalogEnvironment[keyof typeof PayoutCatalogEnvironment];
@@ -985,7 +979,7 @@ export interface PayoutEstimateRequest {
   methodId: string;
   /**
      * @minimum 1
-     * @maximum 1500
+     * @maximum 50000
      */
   withdrawalCents: number;
   fundingMethod?: string;

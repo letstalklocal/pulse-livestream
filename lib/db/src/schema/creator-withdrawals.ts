@@ -15,7 +15,7 @@ export const creatorCashAccountsTable = pgTable("creator_cash_accounts", {
     .primaryKey()
     .references(() => usersTable.uid),
   enabled: boolean("enabled").notNull().default(true),
-  repeatAllowed: boolean("repeat_allowed").notNull().default(false),
+  repeatAllowed: boolean("repeat_allowed").notNull().default(true),
   enrolledBy: text("enrolled_by").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

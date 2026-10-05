@@ -10,7 +10,7 @@ export interface PayoutEstimateRequest {
   methodId: string;
   /**
      * @minimum 1
-     * @maximum 1500
+     * @maximum 50000
      */
   withdrawalCents: number;
   fundingMethod?: string;

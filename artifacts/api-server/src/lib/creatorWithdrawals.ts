@@ -79,9 +79,9 @@ export const POLICY = {
   ticksPerUsd: 400,
   allWalletCoinsRedeemable: true,
   holdDays: 0,
-  maxWithdrawalCents: 1500,
+  maxWithdrawalCents: 50000,
   firstMinimumCents: 1500,
-  repeatAllowed: false,
+  repeatAllowed: true,
 };
 async function tx<T>(db: Database, fn: (c: Sql) => Promise<T>): Promise<T> {
   const c = await db.connect();
@@ -170,7 +170,7 @@ async function walletChange(
   if (!updated)
     fail(
       change < 0n
-        ? "At least 6,000 available wallet coins (USD 15) are required."
+        ? "Insufficient available wallet coins for this withdrawal."
         : "Wallet refund cannot be applied; investigate the wallet balance.",
       409,
     );
@@ -327,7 +327,7 @@ export async function overview(db: Database, uid: number) {
       balances: await balances(c, uid),
       policy: {
         ...POLICY,
-        repeatAllowed: a?.repeat_allowed ?? false,
+        repeatAllowed: a?.repeat_allowed ?? true,
         holdDays: 0,
       },
       recipient: recipient
@@ -350,9 +350,13 @@ export async function requestWithdrawal(
   const b = body(input, ["methodId", "withdrawalCents", "idempotencyKey"]);
   const methodId = str(b.methodId, "method ID", 250),
     key = str(b.idempotencyKey, "idempotency key", 100);
-  if (b.withdrawalCents !== 1500)
-    fail("This version permits exactly USD 15 gross, including fees.");
-  const requestHash = hash({ methodId, withdrawalCents: 1500 });
+  const gross = integer(
+    b.withdrawalCents,
+    "withdrawal amount",
+    POLICY.maxWithdrawalCents,
+  );
+  const reserved = BigInt(gross) * 4n;
+  const requestHash = hash({ methodId, withdrawalCents: gross });
   return tx(db, async (c) => {
     await lock(c, uid);
     const old = (
@@ -373,16 +377,19 @@ export async function requestWithdrawal(
       )
     ).rows[0];
     if (!a) fail("Withdrawals are not yet enabled for this creator.", 403);
-    if (
-      !a.repeat_allowed &&
+    const returning =
       (
         await c.query(
           "SELECT 1 FROM creator_withdrawals WHERE user_id=$1 AND status IN('delivered','returned')",
           [uid],
         )
-      ).rows.length
-    )
-      fail("Repeat withdrawals are awaiting an approved policy.", 409);
+      ).rows.length > 0;
+    if (!returning && gross !== 1500)
+      fail("Your first withdrawal must be USD 15, including fees.");
+    if (returning && gross < 2500)
+      fail(
+        "Later withdrawals must be between USD 25 and USD 500, including fees.",
+      );
     if (
       (
         await c.query(
@@ -418,23 +425,24 @@ export async function requestWithdrawal(
     if (route!.countryCode !== recipient.data.countryCode)
       fail("Recipient country must match selected method.");
     const bal = await balances(c, uid);
-    if (BigInt(bal.availableTicks) < 6000n)
-      fail("At least 6,000 available wallet coins (USD 15) are required.", 409);
+    if (BigInt(bal.availableTicks) < reserved)
+      fail("Insufficient available wallet coins for this withdrawal.", 409);
     const id = `wd_${randomUUID()}`;
     await walletChange(
       c,
       uid,
-      -6000n,
+      -reserved,
       `${id}:wallet-hold`,
-      "Reserve 6,000 coins for USD 15 gross withdrawal, including provider fees",
+      `Reserve ${reserved} coins for USD ${(gross / 100).toFixed(2)} gross withdrawal, including provider fees`,
     );
     const r = await c.query(
-      "INSERT INTO creator_withdrawals(id,user_id,account_key,method_id,gross_cents,idempotency_key,request_hash,recipient,route) VALUES($1,$2,$3,$4,1500,$5,$6,$7,$8) RETURNING *",
+      "INSERT INTO creator_withdrawals(id,user_id,account_key,method_id,gross_cents,idempotency_key,request_hash,recipient,route) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *",
       [
         id,
         uid,
         account,
         methodId,
+        gross,
         key,
         requestHash,
         JSON.stringify({ ...recipient.data, revision: recipient.revision }),
@@ -446,8 +454,8 @@ export async function requestWithdrawal(
       uid,
       "reservation",
       `${id}:reserve`,
-      -6000n,
-      6000n,
+      -reserved,
+      reserved,
       `creator:${uid}`,
       "Reserve gross while awaiting exact provider quote",
       id,
@@ -654,18 +662,26 @@ export async function recordQuote(
     "expiresAt",
     "evidence",
   ]);
-  const send = integer(b.sendAmountCents, "send amount", 1500),
-    fee = integer(b.feeCents, "fee", 1500),
-    tax = integer(b.taxCents, "tax", 1500),
-    promo = integer(b.promotionalDiscountCents, "promotion", 1500);
-  if (send <= 0 || send + fee + tax > 1500)
+  const send = integer(
+      b.sendAmountCents,
+      "send amount",
+      POLICY.maxWithdrawalCents,
+    ),
+    fee = integer(b.feeCents, "fee", POLICY.maxWithdrawalCents),
+    tax = integer(b.taxCents, "tax", POLICY.maxWithdrawalCents),
+    promo = integer(
+      b.promotionalDiscountCents,
+      "promotion",
+      POLICY.maxWithdrawalCents,
+    );
+  if (send <= 0)
     fail(
-      "Send, fee and taxes must fit USD 15 gross. Promotions cannot fund the withdrawal.",
+      "Send amount must be positive. Promotions cannot fund the withdrawal.",
     );
   const minimum = integer(
     b.providerMinimumSendCents,
     "verified route minimum",
-    1500,
+    POLICY.maxWithdrawalCents,
   );
   if (send < minimum) fail("Send amount is below verified provider minimum.");
   if (b.source !== "signed_in_remitly_business")
@@ -686,6 +702,10 @@ export async function recordQuote(
     fail("Receive amount must be an exact positive decimal.");
   return tx(db, async (c) => {
     const w = await lockedWithdrawal(c, id, account);
+    if (send + fee + tax > w.gross_cents)
+      fail(
+        "Send, fee and taxes must fit the requested gross amount. Promotions cannot fund the withdrawal.",
+      );
     if (
       !["awaiting_quote", "awaiting_confirmation", "requested"].includes(
         w.status,
@@ -766,7 +786,8 @@ export async function prepare(
     )
       fail("Creator must approve a current quote before preparation.", 409);
     const bal = await balances(c, w.user_id);
-    if (BigInt(bal.reservedTicks) < 6000n) fail("Reservation is missing.", 409);
+    if (BigInt(bal.reservedTicks) < BigInt(w.gross_cents) * 4n)
+      fail("Reservation is missing.", 409);
     const attemptId = `attempt_${randomUUID()}`;
     await c.query(
       "INSERT INTO creator_payout_attempts(id,withdrawal_id,account_key,maker,binding_hash,lease_until,evidence) VALUES($1,$2,$3,$4,$5,now()+interval '15 minutes',$6)",
@@ -938,7 +959,8 @@ export async function check(
       b.historyInspected === true &&
       b.oneTime === true &&
       b.autoSend === false &&
-      BigInt((await balances(c, w.user_id)).reservedTicks) >= 6000n;
+      BigInt((await balances(c, w.user_id)).reservedTicks) >=
+        BigInt(w.gross_cents) * 4n;
     const checker = {
       actor,
       status: passed ? "passed" : "needs_attention",
@@ -1109,9 +1131,13 @@ export async function reconcile(
     fail("Recipient must be verified against snapshot.");
   const sourceUrl = providerSource(b.sourceUrl),
     observedAt = date(b.observedAt, "provider observation");
-  const send = integer(b.sendAmountCents, "actual send amount", 1500),
-    fee = integer(b.feeCents, "actual fee", 1500),
-    tax = integer(b.taxCents, "actual tax", 1500);
+  const send = integer(
+      b.sendAmountCents,
+      "actual send amount",
+      POLICY.maxWithdrawalCents,
+    ),
+    fee = integer(b.feeCents, "actual fee", POLICY.maxWithdrawalCents),
+    tax = integer(b.taxCents, "actual tax", POLICY.maxWithdrawalCents);
   const activityUrl = b.activityUrl ? safeProviderLink(b.activityUrl) : null;
   return tx(db, async (c) => {
     const w = await lockedWithdrawal(c, id, account);
@@ -1152,7 +1178,7 @@ export async function reconcile(
       send !== w.quote.sendAmountCents ||
       fee > w.quote.feeCents ||
       tax > w.quote.taxCents ||
-      send + fee + tax > 1500
+      send + fee + tax > w.gross_cents
     )
       fail(
         "Provider amounts/method violate approved quote; leave reservation and investigate.",
@@ -1200,11 +1226,11 @@ export async function reconcile(
         "Verified provider delivery",
         id,
       );
-      if (actualTicks < 6000n) {
+      if (actualTicks < BigInt(w.gross_cents) * 4n) {
         await walletChange(
           c,
           w.user_id,
-          6000n - actualTicks,
+          BigInt(w.gross_cents) * 4n - actualTicks,
           `${id}:wallet-unused`,
           "Refund unused withdrawal reservation after verified lower actual cost",
         );
@@ -1213,8 +1239,8 @@ export async function reconcile(
           w.user_id,
           "release",
           `${id}:unused`,
-          6000n - actualTicks,
-          -(6000n - actualTicks),
+          BigInt(w.gross_cents) * 4n - actualTicks,
+          -(BigInt(w.gross_cents) * 4n - actualTicks),
           actor,
           "Release unused reservation after lower actual cost",
           id,
@@ -1225,7 +1251,7 @@ export async function reconcile(
       await walletChange(
         c,
         w.user_id,
-        6000n,
+        BigInt(w.gross_cents) * 4n,
         `${id}:wallet-release`,
         "Restore coins after authoritative failure/cancellation and full funding return",
       );
@@ -1234,8 +1260,8 @@ export async function reconcile(
         w.user_id,
         "release",
         `${id}:release`,
-        6000n,
-        -6000n,
+        BigInt(w.gross_cents) * 4n,
+        -(BigInt(w.gross_cents) * 4n),
         actor,
         "Authoritative failure/cancellation and funding return",
         id,
@@ -1431,7 +1457,7 @@ export async function cancelUnprepared(db: Database, uid: number, id: string) {
     await walletChange(
       c,
       uid,
-      6000n,
+      BigInt(w.gross_cents) * 4n,
       `${id}:wallet-release`,
       "Restore coins after creator canceled before any provider attempt",
     );
@@ -1440,8 +1466,8 @@ export async function cancelUnprepared(db: Database, uid: number, id: string) {
       uid,
       "release",
       `${id}:release`,
-      6000n,
-      -6000n,
+      BigInt(w.gross_cents) * 4n,
+      -(BigInt(w.gross_cents) * 4n),
       `creator:${uid}`,
       "Creator canceled before any provider attempt",
       id,
@@ -1497,7 +1523,7 @@ export async function humanDecline(
       await walletChange(
         c,
         w.user_id,
-        6000n,
+        BigInt(w.gross_cents) * 4n,
         `${id}:wallet-release`,
         "Human declined before any provider attempt",
       );
@@ -1506,8 +1532,8 @@ export async function humanDecline(
         w.user_id,
         "release",
         `${id}:release`,
-        6000n,
-        -6000n,
+        BigInt(w.gross_cents) * 4n,
+        -(BigInt(w.gross_cents) * 4n),
         actor,
         "Human declined before any provider attempt",
         id,

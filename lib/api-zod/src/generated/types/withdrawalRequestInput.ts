@@ -5,7 +5,6 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { WithdrawalRequestInputWithdrawalCents } from './withdrawalRequestInputWithdrawalCents';
 
 export interface WithdrawalRequestInput {
   /**
@@ -13,7 +12,11 @@ export interface WithdrawalRequestInput {
      * @maxLength 250
      */
   methodId: string;
-  withdrawalCents: WithdrawalRequestInputWithdrawalCents;
+  /**
+     * @minimum 1500
+     * @maximum 50000
+     */
+  withdrawalCents: number;
   /**
      * @minLength 1
      * @maxLength 100

@@ -74,7 +74,7 @@ export const GetPayoutOperatorIdentityResponse = zod.object({
   "ticksPerUsd": zod.literal(400),
   "allWalletCoinsRedeemable": zod.boolean(),
   "holdDays": zod.literal(0),
-  "maxWithdrawalCents": zod.literal(1500),
+  "maxWithdrawalCents": zod.literal(50000),
   "firstMinimumCents": zod.literal(1500),
   "repeatAllowed": zod.boolean()
 }),
@@ -97,25 +97,28 @@ export const ListPayoutOperatorWithdrawalsQueryParams = zod.object({
   "limit": zod.coerce.number().min(1).max(listPayoutOperatorWithdrawalsQueryLimitMax).default(listPayoutOperatorWithdrawalsQueryLimitDefault)
 })
 
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneGrossCentsMin = 1500;
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneGrossCentsMax = 50000;
+
 export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneSendAmountCentsMin = 0;
-export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneSendAmountCentsMax = 1500;
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneSendAmountCentsMax = 50000;
 
 export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneFeeCentsMin = 0;
-export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneFeeCentsMax = 1500;
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneFeeCentsMax = 50000;
 
 export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneTaxCentsMin = 0;
-export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneTaxCentsMax = 1500;
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneTaxCentsMax = 50000;
 
 export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneCheckerOneEvidenceMax = 5000;
 
@@ -126,7 +129,7 @@ export const ListPayoutOperatorWithdrawalsResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneGrossCentsMin).max(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -201,25 +204,28 @@ export const GetPayoutOperatorWithdrawalParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const getPayoutOperatorWithdrawalResponseOneOneGrossCentsMin = 1500;
+export const getPayoutOperatorWithdrawalResponseOneOneGrossCentsMax = 50000;
+
 export const getPayoutOperatorWithdrawalResponseOneOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneSendAmountCentsMin = 0;
-export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneSendAmountCentsMax = 1500;
+export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneSendAmountCentsMax = 50000;
 
 export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneFeeCentsMin = 0;
-export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneFeeCentsMax = 1500;
+export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneFeeCentsMax = 50000;
 
 export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneTaxCentsMin = 0;
-export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneTaxCentsMax = 1500;
+export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneTaxCentsMax = 50000;
 
 export const getPayoutOperatorWithdrawalResponseOneOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const getPayoutOperatorWithdrawalResponseOneOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const getPayoutOperatorWithdrawalResponseOneOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const getPayoutOperatorWithdrawalResponseOneOneCheckerOneEvidenceMax = 5000;
 
@@ -238,7 +244,7 @@ export const GetPayoutOperatorWithdrawalResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(getPayoutOperatorWithdrawalResponseOneOneGrossCentsMin).max(getPayoutOperatorWithdrawalResponseOneOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -453,20 +459,20 @@ export const RecordPayoutOperatorQuoteParams = zod.object({
 })
 
 export const recordPayoutOperatorQuoteBodyDataSendAmountCentsMin = 0;
-export const recordPayoutOperatorQuoteBodyDataSendAmountCentsMax = 1500;
+export const recordPayoutOperatorQuoteBodyDataSendAmountCentsMax = 50000;
 
 export const recordPayoutOperatorQuoteBodyDataFeeCentsMin = 0;
-export const recordPayoutOperatorQuoteBodyDataFeeCentsMax = 1500;
+export const recordPayoutOperatorQuoteBodyDataFeeCentsMax = 50000;
 
 export const recordPayoutOperatorQuoteBodyDataTaxCentsMin = 0;
-export const recordPayoutOperatorQuoteBodyDataTaxCentsMax = 1500;
+export const recordPayoutOperatorQuoteBodyDataTaxCentsMax = 50000;
 
 export const recordPayoutOperatorQuoteBodyDataPromotionalDiscountCentsMin = 0;
-export const recordPayoutOperatorQuoteBodyDataPromotionalDiscountCentsMax = 1500;
+export const recordPayoutOperatorQuoteBodyDataPromotionalDiscountCentsMax = 50000;
 
 export const recordPayoutOperatorQuoteBodyDataReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const recordPayoutOperatorQuoteBodyDataProviderMinimumSendCentsMin = 0;
-export const recordPayoutOperatorQuoteBodyDataProviderMinimumSendCentsMax = 1500;
+export const recordPayoutOperatorQuoteBodyDataProviderMinimumSendCentsMax = 50000;
 
 export const recordPayoutOperatorQuoteBodyDataEvidenceMax = 5000;
 
@@ -492,25 +498,28 @@ export const RecordPayoutOperatorQuoteBody = zod.object({
 })
 })
 
+export const recordPayoutOperatorQuoteResponseOneGrossCentsMin = 1500;
+export const recordPayoutOperatorQuoteResponseOneGrossCentsMax = 50000;
+
 export const recordPayoutOperatorQuoteResponseOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const recordPayoutOperatorQuoteResponseOneQuoteOneSendAmountCentsMin = 0;
-export const recordPayoutOperatorQuoteResponseOneQuoteOneSendAmountCentsMax = 1500;
+export const recordPayoutOperatorQuoteResponseOneQuoteOneSendAmountCentsMax = 50000;
 
 export const recordPayoutOperatorQuoteResponseOneQuoteOneFeeCentsMin = 0;
-export const recordPayoutOperatorQuoteResponseOneQuoteOneFeeCentsMax = 1500;
+export const recordPayoutOperatorQuoteResponseOneQuoteOneFeeCentsMax = 50000;
 
 export const recordPayoutOperatorQuoteResponseOneQuoteOneTaxCentsMin = 0;
-export const recordPayoutOperatorQuoteResponseOneQuoteOneTaxCentsMax = 1500;
+export const recordPayoutOperatorQuoteResponseOneQuoteOneTaxCentsMax = 50000;
 
 export const recordPayoutOperatorQuoteResponseOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const recordPayoutOperatorQuoteResponseOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const recordPayoutOperatorQuoteResponseOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const recordPayoutOperatorQuoteResponseOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const recordPayoutOperatorQuoteResponseOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const recordPayoutOperatorQuoteResponseOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const recordPayoutOperatorQuoteResponseOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const recordPayoutOperatorQuoteResponseOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const recordPayoutOperatorQuoteResponseOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const recordPayoutOperatorQuoteResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const recordPayoutOperatorQuoteResponseOneCheckerOneEvidenceMax = 5000;
 
@@ -520,7 +529,7 @@ export const RecordPayoutOperatorQuoteResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(recordPayoutOperatorQuoteResponseOneGrossCentsMin).max(recordPayoutOperatorQuoteResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -604,25 +613,28 @@ export const BeginPayoutOperatorPreparationBody = zod.object({
 })
 })
 
+export const beginPayoutOperatorPreparationResponseOneOneGrossCentsMin = 1500;
+export const beginPayoutOperatorPreparationResponseOneOneGrossCentsMax = 50000;
+
 export const beginPayoutOperatorPreparationResponseOneOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const beginPayoutOperatorPreparationResponseOneOneQuoteOneSendAmountCentsMin = 0;
-export const beginPayoutOperatorPreparationResponseOneOneQuoteOneSendAmountCentsMax = 1500;
+export const beginPayoutOperatorPreparationResponseOneOneQuoteOneSendAmountCentsMax = 50000;
 
 export const beginPayoutOperatorPreparationResponseOneOneQuoteOneFeeCentsMin = 0;
-export const beginPayoutOperatorPreparationResponseOneOneQuoteOneFeeCentsMax = 1500;
+export const beginPayoutOperatorPreparationResponseOneOneQuoteOneFeeCentsMax = 50000;
 
 export const beginPayoutOperatorPreparationResponseOneOneQuoteOneTaxCentsMin = 0;
-export const beginPayoutOperatorPreparationResponseOneOneQuoteOneTaxCentsMax = 1500;
+export const beginPayoutOperatorPreparationResponseOneOneQuoteOneTaxCentsMax = 50000;
 
 export const beginPayoutOperatorPreparationResponseOneOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const beginPayoutOperatorPreparationResponseOneOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const beginPayoutOperatorPreparationResponseOneOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const beginPayoutOperatorPreparationResponseOneOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const beginPayoutOperatorPreparationResponseOneOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const beginPayoutOperatorPreparationResponseOneOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const beginPayoutOperatorPreparationResponseOneOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const beginPayoutOperatorPreparationResponseOneOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const beginPayoutOperatorPreparationResponseOneOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const beginPayoutOperatorPreparationResponseOneOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const beginPayoutOperatorPreparationResponseOneOneCheckerOneEvidenceMax = 5000;
 
@@ -632,7 +644,7 @@ export const BeginPayoutOperatorPreparationResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(beginPayoutOperatorPreparationResponseOneOneGrossCentsMin).max(beginPayoutOperatorPreparationResponseOneOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -729,25 +741,28 @@ export const RecordPayoutOperatorPreparationBody = zod.object({
 })
 })
 
+export const recordPayoutOperatorPreparationResponseOneGrossCentsMin = 1500;
+export const recordPayoutOperatorPreparationResponseOneGrossCentsMax = 50000;
+
 export const recordPayoutOperatorPreparationResponseOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const recordPayoutOperatorPreparationResponseOneQuoteOneSendAmountCentsMin = 0;
-export const recordPayoutOperatorPreparationResponseOneQuoteOneSendAmountCentsMax = 1500;
+export const recordPayoutOperatorPreparationResponseOneQuoteOneSendAmountCentsMax = 50000;
 
 export const recordPayoutOperatorPreparationResponseOneQuoteOneFeeCentsMin = 0;
-export const recordPayoutOperatorPreparationResponseOneQuoteOneFeeCentsMax = 1500;
+export const recordPayoutOperatorPreparationResponseOneQuoteOneFeeCentsMax = 50000;
 
 export const recordPayoutOperatorPreparationResponseOneQuoteOneTaxCentsMin = 0;
-export const recordPayoutOperatorPreparationResponseOneQuoteOneTaxCentsMax = 1500;
+export const recordPayoutOperatorPreparationResponseOneQuoteOneTaxCentsMax = 50000;
 
 export const recordPayoutOperatorPreparationResponseOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const recordPayoutOperatorPreparationResponseOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const recordPayoutOperatorPreparationResponseOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const recordPayoutOperatorPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const recordPayoutOperatorPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const recordPayoutOperatorPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const recordPayoutOperatorPreparationResponseOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const recordPayoutOperatorPreparationResponseOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const recordPayoutOperatorPreparationResponseOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const recordPayoutOperatorPreparationResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const recordPayoutOperatorPreparationResponseOneCheckerOneEvidenceMax = 5000;
 
@@ -757,7 +772,7 @@ export const RecordPayoutOperatorPreparationResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(recordPayoutOperatorPreparationResponseOneGrossCentsMin).max(recordPayoutOperatorPreparationResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -849,25 +864,28 @@ export const CheckPayoutOperatorPreparationBody = zod.object({
 })
 })
 
+export const checkPayoutOperatorPreparationResponseOneGrossCentsMin = 1500;
+export const checkPayoutOperatorPreparationResponseOneGrossCentsMax = 50000;
+
 export const checkPayoutOperatorPreparationResponseOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const checkPayoutOperatorPreparationResponseOneQuoteOneSendAmountCentsMin = 0;
-export const checkPayoutOperatorPreparationResponseOneQuoteOneSendAmountCentsMax = 1500;
+export const checkPayoutOperatorPreparationResponseOneQuoteOneSendAmountCentsMax = 50000;
 
 export const checkPayoutOperatorPreparationResponseOneQuoteOneFeeCentsMin = 0;
-export const checkPayoutOperatorPreparationResponseOneQuoteOneFeeCentsMax = 1500;
+export const checkPayoutOperatorPreparationResponseOneQuoteOneFeeCentsMax = 50000;
 
 export const checkPayoutOperatorPreparationResponseOneQuoteOneTaxCentsMin = 0;
-export const checkPayoutOperatorPreparationResponseOneQuoteOneTaxCentsMax = 1500;
+export const checkPayoutOperatorPreparationResponseOneQuoteOneTaxCentsMax = 50000;
 
 export const checkPayoutOperatorPreparationResponseOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const checkPayoutOperatorPreparationResponseOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const checkPayoutOperatorPreparationResponseOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const checkPayoutOperatorPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const checkPayoutOperatorPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const checkPayoutOperatorPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const checkPayoutOperatorPreparationResponseOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const checkPayoutOperatorPreparationResponseOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const checkPayoutOperatorPreparationResponseOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const checkPayoutOperatorPreparationResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const checkPayoutOperatorPreparationResponseOneCheckerOneEvidenceMax = 5000;
 
@@ -877,7 +895,7 @@ export const CheckPayoutOperatorPreparationResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(checkPayoutOperatorPreparationResponseOneGrossCentsMin).max(checkPayoutOperatorPreparationResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -950,13 +968,13 @@ export const ReconcilePayoutOperatorWithdrawalParams = zod.object({
 })
 
 export const reconcilePayoutOperatorWithdrawalBodyDataSendAmountCentsMin = 0;
-export const reconcilePayoutOperatorWithdrawalBodyDataSendAmountCentsMax = 1500;
+export const reconcilePayoutOperatorWithdrawalBodyDataSendAmountCentsMax = 50000;
 
 export const reconcilePayoutOperatorWithdrawalBodyDataFeeCentsMin = 0;
-export const reconcilePayoutOperatorWithdrawalBodyDataFeeCentsMax = 1500;
+export const reconcilePayoutOperatorWithdrawalBodyDataFeeCentsMax = 50000;
 
 export const reconcilePayoutOperatorWithdrawalBodyDataTaxCentsMin = 0;
-export const reconcilePayoutOperatorWithdrawalBodyDataTaxCentsMax = 1500;
+export const reconcilePayoutOperatorWithdrawalBodyDataTaxCentsMax = 50000;
 
 export const reconcilePayoutOperatorWithdrawalBodyDataEvidenceMax = 5000;
 
@@ -986,25 +1004,28 @@ export const ReconcilePayoutOperatorWithdrawalBody = zod.object({
 })
 })
 
+export const reconcilePayoutOperatorWithdrawalResponseOneGrossCentsMin = 1500;
+export const reconcilePayoutOperatorWithdrawalResponseOneGrossCentsMax = 50000;
+
 export const reconcilePayoutOperatorWithdrawalResponseOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneSendAmountCentsMin = 0;
-export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneSendAmountCentsMax = 1500;
+export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneSendAmountCentsMax = 50000;
 
 export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneFeeCentsMin = 0;
-export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneFeeCentsMax = 1500;
+export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneFeeCentsMax = 50000;
 
 export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneTaxCentsMin = 0;
-export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneTaxCentsMax = 1500;
+export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneTaxCentsMax = 50000;
 
 export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const reconcilePayoutOperatorWithdrawalResponseOneCheckerOneEvidenceMax = 5000;
 
@@ -1014,7 +1035,7 @@ export const ReconcilePayoutOperatorWithdrawalResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(reconcilePayoutOperatorWithdrawalResponseOneGrossCentsMin).max(reconcilePayoutOperatorWithdrawalResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -1099,25 +1120,28 @@ export const RenewPayoutOperatorPreparationLeaseBody = zod.object({
 })
 })
 
+export const renewPayoutOperatorPreparationLeaseResponseOneOneGrossCentsMin = 1500;
+export const renewPayoutOperatorPreparationLeaseResponseOneOneGrossCentsMax = 50000;
+
 export const renewPayoutOperatorPreparationLeaseResponseOneOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneSendAmountCentsMin = 0;
-export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneSendAmountCentsMax = 1500;
+export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneSendAmountCentsMax = 50000;
 
 export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneFeeCentsMin = 0;
-export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneFeeCentsMax = 1500;
+export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneFeeCentsMax = 50000;
 
 export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneTaxCentsMin = 0;
-export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneTaxCentsMax = 1500;
+export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneTaxCentsMax = 50000;
 
 export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const renewPayoutOperatorPreparationLeaseResponseOneOneCheckerOneEvidenceMax = 5000;
 
@@ -1136,7 +1160,7 @@ export const RenewPayoutOperatorPreparationLeaseResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(renewPayoutOperatorPreparationLeaseResponseOneOneGrossCentsMin).max(renewPayoutOperatorPreparationLeaseResponseOneOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -1252,25 +1276,28 @@ export const ReleasePayoutOperatorPreparationLeaseBody = zod.object({
 })
 })
 
+export const releasePayoutOperatorPreparationLeaseResponseOneOneGrossCentsMin = 1500;
+export const releasePayoutOperatorPreparationLeaseResponseOneOneGrossCentsMax = 50000;
+
 export const releasePayoutOperatorPreparationLeaseResponseOneOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneSendAmountCentsMin = 0;
-export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneSendAmountCentsMax = 1500;
+export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneSendAmountCentsMax = 50000;
 
 export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneFeeCentsMin = 0;
-export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneFeeCentsMax = 1500;
+export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneFeeCentsMax = 50000;
 
 export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneTaxCentsMin = 0;
-export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneTaxCentsMax = 1500;
+export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneTaxCentsMax = 50000;
 
 export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const releasePayoutOperatorPreparationLeaseResponseOneOneCheckerOneEvidenceMax = 5000;
 
@@ -1289,7 +1316,7 @@ export const ReleasePayoutOperatorPreparationLeaseResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(releasePayoutOperatorPreparationLeaseResponseOneOneGrossCentsMin).max(releasePayoutOperatorPreparationLeaseResponseOneOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -1403,25 +1430,28 @@ export const MarkPayoutOperatorUnknownBody = zod.object({
 })
 })
 
+export const markPayoutOperatorUnknownResponseOneGrossCentsMin = 1500;
+export const markPayoutOperatorUnknownResponseOneGrossCentsMax = 50000;
+
 export const markPayoutOperatorUnknownResponseOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const markPayoutOperatorUnknownResponseOneQuoteOneSendAmountCentsMin = 0;
-export const markPayoutOperatorUnknownResponseOneQuoteOneSendAmountCentsMax = 1500;
+export const markPayoutOperatorUnknownResponseOneQuoteOneSendAmountCentsMax = 50000;
 
 export const markPayoutOperatorUnknownResponseOneQuoteOneFeeCentsMin = 0;
-export const markPayoutOperatorUnknownResponseOneQuoteOneFeeCentsMax = 1500;
+export const markPayoutOperatorUnknownResponseOneQuoteOneFeeCentsMax = 50000;
 
 export const markPayoutOperatorUnknownResponseOneQuoteOneTaxCentsMin = 0;
-export const markPayoutOperatorUnknownResponseOneQuoteOneTaxCentsMax = 1500;
+export const markPayoutOperatorUnknownResponseOneQuoteOneTaxCentsMax = 50000;
 
 export const markPayoutOperatorUnknownResponseOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const markPayoutOperatorUnknownResponseOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const markPayoutOperatorUnknownResponseOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const markPayoutOperatorUnknownResponseOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const markPayoutOperatorUnknownResponseOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const markPayoutOperatorUnknownResponseOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const markPayoutOperatorUnknownResponseOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const markPayoutOperatorUnknownResponseOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const markPayoutOperatorUnknownResponseOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const markPayoutOperatorUnknownResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const markPayoutOperatorUnknownResponseOneCheckerOneEvidenceMax = 5000;
 
@@ -1431,7 +1461,7 @@ export const MarkPayoutOperatorUnknownResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(markPayoutOperatorUnknownResponseOneGrossCentsMin).max(markPayoutOperatorUnknownResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -1523,25 +1553,28 @@ export const getWithdrawalOverviewResponseBalancesAvailableUsdRegExp = new RegEx
 export const getWithdrawalOverviewResponseBalancesHeldUsdRegExp = new RegExp('^\\d+\\.\\d{4}$');
 export const getWithdrawalOverviewResponseBalancesReservedUsdRegExp = new RegExp('^\\d+\\.\\d{4}$');
 export const getWithdrawalOverviewResponseRecipientOneCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+export const getWithdrawalOverviewResponseWithdrawalsItemGrossCentsMin = 1500;
+export const getWithdrawalOverviewResponseWithdrawalsItemGrossCentsMax = 50000;
+
 export const getWithdrawalOverviewResponseWithdrawalsItemRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const getWithdrawalOverviewResponseWithdrawalsItemQuoteOneSendAmountCentsMin = 0;
-export const getWithdrawalOverviewResponseWithdrawalsItemQuoteOneSendAmountCentsMax = 1500;
+export const getWithdrawalOverviewResponseWithdrawalsItemQuoteOneSendAmountCentsMax = 50000;
 
 export const getWithdrawalOverviewResponseWithdrawalsItemQuoteOneFeeCentsMin = 0;
-export const getWithdrawalOverviewResponseWithdrawalsItemQuoteOneFeeCentsMax = 1500;
+export const getWithdrawalOverviewResponseWithdrawalsItemQuoteOneFeeCentsMax = 50000;
 
 export const getWithdrawalOverviewResponseWithdrawalsItemQuoteOneTaxCentsMin = 0;
-export const getWithdrawalOverviewResponseWithdrawalsItemQuoteOneTaxCentsMax = 1500;
+export const getWithdrawalOverviewResponseWithdrawalsItemQuoteOneTaxCentsMax = 50000;
 
 export const getWithdrawalOverviewResponseWithdrawalsItemQuoteOnePromotionalDiscountCentsMin = 0;
-export const getWithdrawalOverviewResponseWithdrawalsItemQuoteOnePromotionalDiscountCentsMax = 1500;
+export const getWithdrawalOverviewResponseWithdrawalsItemQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const getWithdrawalOverviewResponseWithdrawalsItemQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const getWithdrawalOverviewResponseWithdrawalsItemQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const getWithdrawalOverviewResponseWithdrawalsItemQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const getWithdrawalOverviewResponseWithdrawalsItemQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const getWithdrawalOverviewResponseWithdrawalsItemQuoteOneProviderMinimumSendCentsMin = 0;
-export const getWithdrawalOverviewResponseWithdrawalsItemQuoteOneProviderMinimumSendCentsMax = 1500;
+export const getWithdrawalOverviewResponseWithdrawalsItemQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const getWithdrawalOverviewResponseWithdrawalsItemCheckerOneEvidenceMax = 5000;
 
@@ -1566,7 +1599,7 @@ export const GetWithdrawalOverviewResponse = zod.object({
   "ticksPerUsd": zod.literal(400),
   "allWalletCoinsRedeemable": zod.boolean(),
   "holdDays": zod.literal(0),
-  "maxWithdrawalCents": zod.literal(1500),
+  "maxWithdrawalCents": zod.literal(50000),
   "firstMinimumCents": zod.literal(1500),
   "repeatAllowed": zod.boolean()
 }),
@@ -1584,7 +1617,7 @@ export const GetWithdrawalOverviewResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(getWithdrawalOverviewResponseWithdrawalsItemGrossCentsMin).max(getWithdrawalOverviewResponseWithdrawalsItemGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -1709,13 +1742,16 @@ export const SaveWithdrawalRecipientResponse = zod.object({
  */
 export const requestWithdrawalBodyMethodIdMax = 250;
 
+export const requestWithdrawalBodyWithdrawalCentsMin = 1500;
+export const requestWithdrawalBodyWithdrawalCentsMax = 50000;
+
 export const requestWithdrawalBodyIdempotencyKeyMax = 100;
 
 
 
 export const RequestWithdrawalBody = zod.object({
   "methodId": zod.string().min(1).max(requestWithdrawalBodyMethodIdMax),
-  "withdrawalCents": zod.literal(1500),
+  "withdrawalCents": zod.number().min(requestWithdrawalBodyWithdrawalCentsMin).max(requestWithdrawalBodyWithdrawalCentsMax),
   "idempotencyKey": zod.string().min(1).max(requestWithdrawalBodyIdempotencyKeyMax)
 })
 
@@ -1728,25 +1764,28 @@ export const GetWithdrawalDetailParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const getWithdrawalDetailResponseOneGrossCentsMin = 1500;
+export const getWithdrawalDetailResponseOneGrossCentsMax = 50000;
+
 export const getWithdrawalDetailResponseOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const getWithdrawalDetailResponseOneQuoteOneSendAmountCentsMin = 0;
-export const getWithdrawalDetailResponseOneQuoteOneSendAmountCentsMax = 1500;
+export const getWithdrawalDetailResponseOneQuoteOneSendAmountCentsMax = 50000;
 
 export const getWithdrawalDetailResponseOneQuoteOneFeeCentsMin = 0;
-export const getWithdrawalDetailResponseOneQuoteOneFeeCentsMax = 1500;
+export const getWithdrawalDetailResponseOneQuoteOneFeeCentsMax = 50000;
 
 export const getWithdrawalDetailResponseOneQuoteOneTaxCentsMin = 0;
-export const getWithdrawalDetailResponseOneQuoteOneTaxCentsMax = 1500;
+export const getWithdrawalDetailResponseOneQuoteOneTaxCentsMax = 50000;
 
 export const getWithdrawalDetailResponseOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const getWithdrawalDetailResponseOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const getWithdrawalDetailResponseOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const getWithdrawalDetailResponseOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const getWithdrawalDetailResponseOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const getWithdrawalDetailResponseOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const getWithdrawalDetailResponseOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const getWithdrawalDetailResponseOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const getWithdrawalDetailResponseOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const getWithdrawalDetailResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const getWithdrawalDetailResponseOneCheckerOneEvidenceMax = 5000;
 
@@ -1756,7 +1795,7 @@ export const GetWithdrawalDetailResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(getWithdrawalDetailResponseOneGrossCentsMin).max(getWithdrawalDetailResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -1832,25 +1871,28 @@ export const ApproveWithdrawalQuoteBody = zod.object({
   "quoteHash": zod.string()
 })
 
+export const approveWithdrawalQuoteResponseOneGrossCentsMin = 1500;
+export const approveWithdrawalQuoteResponseOneGrossCentsMax = 50000;
+
 export const approveWithdrawalQuoteResponseOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const approveWithdrawalQuoteResponseOneQuoteOneSendAmountCentsMin = 0;
-export const approveWithdrawalQuoteResponseOneQuoteOneSendAmountCentsMax = 1500;
+export const approveWithdrawalQuoteResponseOneQuoteOneSendAmountCentsMax = 50000;
 
 export const approveWithdrawalQuoteResponseOneQuoteOneFeeCentsMin = 0;
-export const approveWithdrawalQuoteResponseOneQuoteOneFeeCentsMax = 1500;
+export const approveWithdrawalQuoteResponseOneQuoteOneFeeCentsMax = 50000;
 
 export const approveWithdrawalQuoteResponseOneQuoteOneTaxCentsMin = 0;
-export const approveWithdrawalQuoteResponseOneQuoteOneTaxCentsMax = 1500;
+export const approveWithdrawalQuoteResponseOneQuoteOneTaxCentsMax = 50000;
 
 export const approveWithdrawalQuoteResponseOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const approveWithdrawalQuoteResponseOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const approveWithdrawalQuoteResponseOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const approveWithdrawalQuoteResponseOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const approveWithdrawalQuoteResponseOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const approveWithdrawalQuoteResponseOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const approveWithdrawalQuoteResponseOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const approveWithdrawalQuoteResponseOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const approveWithdrawalQuoteResponseOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const approveWithdrawalQuoteResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const approveWithdrawalQuoteResponseOneCheckerOneEvidenceMax = 5000;
 
@@ -1860,7 +1902,7 @@ export const ApproveWithdrawalQuoteResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(approveWithdrawalQuoteResponseOneGrossCentsMin).max(approveWithdrawalQuoteResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -1932,25 +1974,28 @@ export const CancelUnpreparedWithdrawalParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const cancelUnpreparedWithdrawalResponseOneGrossCentsMin = 1500;
+export const cancelUnpreparedWithdrawalResponseOneGrossCentsMax = 50000;
+
 export const cancelUnpreparedWithdrawalResponseOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const cancelUnpreparedWithdrawalResponseOneQuoteOneSendAmountCentsMin = 0;
-export const cancelUnpreparedWithdrawalResponseOneQuoteOneSendAmountCentsMax = 1500;
+export const cancelUnpreparedWithdrawalResponseOneQuoteOneSendAmountCentsMax = 50000;
 
 export const cancelUnpreparedWithdrawalResponseOneQuoteOneFeeCentsMin = 0;
-export const cancelUnpreparedWithdrawalResponseOneQuoteOneFeeCentsMax = 1500;
+export const cancelUnpreparedWithdrawalResponseOneQuoteOneFeeCentsMax = 50000;
 
 export const cancelUnpreparedWithdrawalResponseOneQuoteOneTaxCentsMin = 0;
-export const cancelUnpreparedWithdrawalResponseOneQuoteOneTaxCentsMax = 1500;
+export const cancelUnpreparedWithdrawalResponseOneQuoteOneTaxCentsMax = 50000;
 
 export const cancelUnpreparedWithdrawalResponseOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const cancelUnpreparedWithdrawalResponseOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const cancelUnpreparedWithdrawalResponseOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const cancelUnpreparedWithdrawalResponseOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const cancelUnpreparedWithdrawalResponseOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const cancelUnpreparedWithdrawalResponseOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const cancelUnpreparedWithdrawalResponseOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const cancelUnpreparedWithdrawalResponseOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const cancelUnpreparedWithdrawalResponseOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const cancelUnpreparedWithdrawalResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const cancelUnpreparedWithdrawalResponseOneCheckerOneEvidenceMax = 5000;
 
@@ -1960,7 +2005,7 @@ export const CancelUnpreparedWithdrawalResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(cancelUnpreparedWithdrawalResponseOneGrossCentsMin).max(cancelUnpreparedWithdrawalResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -2037,25 +2082,28 @@ export const DownloadWithdrawalStatementParams = zod.object({
  * Authenticated owner bearer and enabled membership required. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
  * @summary Read account-scoped payout queue, exceptions and latest attempt deadlines
  */
+export const listAdminWithdrawalsResponseWithdrawalsItemOneGrossCentsMin = 1500;
+export const listAdminWithdrawalsResponseWithdrawalsItemOneGrossCentsMax = 50000;
+
 export const listAdminWithdrawalsResponseWithdrawalsItemOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const listAdminWithdrawalsResponseWithdrawalsItemOneQuoteOneSendAmountCentsMin = 0;
-export const listAdminWithdrawalsResponseWithdrawalsItemOneQuoteOneSendAmountCentsMax = 1500;
+export const listAdminWithdrawalsResponseWithdrawalsItemOneQuoteOneSendAmountCentsMax = 50000;
 
 export const listAdminWithdrawalsResponseWithdrawalsItemOneQuoteOneFeeCentsMin = 0;
-export const listAdminWithdrawalsResponseWithdrawalsItemOneQuoteOneFeeCentsMax = 1500;
+export const listAdminWithdrawalsResponseWithdrawalsItemOneQuoteOneFeeCentsMax = 50000;
 
 export const listAdminWithdrawalsResponseWithdrawalsItemOneQuoteOneTaxCentsMin = 0;
-export const listAdminWithdrawalsResponseWithdrawalsItemOneQuoteOneTaxCentsMax = 1500;
+export const listAdminWithdrawalsResponseWithdrawalsItemOneQuoteOneTaxCentsMax = 50000;
 
 export const listAdminWithdrawalsResponseWithdrawalsItemOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const listAdminWithdrawalsResponseWithdrawalsItemOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const listAdminWithdrawalsResponseWithdrawalsItemOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const listAdminWithdrawalsResponseWithdrawalsItemOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const listAdminWithdrawalsResponseWithdrawalsItemOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const listAdminWithdrawalsResponseWithdrawalsItemOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const listAdminWithdrawalsResponseWithdrawalsItemOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const listAdminWithdrawalsResponseWithdrawalsItemOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const listAdminWithdrawalsResponseWithdrawalsItemOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const listAdminWithdrawalsResponseWithdrawalsItemOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const listAdminWithdrawalsResponseWithdrawalsItemOneCheckerOneEvidenceMax = 5000;
 
@@ -2067,7 +2115,7 @@ export const ListAdminWithdrawalsResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(listAdminWithdrawalsResponseWithdrawalsItemOneGrossCentsMin).max(listAdminWithdrawalsResponseWithdrawalsItemOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -2137,7 +2185,7 @@ export const ListAdminWithdrawalsResponse = zod.object({
   "ticksPerUsd": zod.literal(400),
   "allWalletCoinsRedeemable": zod.boolean(),
   "holdDays": zod.literal(0),
-  "maxWithdrawalCents": zod.literal(1500),
+  "maxWithdrawalCents": zod.literal(50000),
   "firstMinimumCents": zod.literal(1500),
   "repeatAllowed": zod.boolean()
 })
@@ -2238,25 +2286,28 @@ export const GetAdminWithdrawalDetailParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const getAdminWithdrawalDetailResponseOneOneGrossCentsMin = 1500;
+export const getAdminWithdrawalDetailResponseOneOneGrossCentsMax = 50000;
+
 export const getAdminWithdrawalDetailResponseOneOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const getAdminWithdrawalDetailResponseOneOneQuoteOneSendAmountCentsMin = 0;
-export const getAdminWithdrawalDetailResponseOneOneQuoteOneSendAmountCentsMax = 1500;
+export const getAdminWithdrawalDetailResponseOneOneQuoteOneSendAmountCentsMax = 50000;
 
 export const getAdminWithdrawalDetailResponseOneOneQuoteOneFeeCentsMin = 0;
-export const getAdminWithdrawalDetailResponseOneOneQuoteOneFeeCentsMax = 1500;
+export const getAdminWithdrawalDetailResponseOneOneQuoteOneFeeCentsMax = 50000;
 
 export const getAdminWithdrawalDetailResponseOneOneQuoteOneTaxCentsMin = 0;
-export const getAdminWithdrawalDetailResponseOneOneQuoteOneTaxCentsMax = 1500;
+export const getAdminWithdrawalDetailResponseOneOneQuoteOneTaxCentsMax = 50000;
 
 export const getAdminWithdrawalDetailResponseOneOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const getAdminWithdrawalDetailResponseOneOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const getAdminWithdrawalDetailResponseOneOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const getAdminWithdrawalDetailResponseOneOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const getAdminWithdrawalDetailResponseOneOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const getAdminWithdrawalDetailResponseOneOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const getAdminWithdrawalDetailResponseOneOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const getAdminWithdrawalDetailResponseOneOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const getAdminWithdrawalDetailResponseOneOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const getAdminWithdrawalDetailResponseOneOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const getAdminWithdrawalDetailResponseOneOneCheckerOneEvidenceMax = 5000;
 
@@ -2275,7 +2326,7 @@ export const GetAdminWithdrawalDetailResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(getAdminWithdrawalDetailResponseOneOneGrossCentsMin).max(getAdminWithdrawalDetailResponseOneOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -2379,20 +2430,20 @@ export const RecordWithdrawalQuoteParams = zod.object({
 })
 
 export const recordWithdrawalQuoteBodySendAmountCentsMin = 0;
-export const recordWithdrawalQuoteBodySendAmountCentsMax = 1500;
+export const recordWithdrawalQuoteBodySendAmountCentsMax = 50000;
 
 export const recordWithdrawalQuoteBodyFeeCentsMin = 0;
-export const recordWithdrawalQuoteBodyFeeCentsMax = 1500;
+export const recordWithdrawalQuoteBodyFeeCentsMax = 50000;
 
 export const recordWithdrawalQuoteBodyTaxCentsMin = 0;
-export const recordWithdrawalQuoteBodyTaxCentsMax = 1500;
+export const recordWithdrawalQuoteBodyTaxCentsMax = 50000;
 
 export const recordWithdrawalQuoteBodyPromotionalDiscountCentsMin = 0;
-export const recordWithdrawalQuoteBodyPromotionalDiscountCentsMax = 1500;
+export const recordWithdrawalQuoteBodyPromotionalDiscountCentsMax = 50000;
 
 export const recordWithdrawalQuoteBodyReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const recordWithdrawalQuoteBodyProviderMinimumSendCentsMin = 0;
-export const recordWithdrawalQuoteBodyProviderMinimumSendCentsMax = 1500;
+export const recordWithdrawalQuoteBodyProviderMinimumSendCentsMax = 50000;
 
 export const recordWithdrawalQuoteBodyEvidenceMax = 5000;
 
@@ -2415,25 +2466,28 @@ export const RecordWithdrawalQuoteBody = zod.object({
   "evidence": zod.string().min(1).max(recordWithdrawalQuoteBodyEvidenceMax)
 })
 
+export const recordWithdrawalQuoteResponseOneGrossCentsMin = 1500;
+export const recordWithdrawalQuoteResponseOneGrossCentsMax = 50000;
+
 export const recordWithdrawalQuoteResponseOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const recordWithdrawalQuoteResponseOneQuoteOneSendAmountCentsMin = 0;
-export const recordWithdrawalQuoteResponseOneQuoteOneSendAmountCentsMax = 1500;
+export const recordWithdrawalQuoteResponseOneQuoteOneSendAmountCentsMax = 50000;
 
 export const recordWithdrawalQuoteResponseOneQuoteOneFeeCentsMin = 0;
-export const recordWithdrawalQuoteResponseOneQuoteOneFeeCentsMax = 1500;
+export const recordWithdrawalQuoteResponseOneQuoteOneFeeCentsMax = 50000;
 
 export const recordWithdrawalQuoteResponseOneQuoteOneTaxCentsMin = 0;
-export const recordWithdrawalQuoteResponseOneQuoteOneTaxCentsMax = 1500;
+export const recordWithdrawalQuoteResponseOneQuoteOneTaxCentsMax = 50000;
 
 export const recordWithdrawalQuoteResponseOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const recordWithdrawalQuoteResponseOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const recordWithdrawalQuoteResponseOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const recordWithdrawalQuoteResponseOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const recordWithdrawalQuoteResponseOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const recordWithdrawalQuoteResponseOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const recordWithdrawalQuoteResponseOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const recordWithdrawalQuoteResponseOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const recordWithdrawalQuoteResponseOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const recordWithdrawalQuoteResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const recordWithdrawalQuoteResponseOneCheckerOneEvidenceMax = 5000;
 
@@ -2443,7 +2497,7 @@ export const RecordWithdrawalQuoteResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(recordWithdrawalQuoteResponseOneGrossCentsMin).max(recordWithdrawalQuoteResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -2524,25 +2578,28 @@ export const BeginWithdrawalPreparationBody = zod.object({
   "evidence": zod.string().min(1).max(beginWithdrawalPreparationBodyEvidenceMax)
 })
 
+export const beginWithdrawalPreparationResponseOneOneGrossCentsMin = 1500;
+export const beginWithdrawalPreparationResponseOneOneGrossCentsMax = 50000;
+
 export const beginWithdrawalPreparationResponseOneOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const beginWithdrawalPreparationResponseOneOneQuoteOneSendAmountCentsMin = 0;
-export const beginWithdrawalPreparationResponseOneOneQuoteOneSendAmountCentsMax = 1500;
+export const beginWithdrawalPreparationResponseOneOneQuoteOneSendAmountCentsMax = 50000;
 
 export const beginWithdrawalPreparationResponseOneOneQuoteOneFeeCentsMin = 0;
-export const beginWithdrawalPreparationResponseOneOneQuoteOneFeeCentsMax = 1500;
+export const beginWithdrawalPreparationResponseOneOneQuoteOneFeeCentsMax = 50000;
 
 export const beginWithdrawalPreparationResponseOneOneQuoteOneTaxCentsMin = 0;
-export const beginWithdrawalPreparationResponseOneOneQuoteOneTaxCentsMax = 1500;
+export const beginWithdrawalPreparationResponseOneOneQuoteOneTaxCentsMax = 50000;
 
 export const beginWithdrawalPreparationResponseOneOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const beginWithdrawalPreparationResponseOneOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const beginWithdrawalPreparationResponseOneOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const beginWithdrawalPreparationResponseOneOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const beginWithdrawalPreparationResponseOneOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const beginWithdrawalPreparationResponseOneOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const beginWithdrawalPreparationResponseOneOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const beginWithdrawalPreparationResponseOneOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const beginWithdrawalPreparationResponseOneOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const beginWithdrawalPreparationResponseOneOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const beginWithdrawalPreparationResponseOneOneCheckerOneEvidenceMax = 5000;
 
@@ -2552,7 +2609,7 @@ export const BeginWithdrawalPreparationResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(beginWithdrawalPreparationResponseOneOneGrossCentsMin).max(beginWithdrawalPreparationResponseOneOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -2646,25 +2703,28 @@ export const RecordWithdrawalPreparationBody = zod.object({
   "kind": zod.enum(['first_time_link', 'scheduled'])
 })
 
+export const recordWithdrawalPreparationResponseOneGrossCentsMin = 1500;
+export const recordWithdrawalPreparationResponseOneGrossCentsMax = 50000;
+
 export const recordWithdrawalPreparationResponseOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const recordWithdrawalPreparationResponseOneQuoteOneSendAmountCentsMin = 0;
-export const recordWithdrawalPreparationResponseOneQuoteOneSendAmountCentsMax = 1500;
+export const recordWithdrawalPreparationResponseOneQuoteOneSendAmountCentsMax = 50000;
 
 export const recordWithdrawalPreparationResponseOneQuoteOneFeeCentsMin = 0;
-export const recordWithdrawalPreparationResponseOneQuoteOneFeeCentsMax = 1500;
+export const recordWithdrawalPreparationResponseOneQuoteOneFeeCentsMax = 50000;
 
 export const recordWithdrawalPreparationResponseOneQuoteOneTaxCentsMin = 0;
-export const recordWithdrawalPreparationResponseOneQuoteOneTaxCentsMax = 1500;
+export const recordWithdrawalPreparationResponseOneQuoteOneTaxCentsMax = 50000;
 
 export const recordWithdrawalPreparationResponseOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const recordWithdrawalPreparationResponseOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const recordWithdrawalPreparationResponseOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const recordWithdrawalPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const recordWithdrawalPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const recordWithdrawalPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const recordWithdrawalPreparationResponseOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const recordWithdrawalPreparationResponseOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const recordWithdrawalPreparationResponseOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const recordWithdrawalPreparationResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const recordWithdrawalPreparationResponseOneCheckerOneEvidenceMax = 5000;
 
@@ -2674,7 +2734,7 @@ export const RecordWithdrawalPreparationResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(recordWithdrawalPreparationResponseOneGrossCentsMin).max(recordWithdrawalPreparationResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -2763,25 +2823,28 @@ export const CheckWithdrawalPreparationBody = zod.object({
   "evidence": zod.string().min(1).max(checkWithdrawalPreparationBodyEvidenceMax)
 })
 
+export const checkWithdrawalPreparationResponseOneGrossCentsMin = 1500;
+export const checkWithdrawalPreparationResponseOneGrossCentsMax = 50000;
+
 export const checkWithdrawalPreparationResponseOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const checkWithdrawalPreparationResponseOneQuoteOneSendAmountCentsMin = 0;
-export const checkWithdrawalPreparationResponseOneQuoteOneSendAmountCentsMax = 1500;
+export const checkWithdrawalPreparationResponseOneQuoteOneSendAmountCentsMax = 50000;
 
 export const checkWithdrawalPreparationResponseOneQuoteOneFeeCentsMin = 0;
-export const checkWithdrawalPreparationResponseOneQuoteOneFeeCentsMax = 1500;
+export const checkWithdrawalPreparationResponseOneQuoteOneFeeCentsMax = 50000;
 
 export const checkWithdrawalPreparationResponseOneQuoteOneTaxCentsMin = 0;
-export const checkWithdrawalPreparationResponseOneQuoteOneTaxCentsMax = 1500;
+export const checkWithdrawalPreparationResponseOneQuoteOneTaxCentsMax = 50000;
 
 export const checkWithdrawalPreparationResponseOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const checkWithdrawalPreparationResponseOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const checkWithdrawalPreparationResponseOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const checkWithdrawalPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const checkWithdrawalPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const checkWithdrawalPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const checkWithdrawalPreparationResponseOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const checkWithdrawalPreparationResponseOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const checkWithdrawalPreparationResponseOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const checkWithdrawalPreparationResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const checkWithdrawalPreparationResponseOneCheckerOneEvidenceMax = 5000;
 
@@ -2791,7 +2854,7 @@ export const CheckWithdrawalPreparationResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(checkWithdrawalPreparationResponseOneGrossCentsMin).max(checkWithdrawalPreparationResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -2876,25 +2939,28 @@ export const RecordHumanWithdrawalReleaseBody = zod.object({
   "releasedAt": zod.coerce.date()
 })
 
+export const recordHumanWithdrawalReleaseResponseOneGrossCentsMin = 1500;
+export const recordHumanWithdrawalReleaseResponseOneGrossCentsMax = 50000;
+
 export const recordHumanWithdrawalReleaseResponseOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const recordHumanWithdrawalReleaseResponseOneQuoteOneSendAmountCentsMin = 0;
-export const recordHumanWithdrawalReleaseResponseOneQuoteOneSendAmountCentsMax = 1500;
+export const recordHumanWithdrawalReleaseResponseOneQuoteOneSendAmountCentsMax = 50000;
 
 export const recordHumanWithdrawalReleaseResponseOneQuoteOneFeeCentsMin = 0;
-export const recordHumanWithdrawalReleaseResponseOneQuoteOneFeeCentsMax = 1500;
+export const recordHumanWithdrawalReleaseResponseOneQuoteOneFeeCentsMax = 50000;
 
 export const recordHumanWithdrawalReleaseResponseOneQuoteOneTaxCentsMin = 0;
-export const recordHumanWithdrawalReleaseResponseOneQuoteOneTaxCentsMax = 1500;
+export const recordHumanWithdrawalReleaseResponseOneQuoteOneTaxCentsMax = 50000;
 
 export const recordHumanWithdrawalReleaseResponseOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const recordHumanWithdrawalReleaseResponseOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const recordHumanWithdrawalReleaseResponseOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const recordHumanWithdrawalReleaseResponseOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const recordHumanWithdrawalReleaseResponseOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const recordHumanWithdrawalReleaseResponseOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const recordHumanWithdrawalReleaseResponseOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const recordHumanWithdrawalReleaseResponseOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const recordHumanWithdrawalReleaseResponseOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const recordHumanWithdrawalReleaseResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const recordHumanWithdrawalReleaseResponseOneCheckerOneEvidenceMax = 5000;
 
@@ -2904,7 +2970,7 @@ export const RecordHumanWithdrawalReleaseResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(recordHumanWithdrawalReleaseResponseOneGrossCentsMin).max(recordHumanWithdrawalReleaseResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -2984,25 +3050,28 @@ export const DeclineWithdrawalBody = zod.object({
   "reason": zod.string().min(1).max(declineWithdrawalBodyReasonMax)
 })
 
+export const declineWithdrawalResponseOneGrossCentsMin = 1500;
+export const declineWithdrawalResponseOneGrossCentsMax = 50000;
+
 export const declineWithdrawalResponseOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const declineWithdrawalResponseOneQuoteOneSendAmountCentsMin = 0;
-export const declineWithdrawalResponseOneQuoteOneSendAmountCentsMax = 1500;
+export const declineWithdrawalResponseOneQuoteOneSendAmountCentsMax = 50000;
 
 export const declineWithdrawalResponseOneQuoteOneFeeCentsMin = 0;
-export const declineWithdrawalResponseOneQuoteOneFeeCentsMax = 1500;
+export const declineWithdrawalResponseOneQuoteOneFeeCentsMax = 50000;
 
 export const declineWithdrawalResponseOneQuoteOneTaxCentsMin = 0;
-export const declineWithdrawalResponseOneQuoteOneTaxCentsMax = 1500;
+export const declineWithdrawalResponseOneQuoteOneTaxCentsMax = 50000;
 
 export const declineWithdrawalResponseOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const declineWithdrawalResponseOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const declineWithdrawalResponseOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const declineWithdrawalResponseOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const declineWithdrawalResponseOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const declineWithdrawalResponseOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const declineWithdrawalResponseOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const declineWithdrawalResponseOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const declineWithdrawalResponseOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const declineWithdrawalResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const declineWithdrawalResponseOneCheckerOneEvidenceMax = 5000;
 
@@ -3012,7 +3081,7 @@ export const DeclineWithdrawalResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(declineWithdrawalResponseOneGrossCentsMin).max(declineWithdrawalResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -3093,25 +3162,28 @@ export const MarkWithdrawalInvestigationBody = zod.object({
   "status": zod.enum(['unknown', 'expired']).optional()
 })
 
+export const markWithdrawalInvestigationResponseOneGrossCentsMin = 1500;
+export const markWithdrawalInvestigationResponseOneGrossCentsMax = 50000;
+
 export const markWithdrawalInvestigationResponseOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const markWithdrawalInvestigationResponseOneQuoteOneSendAmountCentsMin = 0;
-export const markWithdrawalInvestigationResponseOneQuoteOneSendAmountCentsMax = 1500;
+export const markWithdrawalInvestigationResponseOneQuoteOneSendAmountCentsMax = 50000;
 
 export const markWithdrawalInvestigationResponseOneQuoteOneFeeCentsMin = 0;
-export const markWithdrawalInvestigationResponseOneQuoteOneFeeCentsMax = 1500;
+export const markWithdrawalInvestigationResponseOneQuoteOneFeeCentsMax = 50000;
 
 export const markWithdrawalInvestigationResponseOneQuoteOneTaxCentsMin = 0;
-export const markWithdrawalInvestigationResponseOneQuoteOneTaxCentsMax = 1500;
+export const markWithdrawalInvestigationResponseOneQuoteOneTaxCentsMax = 50000;
 
 export const markWithdrawalInvestigationResponseOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const markWithdrawalInvestigationResponseOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const markWithdrawalInvestigationResponseOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const markWithdrawalInvestigationResponseOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const markWithdrawalInvestigationResponseOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const markWithdrawalInvestigationResponseOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const markWithdrawalInvestigationResponseOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const markWithdrawalInvestigationResponseOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const markWithdrawalInvestigationResponseOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const markWithdrawalInvestigationResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const markWithdrawalInvestigationResponseOneCheckerOneEvidenceMax = 5000;
 
@@ -3121,7 +3193,7 @@ export const MarkWithdrawalInvestigationResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(markWithdrawalInvestigationResponseOneGrossCentsMin).max(markWithdrawalInvestigationResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -3194,13 +3266,13 @@ export const ReconcileWithdrawalParams = zod.object({
 })
 
 export const reconcileWithdrawalBodySendAmountCentsMin = 0;
-export const reconcileWithdrawalBodySendAmountCentsMax = 1500;
+export const reconcileWithdrawalBodySendAmountCentsMax = 50000;
 
 export const reconcileWithdrawalBodyFeeCentsMin = 0;
-export const reconcileWithdrawalBodyFeeCentsMax = 1500;
+export const reconcileWithdrawalBodyFeeCentsMax = 50000;
 
 export const reconcileWithdrawalBodyTaxCentsMin = 0;
-export const reconcileWithdrawalBodyTaxCentsMax = 1500;
+export const reconcileWithdrawalBodyTaxCentsMax = 50000;
 
 export const reconcileWithdrawalBodyEvidenceMax = 5000;
 
@@ -3227,25 +3299,28 @@ export const ReconcileWithdrawalBody = zod.object({
   "evidence": zod.string().min(1).max(reconcileWithdrawalBodyEvidenceMax)
 })
 
+export const reconcileWithdrawalResponseOneGrossCentsMin = 1500;
+export const reconcileWithdrawalResponseOneGrossCentsMax = 50000;
+
 export const reconcileWithdrawalResponseOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
 export const reconcileWithdrawalResponseOneQuoteOneSendAmountCentsMin = 0;
-export const reconcileWithdrawalResponseOneQuoteOneSendAmountCentsMax = 1500;
+export const reconcileWithdrawalResponseOneQuoteOneSendAmountCentsMax = 50000;
 
 export const reconcileWithdrawalResponseOneQuoteOneFeeCentsMin = 0;
-export const reconcileWithdrawalResponseOneQuoteOneFeeCentsMax = 1500;
+export const reconcileWithdrawalResponseOneQuoteOneFeeCentsMax = 50000;
 
 export const reconcileWithdrawalResponseOneQuoteOneTaxCentsMin = 0;
-export const reconcileWithdrawalResponseOneQuoteOneTaxCentsMax = 1500;
+export const reconcileWithdrawalResponseOneQuoteOneTaxCentsMax = 50000;
 
 export const reconcileWithdrawalResponseOneQuoteOnePromotionalDiscountCentsMin = 0;
-export const reconcileWithdrawalResponseOneQuoteOnePromotionalDiscountCentsMax = 1500;
+export const reconcileWithdrawalResponseOneQuoteOnePromotionalDiscountCentsMax = 50000;
 
 export const reconcileWithdrawalResponseOneQuoteOneTotalEarningsDeductedCentsMin = 0;
-export const reconcileWithdrawalResponseOneQuoteOneTotalEarningsDeductedCentsMax = 1500;
+export const reconcileWithdrawalResponseOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
 
 export const reconcileWithdrawalResponseOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
 export const reconcileWithdrawalResponseOneQuoteOneProviderMinimumSendCentsMin = 0;
-export const reconcileWithdrawalResponseOneQuoteOneProviderMinimumSendCentsMax = 1500;
+export const reconcileWithdrawalResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const reconcileWithdrawalResponseOneCheckerOneEvidenceMax = 5000;
 
@@ -3255,7 +3330,7 @@ export const ReconcileWithdrawalResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
   "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
-  "grossCents": zod.literal(1500),
+  "grossCents": zod.number().min(reconcileWithdrawalResponseOneGrossCentsMin).max(reconcileWithdrawalResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
   "legalFirstName": zod.string(),
@@ -3395,7 +3470,7 @@ export const GetPayoutCatalogResponse = zod.object({
 })),
   "accountKey": zod.string().optional()
 })),
-  "maxWithdrawalCents": zod.literal(1500),
+  "maxWithdrawalCents": zod.literal(50000),
   "liveRequoteRequired": zod.boolean(),
   "asOf": zod.coerce.date(),
   "environment": zod.enum(['development', 'production'])
@@ -3405,7 +3480,7 @@ export const GetPayoutCatalogResponse = zod.object({
 /**
  * @summary Estimate an exact observed amount within USD 15 gross; missing matching quotes return a null breakdown
  */
-export const estimatePayoutMethodBodyWithdrawalCentsMax = 1500;
+export const estimatePayoutMethodBodyWithdrawalCentsMax = 50000;
 
 export const estimatePayoutMethodBodyFundingMethodDefault = `debit_card`;
 
@@ -3521,7 +3596,7 @@ export const GetAdminPayoutCatalogResponse = zod.object({
 })),
   "accountKey": zod.string().optional()
 })),
-  "maxWithdrawalCents": zod.literal(1500),
+  "maxWithdrawalCents": zod.literal(50000),
   "liveRequoteRequired": zod.boolean(),
   "asOf": zod.coerce.date(),
   "environment": zod.enum(['development', 'production'])

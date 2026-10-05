@@ -10,5 +10,5 @@ export type WithdrawalPolicyMaxWithdrawalCents = typeof WithdrawalPolicyMaxWithd
 
 
 export const WithdrawalPolicyMaxWithdrawalCents = {
-  NUMBER_1500: 1500,
+  NUMBER_50000: 50000,
 } as const;

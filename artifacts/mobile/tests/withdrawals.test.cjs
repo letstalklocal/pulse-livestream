@@ -57,6 +57,22 @@ const pending = {
   idempotencyKey: "stable-key",
 };
 assert.ok(utils.sameWithdrawal(pending, "alice", "co-wallet", 1500));
+for (const amount of [2500, 50000])
+  assert.equal(
+    utils.parsePendingWithdrawal(
+      JSON.stringify({ ...pending, withdrawalCents: amount }),
+      "alice",
+    ).withdrawalCents,
+    amount,
+  );
+for (const amount of [2499, 50001, 2500.5])
+  assert.equal(
+    utils.parsePendingWithdrawal(
+      JSON.stringify({ ...pending, withdrawalCents: amount }),
+      "alice",
+    ),
+    null,
+  );
 assert.ok(!utils.sameWithdrawal(pending, "bob", "co-wallet", 1500));
 assert.ok(!utils.sameWithdrawal(pending, "alice", "co-bank", 1500));
 assert.equal(utils.parsePendingWithdrawal("{broken", "alice"), null);
@@ -373,6 +389,7 @@ async function verifyQuoteScreen() {
             ),
             StyleSheet: { create: (x) => x },
             Platform: { OS: "ios" },
+            useWindowDimensions: () => ({ width: 390, height: 844 }),
             Alert: { alert: (...args) => cancelAlerts.push(args) },
             Linking: { openURL: async (link) => links.push(link) },
           };
@@ -398,6 +415,8 @@ async function verifyQuoteScreen() {
         if (id === "@/hooks/useWithdrawals")
           return { useWithdrawals: () => api };
         if (id === "@/utils/withdrawals") return utils;
+        if (id === "libphonenumber-js/min")
+          return require("libphonenumber-js/min");
         throw Error(id);
       },
     },
@@ -597,9 +616,9 @@ async function verifyWalletRequestScreen() {
     enrolled: true,
     policy: {
       fundingPolicyReady: true,
-      maxWithdrawalCents: 1500,
+      maxWithdrawalCents: 50000,
       firstMinimumCents: 1500,
-      repeatAllowed: false,
+      repeatAllowed: true,
     },
     balances: {
       availableCoins: "10000",
@@ -630,6 +649,12 @@ async function verifyWalletRequestScreen() {
                 availability: "available",
                 methods: [
                   method,
+                  {
+                    ...method,
+                    id: "co-bank",
+                    name: "Bank deposit",
+                    observations: [{ ...sample, feeCents: 0 }],
+                  },
                   {
                     ...method,
                     id: "disabled-method",
@@ -708,6 +733,7 @@ async function verifyWalletRequestScreen() {
             StyleSheet: { create: (x) => x },
             Keyboard: { dismiss: () => keyboardDismisses++ },
             Platform: { OS: "ios" },
+            useWindowDimensions: () => ({ width: 390, height: 844 }),
           };
         if (id === "expo-router")
           return {
@@ -739,6 +765,8 @@ async function verifyWalletRequestScreen() {
         if (id === "@/hooks/useWithdrawals")
           return { useWithdrawals: () => api };
         if (id === "@/utils/withdrawals") return utils;
+        if (id === "libphonenumber-js/min")
+          return require("libphonenumber-js/min");
         throw Error(id);
       },
     },
@@ -842,6 +870,10 @@ async function verifyWalletRequestScreen() {
   );
   assert.equal(input("Coins").props.value, "6000");
   assert.equal(input("Dollars (USD)").props.value, "15.00");
+  assert.ok(v.texts.includes("Available to withdraw"));
+  assert.ok(v.texts.includes("$25.00"));
+  assert.ok(v.texts.includes("10,000"));
+  assert.ok(v.texts.includes("Conversion: 400 coins = $1"));
   assert.equal(input("Coins").props.editable, false);
   assert.equal(input("Dollars (USD)").props.editable, false);
   input("Coins").props.onChangeText("2000");
@@ -900,6 +932,9 @@ async function verifyWalletRequestScreen() {
   input("Dollars (USD)").props.onChangeText("15.00");
   v = render();
   assert.equal(input("Coins").props.value, "6000");
+  assert.equal(v.button("Next").props.disabled, true, "later minimum is USD25");
+  overview.withdrawals = [];
+  v = render();
   assert.equal(v.button("Next").props.disabled, false);
   assert.ok(
     v.texts.includes(
@@ -918,7 +953,24 @@ async function verifyWalletRequestScreen() {
   v = render();
   assert.equal(states[8], 1);
   assert.ok(
-    v.texts.some((value) => value.includes("After completing your request")),
+    !v.texts.includes("Available to withdraw"),
+    "provider selection does not repeat available balance",
+  );
+  assert.ok(v.texts.includes("Select Provider and Country"));
+  assert.ok(v.texts.indexOf("Provider:") < v.texts.indexOf("Remitly"));
+  assert.ok(
+    !v.nodes.some((n) => n.props.accessibilityRole === "radio"),
+    "single provider requires no selection",
+  );
+  assert.ok(
+    !v.nodes.some(
+      (n) => n.type === "Ionicons" && /^radio-button/.test(n.props.name),
+    ),
+    "provider choices highlight without radio artwork",
+  );
+  assert.ok(
+    !v.texts.some((value) => value.includes("After completing your request")),
+    "Remitly instructions are absent on provider selection",
   );
   states[0] = "";
   v = render();
@@ -927,6 +979,32 @@ async function verifyWalletRequestScreen() {
     "provider must be selected for Remitly message",
   );
   const catalogProvider = api.catalog.data.providers[0];
+  assert.ok(
+    v.nodes.some((n) => n.props.accessibilityLabel === "Select country"),
+    "country menu is available without choosing the sole provider",
+  );
+  api.catalog.data.providers.push({
+    ...catalogProvider,
+    id: "provider_other",
+    name: "Other provider",
+  });
+  v = render();
+  assert.ok(
+    v.nodes.some((n) => n.props.accessibilityRole === "radio"),
+    "multiple available providers retain explicit selection",
+  );
+  assert.ok(
+    !v.nodes.some((n) => n.props.accessibilityLabel === "Select country"),
+    "multiple providers require selection before country",
+  );
+  v.nodes.find((n) => n.props.accessibilityRole === "radio").props.onPress();
+  v = render();
+  assert.equal(states[0], "remitly");
+  api.catalog.data.providers.pop();
+  states[1] = "co";
+  states[2] = "co-mobile";
+  v = render();
+
   catalogProvider.id = "payoneer";
   states[0] = "payoneer";
   v = render();
@@ -954,6 +1032,15 @@ async function verifyWalletRequestScreen() {
       n.type === "TouchableOpacity" &&
       n.props.accessibilityLabel === "Select country",
   );
+  const extraCountries = Array.from({ length: 20 }, (_, i) => ({
+    id: `country-${i}`,
+    countryCode: "NL",
+    name: `Country ${i + 1}`,
+    enabled: true,
+    availability: "available",
+    methods: [method],
+  }));
+  catalogProvider.countries.push(...extraCountries);
   const beforeDismiss = keyboardDismisses;
   countryButton.props.onPress();
   v = render();
@@ -967,6 +1054,22 @@ async function verifyWalletRequestScreen() {
           child?.type === "Text" && child.props.children.includes("Colombia"),
       ),
   );
+  assert.ok(v.texts.includes("Scroll to see all countries"));
+  const finalCountry = v.nodes.find(
+    (n) =>
+      n.props.accessibilityRole === "radio" &&
+      n.props.children.some(
+        (child) =>
+          child?.type === "Text" && child.props.children.includes("Country 20"),
+      ),
+  );
+  assert.ok(finalCountry, "last available country remains in a long list");
+  finalCountry.props.onPress();
+  v = render();
+  assert.equal(states[1], "country-19");
+  assert.ok(!v.nodes.some((n) => n.type === "Modal"));
+  countryButton.props.onPress();
+  v = render();
   assert.ok(countryOption);
   countryOption.props.onPress();
   v = render();
@@ -991,8 +1094,29 @@ async function verifyWalletRequestScreen() {
   v.button("Next").props.onPress();
   v = render();
   assert.equal(states[8], 2);
-  assert.ok(v.texts.includes("Fee: $0.99"));
-  assert.ok(v.texts.includes("Delivery: 5 mins"));
+  assert.ok(
+    !v.texts.includes("Available to withdraw"),
+    "payment-method selection does not repeat available balance",
+  );
+  assert.ok(
+    !v.texts.some((value) => value.includes("After completing your request")),
+    "Remitly instructions are absent on payment-method selection",
+  );
+  assert.equal(v.texts.filter((value) => value === "Method").length, 1);
+  assert.equal(v.texts.filter((value) => value === "Fee").length, 1);
+  assert.equal(v.texts.filter((value) => value === "Delivery").length, 1);
+  assert.ok(
+    !v.nodes.some(
+      (n) => n.type === "Ionicons" && /^radio-button/.test(n.props.name),
+    ),
+    "payout row space is reserved for delivery data",
+  );
+  assert.ok(v.texts.includes("$0.99"));
+  assert.equal(
+    v.texts.filter((value) => value === "5 mins").length,
+    2,
+    "known delivery time remains visible even when a normal fee is unconfirmed",
+  );
   assert.ok(!v.texts.some((value) => value.includes("Observed fee")));
   assert.equal(
     v.button("Next").props.disabled,
@@ -1004,7 +1128,29 @@ async function verifyWalletRequestScreen() {
   v.button("Next").props.onPress();
   v = render();
   assert.equal(states[8], 3);
-  assert.ok(v.texts.includes("Remaining coins: 4,000"));
+  assert.ok(!v.button("Request withdrawal"));
+  assert.equal(input("Country code").props.value, "+57");
+  assert.equal(
+    input("Phone number").props.value,
+    "",
+    "new country clears old phone",
+  );
+  input("Phone number").props.onChangeText("3001234567");
+  v = render();
+  assert.ok(
+    v.texts.some((value) => value.includes("After completing your request")),
+    "Remitly instructions appear on the details form",
+  );
+  catalogProvider.id = "payoneer";
+  states[0] = "payoneer";
+  v = render();
+  assert.ok(
+    !v.texts.some((value) => value.includes("After completing your request")),
+    "other providers do not inherit Remitly form instructions",
+  );
+  catalogProvider.id = "remitly";
+  states[0] = "remitly";
+  v = render();
   v.nodes.find((n) => n.props.accessibilityLabel === "Back").props.onPress();
   v = render();
   assert.equal(states[8], 2);
@@ -1016,16 +1162,54 @@ async function verifyWalletRequestScreen() {
       "After completing your request, you will receive a link to confirm your preferred payment method.",
     ),
   );
-  assert.ok(v.texts.includes("$25.00"));
-  assert.ok(v.texts.includes("10,000"));
-  assert.ok(v.texts.includes("Conversion: 400 coins = $1"));
+  assert.ok(
+    !v.texts.includes("Available to withdraw"),
+    "details form does not repeat available balance",
+  );
+  assert.ok(!v.texts.some((value) => value.startsWith("Conversion:")));
   assert.ok(
     !v.texts.some((value) =>
       value.includes("Withdrawals use your wallet coins"),
     ),
   );
 
-  assert.ok(v.texts.includes("Amount sent: awaiting a current quote"));
+  input("Phone number").props.onChangeText("");
+  v = render();
+  assert.equal(
+    v.button("Next").props.disabled,
+    false,
+    "validation must explain missing contact",
+  );
+  v.button("Next").props.onPress();
+  v = render();
+  assert.equal(states[8], 3);
+  assert.ok(
+    v.texts.includes(
+      "Enter your legal name, email and phone number with country code.",
+    ),
+  );
+  input("Phone number").props.onChangeText("300 123-4567");
+  v = render();
+  v.button("Next").props.onPress();
+  v = render();
+  assert.equal(states[8], 4);
+  for (const value of [
+    "Contact",
+    "Withdrawal details",
+    "Maria Gomez",
+    "maria@example.test",
+    "+573001234567",
+    "$15.00",
+    "-$0.99",
+    "$14.01",
+    "4,000",
+    "Mobile wallet",
+  ])
+    assert.ok(v.texts.includes(value), value);
+  assert.ok(
+    v.texts.indexOf("Remaining coins") > v.texts.indexOf("Selected method"),
+  );
+  assert.equal(requests.length, 0, "review does not send payment");
   assert.ok(v.nodes.some((n) => n.type === "GoldCoinIcon"));
   assert.ok(!v.texts.includes("Disabled method"));
   assert.ok(!v.texts.includes("Unavailable country"));
@@ -1040,6 +1224,7 @@ async function verifyWalletRequestScreen() {
   overview.balances.reservedTicks = "400";
   overview.balances.heldCoins = "2000";
   overview.balances.heldTicks = "2000";
+  states[8] = 0;
   v = render();
   assert.ok(v.texts.includes("Reserved: 400 = $1.00"));
   assert.ok(v.texts.includes("On hold: 2,000 = $5.00"));
@@ -1048,13 +1233,14 @@ async function verifyWalletRequestScreen() {
     overview.balances.heldCoins =
     overview.balances.heldTicks =
       "0";
+  states[8] = 4;
   overview.withdrawals = [{ id: "delivered", status: "delivered" }];
   states[3] = "25.00";
   v = render();
   assert.equal(
     v.button("Request withdrawal").props.disabled,
-    true,
-    "USD25 wallet cannot exceed USD15 withdrawal cap",
+    false,
+    "returning USD25 withdrawal is allowed",
   );
   states[3] = "15.00";
   overview.withdrawals = [];
@@ -1072,7 +1258,7 @@ async function verifyWalletRequestScreen() {
       ),
     "enrollment notice sits below Next",
   );
-  states[8] = 3;
+  states[8] = 4;
   v = render();
   assert.equal(
     v.button("Request withdrawal").props.disabled,
@@ -1139,8 +1325,42 @@ async function verifyWalletRequestScreen() {
   assert.ok(!("revision" in saved[2]));
   assert.ok(!("status" in saved[2]));
   assert.equal(requests.length, 3);
+  overview.withdrawals = [
+    {
+      id: "completed",
+      status: "delivered",
+      providerOnboardingStatus: "ready",
+      methodId: "co-mobile",
+      recipient: overview.recipient,
+    },
+  ];
+  states[8] = 0;
+  states[3] = "25.00";
+  v = render();
+  v.button("Next").props.onPress();
+  v = render();
+  assert.equal(states[8], 4, "completed saved method bypasses setup");
+  assert.ok(v.texts.includes("Your saved payment method will be used."));
+  assert.ok(
+    !v.texts.includes(
+      "You will receive an email from Remitly to confirm your payment method.",
+    ),
+  );
+  assert.ok(!v.nodes.some((n) => n.type === "TextInput"));
+  v.button("Request withdrawal").props.onPress();
+  await new Promise((r) => setImmediate(r));
+  assert.equal(saved.length, 3, "saved method does not save contact again");
+  assert.equal(requests.at(-1).cents, 2500);
+  v = render();
+  v.nodes.find((n) => n.props.accessibilityLabel === "Back").props.onPress();
+  assert.equal(states[8], 0);
+  method.availability = "unavailable";
+  v = render();
+  v.button("Next").props.onPress();
+  assert.equal(states[8], 1, "unavailable saved method returns to setup");
+  method.availability = "available";
   console.log(
-    "wallet USD25 valuation, USD15 cap, unavailable route filtering and full contact/request handlers passed",
+    "wallet valuation, first/repeat limits, contact validation, review and saved-method shortcut passed",
   );
 }
 verifyWalletRequestScreen().catch((error) => {

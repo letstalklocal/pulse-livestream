@@ -82,7 +82,7 @@ try {
   assert.equal(normalizedDecimal.observations.filter(observation => observation.methodId).every(observation => observation.payload.sendAmountCents === 1449), true, 'exact decimal USD observations do not lose cents through binary floating point');
   const catalog = await api.readCatalog(pool, account, true);
   api.GetAdminPayoutCatalogResponse.parse(catalog);
-  assert.equal(catalog.maxWithdrawalCents, 1500);
+  assert.equal(catalog.maxWithdrawalCents, 50000);
   assert.equal(catalog.liveRequoteRequired, true);
   const countries = catalog.providers.flatMap(provider => provider.countries);
   assert.equal(countries.length, 13);
@@ -94,7 +94,7 @@ try {
   await assert.rejects(() => pool.query('UPDATE payout_catalog_observations SET method_id=$1 WHERE id=$2', [zeroFee.id, method.observations[0].id]), /foreign key/);
   assert.equal((await pool.query('SELECT method_id FROM payout_catalog_observations WHERE id=$1', [method.observations[0].id])).rows[0].method_id, method.id, 'schema prevents a quote for another country being attached to this method');
   const estimate = input => api.estimateCatalog(catalog, input);
-  await assert.rejects(async () => estimate({ methodId: method.id, withdrawalCents: 1501, fundingMethod: 'debit_card' }));
+  await assert.rejects(async () => estimate({ methodId: method.id, withdrawalCents: 50001, fundingMethod: 'debit_card' }));
   await assert.rejects(async () => estimate({ methodId: method.id, withdrawalCents: 0, fundingMethod: 'debit_card' }));
   const gross15 = estimate({ methodId: method.id, withdrawalCents: 1500, fundingMethod: 'debit_card' });
   assert.equal(gross15.quoteRequired, true, 'observed $15 SEND plus $0.99 fee cannot quote $15 gross');
@@ -112,7 +112,7 @@ try {
   assert.equal(free.breakdown.totalEarningsDeductedCents, free.breakdown.sendAmountCents + free.breakdown.feeCents, 'promotion never reduces earnings debit');
   const pix = countries.find(country => country.countryCode === 'BR').methods.find(item => item.name === 'Pix');
   assert.equal(estimate({ methodId: pix.id, withdrawalCents: 1500, fundingMethod: 'debit_card' }).breakdown, null, 'Brazil unresolved taxes block even zero-fee estimate');
-  console.log('PASS $15 gross cap, exact-send quote matching, funding isolation, tax/discount separation');
+  console.log('PASS $500 gross cap, exact-send quote matching, funding isolation, tax/discount separation');
 
   assert.deepEqual((await api.readCatalog(pool, 'another-account')).providers, []);
   await assert.rejects(() => api.updateCatalog(pool, 'another-account', 'methods', method.id, { revision: method.revision, enabled: false }, staff));
@@ -222,7 +222,7 @@ try {
   const staleEdit = await call(`/admin-data/payout-catalog/methods/${method.id}`, { user: staff, method: 'PATCH', body: { revision: method.revision, enabled: true } });
   assert.equal(staleEdit.status, 409);
   assert.equal((await call('/payout-catalog/estimate', { user: null, method: 'POST', body: { methodId: zeroFee.id, withdrawalCents: 1500, fundingMethod: 'debit_card' } })).status, 401);
-  assert.equal((await call('/payout-catalog/estimate', { method: 'POST', body: { methodId: zeroFee.id, withdrawalCents: 1501, fundingMethod: 'debit_card' } })).status, 400);
+  assert.equal((await call('/payout-catalog/estimate', { method: 'POST', body: { methodId: zeroFee.id, withdrawalCents: 50001, fundingMethod: 'debit_card' } })).status, 400);
   process.env.NODE_ENV = 'production';
   assert.equal((await call('/admin-data/payout-catalog', { user: staff })).status, 200);
   assert.equal((await call('/admin-data/payout-catalog', { user: ordinary })).status, 403);

@@ -286,6 +286,9 @@ importers:
       expo-video:
         specifier: ~57.0.4
         version: 57.0.4(expo@57.0.20)(react-native@0.86.3(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.3))(react@19.2.3)
+      libphonenumber-js:
+        specifier: ^1.13.14
+        version: 1.13.14
       react-native-agora:
         specifier: ^4.5.4
         version: 4.5.4(react-native@0.86.3(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.3))(react@19.2.3)
@@ -4638,6 +4641,9 @@ packages:
   leven@4.1.0:
     resolution: {integrity: sha512-KZ9W9nWDT7rF7Dazg8xyLHGLrmpgq2nVNFUckhqdW3szVP6YhCpp/RAnpmVExA9JvrMynjwSLVrEj3AepHR6ew==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
+
+  libphonenumber-js@1.13.14:
+    resolution: {integrity: sha512-llihgCcx0BFLksecLP+x1J+6JDE1GsXS1RN/LoPF6qcwpeQcnjj0lcvZxY8AzbEpYwyZWPZW/nDuqkqzm3amiw==}
 
   lighthouse-logger@1.4.2:
     resolution: {integrity: sha512-gPWxznF6TKmUHrOQjlVo2UbaL2EJ71mb2CCeRs/2qBpi4L/g4LUVc9+3lKQ6DTUZwJswfM7ainGrLO1+fOqa2g==}
@@ -11194,6 +11200,8 @@ snapshots:
   leven@3.1.0: {}
 
   leven@4.1.0: {}
+
+  libphonenumber-js@1.13.14: {}
 
   lighthouse-logger@1.4.2:
     dependencies:

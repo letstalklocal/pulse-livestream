@@ -5,7 +5,6 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { CreatorWithdrawalGrossCents } from './creatorWithdrawalGrossCents';
 import type { CreatorWithdrawalProviderOnboardingStatus } from './creatorWithdrawalProviderOnboardingStatus';
 import type { CreatorWithdrawalStatus } from './creatorWithdrawalStatus';
 import type { WithdrawalChecker } from './withdrawalChecker';
@@ -17,7 +16,11 @@ export interface CreatorWithdrawal {
   id: string;
   userId: number;
   status: CreatorWithdrawalStatus;
-  grossCents: CreatorWithdrawalGrossCents;
+  /**
+     * @minimum 1500
+     * @maximum 50000
+     */
+  grossCents: number;
   methodId: string;
   recipient: WithdrawalRecipient;
   route: WithdrawalRoute;

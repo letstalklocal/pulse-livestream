@@ -11,22 +11,22 @@ export interface WithdrawalQuoteInput {
   methodId: string;
   /**
      * @minimum 0
-     * @maximum 1500
+     * @maximum 50000
      */
   sendAmountCents: number;
   /**
      * @minimum 0
-     * @maximum 1500
+     * @maximum 50000
      */
   feeCents: number;
   /**
      * @minimum 0
-     * @maximum 1500
+     * @maximum 50000
      */
   taxCents: number;
   /**
      * @minimum 0
-     * @maximum 1500
+     * @maximum 50000
      */
   promotionalDiscountCents: number;
   /** @pattern ^\d+(\.\d{1,8})?$ */
@@ -35,7 +35,7 @@ export interface WithdrawalQuoteInput {
   fundingMethod: string;
   /**
      * @minimum 0
-     * @maximum 1500
+     * @maximum 50000
      */
   providerMinimumSendCents: number;
   source: WithdrawalQuoteInputSource;

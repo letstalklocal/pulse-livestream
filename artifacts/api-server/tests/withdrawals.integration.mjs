@@ -65,6 +65,7 @@ try {
     "20260913_admin_access.sql",
     "20261004_payout_catalog.sql",
     "20261004_creator_withdrawals.sql",
+    "20261005_withdrawal_repeat_limits.sql",
   ])
     await pool.query(
       readFileSync(join(root, "../../lib/db/migrations", m), "utf8"),
@@ -266,7 +267,7 @@ try {
     await pool.query("SELECT * FROM creator_cash_accounts WHERE user_id=1")
   ).rows[0];
   assert.equal(reenabled.enabled, true);
-  assert.equal(reenabled.repeat_allowed, false);
+  assert.equal(reenabled.repeat_allowed, true);
   assert.equal(
     (await pool.query("SELECT balance FROM coin_balances WHERE user_id=1"))
       .rows[0].balance,
@@ -629,7 +630,7 @@ try {
   );
   assert.equal(overview.balances.reservedTicks, "0");
   assert.equal(overview.balances.availableTicks, "4040");
-  await assert.rejects(() => make("repeat"), /Repeat/);
+  await assert.rejects(() => make("repeat"), /Later withdrawals/);
   await assert.rejects(
     () =>
       api.reconcile(
@@ -684,6 +685,160 @@ try {
       .rows[0].balance,
     10000,
   );
+  for (const amount of [1500, 2499, 50001]) {
+    await assert.rejects(
+      () =>
+        api.requestWithdrawal(pool, 1, "test-business", {
+          methodId: method,
+          withdrawalCents: amount,
+          idempotencyKey: `invalid-repeat-${amount}`,
+        }),
+      /Later withdrawals|Invalid withdrawal amount/,
+    );
+  }
+  await pool.query("UPDATE coin_balances SET balance=210000 WHERE user_id=1");
+  for (const amount of [2500, 50000]) {
+    const input = {
+      methodId: method,
+      withdrawalCents: amount,
+      idempotencyKey: `valid-repeat-${amount}`,
+    };
+    const repeated = await api.requestWithdrawal(
+      pool,
+      1,
+      "test-business",
+      input,
+    );
+    api.GetWithdrawalDetailResponse.parse(
+      await api.withdrawalDetail(pool, repeated.id, 1),
+    );
+    assert.equal(repeated.grossCents, amount);
+    assert.equal(
+      (await api.overview(pool, 1)).balances.reservedTicks,
+      String(amount * 4),
+    );
+    assert.equal(
+      (await api.requestWithdrawal(pool, 1, "test-business", input)).id,
+      repeated.id,
+    );
+    await assert.rejects(
+      () =>
+        api.recordQuote(
+          pool,
+          "test-business",
+          repeated.id,
+          { ...quote, sendAmountCents: amount, feeCents: 99 },
+          "maker",
+        ),
+      /fit the requested gross/,
+    );
+    const quoted = await api.recordQuote(
+      pool,
+      "test-business",
+      repeated.id,
+      { ...quote, sendAmountCents: amount - 99, feeCents: 99 },
+      "maker",
+    );
+    if (amount === 50000) {
+      const hash = quoted.quote.hash;
+      await api.approveQuote(pool, 1, repeated.id, { quoteHash: hash });
+      const prepared = await api.prepare(
+        pool,
+        "test-business",
+        repeated.id,
+        { quoteHash: hash, evidence: "Maximum withdrawal isolated test" },
+        "maker",
+      );
+      await api.completePreparation(
+        pool,
+        "test-business",
+        repeated.id,
+        {
+          attemptId: prepared.attemptId,
+          quoteHash: hash,
+          deadline: new Date(Date.now() + 1800000).toISOString(),
+          oneTime: true,
+          autoSend: false,
+          recipientMatches: true,
+          amountsMatch: true,
+          historyInspected: true,
+          historyCoverage: "Isolated maximum fixture",
+          evidence: "No external payment",
+          kind: "first_time_link",
+        },
+        "maker",
+      );
+      await api.check(
+        pool,
+        "test-business",
+        repeated.id,
+        { ...checks, attemptId: prepared.attemptId, quoteHash: hash },
+        "checker",
+      );
+      await api.humanRelease(
+        pool,
+        "test-business",
+        repeated.id,
+        {
+          attemptId: prepared.attemptId,
+          quoteHash: hash,
+          providerLink: "https://www.remitly.com/test-only-fixture/maximum",
+          evidence: "Isolated test only",
+          releasedAt: new Date().toISOString(),
+        },
+        "owner",
+      );
+      const settled = {
+        ...outcome,
+        observationId: "maximum-delivery",
+        providerReference: "maximum-private-reference",
+        sendAmountCents: amount - 99,
+        feeCents: 89,
+        observedAt: new Date().toISOString(),
+      };
+      await api.reconcile(
+        pool,
+        "test-business",
+        repeated.id,
+        settled,
+        "reconciler",
+      );
+      assert.equal(
+        (await api.overview(pool, 1)).balances.availableTicks,
+        "10040",
+        "maximum reservation refunds exactly unused fee",
+      );
+      await api.reconcile(
+        pool,
+        "test-business",
+        repeated.id,
+        settled,
+        "reconciler",
+      );
+      await api.reconcile(
+        pool,
+        "test-business",
+        repeated.id,
+        {
+          ...settled,
+          observationId: "maximum-return",
+          status: "returned",
+          fundingReturned: true,
+          observedAt: new Date(
+            Date.parse(settled.observedAt) + 1000,
+          ).toISOString(),
+        },
+        "reconciler",
+      );
+    } else await api.cancelUnprepared(pool, 1, repeated.id);
+    assert.equal((await api.overview(pool, 1)).balances.reservedTicks, "0");
+    assert.equal(
+      (await api.overview(pool, 1)).balances.availableTicks,
+      "210000",
+    );
+  }
+  await pool.query("UPDATE coin_balances SET balance=10000 WHERE user_id=1");
+
   console.log(
     "PASS lower-cost wallet refund and subsequent authoritative return restore exactly original coins",
   );

@@ -10,5 +10,5 @@ export type PayoutCatalogMaxWithdrawalCents = typeof PayoutCatalogMaxWithdrawalC
 
 
 export const PayoutCatalogMaxWithdrawalCents = {
-  NUMBER_1500: 1500,
+  NUMBER_50000: 50000,
 } as const;

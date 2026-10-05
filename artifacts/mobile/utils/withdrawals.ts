@@ -82,7 +82,8 @@ export function parsePendingWithdrawal(
       typeof p.methodId === "string" &&
       p.methodId.length > 0 &&
       Number.isSafeInteger(p.withdrawalCents) &&
-      p.withdrawalCents === 1500 &&
+      (p.withdrawalCents === 1500 ||
+        (p.withdrawalCents >= 2500 && p.withdrawalCents <= 50000)) &&
       typeof p.idempotencyKey === "string" &&
       /^[a-zA-Z0-9_-]{1,100}$/.test(p.idempotencyKey)
       ? p
