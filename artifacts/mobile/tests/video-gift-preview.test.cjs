@@ -5,7 +5,7 @@ const ts = require('typescript');
 const code = ts.transpileModule(fs.readFileSync(require.resolve('../components/GiftPicker.tsx'), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
 }).outputText;
-function render(preview, coins = 0, buying = false, feedbackOverlay, onDrawerHeightChange) {
+function render(preview, coins = 0, buying = false, feedbackOverlay, onDrawerHeightChange, platform = 'android') {
   const sent = [], writes = [], closes = [], slots = [buying, null];
   let cursor = 0, visible = true, effects = [];
   const react = { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
@@ -14,7 +14,7 @@ function render(preview, coins = 0, buying = false, feedbackOverlay, onDrawerHei
   const mod = { exports: {} };
   vm.runInNewContext(code, { module: mod, exports: mod.exports, require: id => {
     if (id === 'react') return react;
-    if (id === 'react-native') return { Modal: 'Modal', ScrollView: 'ScrollView', TouchableOpacity: 'Button', Text: 'Text', View: 'View', Platform: { OS: 'android' }, StyleSheet: { create: x => x }, useWindowDimensions: () => ({ height: 800 }) };
+    if (id === 'react-native') return { Modal: 'Modal', ScrollView: 'ScrollView', TouchableOpacity: 'Button', Text: 'Text', View: 'View', Platform: { OS: platform }, StyleSheet: { create: x => x }, useWindowDimensions: () => ({ height: 800 }) };
     if (id === 'react-native-safe-area-context') return { useSafeAreaInsets: () => ({ bottom: 0 }) };
     if (id === '@/i18n') return { useAppLanguage: () => ({ t: x => x, appLocale: () => 'en', localizedTextStyle: () => ({}) }) };
     if (id === './CoinStoreContent') return { CoinStoreContent: 'CoinStore' };
@@ -22,6 +22,7 @@ function render(preview, coins = 0, buying = false, feedbackOverlay, onDrawerHei
     if (id === './CrownArtwork') return { CrownArtwork: 'CrownArtwork' };
     if (id === './GoldCoinIcon') return { GoldCoinIcon: 'GoldCoinIcon' };
     if (id === './Avatar') return { Avatar: 'Avatar' };
+    if (id === './WebmGiftTest') return { WebmGiftTest: 'WebmGiftTest' };
     throw Error(id);
   }});
   const result = { nodes: [], sent, writes, closes };
@@ -37,6 +38,8 @@ function render(preview, coins = 0, buying = false, feedbackOverlay, onDrawerHei
   result.send = id => { result.nodes.find(n => n.props.testID === `send-gift-${id}`).props.onPress(); update(); };
   result.openLuxury = () => { result.nodes.find(n => n.props.testID === 'gift-tab-luxury').props.onPress(); update(); };
   result.openPopular = () => { result.nodes.find(n => n.props.testID === 'gift-tab-popular').props.onPress(); update(); };
+  result.press = id => { result.nodes.find(n => n.props.testID === id).props.onPress(); update(); };
+  result.finishTest = () => { result.nodes.find(n => n.type === 'WebmGiftTest').props.onDone(); update(); };
   result.reopen = () => { visible = false; update(); visible = true; update(); };
   update();
   return result;
@@ -49,6 +52,16 @@ const sendAll = state => {
 };
 
 let preview = render(true);
+const webm = render(false, 0);
+webm.press('gift-tab-test');
+assert.equal(webm.nodes.filter(n => n.props.testID?.startsWith('send-gift-')).length, 0, 'Test tab cannot send paid gifts');
+webm.press('preview-webm-test');
+assert.ok(webm.nodes.some(n => n.type === 'WebmGiftTest'), 'Zero balance permits local testing');
+assert.equal(webm.sent.length, 0, 'WebM never enters payment/receipt flow');
+webm.finishTest(); assert.ok(!webm.nodes.some(n => n.type === 'WebmGiftTest'));
+webm.press('preview-webm-test'); webm.reopen();
+assert.ok(!webm.nodes.some(n => n.type === 'WebmGiftTest'), 'Dismissal stops preview');
+for (const platform of ['ios', 'web']) assert.ok(!render(false, 0, false, undefined, undefined, platform).nodes.some(n => n.props.testID === 'gift-tab-test'));
 const measuredHeights = [];
 const measured = render(false, 500, false, undefined, height => measuredHeights.push(height));
 measured.nodes.find(node => node.type === 'View' && node.props.onLayout).props.onLayout({ nativeEvent: { layout: { height: 260 } } });

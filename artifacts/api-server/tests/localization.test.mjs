@@ -177,7 +177,7 @@ try {
    if(file.endsWith('/app/dm/[peerId].tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='onSend'&&n.parent.parent.tagName?.getText(a)==='GiftPicker')return;
    // Gift-category tabs are local picker navigation; their dedicated picker test
    // verifies the selected catalog and must not be treated as payment IDs.
-   if(file.endsWith('/components/GiftPicker.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='testID'&&['gift-tab-popular','gift-tab-luxury'].includes(n.initializer?.getText(a).replaceAll('"','')??''))return;
+   if(file.endsWith('/components/GiftPicker.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='testID'&&['gift-tab-popular','gift-tab-luxury','gift-tab-test','preview-webm-test'].includes(n.initializer?.getText(a).replaceAll('"','')??''))return;
    if(ts.isJsxAttribute(n)&&stableAttributes.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));
    if(ts.isPropertyAssignment(n)&&stableFields.has(n.name.getText(a)))result.push(printer.printNode(ts.EmitHint.Unspecified,n,a));
    ts.forEachChild(n,walk);
