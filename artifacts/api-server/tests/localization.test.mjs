@@ -193,7 +193,10 @@ try {
   if(path==='artifacts/mobile/components/MediaPackMessage.tsx')continue;
   const before=execFileSync('git',['show',`HEAD:${path}`],{cwd:root,encoding:'utf8'});
   // Both signup routes now exist in HEAD; compare each screen against its own baseline.
-  const currentPath=path;
+  // The WebM probe moved into a shared native player; compare the implementation,
+  // not its platform re-export, so the original player/close IDs remain protected.
+  const currentPath=path==='artifacts/mobile/components/WebmGiftTest.android.tsx'
+   ? 'artifacts/mobile/components/WebmGiftTestPlayer.tsx' : path;
   const after=readFileSync(root+currentPath.replace('artifacts/mobile/',''),'utf8');
   assert.deepEqual(signatures(path,after),signatures(path,before),`Behavioral attributes and payment/media identifiers changed in ${path}`);
  }

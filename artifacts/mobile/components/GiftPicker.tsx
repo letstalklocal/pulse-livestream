@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Avatar } from "./Avatar";
-import { WebmGiftTest } from "./WebmGiftTest";
+import { WebmGiftTest, preloadWebmGiftTest } from "./WebmGiftTest";
 
 export interface Gift {
   id: string;
@@ -78,6 +78,11 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
   const displayedGifts = activeGiftTab === "luxury" ? LUXURY_GIFTS : POPULAR_GIFTS;
   useEffect(() => { if (!visible) { setBuyingCoins(false); setSelectedGiftId(null); setPlayingWebmTest(false); } }, [visible]);
   useEffect(() => { if (activeGiftTab !== "test" || buyingCoins) setPlayingWebmTest(false); }, [activeGiftTab, buyingCoins]);
+  useEffect(() => {
+    if ((Platform.OS === "android" || Platform.OS === "ios") && visible && activeGiftTab === "test" && !buyingCoins) {
+      void preloadWebmGiftTest().catch(() => { /* Preview retains retry/error feedback. */ });
+    }
+  }, [visible, activeGiftTab, buyingCoins]);
 
   return (
     <Modal
@@ -104,7 +109,7 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
             <TouchableOpacity testID="gift-tab-luxury" onPress={() => { setActiveGiftTab("luxury"); setSelectedGiftId(null); }} accessibilityRole="tab" accessibilityState={{ selected: activeGiftTab === "luxury" }}>
               <Text style={[localizedTextStyle(), styles.title, activeGiftTab !== "luxury" && styles.inactiveTitle]}>{t("Luxury")}</Text>
             </TouchableOpacity>
-            {Platform.OS === "android" ? <TouchableOpacity testID="gift-tab-test" onPress={() => { setActiveGiftTab("test"); setSelectedGiftId(null); }} accessibilityRole="tab" accessibilityState={{ selected: activeGiftTab === "test" }}>
+            {Platform.OS === "android" || Platform.OS === "ios" ? <TouchableOpacity testID="gift-tab-test" onPress={() => { setActiveGiftTab("test"); setSelectedGiftId(null); }} accessibilityRole="tab" accessibilityState={{ selected: activeGiftTab === "test" }}>
               <Text style={[localizedTextStyle(), styles.title, activeGiftTab !== "test" && styles.inactiveTitle]}>{t("Test")}</Text>
             </TouchableOpacity> : null}
           </View>
@@ -129,7 +134,7 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
           contentContainerStyle={styles.grid}
           keyboardShouldPersistTaps="handled"
         >
-          {activeGiftTab === "test" && Platform.OS === "android" ? <TouchableOpacity testID="preview-webm-test" accessibilityRole="button" accessibilityLabel={`WebM · ${t("Preview")}`} onPress={() => setPlayingWebmTest(true)} style={[styles.giftCell, { width: "100%", padding: 16 }]}>
+          {activeGiftTab === "test" && (Platform.OS === "android" || Platform.OS === "ios") ? <TouchableOpacity testID="preview-webm-test" accessibilityRole="button" accessibilityLabel={`WebM · ${t("Preview")}`} onPress={() => setPlayingWebmTest(true)} style={[styles.giftCell, { width: "100%", padding: 16 }]}>
             <Text style={styles.title}>WebM</Text>
             <Text style={[styles.giftName, { marginVertical: 8 }]}>PumpkinBrute_march_9x16.webm</Text>
             <Text style={styles.title}>{t("Preview")}</Text>
@@ -180,7 +185,7 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
 
       </View>}
       {feedbackOverlay ? <View pointerEvents="none" style={StyleSheet.absoluteFill}>{feedbackOverlay}</View> : null}
-      {Platform.OS === "android" && visible && !buyingCoins && activeGiftTab === "test" && playingWebmTest ? <WebmGiftTest onDone={() => setPlayingWebmTest(false)} /> : null}
+      {(Platform.OS === "android" || Platform.OS === "ios") && visible && !buyingCoins && activeGiftTab === "test" && playingWebmTest ? <WebmGiftTest onDone={() => setPlayingWebmTest(false)} /> : null}
     </Modal>
   );
 }
