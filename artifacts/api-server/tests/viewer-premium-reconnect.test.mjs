@@ -22,7 +22,7 @@ function fixture() {
   const scope = {
     channelId: 'public-room', isNative: true, canEnterStream: true,
     stream: { rtcChannelName: 'public-room' }, user: { uid: 7 },
-    engineRef: { current: null }, streamEndedRef: { current: false }, primaryRtcChannelRef: { current: '' },
+    engineRef: { current: null }, giftTestEngineRef: { current: null }, streamEndedRef: { current: false }, primaryRtcChannelRef: { current: '' },
     createEngine: () => engine, ChannelProfileType: { ChannelProfileLiveBroadcasting: 1 },
     ClientRoleType: { ClientRoleAudience: 2 }, process: { env: { EXPO_PUBLIC_AGORA_APP_ID: 'test' } },
     generateToken: { mutateAsync: () => new Promise((resolve, reject) => tokens.push({ resolve, reject })) },
@@ -43,7 +43,9 @@ for (const outcome of ['resolve', 'reject']) {
   test(`late ${outcome} from public token request cannot release paid Premium connection`, async () => {
     const f = fixture();
     const leavePublic = f.run();
+    const publicLease = f.scope.giftTestEngineRef.current;
     leavePublic();
+    assert.equal(publicLease.isCurrent(), false);
     f.run(false);
     assert.equal(f.state.joined, false);
     assert.equal(f.state.uid, null);
@@ -61,6 +63,7 @@ for (const outcome of ['resolve', 'reject']) {
     await flush();
     assert.equal(f.state.releases, 1, 'Only the old attempt was released');
     assert.equal(f.scope.engineRef.current, f.engine);
+    assert.equal(f.scope.giftTestEngineRef.current.isCurrent(), true, 'Late public cleanup preserves the new probe lease');
     assert.deepEqual(f.joins, ['premium-room']);
     assert.equal(f.state.error, null);
     leavePremium();
