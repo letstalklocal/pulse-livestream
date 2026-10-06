@@ -11,7 +11,7 @@ import {
   Inter_700Bold,
   useFonts,
 } from "@expo-google-fonts/inter";
-import { ClerkProvider, ClerkLoaded, useAuth as useClerkAuth } from "@clerk/expo";
+import { ClerkProvider, ClerkLoaded, ClerkLoading, useAuth as useClerkAuth } from "@clerk/expo";
 import { tokenCache } from "@/utils/tokenCache";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
@@ -20,7 +20,7 @@ import React, { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { AppState, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, AppState, Image, StyleSheet, Text, View } from "react-native";
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth as usePulseAuth } from "@/context/AuthContext";
@@ -36,8 +36,23 @@ SplashScreen.preventAutoHideAsync();
 const publishableKey = process.env["EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY"] ?? "";
 const proxyUrl = process.env["EXPO_PUBLIC_CLERK_PROXY_URL"] || undefined;
 
+function StartupLoading() {
+  const { t, localizedTextStyle } = useAppLanguage();
+  // Fonts and language are ready before this screen mounts. Reveal a visible
+  // loading screen while Clerk restores the session instead of an empty view.
+  useEffect(() => { void SplashScreen.hideAsync().catch(() => {}); }, []);
+  return (
+    <View style={styles.startupLoading}>
+      <Image source={require("../assets/images/icon.png")} style={styles.startupLogo} resizeMode="contain" accessibilityLabel="Pulse" />
+      <Text style={[styles.startupLoadingText, localizedTextStyle()]}>{t("Loading VIP Experience...")}</Text>
+      <ActivityIndicator size="small" color={colors.light.primary} accessibilityLabel={t("Loading VIP Experience...")} />
+    </View>
+  );
+}
+
 function BuildConfigurationError() {
   const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
+  useEffect(() => { void SplashScreen.hideAsync().catch(() => {}); }, []);
   return (
     <View style={styles.configurationError}>
       <Text style={[localizedTextStyle(), styles.configurationErrorTitle]}>{t("Pulse could not start")}</Text>
@@ -101,6 +116,9 @@ function ApiAuthBridge({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setAuthTokenGetter(() => getToken());
   }, [getToken]);
+  // This bridge mounts only inside ClerkLoaded, after fonts/language are ready.
+  // Hiding earlier leaves a blank screen while Clerk restores the session.
+  useEffect(() => { void SplashScreen.hideAsync().catch(() => {}); }, []);
   return <>{children}</>;
 }
 
@@ -128,17 +146,12 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
-  useEffect(() => {
-    if ((fontsLoaded || fontError) && languageReady) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError, languageReady]);
-
   if ((!fontsLoaded && !fontError) || !languageReady) return null;
   if (!publishableKey) return <BuildConfigurationError />;
 
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache} proxyUrl={proxyUrl}>
+      <ClerkLoading><StartupLoading /></ClerkLoading>
       <ClerkLoaded>
         <ApiAuthBridge><SafeAreaProvider>
           <ErrorBoundary>
@@ -168,6 +181,9 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
+  startupLoading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16, backgroundColor: colors.light.background },
+  startupLogo: { width: 128, height: 128 },
+  startupLoadingText: { color: colors.light.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 16 },
   configurationError: {
     flex: 1,
     alignItems: "center",

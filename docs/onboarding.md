@@ -1,5 +1,13 @@
 # Signup onboarding
 
+### Android blank startup gap — October 6, 2026
+
+User reported a blank screen after the logo in an installed production Android build. The root hid the splash after fonts/language initialized, before `ClerkLoaded` allowed the app tree to render. Keep the splash until the `ApiAuthBridge` inside `ClerkLoaded` commits; the missing-auth-configuration screen independently hides it so errors remain visible. Preserve first-launch phone language, saved choices and authentication/onboarding gating. This removes the premature splash-hide code gap; it does not demonstrate faster authentication or establish the exact device delay. Actual Android/iPhone cold-start timing remains pending. No native build or production publication was started.
+
+Latest user refinement: show the Pulse logo, translated **Loading…** text and a small animated spinner while restoring sign-in. After fonts/language are ready, `ClerkLoading` mounts this screen and hides the native splash only after the visible loading view commits. `ClerkLoaded` then displays the normal app. This supersedes keeping a static native splash for the entire authentication wait. Loading text uses the existing ten-language catalog key; no sign-in, payment or navigation requirements change. Phone appearance and cold-start timing remain pending.
+
+Latest exact user wording: **Loading VIP Experience...**, translated in all ten catalogs with VIP preserved. Use this only for app startup; other Loading labels remain unchanged. The existing custom token cache already persists Clerk tokens through native AsyncStorage and web localStorage. The startup delay was not established as a missing-token problem; session restoration/refresh and native cold-start timings remain unmeasured.
+
 ### First-launch language — October 5, 2026
 
 Follow the phone language from the first visible screen, before profile sign-in or country lookup. Native locale reading and supported language declarations now implement this as described in [the localization repair](localization-plan.md#first-launch-phone-language-repair--october-5-2026). Existing manual app-language selections remain authoritative. Native rebuild and fresh-install phone verification remain pending; the Colombia tester's manual switch to Spanish does not verify automatic detection.
