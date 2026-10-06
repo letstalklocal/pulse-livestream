@@ -10,6 +10,7 @@ import { useStreamSocket } from "@/hooks/useStreamSocket";
 import { usePremiumGiftRequest, premiumGiftRequestKey } from "@/hooks/usePremiumGiftRequest";
 import { useLiveParty } from "@/hooks/useLiveParty";
 import { usePartyMedia } from "@/hooks/usePartyMedia";
+import type { AgoraGiftEngineLease } from "@/utils/agoraGiftProbe";
 
 const isNative = Platform.OS === "ios" || Platform.OS === "android";
 const preferenceKey = "pulse.picture-in-picture.enabled";
@@ -96,6 +97,7 @@ function usePlaybackController() {
   const [agoraError, setAgoraError] = useState<string | null>(null);
   const [joined, setJoined] = useState(false);
   const engineRef = useRef<any>(null);
+  const giftTestEngineRef = useRef<AgoraGiftEngineLease | null>(null);
   const primaryRtcChannelRef = useRef("");
   const generateToken = useGenerateAgoraToken();
   const updateViewers = useUpdateViewerCount();
@@ -157,6 +159,7 @@ function usePlaybackController() {
       engine = null;
       if (!ownedEngine || engineRef.current !== ownedEngine) return;
       engineRef.current = null;
+      giftTestEngineRef.current = null;
       try { ownedEngine.leaveChannel?.(); } catch (_error) {}
       try { ownedEngine.release?.(); } catch (_error) {}
     };
@@ -179,6 +182,10 @@ function usePlaybackController() {
         if (videoResult < 0 || audioResult < 0) {
           throw new Error(`Agora media setup failed (${videoResult}, ${audioResult}).`);
         }
+        giftTestEngineRef.current = {
+          engine,
+          isCurrent: () => !setupIsCancelled() && !!engine && engineRef.current === engine,
+        };
         engine.registerEventHandler({
           onError: (err: number, msg: string) => {
             console.warn("[Agora viewer] onError:", err, msg);
@@ -334,10 +341,15 @@ function usePlaybackController() {
 
   const partyState = useLiveParty(channelId, isNative && !isPrivateStream && !isDemo && canEnterStream);
   const partyMedia = usePartyMedia(engineRef, channelId, partyState.party, isNative && joined && canEnterStream, false);
+  const getGiftTestEngine = useCallback(() => {
+    if (!joined || !canEnterStream || minimizedRef.current || sessionRef.current?.channelId !== channelId) return null;
+    const lease = giftTestEngineRef.current;
+    return lease?.isCurrent() ? lease : null;
+  }, [joined, canEnterStream, channelId]);
   return { previewsBlocked: !!session || pathname === "/go-live", session, channelId, minimized, enabled, preferenceReady, saving, saveEnabled, attach, detach, admit, minimize, close,
     canEnterStream, accessRestricted, ended, joined, remoteUid, remoteVideoReady, agoraError, stream, demoCategory,
     backgroundImageUrl: stream?.hostBackgroundImageUrl ?? invitationQuery.data?.invitation?.backgroundImageUrl,
-    premiumGift, partyState, partyMedia };
+    premiumGift, partyState, partyMedia, getGiftTestEngine };
 }
 const PlaybackContext = createContext<ReturnType<typeof usePlaybackController> | null>(null);
 export function LivePlaybackProvider({ children }: { children: React.ReactNode }) {

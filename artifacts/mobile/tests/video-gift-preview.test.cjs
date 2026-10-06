@@ -5,7 +5,7 @@ const ts = require('typescript');
 const code = ts.transpileModule(fs.readFileSync(require.resolve('../components/GiftPicker.tsx'), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
 }).outputText;
-function render(preview, coins = 0, buying = false, feedbackOverlay, onDrawerHeightChange, platform = 'android') {
+function render(preview, coins = 0, buying = false, feedbackOverlay, onDrawerHeightChange, platform = 'android', getGiftTestEngine) {
   const sent = [], writes = [], closes = [], slots = [buying, null];
   let cursor = 0, visible = true, effects = [];
   const react = { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
@@ -23,12 +23,13 @@ function render(preview, coins = 0, buying = false, feedbackOverlay, onDrawerHei
     if (id === './GoldCoinIcon') return { GoldCoinIcon: 'GoldCoinIcon' };
     if (id === './Avatar') return { Avatar: 'Avatar' };
     if (id === './WebmGiftTest') return { WebmGiftTest: 'WebmGiftTest', preloadWebmGiftTest: async () => {} };
+    if (id === './AgoraGiftTest') return { AgoraGiftTest: 'AgoraGiftTest' };
     throw Error(id);
   }});
   const result = { nodes: [], sent, writes, closes };
   const update = () => {
     cursor = 0; effects = [];
-    const tree = mod.exports.GiftPicker({ visible, preview, coins, feedbackOverlay, onDrawerHeightChange, onClose: () => closes.push(true), onSend: gift => sent.push(gift.id), hintText: preview ? 'Test gifts only. No coins are spent.' : undefined });
+    const tree = mod.exports.GiftPicker({ visible, preview, coins, feedbackOverlay, onDrawerHeightChange, getGiftTestEngine, onClose: () => closes.push(true), onSend: gift => sent.push(gift.id), hintText: preview ? 'Test gifts only. No coins are spent.' : undefined });
     const nodes = [];
     const walk = value => { if (Array.isArray(value)) value.forEach(walk); else if (value && typeof value === 'object') { nodes.push(value); walk(value.props?.children); } };
     walk(tree); result.nodes = nodes;
@@ -67,6 +68,15 @@ iosWebm.press('gift-tab-test'); iosWebm.press('preview-webm-test');
 assert.ok(iosWebm.nodes.some(n => n.type === 'WebmGiftTest'), 'iOS can preview without coins');
 assert.equal(iosWebm.sent.length, 0, 'iOS preview cannot charge or create a DM receipt');
 iosWebm.finishTest(); assert.ok(!iosWebm.nodes.some(n => n.type === 'WebmGiftTest'));
+const iosAgora = render(false, 0, false, undefined, undefined, 'ios', () => null);
+iosAgora.press('gift-tab-test'); iosAgora.press('preview-agora-test');
+assert.ok(iosAgora.nodes.some(n => n.type === 'AgoraGiftTest'));
+assert.equal(iosAgora.sent.length, 0, 'Agora preview cannot send gifts');
+iosAgora.press('preview-webm-test');
+assert.ok(!iosAgora.nodes.some(n => n.type === 'AgoraGiftTest'), 'Switching renderer stops Agora');
+iosAgora.press('preview-agora-test'); iosAgora.reopen();
+assert.ok(!iosAgora.nodes.some(n => n.type === 'AgoraGiftTest'), 'Closing drawer stops Agora');
+assert.ok(!webm.nodes.some(n => n.props.testID === 'preview-agora-test'), 'Android keeps its working WebView test');
 const measuredHeights = [];
 const measured = render(false, 500, false, undefined, height => measuredHeights.push(height));
 measured.nodes.find(node => node.type === 'View' && node.props.onLayout).props.onLayout({ nativeEvent: { layout: { height: 260 } } });

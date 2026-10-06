@@ -69,10 +69,13 @@ function fixture(stored = null) {
   for (const premium of [false, true]) {
     const f = fixture(); await f.start(premium);
     assert.equal(f.current().joined, true);
+    const giftLease = f.current().getGiftTestEngine();
+    assert.ok(giftLease?.isCurrent(), 'Joined viewer exposes its existing engine for local media preview');
     assert.equal(f.current().minimize('room'), true);
     // Back pops the route. Its cleanup must leave the media/presence untouched.
     f.current().detach('room'); f.pathname = '/'; f.render();
     assert.equal(f.current().minimized, true); assert.equal(f.current().canEnterStream, true);
+    assert.equal(f.current().getGiftTestEngine(), null, 'PiP cannot start a gift probe');
     assert.equal(f.current().previewsBlocked, true, "Feed previews cannot replace PiP media");
     assert.equal(f.releases, 0); assert.equal(f.tokens.length, 1); assert.equal(f.joins.length, 1);
     assert.equal(f.presence.filter(p => p[1] === 'leave').length, 0);
@@ -83,6 +86,7 @@ function fixture(stored = null) {
     assert.equal(f.current().minimized, false); assert.equal(f.releases, 0); assert.equal(f.tokens.length, 1);
     f.current().minimize('room'); f.render(); f.current().close(); f.render();
     assert.equal(f.current().session, null); assert.equal(f.releases, 1); assert.equal(f.intervals.size, 0);
+    assert.equal(giftLease.isCurrent(), false, 'Retired lease cannot access replacement singleton');
     assert.equal(f.current().previewsBlocked, false);
   }
   {

@@ -960,6 +960,7 @@ export default function StreamScreen() {
     {/* Gift picker */}
     <GiftPicker
       visible={showGiftPicker}
+      getGiftTestEngine={playback.getGiftTestEngine}
       coins={viewerCoins}
       recipients={party?.status === "active" ? party.participants : undefined}
       recipientUid={giftRecipient?.uid ?? hostUid ?? undefined}

@@ -17,6 +17,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Avatar } from "./Avatar";
 import { WebmGiftTest, preloadWebmGiftTest } from "./WebmGiftTest";
+import { AgoraGiftTest } from "./AgoraGiftTest";
+import type { AgoraGiftEngineLease } from "@/utils/agoraGiftProbe";
 
 export interface Gift {
   id: string;
@@ -48,6 +50,8 @@ export const LUXURY_GIFTS: Gift[] = [
 export const GIFTS: Gift[] = [...POPULAR_GIFTS, ...LUXURY_GIFTS];
 
 interface Props {
+  /** Read-only lease on this viewer's existing engine; test never creates a session. */
+  getGiftTestEngine?: () => AgoraGiftEngineLease | null;
   visible: boolean;
   onClose: () => void;
   onSend: (gift: Gift) => void;
@@ -66,7 +70,7 @@ interface Props {
   onRecipientChange?: (uid: number) => void;
 }
 
-export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipientUid, onRecipientChange, hintText = "Select a gift, then tap Send.", preview = false, sendingGiftId, feedbackOverlay, onDrawerHeightChange }: Props) {
+export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipientUid, onRecipientChange, hintText = "Select a gift, then tap Send.", preview = false, sendingGiftId, feedbackOverlay, onDrawerHeightChange, getGiftTestEngine }: Props) {
   const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
@@ -75,9 +79,11 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
   const [activeGiftTab, setActiveGiftTab] = useState<"popular" | "luxury" | "test">("popular");
   const [popularGridHeight, setPopularGridHeight] = useState<number | undefined>();
   const [playingWebmTest, setPlayingWebmTest] = useState(false);
+  const [playingAgoraTest, setPlayingAgoraTest] = useState(false);
   const displayedGifts = activeGiftTab === "luxury" ? LUXURY_GIFTS : POPULAR_GIFTS;
   useEffect(() => { if (!visible) { setBuyingCoins(false); setSelectedGiftId(null); setPlayingWebmTest(false); } }, [visible]);
   useEffect(() => { if (activeGiftTab !== "test" || buyingCoins) setPlayingWebmTest(false); }, [activeGiftTab, buyingCoins]);
+  useEffect(() => { if (!visible || activeGiftTab !== "test" || buyingCoins) setPlayingAgoraTest(false); }, [visible, activeGiftTab, buyingCoins]);
   useEffect(() => {
     if ((Platform.OS === "android" || Platform.OS === "ios") && visible && activeGiftTab === "test" && !buyingCoins) {
       void preloadWebmGiftTest().catch(() => { /* Preview retains retry/error feedback. */ });
@@ -134,11 +140,15 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
           contentContainerStyle={styles.grid}
           keyboardShouldPersistTaps="handled"
         >
-          {activeGiftTab === "test" && (Platform.OS === "android" || Platform.OS === "ios") ? <TouchableOpacity testID="preview-webm-test" accessibilityRole="button" accessibilityLabel={`WebM · ${t("Preview")}`} onPress={() => setPlayingWebmTest(true)} style={[styles.giftCell, { width: "100%", padding: 16 }]}>
+          {activeGiftTab === "test" && (Platform.OS === "android" || Platform.OS === "ios") ? <View style={{ width: "100%" }}><TouchableOpacity testID="preview-webm-test" accessibilityRole="button" accessibilityLabel={`WebM · ${t("Preview")}`} onPress={() => { setPlayingAgoraTest(false); setPlayingWebmTest(true); }} style={[styles.giftCell, { width: "100%", padding: 16 }]}>
             <Text style={styles.title}>WebM</Text>
             <Text style={[styles.giftName, { marginVertical: 8 }]}>PumpkinBrute_march_9x16.webm</Text>
             <Text style={styles.title}>{t("Preview")}</Text>
-          </TouchableOpacity> : displayedGifts.map((gift) => {
+          </TouchableOpacity>
+          {Platform.OS === "ios" && getGiftTestEngine ? <TouchableOpacity testID="preview-agora-test" accessibilityRole="button" accessibilityLabel={`Agora · ${t("Preview")}`}
+            onPress={() => { setPlayingWebmTest(false); setPlayingAgoraTest(true); }} style={[styles.giftCell, { width: "100%", padding: 16, marginTop: 8 }]}>
+            <Text style={styles.title}>{`Agora · ${t("Preview")}`}</Text>
+          </TouchableOpacity> : null}</View> : displayedGifts.map((gift) => {
             const canAfford = preview || coins >= gift.coins;
             const selected = selectedGiftId === gift.id;
             const sending = sendingGiftId === gift.id;
@@ -186,6 +196,7 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
       </View>}
       {feedbackOverlay ? <View pointerEvents="none" style={StyleSheet.absoluteFill}>{feedbackOverlay}</View> : null}
       {(Platform.OS === "android" || Platform.OS === "ios") && visible && !buyingCoins && activeGiftTab === "test" && playingWebmTest ? <WebmGiftTest onDone={() => setPlayingWebmTest(false)} /> : null}
+      {Platform.OS === "ios" && getGiftTestEngine && visible && !buyingCoins && activeGiftTab === "test" && playingAgoraTest ? <AgoraGiftTest getEngine={getGiftTestEngine} onDone={() => setPlayingAgoraTest(false)} /> : null}
     </Modal>
   );
 }
