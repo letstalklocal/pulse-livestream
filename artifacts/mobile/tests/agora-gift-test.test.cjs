@@ -3,24 +3,27 @@ const compile = path => ts.transpileModule(fs.readFileSync(require.resolve(path)
 const api = {};
 vm.runInNewContext(compile('../utils/agoraGiftProbe.ts'), { exports: api });
 function fixture() {
-  const calls = []; let observer, current = true, result = 0;
-  const player = Object.fromEntries(['registerPlayerSourceObserver','unregisterPlayerSourceObserver','setLoopCount','mute','adjustPlayoutVolume','open','play','stop'].map(name => [name, (...args) => { calls.push([name, ...args]); if (name === 'registerPlayerSourceObserver') observer = args[0]; return result; }]));
+  const calls = []; let observer, current = true, result = 0, resourceOpened = false;
+  const player = Object.fromEntries(['registerPlayerSourceObserver','unregisterPlayerSourceObserver','setLoopCount','mute','adjustPlayoutVolume','open','play','stop'].map(name => [name, (...args) => { calls.push([name, ...args]); if (name === 'registerPlayerSourceObserver') observer = args[0]; if (['setLoopCount','mute','adjustPlayoutVolume','play'].includes(name) && !resourceOpened) return -3; return result; }]));
   player.getMediaPlayerId = () => 17;
   const engine = { createMediaPlayer() { calls.push(['create']); return player; }, destroyMediaPlayer(p) { assert.equal(p, player); calls.push(['destroy']); return 0; } };
-  return { calls, lease: { engine, isCurrent: () => current }, emit: (state, reason = 0) => observer.onPlayerSourceStateChanged(state, reason), retire() { current = false; }, fail() { result = -1; } };
+  return { calls, lease: { engine, isCurrent: () => current }, emit: (state, reason = 0) => { if (state === 2) resourceOpened = true; observer.onPlayerSourceStateChanged(state, reason); }, retire() { current = false; }, fail() { result = -1; } };
 }
 let f = fixture(), opened = 0, ended = 0, errors = [];
 const p = api.createAgoraGiftProbe(f.lease, { opened: () => opened++, ended: () => ended++, error: c => errors.push(c) });
 p.open('/pumpkin.webm'); assert.equal(opened, 0);
-assert.ok(f.calls.some(c => c[0] === 'setLoopCount' && c[1] === 1));
+assert.ok(!f.calls.some(c => ['setLoopCount','mute','adjustPlayoutVolume','play'].includes(c[0])), 'No resource-dependent controls before file opens');
+assert.throws(() => p.play(), /open pending/);
+f.emit(2); assert.equal(opened, 1); p.play();
+assert.ok(f.calls.some(c => c[0] === 'setLoopCount' && c[1] === 0));
 assert.ok(f.calls.some(c => c[0] === 'mute' && c[1] === false));
-f.emit(2); assert.equal(opened, 1); p.play(); f.emit(5); f.emit(6); assert.equal(ended, 1); f.emit(100, -4); assert.deepEqual(errors, [-4]);
+f.emit(5); f.emit(6); assert.equal(ended, 1); f.emit(100, -4); assert.deepEqual(errors, [-4]);
 p.dispose(); p.dispose(); f.emit(2); assert.equal(opened, 1);
 assert.equal(f.calls.filter(c => c[0] === 'destroy').length, 1);
 f = fixture(); const retired = api.createAgoraGiftProbe(f.lease, { opened() { throw Error('Stale callback'); }, ended() {}, error() {} });
 f.retire(); f.emit(2); retired.play(); retired.dispose(); assert.ok(!f.calls.some(c => ['play','stop','destroy'].includes(c[0])));
 assert.throws(() => api.createAgoraGiftProbe(f.lease, {}), /unavailable/);
-f = fixture(); f.fail(); assert.throws(() => api.createAgoraGiftProbe(f.lease, {}), /player error/);
+f = fixture(); f.fail(); assert.throws(() => api.createAgoraGiftProbe(f.lease, {}), /registerPlayerSourceObserver error/);
 assert.ok(f.calls.some(c => c[0] === 'destroy'), 'Partial setup cleans its own player');
 
 (async () => {

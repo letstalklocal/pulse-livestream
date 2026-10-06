@@ -48,7 +48,9 @@ export function AgoraGiftTest({ getEngine, onDone }: AgoraGiftTestProps) {
   }, []);
   useEffect(() => {
     if (opened && playerId !== null && !error) {
-      try { probe.current?.play(); } catch { probe.current?.dispose(); setError("Agora · playback"); }
+      try { probe.current?.play(); } catch (reason) {
+        probe.current?.dispose(); setError(reason instanceof Error ? reason.message : "Agora · playback");
+      }
     }
   }, [opened, playerId, error]);
   const Canvas = agora?.RtcSurfaceView;

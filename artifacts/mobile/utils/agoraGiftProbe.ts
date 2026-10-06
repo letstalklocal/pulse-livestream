@@ -12,13 +12,14 @@ export function createAgoraGiftProbe(lease: AgoraGiftEngineLease, callbacks: {
   if (!lease.isCurrent()) throw new Error("Agora session unavailable");
   let active = true;
   let finished = false;
+  let opened = false;
   const player: IMediaPlayer = lease.engine.createMediaPlayer();
   const current = () => active && lease.isCurrent();
-  const check = (result: number) => { if (result < 0) throw new Error(`Agora player error ${result}`); };
+  const check = (method: string, result: number) => { if (result < 0) throw new Error(`Agora ${method} error ${result}`); };
   const observer: IMediaPlayerSourceObserver = {
     onPlayerSourceStateChanged(state, reason) {
       if (!current()) return;
-      if (state === 2) callbacks.opened();
+      if (state === 2) { opened = true; callbacks.opened(); }
       else if ((state === 5 || state === 6) && !finished) { finished = true; callbacks.ended(); }
       else if (state === 100) { dispose(); callbacks.error(reason); }
     },
@@ -35,13 +36,19 @@ export function createAgoraGiftProbe(lease: AgoraGiftEngineLease, callbacks: {
   try {
     const id = player.getMediaPlayerId();
     if (id < 0) throw new Error(`Agora player ID ${id}`);
-    check(player.registerPlayerSourceObserver(observer));
-    check(player.setLoopCount(1));
-    check(player.mute(false));
-    check(player.adjustPlayoutVolume(100));
+    check("registerPlayerSourceObserver", player.registerPlayerSourceObserver(observer));
     return { id, dispose,
-      open(path: string) { if (current()) check(player.open(path, 0)); },
-      play() { if (current()) check(player.play()); },
+      open(path: string) { if (current()) check("open", player.open(path, 0)); },
+      play() {
+        if (!current()) return;
+        if (!opened) throw new Error("Agora open pending");
+        // Media-dependent controls are valid only after the open callback.
+        // Zero repeats means one complete playback.
+        check("setLoopCount", player.setLoopCount(0));
+        check("mute", player.mute(false));
+        check("adjustPlayoutVolume", player.adjustPlayoutVolume(100));
+        check("play", player.play());
+      },
     };
   } catch (error) { dispose(); throw error; }
 }
