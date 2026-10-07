@@ -40,7 +40,7 @@ function fixture({ saved = false, fail = false, confirmed = false, wait = null }
     pausedRef: { current: saved }, isLiveRef: { current: true }, isNative: true, isMuted: true, getToken() {},
     setPauseBusy: x => state.busy = x, setShowLiveMenu() {}, setIsPaused: x => state.paused = x,
     setBroadcastPaused: (_engine, paused, muted) => state.media.push({ paused, muted }),
-    stopMomentProof() {}, stopMomentRecording() {}, queryClient: { invalidateQueries() {} }, getGetStreamQueryKey: x => [x],
+    stopMomentProof() {}, stopMomentRecording() {}, stopPublishedCatalogGiftSounds() {}, queryClient: { invalidateQueries() {} }, getGetStreamQueryKey: x => [x],
     stickerApi: async (_path, _token, _method, body) => { state.writes.push(body); if (wait) await wait; if (fail) throw Error('lost response'); },
     getStream: async () => confirmed === null ? null : { stream: { paused: confirmed } },
     Alert: { alert: x => state.alerts.push(x) }, t: x => x,

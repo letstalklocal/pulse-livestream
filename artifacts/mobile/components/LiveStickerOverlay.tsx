@@ -18,6 +18,8 @@ import {
   type StickerStatus,
 } from "@/utils/liveStickers";
 import { GIFTS } from "./GiftPicker";
+import { useGiftCatalog } from "@/hooks/useGiftCatalog";
+import { giftFromSnapshot, refreshGiftCatalog } from "@/utils/giftCatalog";
 import { LiveStickerPicker } from "./LiveStickerSetup";
 import type { StickerDraft } from "@/utils/liveStickers";
 import { LiveStickerCard } from "./LiveStickerCard";
@@ -63,6 +65,7 @@ function StickerSession({
   senderName: string;
 }) {
   const { t } = useAppLanguage();
+  const { gifts } = useGiftCatalog(enabled);
   const { getToken } = useClerkAuth();
   const router = useRouter();
   const client = useQueryClient();
@@ -150,7 +153,8 @@ function StickerSession({
         requestKey = Crypto.randomUUID();
         paymentKeys.current.set(sticker.id, requestKey);
       }
-      const gift = GIFTS.find((g) => g.id === sticker.giftId)!;
+      const gift = giftFromSnapshot(sticker.giftSnapshot) ?? gifts.find(g => g.id === sticker.giftId) ?? GIFTS.find(g => g.id === sticker.giftId);
+      if (sticker.kind === "gift" && !gift) throw new Error("Gift is unavailable. Refresh the catalog.");
       const result =
         sticker.kind === "pack"
           ? await stickerApi<{ balance: number }>(
@@ -172,11 +176,14 @@ function StickerSession({
                 uid,
                 recipientUid: query.data?.hostUid,
                 amount: sticker.price,
-                giftName: gift.name,
+                giftName: gift!.name,
+                giftId: sticker.giftId,
+                giftRevisionId: sticker.giftRevisionId ?? gift!.revisionId,
+                expectedCoinCost: sticker.price,
                 senderName,
                 channelId,
                 stickerId: sticker.id,
-                description: gift.name,
+                description: gift!.name,
                 idempotencyKey: requestKey,
               },
               controller.current.signal,
@@ -205,6 +212,7 @@ function StickerSession({
       }
       void client.invalidateQueries({ queryKey: key });
     } catch (error) {
+      void refreshGiftCatalog().catch(() => {});
       if (mounted.current && active.current)
         Alert.alert(
           t("Please try again."),

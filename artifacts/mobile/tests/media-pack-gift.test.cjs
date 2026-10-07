@@ -9,6 +9,7 @@ async function run(giftId, { fail = false, returning = false, editing = false, r
   let transferFailed = false;
   const state = { uploaded: 0, created: [], updated: [], error: null, gift: giftId, back: 0, invalidated: [], saving: false };
   const scope = {
+    gifts: ['rose','heart','party','strawberry','diamond','lips','rocket','crown','kisses','luxury_rocket','dragon'].map(id => ({ id, revisionId: `${id}_legacy_v1`, coins: ({rose:1,heart:5,party:10,strawberry:49,diamond:50,lips:99,rocket:100,crown:500,kisses:1999,luxury_rocket:4999,dragon:9999})[id] })), refreshGifts: async () => {},
     AbortController, uploadSessions:{current:new Map()},uploadController:{current:null},setUploadProgress(){},uploadPrivateMedia:async()=>{if(interrupted&&!transferFailed){transferFailed=true;throw Error("interrupted");}},
     giftId, saving: false, busyRef: { current: false }, editingId: editing ? '7' : null, price: '299', name: 'My pack', assets: [{ uri: 'local-photo', mimeType: 'image/jpeg', type: 'image', width: 100, height: 100 }],
     returnToSticker: returning ? '1' : undefined, recipientId: undefined,

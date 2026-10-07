@@ -3,6 +3,7 @@ import creatorVideosRouter from "./creator-videos";
 import reactionPreferencesRouter from "./reaction-preferences";
 import purchasesRouter from "./purchases";
 import adminRouter from "./admin";
+import { giftCatalogRouter } from "./gift-catalog";
 import userSearchRouter from "./userSearch";
 import verificationRouter from "./verification";
 import momentsRouter from "./moments";
@@ -34,6 +35,7 @@ import privateStreamInvitationsRouter from "./private-stream-invitations";
 const router: IRouter = Router();
 
 router.use("/admin-data", adminRouter);
+router.use("/gift-catalog", giftCatalogRouter);
 router.use(healthRouter);
 router.use(creatorVideosRouter);
 router.use(verificationRouter);

@@ -8,6 +8,7 @@ import type { LiveParty } from "@workspace/api-client-react";
 import { RtcSurfaceViewComponent, RtcTextureViewComponent, VideoSourceType } from "@/utils/agora";
 import { battleMotionFrame } from "../utils/battleMotion";
 import { Avatar } from "./Avatar";
+import { GoldCoinIcon } from "./GoldCoinIcon";
 import { battleUsesSplitLayout, partyLayout } from "@/utils/partyLayout";
 
 const PARTY_BATTLE_GOLD = "#E8BD59";
@@ -313,9 +314,9 @@ export function PartyStage({ main, mainName, channelId, party, now, media, onWin
             <Avatar uid={mine.uid} name={mine.name} avatarUri={mine.avatarUrl ?? undefined} size={32} />
           </View>
           <View style={styles.partyBattleLabels}>
-            <Text style={styles.partyBattleCoins} numberOfLines={1} adjustsFontSizeToFit><Text style={styles.partyBattleCoinIcon}>🪙 </Text>{myScore.toLocaleString(appLocale())}</Text>
+            <View style={styles.partyBattleCoinTotal}><GoldCoinIcon size={10} /><Text style={styles.partyBattleCoins} numberOfLines={1} adjustsFontSizeToFit>{myScore.toLocaleString(appLocale())}</Text></View>
             <View testID="battle-countdown" style={urgent && styles.urgentClockPill}><Animated.Text style={[localizedTextStyle(), styles.partyBattleClock, { opacity: clockOpacity }]}>{countdown ? t("Starts {v0}", { v0: countdown }) : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`}</Animated.Text></View>
-            <Text style={[styles.partyBattleCoins, { textAlign: "right" }]} numberOfLines={1} adjustsFontSizeToFit><Text style={styles.partyBattleCoinIcon}>🪙 </Text>{peerScore.toLocaleString(appLocale())}</Text>
+            <View style={[styles.partyBattleCoinTotal, { justifyContent: "flex-end" }]}><GoldCoinIcon size={10} /><Text style={[styles.partyBattleCoins, { flex: 0, flexShrink: 1, textAlign: "right" }]} numberOfLines={1} adjustsFontSizeToFit>{peerScore.toLocaleString(appLocale())}</Text></View>
           </View>
           <View style={styles.partyBattleAvatarRing}>
             <Avatar uid={peer.uid} name={peer.name} avatarUri={peer.avatarUrl ?? undefined} size={32} />
@@ -361,7 +362,7 @@ const styles = StyleSheet.create({
   partyBattleAvatarRing: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: PARTY_BATTLE_GOLD, alignItems: "center", justifyContent: "center" },
   partyBattleLabels: { position: "absolute", left: 42, right: 42, top: -3, height: 16, flexDirection: "row", alignItems: "center", gap: 6 },
   partyBattleCoins: { flex: 1, color: "#FFF", fontSize: 12, lineHeight: 16, includeFontPadding: false, fontFamily: "Inter_700Bold" },
-  partyBattleCoinIcon: { fontSize: 10 },
+  partyBattleCoinTotal: { flex: 1, flexDirection: "row", alignItems: "center", gap: 3 },
   partyBattleClock: { lineHeight: 16, color: "#FFF", fontSize: 12, fontFamily: "Inter_700Bold", textAlign: "center", minWidth: 56, includeFontPadding: false },
   restorePartner: { position: "absolute", right: 0, width: 32, height: 88, borderTopLeftRadius: 10, borderBottomLeftRadius: 10, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center", zIndex: 5 },
   infoBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" },

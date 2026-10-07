@@ -4,6 +4,8 @@ import { LiveStickerOverlay } from "@/components/LiveStickerOverlay";
 import { stickerApi, type StickerDraft } from "@/utils/liveStickers";
 import { setBroadcastPaused, flipBroadcastCamera } from "@/utils/liveMediaControls";
 import { playLiveGiftSound } from "@/utils/liveGiftSound";
+import { giftFromSnapshot, type GiftSnapshot } from "@/utils/giftCatalog";
+import { playPublishedCatalogGiftSound, stopPublishedCatalogGiftSounds } from "@/utils/publishedCatalogGiftSound";
 import { confirmVideoBeforeLive } from "@/utils/confirmVideoBeforeLive";
 import { CreatorVideoSheet } from "@/components/CreatorVideoSheet";
 import { LiveReactions } from "@/components/LiveReactions";
@@ -19,6 +21,7 @@ import { startMomentProof, stopMomentProof } from "@/utils/momentProof";
 import { recordGiftMoment, stopMomentRecording, prepareMomentRecording } from "@/utils/momentRecorder";
 import { KeyboardAvoidingView as LiveKeyboardAvoidingView, KeyboardStickyView, useKeyboardState } from "react-native-keyboard-controller";
 import { TranslatedMessage } from "@/components/TranslatedMessage";
+import { GiftCoinNotice } from "@/components/GiftCoinNotice";
 import { LiveChatAvatar } from "@/components/LiveChatAvatar";
 import { TranslationToggle } from "@/components/TranslationToggle";
 import { BeautySheet, DEFAULT_BEAUTY, type BeautySettings } from "@/components/BeautySheet";
@@ -116,6 +119,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 function releaseAgoraEngine(engine: any) {
+  stopPublishedCatalogGiftSounds(engine);
   stopMomentProof(engine);
   stopMomentRecording(engine);
   try { engine?.leaveChannel?.(); } catch (error) { console.warn("[Agora] leave cleanup error:", error); }
@@ -409,6 +413,7 @@ export default function GoLiveScreen() {
         if (!stillActive()) return;
         stopMomentProof(engine);
         stopMomentRecording(engine);
+        stopPublishedCatalogGiftSounds(engine);
         if (isNative) await switchBroadcastChannel(engine, token.token, token.channelName, user!.uid, isMuted, stillActive, mediaChannelRef.current || activeChannelId, pausedRef.current);
         if (!stillActive()) return;
         mediaChannelRef.current = token.channelName;
@@ -496,6 +501,7 @@ export default function GoLiveScreen() {
             senderName?: string;
             inVideo?: boolean;
             giftId?: string; amount?: number; recipientUid?: number; senderUid?: number;
+            giftSnapshot?: GiftSnapshot;
             combo?: { id: string; count: number; totalCoins: number };
           };
           if (msg.type === "stream_updated") {
@@ -513,7 +519,7 @@ export default function GoLiveScreen() {
             const inVideo = giftPresentation.current.decide(msg.giftId, msg.inVideo !== false);
             setFloatingGifts(prev => prev.map(g => g.id === msg.giftId ? { ...g, inVideo } : g));
           }
-          const nativeExpected = expectsNativeCrown(msg.giftName, msg.amount);
+          const nativeExpected = expectsNativeCrown(msg.giftName, msg.amount, msg.giftSnapshot);
           if (msg.type === "gift" && msg.giftId && !giftPresentation.current.claim(msg.giftId, nativeExpected)) return;
           let nativeGift = nativeExpected && !pausedRef.current;
           const playGiftSound = () => {
@@ -521,7 +527,10 @@ export default function GoLiveScreen() {
                 !isLiveRef.current || playedGiftSounds.current.has(msg.giftId)) return;
             playedGiftSounds.current.add(msg.giftId);
             if (playedGiftSounds.current.size > 512) playedGiftSounds.current.delete(playedGiftSounds.current.values().next().value!);
-            playLiveGiftSound(engineRef.current, msg.giftName);
+            if (msg.giftSnapshot?.sound) {
+              const engine = engineRef.current;
+              void playPublishedCatalogGiftSound(engine, msg.giftSnapshot, () => engineRef.current === engine && isLiveRef.current && !pausedRef.current);
+            } else playLiveGiftSound(engineRef.current, msg.giftName);
           };
           let fallbackSent = false;
           const fallback = () => {
@@ -533,7 +542,7 @@ export default function GoLiveScreen() {
             if (nativeExpected) void momentsRequest("/live-gift", getToken, "POST", { giftId: msg.giftId, inVideo: false }).catch(error => console.warn("[Moments] Gift fallback notification failed", error));
           };
           if (msg.type === "gift" && nativeExpected && pausedRef.current) fallback();
-          if (msg.type === "gift" && msg.giftId && typeof msg.amount === "number" && msg.amount >= 500 && typeof msg.recipientUid === "number" && msg.recipientUid === user?.uid && isLiveRef.current && !pausedRef.current) {
+          if (msg.type === "gift" && msg.giftId && typeof msg.amount === "number" && msg.amount >= 500 && (msg.giftName !== "Crown" || nativeExpected) && typeof msg.recipientUid === "number" && msg.recipientUid === user?.uid && isLiveRef.current && !pausedRef.current) {
             stopMomentProof(engineRef.current, "A real gift arrived; the test yielded to normal recording.");
             const engine = engineRef.current;
             const channel = mediaChannelRef.current || activeChannelId;
@@ -552,9 +561,10 @@ export default function GoLiveScreen() {
             playGiftSound();
           }
           if (msg.type === "gift" && msg.giftName) {
-            const gift = GIFTS.find((g) => (g.name === msg.giftName || (g.id === "luxury_rocket" && msg.giftName === "Rocket")) && g.coins === msg.amount) ?? GIFTS.find((g) => g.name === msg.giftName) ?? GIFTS[0]!;
+            const gift = giftFromSnapshot(msg.giftSnapshot) ?? GIFTS.find((g) => (g.name === msg.giftName || (g.id === "luxury_rocket" && msg.giftName === "Rocket")) && g.coins === msg.amount) ?? GIFTS.find((g) => g.name === msg.giftName) ?? GIFTS[0]!;
             const x = 60 + Math.random() * 200;
             setFloatingGifts(prev => mergeGiftFloater(prev, { id: msg.giftId ?? `${Date.now()}-${Math.random()}`, catalogId: gift.id, emoji: gift.emoji, name: gift.name, senderName: msg.senderName ?? "Viewer", x, size: gift.size, inVideo: msg.giftId ? giftPresentation.current.inVideo(msg.giftId) : nativeGift,
+              giftSnapshot: gift.snapshot, playbackAudio: false,
               comboId: msg.combo?.id, comboCount: msg.combo?.count, comboLabel: msg.combo ? `×${appNumber(msg.combo.count)}` : undefined }));
           }
           if (msg.type === "stream_ended") {
@@ -963,6 +973,7 @@ export default function GoLiveScreen() {
     const next = !pausedRef.current;
     const apply = (paused: boolean) => {
       if (!isLiveRef.current || channelIdRef.current !== channel || engineRef.current !== engine) return;
+      if (paused) stopPublishedCatalogGiftSounds(engine);
       if (isNative) setBroadcastPaused(engine, paused, isMuted);
       pausedRef.current = paused;
       setIsPaused(paused);
@@ -1342,7 +1353,7 @@ export default function GoLiveScreen() {
                     <LiveChatAvatar senderUid={item.senderUid} senderName={item.senderName} />
                     <View style={styles.liveChatContent}>
                       <Text style={styles.liveChatSender}>{item.senderName}</Text>
-                      <TranslatedMessage text={item.text} messageId={item.id} kind="live" channelId={activeChannelId} incoming={item.senderUid !== undefined && item.senderUid !== user?.uid} style={styles.liveChatText} />
+                      {item.id.startsWith("gift:") ? <GiftCoinNotice text={item.text} style={styles.liveChatText} /> : <TranslatedMessage text={item.text} messageId={item.id} kind="live" channelId={activeChannelId} incoming={item.senderUid !== undefined && item.senderUid !== user?.uid} style={styles.liveChatText} />}
                     </View>
                   </Pressable>
                 ))}
@@ -1710,9 +1721,10 @@ export default function GoLiveScreen() {
                 returnKeyType="done"
               />
               {selectedRequiredGift ? (
-                <Text style={styles.selectedGiftSummary}>
-                  {selectedRequiredGift.id === "crown" ? "" : `${selectedRequiredGift.emoji} `}{selectedRequiredGift.name} · 🪙{selectedRequiredGift.coins}
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 4 }}>
+                  <Text style={styles.selectedGiftSummary}>{selectedRequiredGift.id === "crown" ? "" : `${selectedRequiredGift.emoji} `}{selectedRequiredGift.name} ·</Text>
+                  <GoldCoinIcon size={12} /><Text style={styles.selectedGiftSummary}>{appNumber(selectedRequiredGift.coins)}</Text>
+                </View>
               ) : null}
             </View>
           </View>
@@ -1843,7 +1855,7 @@ export default function GoLiveScreen() {
                     ) : null}
                     {gift.id === "crown" ? <CrownArtwork size={31} style={{ marginBottom: 6 }} /> : hasGiftImage(gift.id) ? <GiftImageArtwork gift={gift.id} size={31} style={{ marginBottom: 6 }} /> : <Text style={styles.giftSheetEmoji}>{gift.emoji}</Text>}
                     <Text style={styles.giftSheetGiftName}>{gift.name}</Text>
-                    <Text style={styles.giftSheetGiftCost}>🪙 {gift.coins}</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 }}><GoldCoinIcon size={11} /><Text style={[styles.giftSheetGiftCost, { marginTop: 0 }]}>{appNumber(gift.coins)}</Text></View>
                   </TouchableOpacity>
                 );
               })}

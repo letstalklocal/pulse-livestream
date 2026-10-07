@@ -1,9 +1,12 @@
+import type { GiftSnapshot } from "./giftCatalog";
 export type StickerDraft = {
   kind: "gift" | "pack";
   giftId: string;
+  giftRevisionId?: string;
   packId?: number;
 };
 export type LiveSticker = StickerDraft & {
+  giftSnapshot?: GiftSnapshot | null;
   id: string;
   price: number;
   name: string;

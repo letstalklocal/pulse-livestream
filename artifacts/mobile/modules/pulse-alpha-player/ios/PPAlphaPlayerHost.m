@@ -13,6 +13,10 @@
 @end
 
 @implementation PPAlphaPlayerHost
+- (void)setMuted:(BOOL)muted {
+  _muted = muted;
+  self.audioPlayer.volume = muted ? 0.0 : 1.0;
+}
 - (instancetype)initWithFrame:(CGRect)frame {
   if ((self = [super initWithFrame:frame])) {
     self.backgroundColor = UIColor.clearColor;
@@ -83,7 +87,7 @@
       [self fail:error.localizedDescription]; return;
     }
     self.audioPlayer = [AVPlayer playerWithPlayerItem:[AVPlayerItem playerItemWithAsset:composition]];
-    self.audioPlayer.volume = 1.0;
+    self.audioPlayer.volume = self.isMuted ? 0.0 : 1.0;
     self.audioPlayer.actionAtItemEnd = AVPlayerActionAtItemEndPause;
     self.observingAudio = YES;
     [self.audioPlayer.currentItem addObserver:self forKeyPath:@"status" options:NSKeyValueObservingOptionNew context:NULL];

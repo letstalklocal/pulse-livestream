@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { check, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 
 export const mediaPacksTable = pgTable("media_packs", {
@@ -8,6 +8,7 @@ export const mediaPacksTable = pgTable("media_packs", {
   name: text("name").notNull(),
   coinPrice: integer("coin_price").notNull(),
   giftId: text("gift_id").notNull().default("rose"),
+  giftSnapshot: jsonb("gift_snapshot").$type<Record<string, unknown>>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [index("media_packs_owner_idx").on(t.ownerUserId, t.createdAt), check("media_packs_positive_price", sql`${t.coinPrice} > 0`)]);
 

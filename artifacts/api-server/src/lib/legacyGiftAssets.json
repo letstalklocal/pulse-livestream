@@ -1,0 +1,14 @@
+[
+  {"giftId":"rose","file":"gifts/rose.png","kind":"thumbnail","format":"png","label":"Rose artwork"},
+  {"giftId":"heart","file":"gifts/heart.png","kind":"thumbnail","format":"png","label":"Heart artwork"},
+  {"giftId":"strawberry","file":"gifts/strawberry.png","kind":"thumbnail","format":"png","label":"Strawberry artwork"},
+  {"giftId":"lips","file":"gifts/lips.png","kind":"thumbnail","format":"png","label":"Lips artwork"},
+  {"giftId":"crown","file":"moments/crown.png","kind":"thumbnail","format":"png","label":"Crown artwork"},
+  {"giftId":"kisses","file":"gifts/luxury/kisses.png","kind":"thumbnail","format":"png","label":"Kisses artwork"},
+  {"giftId":"luxury_rocket","file":"gifts/luxury/blast-off.png","kind":"thumbnail","format":"png","label":"Blast Off artwork"},
+  {"giftId":"dragon","file":"gifts/luxury/fiery-dragon.png","kind":"thumbnail","format":"png","label":"Dragon artwork"},
+  {"giftId":"kisses","file":"gifts/luxury/Virtual-Kiss-Gift.svga","kind":"animation","format":"svga","label":"Kisses animation · Android / iPhone"},
+  {"giftId":"luxury_rocket","file":"gifts/luxury/Blast-Off-Gift.svga","kind":"animation","format":"svga","label":"Blast Off animation · Android / iPhone"},
+  {"giftId":"dragon","file":"gifts/luxury/Fiery-Dragon-Gift.svga","kind":"animation","format":"svga","label":"Dragon animation · Android / iPhone"},
+  {"giftId":"__default_sound","file":"moments/default-gift.mp3","kind":"sound","format":"mp3","label":"Default gift sound"}
+]

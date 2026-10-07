@@ -20,6 +20,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useAppLanguage } from "@/i18n";
 import { GIFTS } from "./GiftPicker";
+import { useGiftCatalog } from "@/hooks/useGiftCatalog";
+import { getGiftCatalog } from "@/utils/giftCatalog";
 import { LiveStickerCard } from "./LiveStickerCard";
 import {
   stickerApi,
@@ -54,14 +56,14 @@ function preview(
   id: string,
   packs: Pack[] = [],
 ): LiveSticker {
-  const gift = GIFTS.find((g) => g.id === draft.giftId)!;
+  const gift = (getGiftCatalog()?.collections.flatMap(collection => collection.gifts) ?? GIFTS).find((g) => g.id === draft.giftId);
   const pack = packs.find((p) => Number(p.id) === draft.packId);
   return {
     ...draft,
     id,
     giftId: pack?.giftId ?? draft.giftId,
-    name: pack?.name ?? gift.name,
-    price: pack?.price ?? gift.coins,
+    name: pack?.name ?? gift?.name ?? draft.giftId,
+    price: pack?.price ?? gift?.coins ?? 0,
     owned: false,
     videos: pack?.items.filter((i) => i.mediaType === "video").length ?? 0,
     pictures: pack?.items.filter((i) => i.mediaType === "image").length ?? 0,
@@ -183,6 +185,7 @@ export function LiveStickerPicker({
   onSelect: (draft: StickerDraft) => void;
 }) {
   const { t } = useAppLanguage();
+  const { gifts } = useGiftCatalog(true);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [previewPack, setPreviewPack] = useState<Pack | null>(null);
@@ -200,7 +203,10 @@ export function LiveStickerPicker({
     packs.data?.packs.filter((p) => !excludedPackIds.includes(Number(p.id))) ??
     [];
   const submit = () => {
-    if (!disabled && giftId) onSelect({ kind: "gift", giftId });
+    if (!disabled && giftId) {
+      const gift = gifts.find(item => item.id === giftId);
+      if (gift) onSelect({ kind: "gift", giftId, ...(gift.revisionId ? { giftRevisionId: gift.revisionId } : {}) });
+    }
   };
   return (
     <Modal
@@ -385,7 +391,7 @@ export function LiveStickerPicker({
               ) : (
                 <>
                   <View style={styles.gifts}>
-                    {GIFTS.map((gift) => {
+                    {gifts.map((gift) => {
                       const draft: StickerDraft = {
                         kind: "gift",
                         giftId: gift.id,

@@ -7,12 +7,14 @@ import {
   premiumStreamAdmissionsTable,
 } from "@workspace/db";
 import { canAccessChannel } from "./privateChannelAccess";
-import { GIFT_CATALOG } from "./giftCatalog";
+import { GiftCatalogError } from "./managedGiftCatalog";
+import { currentCatalogGift } from "./giftCatalogTransaction";
 
 export type LiveSticker = {
   id: string;
   kind: "gift" | "pack";
   giftId: string;
+  giftRevisionId?: string;
   packId?: number;
 };
 export class StickerError extends Error {
@@ -35,11 +37,21 @@ export async function validateStickers(
     if (
       !item ||
       !["gift", "pack"].includes(item.kind) ||
-      typeof item.giftId !== "string" ||
-      !Object.hasOwn(GIFT_CATALOG, item.giftId)
+      typeof item.giftId !== "string" || !/^[a-z][a-z0-9_-]{0,79}$/.test(item.giftId)
     )
       throw new StickerError(400, "Choose a valid sticker gift");
     let giftId = item.giftId;
+    let giftRevisionId: string | undefined;
+    if (item.kind === "gift") {
+      try {
+        const gift = await db.transaction(tx => currentCatalogGift(tx, giftId));
+        if (item.giftRevisionId !== undefined && item.giftRevisionId !== gift.revisionId) throw new StickerError(409, "Gift changed. Choose the current gift.");
+        giftRevisionId = gift.revisionId;
+      } catch (error) {
+        if (error instanceof GiftCatalogError) throw new StickerError(error.status, error.message);
+        throw error;
+      }
+    }
     if (item.kind === "pack") {
       if (!Number.isSafeInteger(item.packId) || item.packId <= 0)
         throw new StickerError(400, "Choose a valid media pack");
@@ -62,6 +74,7 @@ export async function validateStickers(
       id: randomUUID(),
       kind: item.kind,
       giftId,
+      ...(giftRevisionId ? { giftRevisionId } : {}),
       ...(item.kind === "pack" ? { packId: item.packId } : {}),
     });
   }

@@ -2,5 +2,8 @@
   "name": "@workspace/admin",
   "version": "0.0.0",
   "private": true,
-  "description": "Pulse admin dashboard preview; static assets are packaged by the API build"
+  "description": "Pulse admin dashboard preview; static assets are packaged by the API build",
+  "dependencies": {
+    "svgaplayerweb": "2.3.2"
+  }
 }

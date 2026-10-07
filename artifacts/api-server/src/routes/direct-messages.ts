@@ -7,7 +7,7 @@ import { createPrivateGetUrl } from "../lib/objectStorage";
 import { endRuntimeStream } from "./streams";
 import { expirePrivateInvitation } from "./private-stream-invitations";
 import { purchaseDmGift } from "../lib/dmGiftPurchase";
-import { GIFT_CATALOG } from "../lib/giftCatalog";
+import { GiftCatalogError } from "../lib/managedGiftCatalog";
 
 const router = Router();
 const MAX_MESSAGE_LENGTH = 2_000;
@@ -38,6 +38,7 @@ async function messageResponse(message: typeof directMessagesTable.$inferSelect,
     recipientName: names.get(message.toUserId) ?? String(message.toUserId),
     text: deletedAt ? "" : message.text,
     kind: message.kind,
+    giftSnapshot: deletedAt ? null : message.giftSnapshot,
     mediaPackId: message.mediaPackId === null ? null : String(message.mediaPackId),
     ts: message.createdAt.getTime(),
     editedAt: message.editedAt?.getTime() ?? null,
@@ -85,18 +86,19 @@ async function messageResponse(message: typeof directMessagesTable.$inferSelect,
 router.post("/dms/gifts", async (req, res): Promise<any> => {
   const requestedAt = new Date();
   const sender = await requireUser(req, res); if (!sender) return;
-  const { recipientId, giftId, idempotencyKey } = req.body ?? {};
-  if (!Number.isSafeInteger(recipientId) || recipientId <= 0 || recipientId === sender.uid || typeof giftId !== "string" || !Object.hasOwn(GIFT_CATALOG, giftId) || typeof idempotencyKey !== "string" || !idempotencyKey.length || idempotencyKey.length > 100) return res.status(400).json({ error: "Invalid gift request" });
+  const { recipientId, giftId, idempotencyKey, giftRevisionId, expectedCoinCost } = req.body ?? {};
+  if (!Number.isSafeInteger(recipientId) || recipientId <= 0 || recipientId === sender.uid || typeof giftId !== "string" || !/^[a-z][a-z0-9_-]{0,79}$/.test(giftId) || (giftRevisionId !== undefined && typeof giftRevisionId !== "string") || (expectedCoinCost !== undefined && (!Number.isSafeInteger(expectedCoinCost) || expectedCoinCost <= 0)) || typeof idempotencyKey !== "string" || !idempotencyKey.length || idempotencyKey.length > 100) return res.status(400).json({ error: "Invalid gift request" });
   if (!await requireContactAllowed(res, sender.uid, recipientId)) return;
   if (!await requireChatAllowed(res, sender.uid, recipientId)) return;
   const [recipient] = await db.select().from(usersTable).where(eq(usersTable.uid, recipientId)).limit(1);
   if (!recipient) return res.status(404).json({ error: "Recipient not found" });
   try {
-    const result = await purchaseDmGift(sender.uid, recipientId, giftId as keyof typeof GIFT_CATALOG, idempotencyKey, requestedAt);
+    const result = await purchaseDmGift(sender.uid, recipientId, giftId, idempotencyKey, requestedAt, { giftRevisionId, expectedCoinCost });
     if (result.error) return res.status(result.error === "conflict" ? 409 : 402).json({ error: result.error === "conflict" ? "This request was already used for a different gift." : "Insufficient coins" });
     const shareRead = (await db.select().from(messagePreferencesTable).where(eq(messagePreferencesTable.userId, recipientId)).limit(1))[0]?.readReceipts ?? true;
-    return res.json({ balance: result.balance, duplicate: result.duplicate, combo: { id: result.combo.id, count: result.combo.count, totalCoins: result.combo.totalCoins }, message: await messageResponse(result.message, new Map([[sender.uid, sender.name], [recipientId, recipient.name]]), sender.uid, new Set(), undefined, shareRead) });
+    return res.json({ balance: result.balance, duplicate: result.duplicate, giftSnapshot: result.giftSnapshot, combo: { id: result.combo.id, count: result.combo.count, totalCoins: result.combo.totalCoins }, message: await messageResponse(result.message, new Map([[sender.uid, sender.name], [recipientId, recipient.name]]), sender.uid, new Set(), undefined, shareRead) });
   } catch (error) {
+    if (error instanceof GiftCatalogError) return res.status(error.status).json({ error: error.message, code: error.code });
     req.log.error({ err: error }, "DM gift transaction failed");
     return res.status(500).json({ error: "Gift could not be confirmed. Retry this gift with the same request." });
   }

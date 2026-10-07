@@ -1,4 +1,4 @@
-import { pgTable, integer, text, timestamp, serial, uniqueIndex, index, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, integer, text, timestamp, serial, uniqueIndex, index, primaryKey, jsonb } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 import { liveBattlesTable } from "./live-parties";
 
@@ -16,6 +16,8 @@ export const coinTransactionsTable = pgTable("coin_transactions", {
   amount:      integer("amount").notNull(),
   type:        text("type").notNull(), // "gift" | "grant"
   giftName:    text("gift_name"),
+  // Purchase-time catalog metadata, never reinterpreted using today's price/art.
+  giftSnapshot: jsonb("gift_snapshot").$type<Record<string, unknown>>(),
   channelId:   text("channel_id"),
   battleId: text("battle_id").references(() => liveBattlesTable.id),
   description: text("description").notNull().default(""),

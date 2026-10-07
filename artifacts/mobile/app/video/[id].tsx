@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { giftFromSnapshot, refreshGiftCatalog } from "@/utils/giftCatalog";
+import { useGiftCatalog } from "@/hooks/useGiftCatalog";
 import {
   ActivityIndicator,
   Alert,
@@ -107,6 +109,7 @@ export default function CreatorVideoViewer() {
     AppState.currentState === "active",
   );
   const active = focused && foreground;
+  const { gifts: catalogGifts } = useGiftCatalog(active);
   const keyboard = useKeyboardState((s) => s.isVisible);
   const [lease, setLease] = useState<CacheLease | null>(null),
     [error, setError] = useState(""),
@@ -131,7 +134,7 @@ export default function CreatorVideoViewer() {
   const session = useRef(randomUUID()),
     watched = useRef(0),
     alive = useRef(true),
-    giftRequest = useRef<{ id: string; giftId: string } | null>(null);
+    giftRequest = useRef<{ id: string; giftId: string; revisionId?: string; coins: number } | null>(null);
   useEffect(() => {
     const sub = AppState.addEventListener("change", (s) =>
       setForeground(s === "active"),
@@ -307,11 +310,13 @@ export default function CreatorVideoViewer() {
     if (!video || !active || owner) return;
     if (giftBusy.current) return;
     giftBusy.current = true;
-    if (!giftRequest.current || giftRequest.current.giftId !== gift.id)
-      giftRequest.current = { id: randomUUID(), giftId: gift.id };
+    if (!giftRequest.current || giftRequest.current.giftId !== gift.id || giftRequest.current.revisionId !== gift.revisionId || giftRequest.current.coins !== gift.coins)
+      giftRequest.current = { id: randomUUID(), giftId: gift.id, revisionId: gift.revisionId, coins: gift.coins };
     try {
       await videoRequest(`/${id}/gifts`, getToken, "POST", {
         giftId: gift.id,
+        giftRevisionId: gift.revisionId,
+        expectedCoinCost: gift.coins,
         requestId: giftRequest.current.id,
       });
       giftRequest.current = null;
@@ -325,11 +330,13 @@ export default function CreatorVideoViewer() {
           senderName: user?.name ?? "",
           x: 0,
           size: gift.size,
+          catalogId: gift.id, giftSnapshot: gift.snapshot, playbackAudio: true,
         },
       ]);
       void wallet.refetch();
       void detail.refetch();
     } catch (e) {
+      void refreshGiftCatalog().catch(() => {});
       if (alive.current)
         Alert.alert(t("Gift not sent"), t((e as Error).message));
     } finally {
@@ -621,7 +628,7 @@ export default function CreatorVideoViewer() {
       </KeyboardAvoidingView>
       {video && !detail.isError && <VideoStickerOverlay
         videoId={video.id} ownerUid={video.ownerUid} ownerName={video.ownerName} visible={active && !keyboard} top={insets.top + 66} isHost={owner}
-        onGift={(giftId) => { const gift = GIFTS.find(value => value.id === giftId); if (gift && !owner) void sendGift(gift); }}
+        onGift={(giftId, snapshot, expectedCoins) => { const gift = giftFromSnapshot(snapshot) ?? catalogGifts.find(value => value.id === giftId); if (gift && !owner) void sendGift({ ...gift, coins: expectedCoins ?? gift.coins }); }}
       />}
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
         {gifts.map((g) => (

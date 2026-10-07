@@ -32,6 +32,8 @@ vm.runInNewContext(compile('../components/VideoStickerOverlay.tsx'), {
     };
     if (id === './LiveStickerCard') return { LiveStickerCard: 'Card' };
     if (id === './GiftPicker') return { GIFTS: [] };
+    if (id === '@/hooks/useGiftCatalog') return { useGiftCatalog: () => ({ gifts: [] }) };
+    if (id === '@/utils/giftCatalog') return { giftFromSnapshot: () => null, refreshGiftCatalog: async () => {} };
     if (id === '@workspace/api-client-react') return {};
     throw Error(id);
   },

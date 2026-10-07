@@ -5,10 +5,13 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { SendPostGiftBodyGiftId } from './sendPostGiftBodyGiftId';
 
 export type SendPostGiftBody = {
-  giftId: SendPostGiftBodyGiftId;
+  /** @pattern ^[a-z][a-z0-9_-]{0,79}$ */
+  giftId: string;
+  giftRevisionId?: string;
+  /** @minimum 1 */
+  expectedCoinCost?: number;
   /**
      * @minLength 16
      * @maxLength 80

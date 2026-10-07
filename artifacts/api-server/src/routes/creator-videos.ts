@@ -8,6 +8,9 @@ import { availableCreatorVideo as available } from "../lib/creatorVideoAccess";
 import { createPrivateGetUrl } from "../lib/objectStorage";
 import { validateStickers, StickerError } from "../lib/liveStickers";
 import { purchaseMediaPack } from "../lib/mediaPackPurchase";
+import { GiftCatalogError, resolvePublishedGift } from "../lib/managedGiftCatalog";
+import { giftCatalogDb, currentCatalogGift } from "../lib/giftCatalogTransaction";
+import { GIFT_CATALOG } from "../lib/giftCatalog";
 import {
   bunnyConfig,
   bunnyRequest,
@@ -31,6 +34,7 @@ const wrap =
         return res.status(400).json({ error: "Invalid video." });
       await fn(req, res, user);
     } catch (error) {
+      if (error instanceof GiftCatalogError) return res.status(error.status).json({ error: error.message, code: error.code });
       req.log?.error({ err: error }, "Creator video request failed");
       if (!res.headersSent)
         res
@@ -73,16 +77,19 @@ function present(row: any) {
 const stickerRows = async (video: any, uid: number) => {
   const stickers = Array.isArray(video.stickers) ? video.stickers : [];
   const rows = await Promise.all(stickers.map(async (sticker: any) => {
-    const gift = gifts[sticker.giftId];
-    if (!gift) return null;
-    if (sticker.kind === "gift") return { ...sticker, name: gift.name, price: gift.coins, videos: 0, pictures: 0, owned: false };
-    const pack = (await db.execute(sql`select p.id,p.name,p.coin_price,p.gift_id,
+    if (sticker.kind === "gift") {
+      try {
+        const gift = await db.transaction(tx => currentCatalogGift(tx, sticker.giftId));
+        return { ...sticker, name: gift.name, price: gift.coinCost, giftRevisionId: gift.revisionId, giftSnapshot: gift, videos: 0, pictures: 0, owned: false };
+      } catch (error) { if (error instanceof GiftCatalogError) return null; throw error; }
+    }
+    const pack = (await db.execute(sql`select p.id,p.name,p.coin_price,p.gift_id,p.gift_snapshot,
       exists(select 1 from media_pack_purchases x where x.pack_id=p.id and x.buyer_user_id=${uid}) as owned,
       count(i.id) filter(where i.content_type like 'video/%')::int as videos,
       count(i.id) filter(where i.content_type like 'image/%')::int as pictures
       from media_packs p left join media_pack_items i on i.pack_id=p.id
       where p.id=${sticker.packId} and p.owner_user_id=${video.owner_user_id} group by p.id`)).rows[0] as any;
-    return pack ? { ...sticker, giftId: pack.gift_id, name: pack.name, price: pack.coin_price, videos: pack.videos, pictures: pack.pictures, owned: pack.owned } : null;
+    return pack ? { ...sticker, giftId: pack.gift_id, giftSnapshot: pack.gift_snapshot, name: pack.name, price: pack.coin_price, videos: pack.videos, pictures: pack.pictures, owned: pack.owned } : null;
   }));
   return rows.filter(Boolean);
 };
@@ -512,28 +519,16 @@ router.post(
       );
   }),
 );
-const gifts: Record<string, { name: string; coins: number }> = {
-  rose: { name: "Rose", coins: 1 },
-  heart: { name: "Heart", coins: 5 },
-  party: { name: "Party", coins: 10 },
-  strawberry: { name: "Strawberry", coins: 49 },
-  diamond: { name: "Diamond", coins: 50 },
-  lips: { name: "Lips", coins: 99 },
-  rocket: { name: "Rocket", coins: 100 },
-  crown: { name: "Crown", coins: 500 },
-};
 router.post(
   "/creator-videos/:id/gifts",
   wrap(async (req, res, user) => {
     const video = await available(req.params.id, user.uid);
     if (!video || video.owner_user_id === user.uid)
       return res.status(403).json({ error: "Gift unavailable." });
-    const gift =
-      typeof req.body?.giftId === "string" &&
-      Object.hasOwn(gifts, req.body.giftId)
-        ? gifts[req.body.giftId]
-        : null;
-    if (!gift || !uuid(req.body?.requestId))
+    const { giftId, giftRevisionId, expectedCoinCost } = req.body ?? {};
+    if (typeof giftId !== "string" || !/^[a-z][a-z0-9_-]{0,79}$/.test(giftId) ||
+        (giftRevisionId !== undefined && typeof giftRevisionId !== "string") ||
+        (expectedCoinCost !== undefined && (!Number.isSafeInteger(expectedCoinCost) || expectedCoinCost <= 0)) || !uuid(req.body?.requestId))
       return res.status(400).json({ error: "Invalid gift." });
     const key = `video:${req.body.requestId}`;
     const result = await db.transaction(async (tx) => {
@@ -544,12 +539,16 @@ router.post(
           sql`select t.*,g.video_id from coin_transactions t join creator_video_gifts g on g.transaction_id=t.id where t.idempotency_key=${key}`,
         )
       ).rows[0] as any;
-      if (prior)
-        return prior.from_user_id === user.uid &&
-          prior.video_id === video.id &&
-          prior.amount === gift.coins
-          ? { status: 200, balance: prior.balance_after }
+      if (prior) {
+        const saved = prior.gift_snapshot;
+        const legacy = GIFT_CATALOG[giftId as keyof typeof GIFT_CATALOG];
+        return prior.from_user_id === user.uid && prior.video_id === video.id &&
+          (saved ? saved.id === giftId && (!giftRevisionId || saved.revisionId === giftRevisionId) : legacy && prior.gift_name === legacy.name && prior.amount === legacy.coinCost) &&
+          (expectedCoinCost === undefined || prior.amount === expectedCoinCost)
+          ? { status: 200, balance: prior.balance_after, giftSnapshot: saved }
           : { status: 409 };
+      }
+      const gift = await resolvePublishedGift(giftCatalogDb(tx), giftId, giftRevisionId, expectedCoinCost);
       const enabled = await tx.execute(
         sql`select owner_user_id from creator_video_settings where owner_user_id=${video.owner_user_id} and enabled and selected_video_id=${video.id}`,
       );
@@ -564,23 +563,23 @@ router.post(
         );
       }
       const paid = await tx.execute(
-        sql`update coin_balances set balance=balance-${gift.coins},updated_at=now() where user_id=${user.uid} and balance>=${gift.coins} returning balance`,
+        sql`update coin_balances set balance=balance-${gift.coinCost},updated_at=now() where user_id=${user.uid} and balance>=${gift.coinCost} returning balance`,
       );
       if (!paid.rows.length) return { status: 402 };
       await tx.execute(
-        sql`update coin_balances set balance=balance+${gift.coins},updated_at=now() where user_id=${video.owner_user_id}`,
+        sql`update coin_balances set balance=balance+${gift.coinCost},updated_at=now() where user_id=${video.owner_user_id}`,
       );
       const transaction =
-        await tx.execute(sql`insert into coin_transactions(from_user_id,to_user_id,amount,type,gift_name,description,idempotency_key,balance_after)
-      values(${user.uid},${video.owner_user_id},${gift.coins},'gift',${gift.name},'Video gift',${key},${paid.rows[0].balance}) returning id`);
+        await tx.execute(sql`insert into coin_transactions(from_user_id,to_user_id,amount,type,gift_name,gift_snapshot,description,idempotency_key,balance_after)
+      values(${user.uid},${video.owner_user_id},${gift.coinCost},'gift',${gift.name},${JSON.stringify(gift)}::jsonb,'Video gift',${key},${paid.rows[0].balance}) returning id`);
       await tx.execute(
         sql`insert into creator_video_gifts(transaction_id,video_id) values(${transaction.rows[0].id},${video.id})`,
       );
-      return { status: 200, balance: paid.rows[0].balance };
+      return { status: 200, balance: paid.rows[0].balance, giftSnapshot: gift };
     });
     res.status(result.status).json(
       result.status === 200
-        ? { balance: result.balance }
+        ? { balance: result.balance, giftSnapshot: result.giftSnapshot }
         : {
             error:
               result.status === 402

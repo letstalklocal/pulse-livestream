@@ -1,5 +1,7 @@
 import { formatPrivateLiveTitle } from "@/utils/privateLiveLabels";
 import { parseDmGiftReceipt } from "@/utils/dmGiftReceipt";
+import { giftFromSnapshot } from "@/utils/giftCatalog";
+import { RemoteGiftArtwork } from "@/components/RemoteGiftArtwork";
 import { GoldCoinIcon } from "@/components/GoldCoinIcon";
 import { CrownArtwork } from "@/components/CrownArtwork";
 import { GiftImageArtwork, hasGiftImage } from "@/components/GiftImageArtwork";
@@ -208,7 +210,7 @@ export default function DmScreen() {
   const reversedMessagesRef = useRef(reversedMessages);
   reversedMessagesRef.current = reversedMessages;
   const paymentBalanceStateRef = useRef("");
-  const giftRetryRef = useRef<{ peerId: string; giftId: string; key: string }[]>([]);
+  const giftRetryRef = useRef<{ peerId: string; giftId: string; revisionId?: string; coins: number; key: string }[]>([]);
 
   const finishOpening = useCallback((index: number) => {
     // Content-size changes must not continually cancel the pending reveal.
@@ -297,7 +299,7 @@ export default function DmScreen() {
     const latest = next[next.length - 1];
     if (focusedRef.current && positionedRef.current && latest &&
         latest.messageId !== latestMessageRef.current && latest.senderId === myUidStr &&
-        !parseDmGiftReceipt(latest.text, GIFTS)) {
+        !parseDmGiftReceipt(latest.text, GIFTS, giftFromSnapshot(latest.giftSnapshot))) {
       // Switch anchoring in the same render that inserts our outgoing message.
       updateFollowingBottom(true);
       keepAtBottom();
@@ -347,7 +349,7 @@ export default function DmScreen() {
     const hasNewMessage = latest && latest.messageId !== latestMessageRef.current;
     latestMessageRef.current = latest?.messageId;
     if (!positionedRef.current) return;
-    if (hasNewMessage && (isNearBottomRef.current || (latest.senderId === myUidStr && !parseDmGiftReceipt(latest.text, GIFTS)))) {
+    if (hasNewMessage && (isNearBottomRef.current || (latest.senderId === myUidStr && !parseDmGiftReceipt(latest.text, GIFTS, giftFromSnapshot(latest.giftSnapshot))))) {
       updateFollowingBottom(true);
       keepAtBottom();
     }
@@ -515,7 +517,7 @@ export default function DmScreen() {
         onScrollToIndexFailed={handleInitialPositionFailed}
         renderItem={({ item }) => {
           const isMe = item.senderId === myUidStr;
-          const giftReceipt = parseDmGiftReceipt(item.text, GIFTS);
+          const giftReceipt = parseDmGiftReceipt(item.text, GIFTS, giftFromSnapshot(item.giftSnapshot));
           const extraBottomSpacing = (item.kind === "media" && item.mediaType === "video")
             || (item.kind === "media_pack" && !!item.mediaPackId)
             || (item.kind === "private_stream_invitation" && !!item.invitation);
@@ -533,7 +535,7 @@ export default function DmScreen() {
                   <Ionicons name="lock-closed" size={16} color={colors.primary} />
                   <Text style={[styles.inviteTitle, { color: colors.foreground }]}>{formatPrivateLiveTitle(item.invitation.title, t)}</Text>
                    <Text style={[localizedTextStyle(), [styles.inviteStatus, { color: colors.mutedForeground }]]}>{t("1:1 Private · {v0}", { v0: item.invitation.status })}</Text>
-                   {item.invitation.requiredGiftAmount > 0 ? <Text style={[localizedTextStyle(), styles.invitePrice]}>🎁 {item.invitation.requiredGiftName} · 🪙 {item.invitation.requiredGiftAmount}{item.invitation.paymentStatus === "paid" ? t(" · paid") : item.invitation.paymentStatus === "refunded" ? t(" · refunded") : ""}</Text> : <Text style={[localizedTextStyle(), [styles.inviteStatus, { color: colors.mutedForeground }]]}>{t("Free invitation")}</Text>}
+                   {item.invitation.requiredGiftAmount > 0 ? <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 4 }}><Text style={[localizedTextStyle(), styles.invitePrice]}>🎁 {item.invitation.requiredGiftName} ·</Text><GoldCoinIcon size={13} /><Text style={[localizedTextStyle(), styles.invitePrice]}>{appNumber(item.invitation.requiredGiftAmount)}{item.invitation.paymentStatus === "paid" ? t(" · paid") : item.invitation.paymentStatus === "refunded" ? t(" · refunded") : ""}</Text></View> : <Text style={[localizedTextStyle(), [styles.inviteStatus, { color: colors.mutedForeground }]]}>{t("Free invitation")}</Text>}
                   {item.invitation.status === "pending" && !isMe ? <View style={styles.inviteActions}>
                     <TouchableOpacity disabled={invitationAction.isPending} onPress={() => invitationAction.mutate({ id: Number(item.invitation!.id), action: "decline" })}><Text style={[localizedTextStyle(), [styles.inviteSecondary, { color: colors.mutedForeground }]]}>{t("Decline")}</Text></TouchableOpacity>
                     <TouchableOpacity disabled={invitationAction.isPending || contactBlocked} onPress={() => invitationAction.mutate({ id: Number(item.invitation!.id), action: "accept" }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetCoinBalanceQueryKey({ uid: user?.uid ?? 0 }) }), onError: (error: any) => { const message = error?.message ?? "Unable to accept invitation."; setSendError(message.includes("Insufficient") ? "Insufficient coins to accept this invitation." : message); if (message.includes("Insufficient")) Alert.alert(t("Insufficient coins"), t("You need {v0} coins to accept this 1:1 Private session.", { v0: item.invitation!.requiredGiftAmount })); } })} style={styles.invitePrimary}><Text style={[localizedTextStyle(), styles.invitePrimaryText]}>{item.invitation.requiredGiftAmount > 0 ? t("Pay {v0} coins & Accept", { v0: item.invitation.requiredGiftAmount }) : t("Accept")}</Text></TouchableOpacity>
@@ -560,7 +562,7 @@ export default function DmScreen() {
                 {item.replyTo && <View style={{ borderLeftWidth: 3, borderLeftColor: isMe ? "#FFF" : colors.primary, backgroundColor: "rgba(0,0,0,0.12)", borderRadius: 6, padding: 8, marginBottom: 6 }}><Text style={[localizedTextStyle(), { color: isMe ? "#FFF" : colors.primary, fontWeight: "600", fontSize: 12 }]}>{item.replyTo.senderId === myUidStr ? t("You") : item.replyTo.senderName}</Text><Text numberOfLines={2} style={{ color: isMe ? "#FFF" : colors.foreground, fontSize: 13 }}>{item.replyTo.text}</Text></View>}
                 {giftReceipt ? <>
                   <View style={styles.giftMessageArtwork} accessible accessibilityLabel={giftReceipt.gift.name}>
-                    {giftReceipt.gift.id === "crown" ? <CrownArtwork size={100} /> : hasGiftImage(giftReceipt.gift.id) ? <GiftImageArtwork gift={giftReceipt.gift.id} size={100} /> : <Text style={styles.giftMessageEmoji}>{giftReceipt.gift.emoji}</Text>}
+                    {item.giftSnapshot?.thumbnail ? <RemoteGiftArtwork snapshot={item.giftSnapshot} size={100} /> : giftReceipt.gift.id === "crown" ? <CrownArtwork size={100} /> : hasGiftImage(giftReceipt.gift.id) ? <GiftImageArtwork gift={giftReceipt.gift.id} size={100} /> : <Text style={styles.giftMessageEmoji}>{giftReceipt.gift.emoji}</Text>}
                     <View style={{ position: "absolute", top: 0, right: -8 }}><GiftComboBadge count={giftReceipt.count} label={`×${appNumber(giftReceipt.count)}`} reduceMotion={reduceMotion} /></View>
                   </View>
                   <View style={styles.giftMessageValue}><GoldCoinIcon size={14} /><Text style={styles.giftMessageCoins}>{appNumber(giftReceipt.coins)}</Text></View>
@@ -699,14 +701,14 @@ export default function DmScreen() {
           setSendError(null);
           // Only completed, uncertain requests are eligible for retry. An
           // in-flight tap never shares its key with another deliberate tap.
-          const retryIndex = giftRetryRef.current.findIndex(item => item.peerId === peerIdStr && item.giftId === gift.id);
+          const retryIndex = giftRetryRef.current.findIndex(item => item.peerId === peerIdStr && item.giftId === gift.id && item.revisionId === gift.revisionId && item.coins === gift.coins);
           const requestKey = retryIndex >= 0 ? giftRetryRef.current.splice(retryIndex, 1)[0].key : createGiftRequestKey();
           pendingGiftPayments.current += 1;
           void (async () => {
             try {
-              const result = await sendGiftDm(peerIdStr, gift.id, requestKey);
+              const result = await sendGiftDm(peerIdStr, gift.id, requestKey, { giftRevisionId: gift.revisionId, expectedCoinCost: gift.coins });
               if (!result.ok || !result.combo) {
-                if (result.uncertain) giftRetryRef.current.push({ peerId: peerIdStr, giftId: gift.id, key: requestKey });
+                if (result.uncertain) giftRetryRef.current.push({ peerId: peerIdStr, giftId: gift.id, revisionId: gift.revisionId, coins: gift.coins, key: requestKey });
                 Alert.alert(t("Unable to send gift"), t(result.error ?? "Please try again."));
                 return;
               }
@@ -722,6 +724,7 @@ export default function DmScreen() {
                 setFloatingGifts((previous) => mergeGiftFloater(previous, {
                   id: createGiftRequestKey(), emoji: gift.emoji, name: gift.name, catalogId: gift.id,
                   senderName: user.name ?? "You", x: 0, size: gift.size,
+                  giftSnapshot: result.giftSnapshot ?? gift.snapshot, playbackAudio: true,
                   comboId: combo.id, comboCount: combo.count,
                   comboLabel: `×${appNumber(combo.count)}`, reduceMotion,
                 }));
@@ -729,7 +732,7 @@ export default function DmScreen() {
               void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
 
             } catch {
-              giftRetryRef.current.push({ peerId: peerIdStr, giftId: gift.id, key: requestKey });
+              giftRetryRef.current.push({ peerId: peerIdStr, giftId: gift.id, revisionId: gift.revisionId, coins: gift.coins, key: requestKey });
               Alert.alert(t("Gift couldn't be sent"), t("Please try again."));
             } finally {
               pendingGiftPayments.current -= 1;
@@ -766,7 +769,7 @@ export default function DmScreen() {
       <Modal visible={showPackPicker && !contactBlocked} transparent animationType="slide" onRequestClose={() => setShowPackPicker(false)}>
         <View style={[styles.pickerShade, { paddingBottom: Platform.OS === "android" ? 28 : 0 }]}><View style={[styles.packPicker,{backgroundColor:colors.card}]}>
           <View style={styles.pickerHead}><Text style={[localizedTextStyle(), [styles.pickerTitle,{color:colors.foreground}]]}>{t("Send a media pack")}</Text><TouchableOpacity onPress={()=>setShowPackPicker(false)}><Ionicons name="close" size={23} color={colors.foreground}/></TouchableOpacity></View>
-          {(((packsQuery.data as any)?.packs ?? packsQuery.data ?? []) as any[]).map((pack:any)=><TouchableOpacity key={pack.id} testID={`pack-send-${pack.id}`} disabled={sendPackMutation.isPending} onPress={async()=>{const recipientId=Number(peerIdStr); if(!Number.isInteger(recipientId)) return; try {await sendPackMutation.mutateAsync({packId:pack.id,data:{recipientId,idempotencyKey:createGiftRequestKey()}} as any);setShowPackPicker(false);setTimeout(()=>setMessages(getMessages(peerIdStr)),300);} catch {setSendError("Media pack couldn't be sent. Try again.");}}} style={[styles.packOption,{borderColor:colors.border}]}><Ionicons name="images" size={19} color={colors.primary}/><View style={{flex:1}}><Text style={[styles.packOptionName,{color:colors.foreground}]}>{pack.name}</Text><Text style={[localizedTextStyle(), [styles.packOptionMeta,{color:colors.mutedForeground}]]}>{t("{v0} items", { v0: pack.itemCount })}</Text></View><Text style={styles.price}>🪙 {pack.price}</Text></TouchableOpacity>)}
+          {(((packsQuery.data as any)?.packs ?? packsQuery.data ?? []) as any[]).map((pack:any)=><TouchableOpacity key={pack.id} testID={`pack-send-${pack.id}`} disabled={sendPackMutation.isPending} onPress={async()=>{const recipientId=Number(peerIdStr); if(!Number.isInteger(recipientId)) return; try {await sendPackMutation.mutateAsync({packId:pack.id,data:{recipientId,idempotencyKey:createGiftRequestKey()}} as any);setShowPackPicker(false);setTimeout(()=>setMessages(getMessages(peerIdStr)),300);} catch {setSendError("Media pack couldn't be sent. Try again.");}}} style={[styles.packOption,{borderColor:colors.border}]}><Ionicons name="images" size={19} color={colors.primary}/><View style={{flex:1}}><Text style={[styles.packOptionName,{color:colors.foreground}]}>{pack.name}</Text><Text style={[localizedTextStyle(), [styles.packOptionMeta,{color:colors.mutedForeground}]]}>{t("{v0} items", { v0: pack.itemCount })}</Text></View><View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}><GoldCoinIcon size={14} /><Text style={styles.price}>{appNumber(pack.price)}</Text></View></TouchableOpacity>)}
           {(((packsQuery.data as any)?.packs ?? packsQuery.data ?? []) as any[]).length===0&&<Text style={[localizedTextStyle(), [styles.packOptionMeta,{color:colors.mutedForeground}]]}>{t("Create a pack in Profile before sending one.")}</Text>}
         </View></View>
       </Modal>

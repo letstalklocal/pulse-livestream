@@ -37,8 +37,9 @@ export function createGiftPresentation() {
 export function expectsNativeCrown(
   name: string | undefined,
   amount: number | undefined,
+  snapshot?: { revisionId: string },
 ) {
-  return name === "Crown" && typeof amount === "number" && amount >= 500;
+  return (!snapshot || snapshot.revisionId === "crown_legacy_v1") && name === "Crown" && typeof amount === "number" && amount >= 500;
 }
 
 export function mergeGiftFloater<T extends { id: string; comboId?: string; comboCount?: number }>(previous: T[], gift: T): T[] {

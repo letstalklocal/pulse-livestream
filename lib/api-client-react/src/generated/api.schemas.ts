@@ -1543,23 +1543,11 @@ export const CreateStreamRequestStickersItemKind = {
   pack: 'pack',
 } as const;
 
-export type CreateStreamRequestStickersItemGiftId = typeof CreateStreamRequestStickersItemGiftId[keyof typeof CreateStreamRequestStickersItemGiftId];
-
-
-export const CreateStreamRequestStickersItemGiftId = {
-  rose: 'rose',
-  heart: 'heart',
-  party: 'party',
-  strawberry: 'strawberry',
-  diamond: 'diamond',
-  lips: 'lips',
-  rocket: 'rocket',
-  crown: 'crown',
-} as const;
-
 export type CreateStreamRequestStickersItem = {
   kind: CreateStreamRequestStickersItemKind;
-  giftId: CreateStreamRequestStickersItemGiftId;
+  /** @pattern ^[a-z][a-z0-9_-]{0,79}$ */
+  giftId: string;
+  giftRevisionId?: string;
   /** @minimum 1 */
   packId?: number;
 };
@@ -1690,6 +1678,8 @@ export interface CoinBalanceResponse {
   balance: number;
 }
 
+export type CoinSpendResponseGiftSnapshot = { [key: string]: unknown };
+
 export type CoinSpendResponseCombo = {
   id: string;
   count: number;
@@ -1698,10 +1688,23 @@ export type CoinSpendResponseCombo = {
 
 export interface CoinSpendResponse {
   balance: number;
+  giftSnapshot?: CoinSpendResponseGiftSnapshot;
   combo?: CoinSpendResponseCombo;
 }
 
 export interface CoinSpendRequest {
+  /**
+     * Stable catalog gift ID.
+     * @pattern ^[a-z][a-z0-9_-]{0,79}$
+     */
+  giftId?: string;
+  /** Immutable selected catalog revision. */
+  giftRevisionId?: string;
+  /**
+     * Displayed price; a stale price fails without charging.
+     * @minimum 1
+     */
+  expectedCoinCost?: number;
   /** Sender user ID */
   uid: number;
   /** Recipient (streamer) user ID */
@@ -1834,24 +1837,14 @@ export interface MediaPackItemInput {
   durationMs?: number | null;
 }
 
-export type CreateMediaPackRequestGiftId = typeof CreateMediaPackRequestGiftId[keyof typeof CreateMediaPackRequestGiftId];
-
-
-export const CreateMediaPackRequestGiftId = {
-  rose: 'rose',
-  heart: 'heart',
-  party: 'party',
-  strawberry: 'strawberry',
-  diamond: 'diamond',
-  lips: 'lips',
-  rocket: 'rocket',
-  crown: 'crown',
-} as const;
-
 export interface CreateMediaPackRequest {
   /** @maxLength 80 */
   name: string;
-  giftId: CreateMediaPackRequestGiftId;
+  /** @pattern ^[a-z][a-z0-9_-]{0,79}$ */
+  giftId: string;
+  giftRevisionId?: string;
+  /** @minimum 1 */
+  expectedCoinCost?: number;
   /**
      * @minItems 1
      * @maxItems 20
@@ -1859,27 +1852,17 @@ export interface CreateMediaPackRequest {
   items: MediaPackItemInput[];
 }
 
-export type UpdateMediaPackRequestGiftId = typeof UpdateMediaPackRequestGiftId[keyof typeof UpdateMediaPackRequestGiftId];
-
-
-export const UpdateMediaPackRequestGiftId = {
-  rose: 'rose',
-  heart: 'heart',
-  party: 'party',
-  strawberry: 'strawberry',
-  diamond: 'diamond',
-  lips: 'lips',
-  rocket: 'rocket',
-  crown: 'crown',
-} as const;
-
 export type UpdateMediaPackRequestItemsItem = {
   /** @minLength 1 */
   id: string;
 } | MediaPackItemInput;
 
 export interface UpdateMediaPackRequest {
-  giftId: UpdateMediaPackRequestGiftId;
+  /** @pattern ^[a-z][a-z0-9_-]{0,79}$ */
+  giftId: string;
+  giftRevisionId?: string;
+  /** @minimum 1 */
+  expectedCoinCost?: number;
   /**
      * @minItems 1
      * @maxItems 20
@@ -2324,22 +2307,12 @@ export type SetPostReactionBody = {
   active: boolean;
 };
 
-export type SendPostGiftBodyGiftId = typeof SendPostGiftBodyGiftId[keyof typeof SendPostGiftBodyGiftId];
-
-
-export const SendPostGiftBodyGiftId = {
-  rose: 'rose',
-  heart: 'heart',
-  party: 'party',
-  strawberry: 'strawberry',
-  diamond: 'diamond',
-  lips: 'lips',
-  rocket: 'rocket',
-  crown: 'crown',
-} as const;
-
 export type SendPostGiftBody = {
-  giftId: SendPostGiftBodyGiftId;
+  /** @pattern ^[a-z][a-z0-9_-]{0,79}$ */
+  giftId: string;
+  giftRevisionId?: string;
+  /** @minimum 1 */
+  expectedCoinCost?: number;
   /**
      * @minLength 16
      * @maxLength 80

@@ -1,6 +1,8 @@
 import { pushPrivateGift } from "../lib/incognito";
 import { assertStickerAccess, StickerError } from "../lib/liveStickers";
 import { GIFT_CATALOG } from "../lib/giftCatalog";
+import { GiftCatalogError, resolvePublishedGift } from "../lib/managedGiftCatalog";
+import { giftCatalogDb } from "../lib/giftCatalogTransaction";
 import { requireContactAllowed } from "../lib/userSafety";
 import { lockParty, scorePartyGift, findParty, partyStreams, partyChannels } from "../lib/liveParty";
 import { Router } from "express";
@@ -111,7 +113,7 @@ router.post("/coins/spend", async (req, res) => {
     return;
   }
 
-  const { uid, recipientUid, amount, giftName, senderName, channelId, description, idempotencyKey } = req.body as {
+  const { uid, recipientUid, senderName, channelId, description, idempotencyKey } = req.body as {
     uid?: number;
     recipientUid?: number;
     amount?: number;
@@ -121,6 +123,14 @@ router.post("/coins/spend", async (req, res) => {
     description?: string;
     idempotencyKey?: string;
   };
+  let amount: number = req.body?.amount;
+  let giftName: string | undefined = req.body?.giftName;
+  const { giftId: catalogGiftId, giftRevisionId, expectedCoinCost } = req.body ?? {};
+  if ((catalogGiftId !== undefined && (typeof catalogGiftId !== "string" || !/^[a-z][a-z0-9_-]{0,79}$/.test(catalogGiftId))) ||
+      (giftRevisionId !== undefined && typeof giftRevisionId !== "string") ||
+      (expectedCoinCost !== undefined && (!Number.isSafeInteger(expectedCoinCost) || expectedCoinCost <= 0))) {
+    res.status(400).json({ error: "Invalid gift selection" }); return;
+  }
 
   if (!uid || typeof uid !== "number") {
     res.status(400).json({ error: "uid is required" });
@@ -148,22 +158,13 @@ router.post("/coins/spend", async (req, res) => {
   const effectiveRecipientUid =
     typeof recipientUid === "number" && recipientUid !== uid ? recipientUid : null;
 
-  let transfer: { balance: number; duplicate: boolean; combo?: { id: string; count: number; totalCoins: number } } | null;
+  let transfer: { balance: number; duplicate: boolean; giftSnapshot?: Record<string, any> | null; combo?: { id: string; count: number; totalCoins: number } } | null;
   try {
     transfer = await db.transaction(async (tx) => {
       await lockParty(tx);
       // Serialize retries for the same key, including the race where both
       // requests arrive before either one inserts its ledger row.
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${idempotencyKey}))`);
-
-      if (req.body.stickerId !== undefined) {
-        if (typeof req.body.stickerId !== "string" || !channelId) throw new StickerError(400, "Invalid live sticker");
-        const [session] = await tx.select().from(liveStreamSessionsTable).where(eq(liveStreamSessionsTable.channelId, channelId)).for("update");
-        await assertStickerAccess(session, { uid, clerkId });
-        const sticker = session?.stickers.find(s => s.id === req.body.stickerId && s.kind === "gift");
-        const gift = sticker && GIFT_CATALOG[sticker.giftId as keyof typeof GIFT_CATALOG];
-        if (!gift || session.hostUserId !== recipientUid || uid === recipientUid || amount !== gift.coinCost || giftName !== gift.name) throw new StickerError(409, "Sticker unavailable or changed");
-      }
 
       const existing = await tx
         .select()
@@ -176,6 +177,8 @@ router.post("/coins/spend", async (req, res) => {
           existing[0].fromUserId === uid &&
           existing[0].toUserId === effectiveRecipientUid &&
           existing[0].amount === amount &&
+          (!catalogGiftId || existing[0].giftSnapshot?.id === catalogGiftId) &&
+          (!giftRevisionId || existing[0].giftSnapshot?.revisionId === giftRevisionId) &&
           existing[0].channelId === (channelId ?? null);
         if (!sameRequest) throw new IdempotencyConflictError();
 
@@ -189,13 +192,32 @@ router.post("/coins/spend", async (req, res) => {
         return {
           balance: existing[0].balanceAfter ?? currentBalance[0]?.balance ?? 0,
           duplicate: true,
+          giftSnapshot: existing[0].giftSnapshot,
           combo: existing[0].giftComboId && existing[0].giftComboCount && existing[0].giftComboTotalCoins ? { id: existing[0].giftComboId, count: existing[0].giftComboCount, totalCoins: existing[0].giftComboTotalCoins } : undefined,
         };
       }
 
-      const comboEligible = !!channelId && !!effectiveRecipientUid && Object.values(GIFT_CATALOG).some(gift => (gift.name === giftName || (gift.id === "luxury_rocket" && giftName === "Rocket")) && gift.coinCost === amount);
+      // Legacy clients can only buy unchanged bundled gifts. New clients send
+      // an immutable revision and displayed price; the server sets the charge.
+      const legacyGift = Object.values(GIFT_CATALOG).find(gift =>
+        (gift.name === giftName || (gift.id === "luxury_rocket" && giftName === "Rocket")) && gift.coinCost === amount);
+      const selectedId = catalogGiftId ?? legacyGift?.id ?? (req.body.stickerId !== undefined ? Object.values(GIFT_CATALOG).find(gift => gift.name === giftName)?.id : undefined);
+      if (!selectedId) throw new GiftCatalogError("Choose a valid catalog gift.", 400);
+      const gift = await resolvePublishedGift(giftCatalogDb(tx), selectedId, giftRevisionId, expectedCoinCost ?? amount);
+      if (!effectiveRecipientUid) throw new GiftCatalogError("A gift recipient is required.", 400);
+      if (req.body.stickerId !== undefined) {
+        if (typeof req.body.stickerId !== "string" || !channelId) throw new StickerError(400, "Invalid live sticker");
+        const [session] = await tx.select().from(liveStreamSessionsTable).where(eq(liveStreamSessionsTable.channelId, channelId)).for("update");
+        await assertStickerAccess(session, { uid, clerkId });
+        const sticker = session?.stickers.find(s => s.id === req.body.stickerId && s.kind === "gift");
+        if (!sticker || sticker.giftId !== gift.id || session.hostUserId !== recipientUid || uid === recipientUid || amount !== gift.coinCost) throw new StickerError(409, "Sticker unavailable or changed");
+      }
+      amount = gift.coinCost;
+      giftName = gift.name;
+
+      const comboEligible = !!channelId && !!effectiveRecipientUid;
       const [previousGift] = comboEligible ? await tx.select().from(coinTransactionsTable).where(and(eq(coinTransactionsTable.fromUserId, uid), eq(coinTransactionsTable.toUserId, effectiveRecipientUid!), eq(coinTransactionsTable.channelId, channelId!), eq(coinTransactionsTable.type, "gift"))).orderBy(desc(coinTransactionsTable.createdAt), desc(coinTransactionsTable.id)).limit(1) : [];
-      const continuesCombo = previousGift?.giftComboId && !previousGift.giftComboClosedAt && previousGift.giftName === giftName && previousGift.amount === amount && Math.max(0, requestedAt.getTime() - previousGift.createdAt.getTime()) <= 2000 && (previousGift.giftComboTotalCoins ?? 0) <= 2147483647 - amount;
+      const continuesCombo = previousGift?.giftComboId && !previousGift.giftComboClosedAt && previousGift.giftName === giftName && previousGift.amount === amount && previousGift.giftSnapshot?.revisionId === gift.revisionId && Math.max(0, requestedAt.getTime() - previousGift.createdAt.getTime()) <= 2000 && (previousGift.giftComboTotalCoins ?? 0) <= 2147483647 - amount;
       const combo = comboEligible ? {
         id: continuesCombo ? previousGift.giftComboId! : idempotencyKey,
         count: continuesCombo ? previousGift.giftComboCount! + 1 : 1,
@@ -244,6 +266,7 @@ router.post("/coins/spend", async (req, res) => {
         amount,
         type:        "gift",
         giftName:    giftName ?? null,
+        giftSnapshot: gift,
         channelId:   channelId ?? null,
         battleId,
         description: description ?? "",
@@ -256,9 +279,10 @@ router.post("/coins/spend", async (req, res) => {
       });
       if (combo && (combo.count === 5 || combo.count === 10)) await tx.insert(liveGiftComboMilestonesTable).values({ comboId: combo.id, count: combo.count }).onConflictDoNothing();
 
-      return { balance: updated[0].balance, duplicate: false, combo };
+      return { balance: updated[0].balance, duplicate: false, giftSnapshot: gift, combo };
     });
   } catch (error) {
+    if (error instanceof GiftCatalogError) { res.status(error.status).json({ error: error.message, code: error.code }); return; }
     if (error instanceof StickerError) { res.status(error.status).json({ error: error.message }); return; }
     if (error instanceof IdempotencyConflictError) {
       res.status(409).json({ error: "This idempotency key was already used for a different gift." });
@@ -293,7 +317,7 @@ router.post("/coins/spend", async (req, res) => {
       const participants = party ? await partyStreams(party) : [];
       const recipient = participants.find(s => s?.hostUserId === effectiveRecipientUid);
       const displaySender = recipient ? `${senderName ?? "Viewer"} to ${recipient.hostName}` : senderName ?? "Viewer";
-      const giftDetails = { giftId: idempotencyKey, amount, senderUid: uid, recipientUid: effectiveRecipientUid, combo: transfer.combo };
+      const giftDetails = { giftId: idempotencyKey, amount, senderUid: uid, recipientUid: effectiveRecipientUid, giftSnapshot: transfer.giftSnapshot, combo: transfer.combo };
       await pushPrivateGift(channelId, giftName ?? "", displaySender, total, giftDetails);
       if (party) {
         const other = party.firstChannelId === channelId ? party.secondChannelId : party.firstChannelId;
@@ -306,7 +330,7 @@ router.post("/coins/spend", async (req, res) => {
     }
   }
 
-  res.json({ balance: transfer.balance, ...(transfer.combo ? { combo: transfer.combo } : {}) });
+  res.json({ balance: transfer.balance, ...(transfer.giftSnapshot ? { giftSnapshot: transfer.giftSnapshot } : {}), ...(transfer.combo ? { combo: transfer.combo } : {}) });
 });
 
 // POST /coins/grant  (dev / manual testing — no payment required)

@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { rm, cp } from "node:fs/promises";
+import { rm, cp, readFile, mkdir } from "node:fs/promises";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
@@ -14,6 +14,14 @@ async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
   await rm(distDir, { recursive: true, force: true });
   await cp(path.resolve(artifactDir, "../admin/public"), path.join(distDir, "admin"), { recursive: true });
+  const adminRequire = createRequire(path.resolve(artifactDir, "../admin/package.json"));
+  await cp(path.join(path.dirname(adminRequire.resolve("svgaplayerweb/package.json")), "build/svga.min.js"), path.join(distDir, "admin/gift-svga.js"));
+  const originals = JSON.parse(await readFile(path.join(artifactDir, "src/lib/legacyGiftAssets.json"), "utf8"));
+  for (const asset of originals) {
+    const destination = path.join(distDir, "legacy-gifts", asset.file);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await cp(path.resolve(artifactDir, "../mobile/assets", asset.file), destination);
+  }
 
   await esbuild({
     entryPoints: [path.resolve(artifactDir, "src/index.ts")],

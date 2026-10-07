@@ -8,7 +8,7 @@ import { build } from 'esbuild';
 const dir = fileURLToPath(new URL('..', import.meta.url));
 const output = `${dir}/tests/.post-activity-test.cjs`;
 await build({ stdin: { contents: `export { default as router } from './src/routes/posts'; export { pool } from '@workspace/db';`, resolveDir: dir }, outfile: output, bundle: true, platform: 'node', format: 'cjs', external: ['pg-native'], logLevel: 'silent', plugins: [{ name: 'storage', setup(b) {
-  b.onLoad({ filter: /lib\/objectStorage\.ts$/ }, () => ({ contents: 'export const createPrivateGetUrl=async p=>p; export const createPrivateUploadUrl=async()=>({}); export const deletePrivateObject=async()=>{};' }));
+  b.onLoad({ filter: /lib\/objectStorage\.ts$/ }, () => ({ contents: 'export const objectStorageClient={}; export const createPrivateGetUrl=async p=>p; export const createPrivateUploadUrl=async()=>({}); export const deletePrivateObject=async()=>{};' }));
 } }] });
 const { router, pool } = createRequire(import.meta.url)(output);
 const prefix = `post-test-${randomUUID()}`;

@@ -10,6 +10,7 @@ import { useRouter } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { Avatar } from "./Avatar";
+import { GiftCoinNotice } from "./GiftCoinNotice";
 
 export function PostCommentsSheet({ postId, ownerUid, onClose }: { postId: number; ownerUid: number; onClose: () => void }) {
   const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
@@ -54,7 +55,7 @@ export function PostCommentsSheet({ postId, ownerUid, onClose }: { postId: numbe
           ListFooterComponent={comments.hasNextPage ? <TouchableOpacity style={styles.loadMore} disabled={comments.isFetchingNextPage} onPress={() => void comments.fetchNextPage()}><Text style={[localizedTextStyle(), { color: colors.primary }]}>{comments.isFetchingNextPage ? t("Loading...") : comments.isFetchNextPageError ? t("Retry loading comments") : t("Load more")}</Text></TouchableOpacity> : null}
           renderItem={({ item }) => <View style={styles.comment}>
             <Avatar uid={item.uid} name={item.name} size={32} />
-            <View style={styles.commentBody}><Text style={[styles.author, { color: colors.foreground }]}>{item.name}</Text><Text style={[styles.commentText, { color: colors.foreground }]}>{item.text}</Text></View>
+            <View style={styles.commentBody}><Text style={[styles.author, { color: colors.foreground }]}>{item.name}</Text><GiftCoinNotice text={item.text} style={[styles.commentText, { color: colors.foreground }]} /></View>
             {user && (item.uid === user.uid || ownerUid === user.uid) ? <TouchableOpacity style={styles.icon} disabled={remove.isPending} accessibilityLabel={t("Delete comment")} onPress={() => Alert.alert(t("Delete comment?"), undefined, [{ text: t("Cancel"), style: "cancel" }, { text: t("Delete"), style: "destructive", onPress: () => remove.mutate(item.id) }])}><Ionicons name="trash-outline" size={18} color={colors.mutedForeground} /></TouchableOpacity> : null}
           </View>} />
         {send.isError ? <Text style={[localizedTextStyle(), [styles.error, { color: colors.primary }]]}>{send.error.message || t("Couldn't post comment. Try again.")}</Text> : null}

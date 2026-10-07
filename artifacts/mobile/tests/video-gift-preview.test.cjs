@@ -5,7 +5,7 @@ const ts = require('typescript');
 const code = ts.transpileModule(fs.readFileSync(require.resolve('../components/GiftPicker.tsx'), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
 }).outputText;
-function render(preview, coins = 0, buying = false, feedbackOverlay, onDrawerHeightChange, platform = 'android', getGiftTestEngine) {
+function render(preview, coins = 0, buying = false, feedbackOverlay, onDrawerHeightChange, platform = 'android') {
   const sent = [], writes = [], closes = [], slots = [buying, null];
   let cursor = 0, visible = true, effects = [];
   const react = { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
@@ -22,15 +22,15 @@ function render(preview, coins = 0, buying = false, feedbackOverlay, onDrawerHei
     if (id === './CrownArtwork') return { CrownArtwork: 'CrownArtwork' };
     if (id === './GoldCoinIcon') return { GoldCoinIcon: 'GoldCoinIcon' };
     if (id === './Avatar') return { Avatar: 'Avatar' };
-    if (id === './WebmGiftTest') return { WebmGiftTest: 'WebmGiftTest', preloadWebmGiftTest: async () => {} };
-    if (id === './AgoraGiftTest') return { AgoraGiftTest: 'AgoraGiftTest' };
-    if (id === './AlphaPlayerGiftTest') return { AlphaPlayerGiftTest: 'AlphaPlayerGiftTest' };
+    if (id === '@/hooks/useGiftCatalog') return { useGiftCatalog: () => ({ collections: [{ id: 'popular', name: 'Popular', gifts: mod.exports.POPULAR_GIFTS }, { id: 'luxury', name: 'Luxury', gifts: mod.exports.LUXURY_GIFTS }] }) };
+    if (id === './RemoteGiftArtwork') return { RemoteGiftArtwork: 'RemoteGiftArtwork' };
+    if (id === '@/utils/giftAssetCache') return { prefetchGiftThumbnails: async () => {} };
     throw Error(id);
   }});
   const result = { nodes: [], sent, writes, closes };
   const update = () => {
     cursor = 0; effects = [];
-    const tree = mod.exports.GiftPicker({ visible, preview, coins, feedbackOverlay, onDrawerHeightChange, getGiftTestEngine, onClose: () => closes.push(true), onSend: gift => sent.push(gift.id), hintText: preview ? 'Test gifts only. No coins are spent.' : undefined });
+    const tree = mod.exports.GiftPicker({ visible, preview, coins, feedbackOverlay, onDrawerHeightChange, onClose: () => closes.push(true), onSend: gift => sent.push(gift.id), hintText: preview ? 'Test gifts only. No coins are spent.' : undefined });
     const nodes = [];
     const walk = value => { if (Array.isArray(value)) value.forEach(walk); else if (value && typeof value === 'object') { nodes.push(value); walk(value.props?.children); } };
     walk(tree); result.nodes = nodes;
@@ -41,7 +41,6 @@ function render(preview, coins = 0, buying = false, feedbackOverlay, onDrawerHei
   result.openLuxury = () => { result.nodes.find(n => n.props.testID === 'gift-tab-luxury').props.onPress(); update(); };
   result.openPopular = () => { result.nodes.find(n => n.props.testID === 'gift-tab-popular').props.onPress(); update(); };
   result.press = id => { result.nodes.find(n => n.props.testID === id).props.onPress(); update(); };
-  result.finishTest = () => { result.nodes.find(n => n.type === 'WebmGiftTest').props.onDone(); update(); };
   result.reopen = () => { visible = false; update(); visible = true; update(); };
   update();
   return result;
@@ -54,47 +53,14 @@ const sendAll = state => {
 };
 
 let preview = render(true);
-const webm = render(false, 0);
-webm.press('gift-tab-test');
-assert.equal(webm.nodes.filter(n => n.props.testID?.startsWith('send-gift-')).length, 0, 'Test tab cannot send paid gifts');
-webm.press('preview-webm-test');
-assert.ok(webm.nodes.some(n => n.type === 'WebmGiftTest'), 'Zero balance permits local testing');
-assert.equal(webm.sent.length, 0, 'WebM never enters payment/receipt flow');
-webm.finishTest(); assert.ok(!webm.nodes.some(n => n.type === 'WebmGiftTest'));
-webm.press('preview-webm-test'); webm.reopen();
-assert.ok(!webm.nodes.some(n => n.type === 'WebmGiftTest'), 'Dismissal stops preview');
-assert.ok(!render(false, 0, false, undefined, undefined, 'web').nodes.some(n => n.props.testID === 'gift-tab-test'));
-const iosWebm = render(false, 0, false, undefined, undefined, 'ios');
-iosWebm.press('gift-tab-test'); iosWebm.press('preview-webm-test');
-assert.ok(iosWebm.nodes.some(n => n.type === 'WebmGiftTest'), 'iOS can preview without coins');
-assert.equal(iosWebm.sent.length, 0, 'iOS preview cannot charge or create a DM receipt');
-iosWebm.finishTest(); assert.ok(!iosWebm.nodes.some(n => n.type === 'WebmGiftTest'));
-const iosAgora = render(false, 0, false, undefined, undefined, 'ios', () => null);
-iosAgora.press('gift-tab-test'); iosAgora.press('preview-agora-test');
-assert.ok(iosAgora.nodes.some(n => n.type === 'AgoraGiftTest'));
-assert.equal(iosAgora.sent.length, 0, 'Agora preview cannot send gifts');
-iosAgora.press('preview-webm-test');
-assert.ok(!iosAgora.nodes.some(n => n.type === 'AgoraGiftTest'), 'Switching renderer stops Agora');
-iosAgora.press('preview-agora-test'); iosAgora.reopen();
-assert.ok(!iosAgora.nodes.some(n => n.type === 'AgoraGiftTest'), 'Closing drawer stops Agora');
-assert.ok(!webm.nodes.some(n => n.props.testID === 'preview-agora-test'), 'Android keeps its working WebView test');
-assert.ok(!webm.nodes.some(n => n.props.testID === 'preview-alpha-test'), 'Android does not expose the iOS-only player');
-const iosAlpha = render(false, 0, false, undefined, undefined, 'ios');
-iosAlpha.press('gift-tab-test'); iosAlpha.press('preview-alpha-test');
-assert.ok(iosAlpha.nodes.some(n => n.type === 'AlphaPlayerGiftTest'), 'AlphaPlayer does not require coins or an Agora engine');
-assert.equal(iosAlpha.sent.length, 0, 'AlphaPlayer cannot charge or create gift receipts');
-iosAlpha.press('preview-webm-test');
-assert.ok(!iosAlpha.nodes.some(n => n.type === 'AlphaPlayerGiftTest'), 'Switching to WebM stops AlphaPlayer');
-iosAlpha.press('preview-alpha-test'); iosAlpha.press('gift-tab-luxury');
-assert.ok(!iosAlpha.nodes.some(n => n.type === 'AlphaPlayerGiftTest'), 'Changing collection stops AlphaPlayer');
-iosAlpha.press('gift-tab-test'); iosAlpha.press('preview-alpha-test'); iosAlpha.reopen();
-assert.ok(!iosAlpha.nodes.some(n => n.type === 'AlphaPlayerGiftTest'), 'Closing drawer stops AlphaPlayer');
-iosAlpha.press('preview-alpha-test');
-iosAlpha.nodes.find(n => n.type === 'AlphaPlayerGiftTest').props.onDone();
-iosAlpha.press('gift-tab-test');
-assert.ok(!iosAlpha.nodes.some(n => n.type === 'AlphaPlayerGiftTest'), 'Native completion removes the preview');
-iosAgora.press('preview-alpha-test'); iosAgora.press('preview-agora-test');
-assert.ok(!iosAgora.nodes.some(n => n.type === 'AlphaPlayerGiftTest'), 'Switching to Agora stops AlphaPlayer');
+for (const platform of ['android', 'ios', 'web']) {
+  const drawer = render(false, 9999, false, undefined, undefined, platform);
+  assert.ok(!drawer.nodes.some(node => node.props.testID === 'gift-tab-test' || node.props.testID?.startsWith('preview-')), platform + ' exposes only catalog gift collections');
+  assert.ok(!drawer.nodes.some(node => ['WebmGiftTest', 'AgoraGiftTest', 'AlphaPlayerGiftTest'].includes(node.type)), platform + ' has no experimental preview player');
+  drawer.openLuxury();
+  drawer.send('luxury_rocket'); drawer.send('luxury_rocket');
+  assert.deepEqual(drawer.sent, ['luxury_rocket'], platform + ' retains normal gift selection/sending');
+}
 const measuredHeights = [];
 const measured = render(false, 500, false, undefined, height => measuredHeights.push(height));
 measured.nodes.find(node => node.type === 'View' && node.props.onLayout).props.onLayout({ nativeEvent: { layout: { height: 260 } } });
@@ -118,9 +84,9 @@ assert.equal(preview.nodes.find(n => n.props.testID === 'send-gift-luxury_rocket
 assert.equal(preview.nodes.find(n => n.props.testID === 'send-gift-dragon').props.accessibilityLabel, 'Dragon');
 assert.equal(preview.nodes.filter(n => n.type === 'LuxuryGiftArtwork').length, 3, 'Luxury tab uses native SVGA artwork rather than static previews');
 const luxuryTiles = render(false, 9999);
-luxuryTiles.nodes.find(n => n.type === 'ScrollView').props.onLayout({ nativeEvent: { layout: { height: 196 } } });
+luxuryTiles.nodes.find(n => n.type === 'ScrollView' && n.props.onLayout).props.onLayout({ nativeEvent: { layout: { height: 196 } } });
 luxuryTiles.openLuxury();
-const luxuryGrid = luxuryTiles.nodes.find(n => n.type === 'ScrollView');
+const luxuryGrid = luxuryTiles.nodes.find(n => n.type === 'ScrollView' && n.props.onLayout);
 assert.equal(luxuryGrid.props.style[1].height, 196, 'Luxury retains the measured Popular viewport height');
 assert.equal(luxuryGrid.props.style[1].maxHeight, 248, 'both tabs keep room for two rows');
 for (const id of ['kisses', 'luxury_rocket', 'dragon']) {
@@ -162,7 +128,7 @@ assert.ok(cards.every(node => node.props.style.width === '25%'), 'Four equal col
 assert.ok(cards.every(node => node.props.style.paddingHorizontal === 2), 'Gift cards are inset two points on each side so selected borders do not touch');
 const giftCells = preview.nodes.filter(node => node.props.testID?.startsWith('send-gift-'));
 assert.equal(giftCells.length, 8);
-const grid = preview.nodes.find(node => node.type === 'ScrollView');
+const grid = preview.nodes.find(node => node.type === 'ScrollView' && node.props.onLayout);
 assert.ok(!grid.props.horizontal, 'Gifts scroll vertically');
 assert.equal(grid.props.style[1].maxHeight, 124 * Math.min(3, Math.ceil(cards.length / 4)), 'Viewport fits content up to its row cap');
 assert.ok(giftCells.every(n => n.props.style[0].height === undefined && n.props.style[0].paddingBottom === 0), 'Gift border wraps content through the bottom of Send');

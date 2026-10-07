@@ -1,5 +1,6 @@
 import * as Crypto from "expo-crypto";
 import { GiftPicker, type Gift } from "./GiftPicker";
+import { refreshGiftCatalog } from "@/utils/giftCatalog";
 import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import React, { useRef, useState } from "react";
 import { Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -28,7 +29,7 @@ export function PostFooter({ postId, ownerUid, caption }: {
   const [showGifts, setShowGifts] = useState(false);
   const [sendingGift, setSendingGift] = useState(false);
   const giftBusy = useRef(false);
-  const giftRequest = useRef<{ giftId: string; id: string } | null>(null);
+  const giftRequest = useRef<{ giftId: string; revisionId?: string; coins: number; id: string } | null>(null);
   const wallet = useGetCoinBalance({ uid: user?.uid ?? 0 }, { query: { queryKey: getGetCoinBalanceQueryKey({ uid: user?.uid ?? 0 }), enabled: !!user } });
   const client = useQueryClient();
   const busy = useRef(false);
@@ -56,14 +57,15 @@ export function PostFooter({ postId, ownerUid, caption }: {
     if (!user || giftBusy.current) return;
     giftBusy.current = true;
     setSendingGift(true);
-    if (giftRequest.current?.giftId !== gift.id) giftRequest.current = { giftId: gift.id, id: Crypto.randomUUID() };
+    if (giftRequest.current?.giftId !== gift.id || giftRequest.current?.revisionId !== gift.revisionId || giftRequest.current?.coins !== gift.coins) giftRequest.current = { giftId: gift.id, revisionId: gift.revisionId, coins: gift.coins, id: Crypto.randomUUID() };
     try {
-      const data = await sendPostGift(postId, { giftId: gift.id as Parameters<typeof sendPostGift>[1]["giftId"], requestId: giftRequest.current.id });
+      const data = await sendPostGift(postId, { giftId: gift.id, giftRevisionId: gift.revisionId, expectedCoinCost: gift.coins, requestId: giftRequest.current.id });
       giftRequest.current = null;
       client.setQueryData(getGetCoinBalanceQueryKey({ uid: user.uid }), { balance: data.balance });
       void client.invalidateQueries({ queryKey: ["post-comments", postId] });
       void client.invalidateQueries({ queryKey: ["post-activity", postId] });
     } catch (error) {
+      void refreshGiftCatalog().catch(() => {});
       Alert.alert(t("Post action failed"), error instanceof Error ? error.message : t("Please try again."));
       void wallet.refetch();
     } finally { giftBusy.current = false; setSendingGift(false); }

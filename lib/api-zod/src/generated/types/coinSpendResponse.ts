@@ -6,8 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CoinSpendResponseCombo } from './coinSpendResponseCombo';
+import type { CoinSpendResponseGiftSnapshot } from './coinSpendResponseGiftSnapshot';
 
 export interface CoinSpendResponse {
   balance: number;
+  giftSnapshot?: CoinSpendResponseGiftSnapshot;
   combo?: CoinSpendResponseCombo;
 }

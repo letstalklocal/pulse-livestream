@@ -1,5 +1,7 @@
 # Chat and message preferences
 
+October 7 gift artwork decision: uploaded/catalog gifts with attached artwork must never display an unrelated emoji or bundled gift while that file is loading/unavailable. Leave their artwork blank instead. Original asset-free emoji-only gifts and historical saved message text/coin values remain unchanged. The admin's configurable fallback-symbol field is removed.
+
 Recorded: 2026-09-10
 
 This document records the user's decisions from the chat-settings conversation and the current implementation that must be preserved. Later explicit user instructions take precedence. Do not treat a request to adjust one detail as permission to redesign or remove another feature. Implementation details below describe the current baseline; they are not additional product requests.

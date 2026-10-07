@@ -8,6 +8,7 @@ export const dmGiftCombosTable = pgTable("dm_gift_combos", {
   senderId: integer("sender_id").notNull().references(() => usersTable.uid),
   recipientId: integer("recipient_id").notNull().references(() => usersTable.uid),
   giftId: text("gift_id").notNull(),
+  giftRevisionId: text("gift_revision_id"),
   count: integer("count").notNull(),
   totalCoins: integer("total_coins").notNull(),
   lastPaidAt: timestamp("last_paid_at").notNull(),

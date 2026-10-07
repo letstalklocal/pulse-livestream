@@ -48,7 +48,7 @@ app.use(["/api/admin", "/admin"], (_req, res, next) => {
   let clerkOrigin = "";
   try { clerkOrigin = adminAuthConfig().frontendApi; } catch { /* UI shows configuration error */ }
   res.setHeader("Cache-Control", "no-store");
-  res.setHeader("Content-Security-Policy", `default-src 'self'; script-src 'self' ${clerkOrigin} https://challenges.cloudflare.com; connect-src 'self' ${clerkOrigin}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://img.clerk.com ${clerkOrigin}; font-src 'self' ${clerkOrigin} data:; frame-src ${clerkOrigin} https://challenges.cloudflare.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self' ${clerkOrigin}`);
+  res.setHeader("Content-Security-Policy", `default-src 'self'; script-src 'self' ${clerkOrigin} https://challenges.cloudflare.com; connect-src 'self' ${clerkOrigin}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://img.clerk.com ${clerkOrigin}; media-src 'self' blob:; font-src 'self' ${clerkOrigin} data:; frame-src ${clerkOrigin} https://challenges.cloudflare.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self' ${clerkOrigin}`);
   next();
 }, express.static(adminAssets, { index: "index.html" }));
 

@@ -86,7 +86,7 @@ export default function SettingsScreen() {
           );
           void queryClient.invalidateQueries({ queryKey: getGetCoinBalanceQueryKey({ uid: user.uid }) });
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          Alert.alert(t("Coins added"), t("+10,000 coins  •  Balance: {v0} 🪙", { v0: data.balance.toLocaleString(appLocale()) }));
+          Alert.alert(t("Coins added"), t("+10,000 coins  •  Balance: {v0}", { v0: data.balance.toLocaleString(appLocale()) }));
         },
       },
     );

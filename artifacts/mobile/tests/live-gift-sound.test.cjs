@@ -35,8 +35,12 @@ function find(node) {
   ts.forEachChild(node, find);
 } find(ast); assert.ok(callback);
 const presentation = load(require.resolve('../utils/giftPresentation.ts'));
+const catalog = load(require.resolve('../utils/giftCatalog.ts'), {
+  'react-native': { Platform: { OS: 'ios' } },
+  '@react-native-async-storage/async-storage': { getItem: async () => null, setItem: async () => {} },
+});
 function fixture() {
-  const played = [], pending = [], floaters = [];
+  const played = [], published = [], pending = [], floaters = [];
   const scope = {
     user: { uid: 1 }, activeChannelId: 'live', engineRef: { current: {} }, mediaChannelRef: { current: 'live' },
     isLiveRef: { current: true }, pausedRef: { current: false }, playedGiftSounds: { current: new Set() },
@@ -44,6 +48,8 @@ function fixture() {
     setFloatingGifts: fn => { const next = fn(floaters); floaters.splice(0, floaters.length, ...next); },
     mergeGiftFloater: presentation.mergeGiftFloater,
     playLiveGiftSound: (_engine, name) => played.push(name),
+    playPublishedCatalogGiftSound: async (_engine, snapshot, isCurrent) => { if (isCurrent()) published.push(snapshot); },
+    giftFromSnapshot: catalog.giftFromSnapshot,
     recordGiftMoment: (_engine, _channel, _gift, _token, options) => { pending.push(options); return true; },
     stopMomentProof() {}, proofVideoSizeRef: { current: null }, getToken() {}, momentsRequest: async () => {},
     appNumber: String, GIFTS: [{ name: 'Rose', emoji: '🌹', size: 36 }, { name: 'Crown', emoji: '👑', size: 36 }],
@@ -51,7 +57,7 @@ function fixture() {
   };
   const code = ts.transpileModule(`const receive = ${callback};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
   const receive = new Function(...Object.keys(scope), code + '\nreturn receive;')(...Object.values(scope));
-  return { scope, played, pending, floaters, send: body => receive({ data: JSON.stringify({ type: 'gift', giftName: 'Rose', recipientUid: 1, amount: 1, ...body }) }) };
+  return { scope, played, published, pending, floaters, send: body => receive({ data: JSON.stringify({ type: 'gift', giftName: 'Rose', recipientUid: 1, amount: 1, ...body }) }) };
 }
 const f = fixture(); f.send({ giftId: 'a' }); f.send({ giftId: 'a' }); assert.deepEqual(f.played, ['Rose']);
 f.send({ giftId: 'b' }); assert.deepEqual(f.played, ['Rose', 'Rose'], 'Separate combo transactions each play a sound');
@@ -69,4 +75,20 @@ luxury.send({ giftId: 'blast-off', giftName: 'Blast Off', amount: 4999 });
 assert.equal(luxury.floaters.at(-1).catalogId, 'luxury_rocket', 'renamed Blast Off uses the same catalog ID and animation');
 luxury.send({ giftId: 'popular-rocket', giftName: 'Rocket', amount: 100 });
 assert.equal(luxury.floaters.at(-1).catalogId, 'rocket', 'Popular Rocket remains distinct');
+const managed = fixture();
+const snapshot = { id: 'new_static', revisionId: 'new_static_r1', name: 'New static gift', emoji: '✨', coinCost: 25, thumbnail: null,
+  androidAnimation: null, iosAnimation: null, sound: { id: 'sound', url: '/api/gift-catalog/assets/sound', sha256: 'a'.repeat(64), byteSize: 100, format: 'mp3' },
+  framing: { preset: 'contained', scale: 1, x: 0, y: 0 }, legacy: false };
+managed.send({ giftId: 'managed-payment', giftName: snapshot.name, amount: 25, giftSnapshot: snapshot });
+managed.send({ giftId: 'managed-payment', giftName: snapshot.name, amount: 25, giftSnapshot: snapshot });
+assert.equal(managed.published.length, 1, 'A remote static gift sound publishes once from its recipient host');
+assert.equal(managed.played.length, 0, 'Custom sound does not duplicate the existing default chime');
+assert.equal(managed.floaters.at(-1).catalogId, snapshot.id);
+assert.equal(managed.floaters.at(-1).giftSnapshot.revisionId, snapshot.revisionId, 'Artwork remains bound to purchase-time revision');
+assert.equal(managed.floaters.at(-1).playbackAudio, false, 'Broadcaster overlay cannot double the host-published sound');
+managed.send({ giftId: 'wrong-host', recipientUid: 2, giftName: snapshot.name, amount: 25, giftSnapshot: snapshot });
+assert.equal(managed.published.length, 1, 'A forwarded party gift sound belongs to its recipient host');
+managed.scope.pausedRef.current = true;
+managed.send({ giftId: 'paused-managed', giftName: snapshot.name, amount: 25, giftSnapshot: snapshot });
+assert.equal(managed.published.length, 1, 'Paused hosts suppress remote sound too');
 console.log('PASS: custom/default sounds, cache/failure fallback, host publication, bounded voices, transaction deduplication, party recipient, Crown recording/fallback and paused silence. Native audio mocked.');

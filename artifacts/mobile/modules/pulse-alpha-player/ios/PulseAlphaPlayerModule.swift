@@ -3,10 +3,14 @@ import ExpoModulesCore
 public class PulseAlphaPlayerModule: Module {
   public func definition() -> ModuleDefinition {
     Name("PulseAlphaPlayer")
+    Constants(["supportsMutedPlayback": true])
     View(PulseAlphaPlayerView.self) {
       Events("onFinish", "onError")
       Prop("source") { (view: PulseAlphaPlayerView, source: String) in
         view.setSource(source)
+      }
+      Prop("muted") { (view: PulseAlphaPlayerView, muted: Bool) in
+        view.setMuted(muted)
       }
     }
   }
@@ -42,5 +46,9 @@ final class PulseAlphaPlayerView: ExpoView {
   override func layoutSubviews() {
     super.layoutSubviews()
     host.frame = bounds
+  }
+
+  func setMuted(_ value: Bool) {
+    host.isMuted = value
   }
 }

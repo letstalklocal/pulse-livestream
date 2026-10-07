@@ -1,7 +1,8 @@
 import { GiftImageArtwork, hasGiftImage } from "@/components/GiftImageArtwork";
 import { DirectVideoThumbnail } from "@/components/DirectVideoThumbnail";
 import { GoldCoinIcon } from "@/components/GoldCoinIcon";
-import { GIFTS } from "@/components/GiftPicker";
+import { useGiftCatalog } from "@/hooks/useGiftCatalog";
+import { RemoteGiftArtwork } from "@/components/RemoteGiftArtwork";
 import { CrownArtwork } from "@/components/CrownArtwork";
 import { useQueryClient } from "@tanstack/react-query";
 import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
@@ -68,6 +69,7 @@ export default function MediaPacksScreen() {
   const [visible, setVisible] = useState(false);
   const [name, setName] = useState("");
   const [giftId, setGiftId] = useState<string | null>(null);
+  const { gifts, refresh: refreshGifts } = useGiftCatalog(visible);
   const [assets, setAssets] = useState<PickedAsset[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -191,15 +193,19 @@ export default function MediaPacksScreen() {
       if (controller.signal.aborted) return;
       setUploadProgress(null);
       const selectedGift = giftId as UpdateMediaPackRequest["giftId"];
+      const selectedCatalogGift = gifts.find(gift => gift.id === selectedGift);
+      if (!selectedCatalogGift) throw new Error("Please try again.");
+      const selection = { giftRevisionId: selectedCatalogGift.revisionId, expectedCoinCost: selectedCatalogGift.coins };
       const createdPack = editingId
         ? await update.mutateAsync({
             packId: Number(editingId),
-            data: { giftId: selectedGift, items },
+            data: { giftId: selectedGift, ...selection, items },
           })
         : await create.mutateAsync({
             data: {
               name: name.trim(),
               giftId: selectedGift,
+              ...selection,
               items: items as Exclude<
                 UpdateMediaPackRequest["items"][number],
                 { id: string }
@@ -243,6 +249,7 @@ export default function MediaPacksScreen() {
       setGiftId(null);
       setAssets([]);
     } catch (caught) {
+      void refreshGifts().catch(() => {});
       setError(
         caught instanceof Error
           ? caught.message
@@ -312,17 +319,11 @@ export default function MediaPacksScreen() {
               <Text style={[styles.packName, { color: colors.foreground }]}>
                 {item.name}
               </Text>
-              <Text
-                style={[
-                  localizedTextStyle(),
-                  [styles.meta, { color: colors.mutedForeground }],
-                ]}
-              >
-                {t("{v0} items · 🪙 {v1}", {
-                  v0: item.itemCount,
-                  v1: item.price,
-                })}
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Text style={[localizedTextStyle(), styles.meta, { color: colors.mutedForeground }]}>{t("{v0} items", { v0: item.itemCount })} ·</Text>
+                <GoldCoinIcon size={12} />
+                <Text style={[localizedTextStyle(), styles.meta, { color: colors.mutedForeground }]}>{appNumber(item.price)}</Text>
+              </View>
             </View>
             <TouchableOpacity
               onPress={() => openEdit(item)}
@@ -432,7 +433,7 @@ export default function MediaPacksScreen() {
               testID="pack-gift-options"
               style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
             >
-              {GIFTS.map((gift) => (
+              {gifts.map((gift) => (
                 <TouchableOpacity
                   key={gift.id}
                   testID={`pack-gift-${gift.id}`}
@@ -452,7 +453,7 @@ export default function MediaPacksScreen() {
                     backgroundColor: colors.card,
                   }}
                 >
-                  {gift.id === "crown" ? (
+                  {gift.snapshot?.thumbnail ? <RemoteGiftArtwork snapshot={gift.snapshot} size={32} /> : gift.id === "crown" ? (
                     <CrownArtwork size={32} />
                   ) : hasGiftImage(gift.id) ? (
                     <GiftImageArtwork gift={gift.id} size={28} />

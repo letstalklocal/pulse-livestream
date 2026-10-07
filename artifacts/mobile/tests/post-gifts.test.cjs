@@ -9,6 +9,7 @@ const code = ts.transpileModule(source.slice(start, source.indexOf('  return <>'
   const state = { comments: false, gifts: true, pending: false };
   let fail = true, release;
   const scope = {
+    refreshGiftCatalog: async () => {},
     user: { uid: 42 }, postId: 7, giftBusy: { current: false }, giftRequest: { current: null },
     Crypto: { randomUUID: require('node:crypto').randomUUID },
     setSendingGift: v => { state.pending = v; },

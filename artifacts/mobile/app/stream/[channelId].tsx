@@ -1,4 +1,5 @@
 import { GiftImageArtwork, hasGiftImage } from "@/components/GiftImageArtwork";
+import { giftFromSnapshot, refreshGiftCatalog, type GiftSnapshot } from "@/utils/giftCatalog";
 import { LiveStickerOverlay } from "@/components/LiveStickerOverlay";
 import { DemoVideo } from "@/components/DemoVideo";
 import { useLivePlayback } from "@/context/LivePlaybackContext";
@@ -13,6 +14,7 @@ import { mergeLiveChat } from "@/utils/mergeLiveChat";
 import { CrownArtwork } from "@/components/CrownArtwork";
 import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
 import { TranslatedMessage } from "@/components/TranslatedMessage";
+import { GiftCoinNotice } from "@/components/GiftCoinNotice";
 import { LiveChatAvatar } from "@/components/LiveChatAvatar";
 import { TranslationToggle } from "@/components/TranslationToggle";
 import { ReportStreamSheet } from "@/components/ReportStreamSheet";
@@ -450,11 +452,12 @@ export default function StreamScreen() {
 
   // Helper: spawn a floating gift on screen
   const spawnGift = (gift: Gift, senderName: string, giftId?: string, amount = gift.coins, combo?: { id: string; count: number; totalCoins: number }) => {
-    const nativeExpected = !isDemo && expectsNativeCrown(gift.name, amount);
+    const nativeExpected = !isDemo && expectsNativeCrown(gift.name, amount, gift.snapshot);
     if (giftId && !giftPresentation.current.claim(giftId, nativeExpected)) return;
     const inVideo = giftId ? giftPresentation.current.inVideo(giftId) : nativeExpected;
     const x = Math.random() * (SCREEN_W * 0.55) + 16;
     setFloatingGifts(prev => mergeGiftFloater(prev, { id: giftId ?? `${Date.now()}-${Math.random()}`, catalogId: gift.id, emoji: gift.emoji, name: gift.name, senderName, x, size: gift.size, inVideo,
+      giftSnapshot: gift.snapshot, playbackAudio: isDemo,
       comboId: combo?.id, comboCount: combo?.count, comboLabel: combo ? `×${appNumber(combo.count)}` : undefined }));
   };
 
@@ -506,6 +509,7 @@ export default function StreamScreen() {
             coins?: number;
             giftName?: string;
             giftId?: string;
+            giftSnapshot?: GiftSnapshot;
             amount?: number;
             inVideo?: boolean;
             senderName?: string;
@@ -526,7 +530,7 @@ export default function StreamScreen() {
             setRealtimeCoins(previous => Math.max(previous ?? 0, msg.coins!));
           } else if (msg.type === "gift" && msg.giftName) {
             if (typeof msg.coins === "number") setRealtimeCoins(previous => Math.max(previous ?? 0, msg.coins!));
-            const gift = GIFTS.find((g) => (g.name === msg.giftName || (g.id === "luxury_rocket" && msg.giftName === "Rocket")) && g.coins === msg.amount) ?? GIFTS.find((g) => g.name === msg.giftName);
+            const gift = giftFromSnapshot(msg.giftSnapshot) ?? GIFTS.find((g) => (g.name === msg.giftName || (g.id === "luxury_rocket" && msg.giftName === "Rocket")) && g.coins === msg.amount) ?? GIFTS.find((g) => g.name === msg.giftName);
             if (gift) spawnGift(gift, msg.senderName ?? "Viewer", msg.giftId, msg.amount ?? gift.coins, msg.combo);
           }
         } catch { /* ignore */ }
@@ -874,7 +878,7 @@ export default function StreamScreen() {
                 <LiveChatAvatar senderUid={item.senderUid} senderName={item.sender} />
                 <View style={styles.chatContent}>
                   <Text style={styles.chatSender}>{item.sender}</Text>
-                  <TranslatedMessage text={item.text} messageId={item.id} kind="live" channelId={channelId} incoming={item.senderUid !== undefined && item.senderUid !== user?.uid} style={styles.chatText} />
+                  {item.id.startsWith("gift:") ? <GiftCoinNotice text={item.text} style={styles.chatText} /> : <TranslatedMessage text={item.text} messageId={item.id} kind="live" channelId={channelId} incoming={item.senderUid !== undefined && item.senderUid !== user?.uid} style={styles.chatText} />}
                 </View>
               </View>
             )}
@@ -960,7 +964,6 @@ export default function StreamScreen() {
     {/* Gift picker */}
     <GiftPicker
       visible={showGiftPicker}
-      getGiftTestEngine={playback.getGiftTestEngine}
       coins={viewerCoins}
       recipients={party?.status === "active" ? party.participants : undefined}
       recipientUid={giftRecipient?.uid ?? hostUid ?? undefined}
@@ -974,7 +977,7 @@ export default function StreamScreen() {
           // mutateAsync retains a result for every overlapping tap. Per-call
           // mutate callbacks can be skipped when a later mutation replaces it.
           const data = await spendMutation.mutateAsync(
-            { data: { uid: user.uid, recipientUid: giftRecipient?.uid ?? hostUid ?? undefined, amount: gift.coins, giftName: gift.name, senderName: user.name ?? "Viewer", channelId: giftRecipient?.channelId ?? channelId ?? undefined, description: gift.name, idempotencyKey: giftId } },
+            { data: { uid: user.uid, recipientUid: giftRecipient?.uid ?? hostUid ?? undefined, amount: gift.coins, giftId: gift.id, giftRevisionId: gift.revisionId, expectedCoinCost: gift.coins, giftName: gift.name, senderName: user.name ?? "Viewer", channelId: giftRecipient?.channelId ?? channelId ?? undefined, description: gift.name, idempotencyKey: giftId } },
           );
           // Update viewer's own balance in cache
           queryClient.setQueryData(
@@ -985,9 +988,10 @@ export default function StreamScreen() {
           queryClient.invalidateQueries({
             queryKey: getGetCoinBalanceQueryKey({ uid: giftRecipient?.uid ?? hostUid ?? 0 }),
           });
-          spawnGift(gift, giftRecipient ? `${user.name ?? "You"} to ${giftRecipient.name}` : user.name ?? "You", giftId, gift.coins, data.combo);
+          spawnGift(giftFromSnapshot(data.giftSnapshot) ?? gift, giftRecipient ? `${user.name ?? "You"} to ${giftRecipient.name}` : user.name ?? "You", giftId, gift.coins, data.combo);
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         } catch {
+          void refreshGiftCatalog().catch(() => {});
           Alert.alert(t("Gift not sent"), t("Check your coin balance and that the selected host is still live."));
         } finally {
           pendingGiftPayments.current -= 1;
@@ -1018,10 +1022,10 @@ export default function StreamScreen() {
             {stream?.requiredGift?.name === "Crown" ? <CrownArtwork size={30} /> : hasGiftImage(stream?.requiredGift?.name) ? <GiftImageArtwork gift={stream?.requiredGift?.name} size={30} /> : <Text style={styles.admissionGiftEmoji}>{stream?.requiredGift?.emoji}</Text>}
             <View>
               <Text style={styles.admissionGiftName}>{stream?.requiredGift?.name}</Text>
-              <Text style={[localizedTextStyle(), styles.admissionGiftCost]}>{t("Entry gift · 🪙 {v0}", { v0: stream?.requiredGift?.coinCost })}</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}><GoldCoinIcon size={12} /><Text style={[localizedTextStyle(), styles.admissionGiftCost, { marginTop: 0 }]}>{t("Entry gift · {v0}", { v0: stream?.requiredGift?.coinCost })}</Text></View>
             </View>
           </View>
-          <Text style={[localizedTextStyle(), styles.admissionBalance]}>{t("Your balance: 🪙 {v0}", { v0: viewerCoins.toLocaleString(appLocale()) })}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 15 }}><GoldCoinIcon size={13} /><Text style={[localizedTextStyle(), styles.admissionBalance, { marginTop: 0 }]}>{t("Your balance: {v0}", { v0: viewerCoins.toLocaleString(appLocale()) })}</Text></View>
           {stream?.allowIncognito !== false ? <TouchableOpacity testID="premium-enter-incognito" disabled={admitToStream.isPending} accessibilityRole="checkbox" accessibilityState={{ checked: enterIncognito }} onPress={() => setEnterIncognito(value => !value)} style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12 }}><Ionicons name={enterIncognito ? "checkbox" : "square-outline"} size={24} color="#FFD700" /><Text style={[localizedTextStyle(), styles.admissionGiftName]}>{t("Enter as incognito")}</Text></TouchableOpacity> : <Text style={[localizedTextStyle(), styles.admissionBalance]}>{t("Incognito not available")}</Text>}
           {admissionError ? <Text style={styles.admissionError}>{t(admissionError)}</Text> : null}
           <TouchableOpacity

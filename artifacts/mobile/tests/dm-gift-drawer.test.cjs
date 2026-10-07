@@ -33,7 +33,7 @@ for (const [text, nearBottom, shouldFollow] of [['🎁 🌹 Rose gift • 1 coin
   let followed = false, scrolled = false;
   bind(messageEffect, { focusedRef: { current: true }, positionedRef: { current: true }, latestMessageRef: { current: 'old' },
     messages: [{ messageId: 'new', senderId: '1', text }], myUidStr: '1', peerIdStr: '2', isNearBottomRef: { current: nearBottom },
-    parseDmGiftReceipt: text => text.startsWith('🎁') ? {} : null, GIFTS: [],
+    parseDmGiftReceipt: text => text.startsWith('🎁') ? {} : null, giftFromSnapshot: () => null, GIFTS: [],
     updateFollowingBottom: () => followed = true, keepAtBottom: () => scrolled = true, markRead: () => {} })();
   assert.equal(followed, shouldFollow); assert.equal(scrolled, shouldFollow);
 }

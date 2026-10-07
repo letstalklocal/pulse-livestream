@@ -10,6 +10,7 @@ const slots = [], alerts = [], payments = [];
 const React = { createElement: (type, props, ...children) => ({ type, props: props ?? {}, children }), useState: initial => { const i = cursor++; if (!(i in slots)) slots[i] = initial; return [slots[i], v => { slots[i] = v; }]; } };
 const colors = { card: 'black', foreground: 'white', mutedForeground: 'gray', border: 'gray', primary: 'pink' };
 const mocks = {
+  './GoldCoinIcon': { GoldCoinIcon: 'GoldCoinIcon' },
   react: React,
   'react-native': { View: 'View', Text: 'Text', TouchableOpacity: 'Button', FlatList: 'List', StyleSheet: { create: x => x, absoluteFillObject: {} }, useWindowDimensions: () => ({ width }), Alert: { alert: (...args) => alerts.push(args) } },
   'expo-image': { Image: 'Image' }, '@expo/vector-icons': { Ionicons: 'Icon' },

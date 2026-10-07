@@ -170,7 +170,11 @@ importers:
         specifier: ~5.9.3
         version: 5.9.3
 
-  artifacts/admin: {}
+  artifacts/admin:
+    dependencies:
+      svgaplayerweb:
+        specifier: 2.3.2
+        version: 2.3.2
 
   artifacts/api-server:
     dependencies:
@@ -5992,6 +5996,9 @@ packages:
   supports-preserve-symlinks-flag@1.0.0:
     resolution: {integrity: sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==}
     engines: {node: '>= 0.4'}
+
+  svgaplayerweb@2.3.2:
+    resolution: {integrity: sha512-QuTvNIgy3W6Mi4h74SczEHUtAwb8m3ax7Ai7xRLUuN6hjJh49RGtWOWq1IuF2I7ECcl0HAYn8FcTn99UDz9UiQ==}
 
   tailwind-merge@3.5.0:
     resolution: {integrity: sha512-I8K9wewnVDkL1NTGoqWmVEIlUcB9gFriAEkXkfCjX5ib8ezGxtR3xD7iZIxrfArjEsH7F1CHD4RFUtxefdqV/A==}
@@ -12832,6 +12839,8 @@ snapshots:
       supports-color: 7.2.0
 
   supports-preserve-symlinks-flag@1.0.0: {}
+
+  svgaplayerweb@2.3.2: {}
 
   tailwind-merge@3.5.0: {}
 

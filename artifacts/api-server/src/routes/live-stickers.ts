@@ -13,7 +13,8 @@ import {
   StickerError,
   validateStickers,
 } from "../lib/liveStickers";
-import { GIFT_CATALOG } from "../lib/giftCatalog";
+import { GiftCatalogError } from "../lib/managedGiftCatalog";
+import { currentCatalogGift } from "../lib/giftCatalogTransaction";
 const router = Router();
 router.get("/streams/:channelId/stickers", async (req, res): Promise<any> => {
   const user = await authenticatedUser(req);
@@ -29,20 +30,21 @@ router.get("/streams/:channelId/stickers", async (req, res): Promise<any> => {
     await assertStickerAccess(session, user);
     const stickers = await Promise.all(
       session.stickers.map(async (sticker) => {
-        const gift =
-          GIFT_CATALOG[
-            sticker.giftId as keyof typeof GIFT_CATALOG
-          ];
-        if (!gift) return null;
-        if (sticker.kind === "gift")
+        if (sticker.kind === "gift") {
+          let gift;
+          try { gift = await db.transaction(tx => currentCatalogGift(tx, sticker.giftId)); }
+          catch (error) { if (error instanceof GiftCatalogError) return null; throw error; }
           return {
             ...sticker,
+            giftRevisionId: gift.revisionId,
+            giftSnapshot: gift,
             price: gift.coinCost,
             name: gift.name,
             videos: 0,
             pictures: 0,
             owned: false,
           };
+        }
         const [pack] = await db
           .select()
           .from(mediaPacksTable)
@@ -71,6 +73,7 @@ router.get("/streams/:channelId/stickers", async (req, res): Promise<any> => {
         return {
           ...sticker,
           giftId: pack.giftId,
+          giftSnapshot: pack.giftSnapshot,
           name: pack.name,
           price: pack.coinPrice,
           videos: items.filter((i) => i.contentType.startsWith("video/"))

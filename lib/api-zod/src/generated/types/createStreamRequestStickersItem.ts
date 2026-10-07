@@ -5,12 +5,13 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { CreateStreamRequestStickersItemGiftId } from './createStreamRequestStickersItemGiftId';
 import type { CreateStreamRequestStickersItemKind } from './createStreamRequestStickersItemKind';
 
 export type CreateStreamRequestStickersItem = {
   kind: CreateStreamRequestStickersItemKind;
-  giftId: CreateStreamRequestStickersItemGiftId;
+  /** @pattern ^[a-z][a-z0-9_-]{0,79}$ */
+  giftId: string;
+  giftRevisionId?: string;
   /** @minimum 1 */
   packId?: number;
 };

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { type AnyPgColumn, check, index, integer, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { type AnyPgColumn, check, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 import { privateStreamInvitationsTable } from "./private-stream-invitations";
 
@@ -15,6 +15,7 @@ export const directMessagesTable = pgTable(
       .references(() => usersTable.uid, { onDelete: "cascade" }),
     text: text("text").notNull(),
     kind: text("kind").notNull().default("text"),
+    giftSnapshot: jsonb("gift_snapshot").$type<Record<string, unknown>>(),
     mediaPackId: integer("media_pack_id"),
     mediaObjectPath: text("media_object_path"),
     mediaContentType: text("media_content_type"),

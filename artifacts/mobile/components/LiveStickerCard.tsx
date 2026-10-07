@@ -7,6 +7,8 @@ import { CrownArtwork } from "./CrownArtwork";
 import { GoldCoinIcon } from "./GoldCoinIcon";
 import { useAppLanguage } from "@/i18n";
 import type { LiveSticker } from "@/utils/liveStickers";
+import { useGiftCatalog } from "@/hooks/useGiftCatalog";
+import { RemoteGiftArtwork } from "./RemoteGiftArtwork";
 export function LiveStickerCard({
   sticker,
   onPress,
@@ -33,7 +35,8 @@ export function LiveStickerCard({
       onDoublePress();
     } else lastTap.current = now;
   };
-  const gift = GIFTS.find((g) => g.id === sticker.giftId);
+  const { gifts } = useGiftCatalog(false);
+  const gift = gifts.find((g) => g.id === sticker.giftId) ?? GIFTS.find((g) => g.id === sticker.giftId);
   const owned = showOwned && sticker.kind === "pack" && sticker.owned;
   return (
     <TouchableOpacity
@@ -66,7 +69,7 @@ export function LiveStickerCard({
           </Text>
         )}
       </View>
-      {gift?.id === "crown" ? (
+      {sticker.giftSnapshot ? <RemoteGiftArtwork snapshot={sticker.giftSnapshot} size={35.2} style={{ height: 44.8 }} /> : gift?.snapshot?.thumbnail ? <RemoteGiftArtwork snapshot={gift.snapshot} size={35.2} style={{ height: 44.8 }} /> : gift?.id === "crown" ? (
         <CrownArtwork size={35.2} />
       ) : hasGiftImage(gift?.id) ? (
         <GiftImageArtwork gift={gift?.id} size={35.2} style={{ height: 44.8 }} />

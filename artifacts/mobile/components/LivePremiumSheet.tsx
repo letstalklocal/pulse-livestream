@@ -1,6 +1,7 @@
 import { GiftImageArtwork, hasGiftImage } from "@/components/GiftImageArtwork";
 import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import { CrownArtwork } from "./CrownArtwork";
+import { GoldCoinIcon } from "./GoldCoinIcon";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -49,7 +50,7 @@ export function LivePremiumSheet({ channelId, onClose, onConfirm }: {
             <ScrollView contentContainerStyle={styles.grid}>
               {POPULAR_GIFTS.map(item => <TouchableOpacity key={item.id} style={[styles.option, giftId === item.id && styles.selected]} onPress={() => setGiftId(item.id)} accessibilityRole="radio" accessibilityState={{ selected: giftId === item.id }}>
                 {giftId === item.id ? <Ionicons name="checkmark-circle" color="#FF1966" size={20} style={{ position: "absolute", top: 6, right: 6 }} /> : null}
-                {item.id === "crown" ? <CrownArtwork size={31} /> : hasGiftImage(item.id) ? <GiftImageArtwork gift={item.id} size={31} /> : <Text style={{ fontSize: 31 }}>{item.emoji}</Text>}<Text style={styles.giftName}>{item.name}</Text><Text style={styles.cost}>🪙 {item.coins}</Text>
+                {item.id === "crown" ? <CrownArtwork size={31} /> : hasGiftImage(item.id) ? <GiftImageArtwork gift={item.id} size={31} /> : <Text style={{ fontSize: 31 }}>{item.emoji}</Text>}<Text style={styles.giftName}>{item.name}</Text><View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 }}><GoldCoinIcon size={11} /><Text style={[styles.cost, { marginTop: 0 }]}>{appNumber(item.coins)}</Text></View>
               </TouchableOpacity>)}
             </ScrollView>
           ) : <>

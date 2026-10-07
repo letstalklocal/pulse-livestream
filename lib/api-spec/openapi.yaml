@@ -1348,7 +1348,9 @@ paths:
               type: object
               required: [giftId, requestId]
               properties:
-                giftId: { type: string, enum: [rose, heart, party, strawberry, diamond, lips, rocket, crown] }
+                giftId: { type: string, pattern: "^[a-z][a-z0-9_-]{0,79}$" }
+                giftRevisionId: { type: string }
+                expectedCoinCost: { type: integer, minimum: 1 }
                 requestId: { type: string, minLength: 16, maxLength: 80, pattern: "^[a-zA-Z0-9-]{16,80}$" }
       responses:
         "200":
@@ -1709,7 +1711,8 @@ components:
             required: [kind, giftId]
             properties:
               kind: { type: string, enum: [gift, pack] }
-              giftId: { type: string, enum: [rose, heart, party, strawberry, diamond, lips, rocket, crown] }
+              giftId: { type: string, pattern: "^[a-z][a-z0-9_-]{0,79}$" }
+              giftRevisionId: { type: string }
               packId: { type: integer, minimum: 1 }
         allowIncognito: { type: boolean }
         requiredGiftId:
@@ -1920,6 +1923,9 @@ components:
       properties:
         balance:
           type: integer
+        giftSnapshot:
+          type: object
+          additionalProperties: true
         combo:
           type: object
           properties:
@@ -1933,6 +1939,9 @@ components:
     CoinSpendRequest:
       type: object
       properties:
+        giftId: { type: string, pattern: "^[a-z][a-z0-9_-]{0,79}$", description: "Stable catalog gift ID." }
+        giftRevisionId: { type: string, description: "Immutable selected catalog revision." }
+        expectedCoinCost: { type: integer, minimum: 1, description: "Displayed price; a stale price fails without charging." }
         uid:
           type: integer
           description: Sender user ID
@@ -2152,12 +2161,14 @@ components:
       required: [objectPath, mediaType, contentType, width, height]
     CreateMediaPackRequest:
       type: object
-      properties: { name: { type: string, maxLength: 80 }, giftId: { type: string, enum: [rose, heart, party, strawberry, diamond, lips, rocket, crown] }, items: { type: array, minItems: 1, maxItems: 20, items: { $ref: "#/components/schemas/MediaPackItemInput" } } }
+      properties: { name: { type: string, maxLength: 80 }, giftId: { type: string, pattern: "^[a-z][a-z0-9_-]{0,79}$" }, giftRevisionId: { type: string }, expectedCoinCost: { type: integer, minimum: 1 }, items: { type: array, minItems: 1, maxItems: 20, items: { $ref: "#/components/schemas/MediaPackItemInput" } } }
       required: [name, giftId, items]
     UpdateMediaPackRequest:
       type: object
       properties:
-        giftId: { type: string, enum: [rose, heart, party, strawberry, diamond, lips, rocket, crown] }
+        giftId: { type: string, pattern: "^[a-z][a-z0-9_-]{0,79}$" }
+        giftRevisionId: { type: string }
+        expectedCoinCost: { type: integer, minimum: 1 }
         items:
           type: array
           minItems: 1

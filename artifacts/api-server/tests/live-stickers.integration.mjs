@@ -454,7 +454,7 @@ try {
     "Separate DM purchase has no live credit",
   );
   assert.equal(
-    (await buy(other, keys[0], dmPack, null)).statusCode,
+    (await buy(other, (await pool.query('select idempotency_key from media_pack_purchases where pack_id=$1 and buyer_user_id=$2', [packId, buyer])).rows[0].idempotency_key, dmPack, null)).statusCode,
     409,
     "Key cannot be stolen",
   );

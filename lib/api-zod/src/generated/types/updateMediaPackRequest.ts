@@ -5,11 +5,14 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { UpdateMediaPackRequestGiftId } from './updateMediaPackRequestGiftId';
 import type { UpdateMediaPackRequestItemsItem } from './updateMediaPackRequestItemsItem';
 
 export interface UpdateMediaPackRequest {
-  giftId: UpdateMediaPackRequestGiftId;
+  /** @pattern ^[a-z][a-z0-9_-]{0,79}$ */
+  giftId: string;
+  giftRevisionId?: string;
+  /** @minimum 1 */
+  expectedCoinCost?: number;
   /**
      * @minItems 1
      * @maxItems 20

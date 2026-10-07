@@ -18,6 +18,7 @@ const scope={user:{uid:1,name:'Viewer'},pendingGiftPayments:pending,setShowGiftP
  spendMutation:{mutateAsync:data=>new Promise((resolve,reject)=>calls.push({data,resolve,reject}))},
  queryClient:{setQueryData:(key,data)=>balances.push(data.balance),invalidateQueries:()=>{}},
  getGetCoinBalanceQueryKey:()=>[],spawnGift:(...args)=>animations.push(args),
+ refreshGiftCatalog:async()=>{},giftFromSnapshot:()=>null,
  Haptics:{impactAsync:()=>{},ImpactFeedbackStyle:{Medium:1}},Alert:{alert:(...x)=>errors.push(x)},t:x=>x};
 const code=ts.transpileModule(`const send = ${handler};`,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
 const send=new Function(...Object.keys(scope),code+';return send;')(...Object.values(scope));

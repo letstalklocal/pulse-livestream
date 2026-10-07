@@ -3969,6 +3969,7 @@ export const ListStreamsResponse = zod.object({
  * Register a new live stream session
  * @summary Start a new live stream
  */
+export const createStreamBodyStickersItemGiftIdRegExp = new RegExp('^[a-z][a-z0-9_-]{0,79}$');
 
 export const createStreamBodyStickersMax = 2;
 
@@ -3983,7 +3984,8 @@ export const CreateStreamBody = zod.object({
   "category": zod.string(),
   "stickers": zod.array(zod.object({
   "kind": zod.enum(['gift', 'pack']),
-  "giftId": zod.enum(['rose', 'heart', 'party', 'strawberry', 'diamond', 'lips', 'rocket', 'crown']),
+  "giftId": zod.string().regex(createStreamBodyStickersItemGiftIdRegExp),
+  "giftRevisionId": zod.string().optional(),
   "packId": zod.number().min(1).optional()
 })).max(createStreamBodyStickersMax).optional(),
   "allowIncognito": zod.boolean().optional(),
@@ -4529,11 +4531,16 @@ export const GetCoinBalanceResponse = zod.object({
 /**
  * @summary Spend coins on a gift
  */
+export const spendCoinsBodyGiftIdRegExp = new RegExp('^[a-z][a-z0-9_-]{0,79}$');
+
 export const spendCoinsBodyIdempotencyKeyMax = 100;
 
 
 
 export const SpendCoinsBody = zod.object({
+  "giftId": zod.string().regex(spendCoinsBodyGiftIdRegExp).optional().describe('Stable catalog gift ID.'),
+  "giftRevisionId": zod.string().optional().describe('Immutable selected catalog revision.'),
+  "expectedCoinCost": zod.number().min(1).optional().describe('Displayed price; a stale price fails without charging.'),
   "uid": zod.number().describe('Sender user ID'),
   "recipientUid": zod.number().optional().describe('Recipient (streamer) user ID'),
   "amount": zod.number(),
@@ -4546,6 +4553,7 @@ export const SpendCoinsBody = zod.object({
 
 export const SpendCoinsResponse = zod.object({
   "balance": zod.number(),
+  "giftSnapshot": zod.record(zod.string(), zod.unknown()).optional(),
   "combo": zod.object({
   "id": zod.string(),
   "count": zod.number(),
@@ -4701,13 +4709,17 @@ export const GetMediaPacksResponse = zod.object({
 
 export const createMediaPackBodyNameMax = 80;
 
+export const createMediaPackBodyGiftIdRegExp = new RegExp('^[a-z][a-z0-9_-]{0,79}$');
+
 export const createMediaPackBodyItemsMax = 20;
 
 
 
 export const CreateMediaPackBody = zod.object({
   "name": zod.string().max(createMediaPackBodyNameMax),
-  "giftId": zod.enum(['rose', 'heart', 'party', 'strawberry', 'diamond', 'lips', 'rocket', 'crown']),
+  "giftId": zod.string().regex(createMediaPackBodyGiftIdRegExp),
+  "giftRevisionId": zod.string().optional(),
+  "expectedCoinCost": zod.number().min(1).optional(),
   "items": zod.array(zod.object({
   "objectPath": zod.string(),
   "mediaType": zod.enum(['image', 'video']),
@@ -4752,13 +4764,17 @@ export const UpdateMediaPackParams = zod.object({
   "packId": zod.coerce.number()
 })
 
+export const updateMediaPackBodyGiftIdRegExp = new RegExp('^[a-z][a-z0-9_-]{0,79}$');
+
 
 export const updateMediaPackBodyItemsMax = 20;
 
 
 
 export const UpdateMediaPackBody = zod.object({
-  "giftId": zod.enum(['rose', 'heart', 'party', 'strawberry', 'diamond', 'lips', 'rocket', 'crown']),
+  "giftId": zod.string().regex(updateMediaPackBodyGiftIdRegExp),
+  "giftRevisionId": zod.string().optional(),
+  "expectedCoinCost": zod.number().min(1).optional(),
   "items": zod.array(zod.union([zod.object({
   "id": zod.string().min(1)
 }),zod.object({
@@ -5185,6 +5201,8 @@ export const SendPostGiftParams = zod.object({
   "postId": zod.coerce.number()
 })
 
+export const sendPostGiftBodyGiftIdRegExp = new RegExp('^[a-z][a-z0-9_-]{0,79}$');
+
 export const sendPostGiftBodyRequestIdMin = 16;
 export const sendPostGiftBodyRequestIdMax = 80;
 
@@ -5193,7 +5211,9 @@ export const sendPostGiftBodyRequestIdRegExp = new RegExp('^[a-zA-Z0-9-]{16,80}$
 
 
 export const SendPostGiftBody = zod.object({
-  "giftId": zod.enum(['rose', 'heart', 'party', 'strawberry', 'diamond', 'lips', 'rocket', 'crown']),
+  "giftId": zod.string().regex(sendPostGiftBodyGiftIdRegExp),
+  "giftRevisionId": zod.string().optional(),
+  "expectedCoinCost": zod.number().min(1).optional(),
   "requestId": zod.string().min(sendPostGiftBodyRequestIdMin).max(sendPostGiftBodyRequestIdMax).regex(sendPostGiftBodyRequestIdRegExp)
 })
 

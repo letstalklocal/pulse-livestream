@@ -16,10 +16,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Avatar } from "./Avatar";
-import { WebmGiftTest, preloadWebmGiftTest } from "./WebmGiftTest";
-import { AgoraGiftTest } from "./AgoraGiftTest";
-import { AlphaPlayerGiftTest } from "./AlphaPlayerGiftTest";
-import type { AgoraGiftEngineLease } from "@/utils/agoraGiftProbe";
+import { useGiftCatalog } from "@/hooks/useGiftCatalog";
+import { RemoteGiftArtwork } from "./RemoteGiftArtwork";
+import { prefetchGiftThumbnails } from "@/utils/giftAssetCache";
+import type { GiftSnapshot } from "@/utils/giftCatalog";
 
 export interface Gift {
   id: string;
@@ -27,6 +27,8 @@ export interface Gift {
   name: string;
   coins: number;
   size: number;
+  revisionId?: string;
+  snapshot?: GiftSnapshot;
 }
 
 export const POPULAR_GIFTS: Gift[] = [
@@ -51,8 +53,6 @@ export const LUXURY_GIFTS: Gift[] = [
 export const GIFTS: Gift[] = [...POPULAR_GIFTS, ...LUXURY_GIFTS];
 
 interface Props {
-  /** Read-only lease on this viewer's existing engine; test never creates a session. */
-  getGiftTestEngine?: () => AgoraGiftEngineLease | null;
   visible: boolean;
   onClose: () => void;
   onSend: (gift: Gift) => void;
@@ -71,27 +71,24 @@ interface Props {
   onRecipientChange?: (uid: number) => void;
 }
 
-export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipientUid, onRecipientChange, hintText = "Select a gift, then tap Send.", preview = false, sendingGiftId, feedbackOverlay, onDrawerHeightChange, getGiftTestEngine }: Props) {
+export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipientUid, onRecipientChange, hintText = "Select a gift, then tap Send.", preview = false, sendingGiftId, feedbackOverlay, onDrawerHeightChange }: Props) {
   const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const [buyingCoins, setBuyingCoins] = useState(false);
   const [selectedGiftId, setSelectedGiftId] = useState<string | null>(null);
-  const [activeGiftTab, setActiveGiftTab] = useState<"popular" | "luxury" | "test">("popular");
+  const [activeGiftTab, setActiveGiftTab] = useState<string>("popular");
   const [popularGridHeight, setPopularGridHeight] = useState<number | undefined>();
-  const [playingWebmTest, setPlayingWebmTest] = useState(false);
-  const [playingAgoraTest, setPlayingAgoraTest] = useState(false);
-  const [playingAlphaTest, setPlayingAlphaTest] = useState(false);
-  const displayedGifts = activeGiftTab === "luxury" ? LUXURY_GIFTS : POPULAR_GIFTS;
-  useEffect(() => { if (!visible) { setBuyingCoins(false); setSelectedGiftId(null); setPlayingWebmTest(false); } }, [visible]);
-  useEffect(() => { if (activeGiftTab !== "test" || buyingCoins) setPlayingWebmTest(false); }, [activeGiftTab, buyingCoins]);
-  useEffect(() => { if (!visible || activeGiftTab !== "test" || buyingCoins) setPlayingAgoraTest(false); }, [visible, activeGiftTab, buyingCoins]);
-  useEffect(() => { if (!visible || activeGiftTab !== "test" || buyingCoins) setPlayingAlphaTest(false); }, [visible, activeGiftTab, buyingCoins]);
-  useEffect(() => {
-    if ((Platform.OS === "android" || Platform.OS === "ios") && visible && activeGiftTab === "test" && !buyingCoins) {
-      void preloadWebmGiftTest().catch(() => { /* Preview retains retry/error feedback. */ });
-    }
-  }, [visible, activeGiftTab, buyingCoins]);
+  const [gridOffset, setGridOffset] = useState(0);
+  const [giftRowHeight, setGiftRowHeight] = useState(100);
+  const { collections, version } = useGiftCatalog(visible);
+  const [selectionVersion, setSelectionVersion] = useState(version);
+  useEffect(() => { if (selectionVersion !== version) { setSelectedGiftId(null); setSelectionVersion(version); } }, [selectionVersion, version]);
+  useEffect(() => { setGridOffset(0); }, [activeGiftTab]);
+  const displayedGifts = collections.find(collection => collection.id === activeGiftTab)?.gifts ?? POPULAR_GIFTS;
+  useEffect(() => { if (!collections.some(collection => collection.id === activeGiftTab)) { setActiveGiftTab("popular"); setSelectedGiftId(null); } }, [collections, activeGiftTab]);
+  useEffect(() => { if (visible) void prefetchGiftThumbnails(displayedGifts.map(gift => gift.snapshot?.thumbnail)); }, [visible, displayedGifts]);
+  useEffect(() => { if (!visible) { setBuyingCoins(false); setSelectedGiftId(null); } }, [visible]);
 
   return (
     <Modal
@@ -111,16 +108,12 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
 
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.giftTabs} accessibilityRole="tablist">
-            <TouchableOpacity testID="gift-tab-popular" onPress={() => { setActiveGiftTab("popular"); setSelectedGiftId(null); }} accessibilityRole="tab" accessibilityState={{ selected: activeGiftTab === "popular" }}>
-              <Text style={[localizedTextStyle(), styles.title, activeGiftTab !== "popular" && styles.inactiveTitle]}>{t("Popular")}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity testID="gift-tab-luxury" onPress={() => { setActiveGiftTab("luxury"); setSelectedGiftId(null); }} accessibilityRole="tab" accessibilityState={{ selected: activeGiftTab === "luxury" }}>
-              <Text style={[localizedTextStyle(), styles.title, activeGiftTab !== "luxury" && styles.inactiveTitle]}>{t("Luxury")}</Text>
-            </TouchableOpacity>
-            {Platform.OS === "android" || Platform.OS === "ios" ? <TouchableOpacity testID="gift-tab-test" onPress={() => { setActiveGiftTab("test"); setSelectedGiftId(null); }} accessibilityRole="tab" accessibilityState={{ selected: activeGiftTab === "test" }}>
-              <Text style={[localizedTextStyle(), styles.title, activeGiftTab !== "test" && styles.inactiveTitle]}>{t("Test")}</Text>
-            </TouchableOpacity> : null}
+          <View style={[styles.giftTabs, { flex: 1, minWidth: 0, marginRight: 12 }]} accessibilityRole="tablist">
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.giftTabs}>
+            {collections.map(collection => <TouchableOpacity key={collection.id} testID={`gift-tab-${collection.id}`} onPress={() => { setActiveGiftTab(collection.id); setSelectedGiftId(null); }} accessibilityRole="tab" accessibilityState={{ selected: activeGiftTab === collection.id }}>
+              <Text style={[localizedTextStyle(), styles.title, activeGiftTab !== collection.id && styles.inactiveTitle]}>{collection.name === "Popular" ? t("Popular") : collection.name === "Luxury" ? t("Luxury") : collection.name}</Text>
+            </TouchableOpacity>)}
+            </ScrollView>
           </View>
           <TouchableOpacity style={styles.coinBadge} hitSlop={8} disabled={preview} onPress={() => setBuyingCoins(true)}
             accessibilityRole="button" accessibilityLabel={t(preview ? "Preview gifts" : "Buy Coins")} activeOpacity={0.75}>
@@ -137,26 +130,16 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
         </View> : null}
         {/* Four columns; fit existing gifts, capped at three rows before scrolling. */}
         <ScrollView
-          style={[styles.gridViewport, { maxHeight: 124 * Math.min(3, Math.ceil(Math.max(POPULAR_GIFTS.length, displayedGifts.length) / 4)), height: activeGiftTab !== "popular" ? popularGridHeight : undefined }]}
+          key={activeGiftTab}
+          style={[styles.gridViewport, { maxHeight: 124 * 2, height: activeGiftTab !== "popular" ? popularGridHeight : undefined }]}
           onLayout={event => { if (activeGiftTab === "popular") setPopularGridHeight(event.nativeEvent.layout.height); }}
           showsVerticalScrollIndicator
+          onScroll={event => setGridOffset(event.nativeEvent.contentOffset.y)}
+          scrollEventThrottle={100}
           contentContainerStyle={styles.grid}
           keyboardShouldPersistTaps="handled"
         >
-          {activeGiftTab === "test" && (Platform.OS === "android" || Platform.OS === "ios") ? <View style={{ width: "100%" }}>
-          {Platform.OS === "ios" ? <TouchableOpacity testID="preview-alpha-test" accessibilityRole="button" accessibilityLabel={`AlphaPlayer · ${t("Preview")}`}
-            onPress={() => { setPlayingWebmTest(false); setPlayingAgoraTest(false); setPlayingAlphaTest(true); }} style={[styles.giftCell, { width: "100%", padding: 16, marginBottom: 8 }]}>
-            <Text style={styles.title}>{`AlphaPlayer · ${t("Preview")}`}</Text>
-          </TouchableOpacity> : null}
-          <TouchableOpacity testID="preview-webm-test" accessibilityRole="button" accessibilityLabel={`WebM · ${t("Preview")}`} onPress={() => { setPlayingAlphaTest(false); setPlayingAgoraTest(false); setPlayingWebmTest(true); }} style={[styles.giftCell, { width: "100%", padding: 16 }]}>
-            <Text style={styles.title}>WebM</Text>
-            <Text style={[styles.giftName, { marginVertical: 8 }]}>PumpkinBrute_march_9x16.webm</Text>
-            <Text style={styles.title}>{t("Preview")}</Text>
-          </TouchableOpacity>
-          {Platform.OS === "ios" && getGiftTestEngine ? <TouchableOpacity testID="preview-agora-test" accessibilityRole="button" accessibilityLabel={`Agora · ${t("Preview")}`}
-            onPress={() => { setPlayingAlphaTest(false); setPlayingWebmTest(false); setPlayingAgoraTest(true); }} style={[styles.giftCell, { width: "100%", padding: 16, marginTop: 8 }]}>
-            <Text style={styles.title}>{`Agora · ${t("Preview")}`}</Text>
-          </TouchableOpacity> : null}</View> : displayedGifts.map((gift) => {
+          {displayedGifts.map((gift, index) => {
             const canAfford = preview || coins >= gift.coins;
             const selected = selectedGiftId === gift.id;
             const sending = sendingGiftId === gift.id;
@@ -165,6 +148,7 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
               <View
                 key={gift.id}
                 style={styles.giftSlot}
+                onLayout={index === 0 ? event => setGiftRowHeight(event.nativeEvent.layout.height + 8) : undefined}
               >
               <TouchableOpacity
                   testID={`send-gift-${gift.id}`}
@@ -182,7 +166,7 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
                 >
                   <View pointerEvents="none" style={styles.giftSelection}>
                     <View style={styles.artwork}>
-                      {gift.id === "crown" ? <CrownArtwork size={gift.size} /> : hasLuxuryGiftAnimation(gift.id) ? <LuxuryGiftArtwork gift={gift.id} size={gift.size} /> : hasGiftImage(gift.id) ? <GiftImageArtwork gift={gift.id} size={gift.size} /> : <Text style={[styles.giftEmoji, { fontSize: gift.size }]}>{gift.emoji}</Text>}
+                      {gift.snapshot && (gift.snapshot.thumbnail || gift.snapshot.androidAnimation || gift.snapshot.iosAnimation) ? <RemoteGiftArtwork animated snapshot={gift.snapshot} size={gift.size} enabled={visible && Math.floor(index / 4) >= Math.floor(gridOffset / giftRowHeight) && Math.floor(index / 4) <= Math.ceil((gridOffset + (popularGridHeight ?? 248)) / giftRowHeight)} /> : gift.id === "crown" ? <CrownArtwork size={gift.size} /> : gift.snapshot?.type !== "image" && hasLuxuryGiftAnimation(gift.id) ? <LuxuryGiftArtwork gift={gift.id} size={gift.size} /> : hasGiftImage(gift.id) ? <GiftImageArtwork gift={gift.id} size={gift.size} /> : <Text style={[styles.giftEmoji, { fontSize: gift.size }]}>{gift.emoji}</Text>}
                     </View>
                     <Text style={[styles.giftName, localizedTextStyle()]} numberOfLines={1}>{gift.name}</Text>
                     <View style={styles.giftCost}>
@@ -203,9 +187,6 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
 
       </View>}
       {feedbackOverlay ? <View pointerEvents="none" style={StyleSheet.absoluteFill}>{feedbackOverlay}</View> : null}
-      {(Platform.OS === "android" || Platform.OS === "ios") && visible && !buyingCoins && activeGiftTab === "test" && playingWebmTest ? <WebmGiftTest onDone={() => setPlayingWebmTest(false)} /> : null}
-      {Platform.OS === "ios" && getGiftTestEngine && visible && !buyingCoins && activeGiftTab === "test" && playingAgoraTest ? <AgoraGiftTest getEngine={getGiftTestEngine} onDone={() => setPlayingAgoraTest(false)} /> : null}
-      {Platform.OS === "ios" && visible && !buyingCoins && activeGiftTab === "test" && playingAlphaTest ? <AlphaPlayerGiftTest onDone={() => setPlayingAlphaTest(false)} /> : null}
     </Modal>
   );
 }
@@ -250,7 +231,7 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
   },
   inactiveTitle: { color: "rgba(255,255,255,0.45)" },
-  giftTabs: { flexDirection: "row", alignItems: "center", gap: 16 },
+  giftTabs: { flexDirection: "row", alignItems: "center", gap: 16, flexShrink: 1 },
   coinBadge: {
     flexDirection: "row",
     alignItems: "center",

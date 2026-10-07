@@ -7,6 +7,18 @@
  */
 
 export interface CoinSpendRequest {
+  /**
+     * Stable catalog gift ID.
+     * @pattern ^[a-z][a-z0-9_-]{0,79}$
+     */
+  giftId?: string;
+  /** Immutable selected catalog revision. */
+  giftRevisionId?: string;
+  /**
+     * Displayed price; a stale price fails without charging.
+     * @minimum 1
+     */
+  expectedCoinCost?: number;
   /** Sender user ID */
   uid: number;
   /** Recipient (streamer) user ID */

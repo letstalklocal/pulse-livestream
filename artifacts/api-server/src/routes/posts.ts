@@ -1,4 +1,6 @@
 import { GIFT_CATALOG } from "../lib/giftCatalog";
+import { GiftCatalogError, resolvePublishedGift } from "../lib/managedGiftCatalog";
+import { giftCatalogDb } from "../lib/giftCatalogTransaction";
 import { canViewPosts } from "../lib/privacy";
 import { Router } from "express";
 import { and, desc, eq, lt, count, or, sql } from "drizzle-orm";
@@ -88,26 +90,33 @@ router.put("/posts/:postId/activity", async (req, res) => {
 // The ledger and comment commit together; deleting a notice never refunds a gift.
 router.post("/posts/:postId/gifts", async (req, res) => {
   const user = await requireUser(req, res); if (!user) return;
-  const { giftId, requestId } = req.body ?? {};
-  if (typeof giftId !== "string" || !Object.hasOwn(GIFT_CATALOG, giftId) ||
+  const { giftId, requestId, giftRevisionId, expectedCoinCost } = req.body ?? {};
+  if (typeof giftId !== "string" || !/^[a-z][a-z0-9_-]{0,79}$/.test(giftId) ||
+      (giftRevisionId !== undefined && typeof giftRevisionId !== "string") ||
+      (expectedCoinCost !== undefined && (!Number.isSafeInteger(expectedCoinCost) || expectedCoinCost <= 0)) ||
       typeof requestId !== "string" || !/^[a-zA-Z0-9-]{16,80}$/.test(requestId)) {
     return void res.status(400).json({ error: "Invalid gift request" });
   }
-  const gift = GIFT_CATALOG[giftId as keyof typeof GIFT_CATALOG];
   const post = await accessiblePost(req, res, user.uid); if (!post) return;
   if (post.ownerUserId === user.uid) return void res.status(400).json({ error: "You cannot gift your own post" });
   const key = `post-gift:${user.uid}:${requestId}`;
   const description = `Post ${post.id} gift`;
+  try {
   const result = await db.transaction(async tx => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${key}))`);
     if (!(await tx.select().from(postsTable).where(eq(postsTable.id, post.id)).for("share"))[0]) return { status: 404, error: "Photo is no longer available" };
     const [existing] = await tx.select().from(coinTransactionsTable).where(eq(coinTransactionsTable.idempotencyKey, key));
     if (existing) {
-      if (existing.fromUserId !== user.uid || existing.toUserId !== post.ownerUserId || existing.description !== description || existing.giftName !== gift.name || existing.amount !== gift.coinCost || existing.type !== "gift")
+      const saved = existing.giftSnapshot;
+      const legacy = GIFT_CATALOG[giftId as keyof typeof GIFT_CATALOG];
+      if (existing.fromUserId !== user.uid || existing.toUserId !== post.ownerUserId || existing.description !== description || existing.type !== "gift" ||
+          (saved ? saved.id !== giftId || (giftRevisionId && saved.revisionId !== giftRevisionId) : !legacy || existing.giftName !== legacy.name || existing.amount !== legacy.coinCost) ||
+          (expectedCoinCost !== undefined && existing.amount !== expectedCoinCost))
         return { status: 409, error: "Gift request has already been used" };
       const [wallet] = await tx.select().from(coinBalancesTable).where(eq(coinBalancesTable.userId, user.uid));
-      return { status: 200, balance: wallet?.balance ?? 0 };
+      return { status: 200, balance: wallet?.balance ?? 0, giftSnapshot: existing.giftSnapshot };
     }
+    const gift = await resolvePublishedGift(giftCatalogDb(tx), giftId, giftRevisionId, expectedCoinCost);
     // Consistent wallet lock ordering also handles simultaneous reciprocal gifts.
     for (const uid of [user.uid, post.ownerUserId].sort((a, b) => a - b)) {
       await tx.insert(coinBalancesTable).values({ userId: uid, balance: 0 }).onConflictDoNothing();
@@ -118,12 +127,16 @@ router.post("/posts/:postId/gifts", async (req, res) => {
       .where(and(eq(coinBalancesTable.userId, user.uid), sql`${coinBalancesTable.balance} >= ${gift.coinCost}`)).returning();
     if (!debited) return { status: 402, error: "Insufficient coins" };
     await tx.update(coinBalancesTable).set({ balance: sql`${coinBalancesTable.balance} + ${gift.coinCost}`, updatedAt: new Date() }).where(eq(coinBalancesTable.userId, post.ownerUserId));
-    await tx.insert(coinTransactionsTable).values({ fromUserId: user.uid, toUserId: post.ownerUserId, amount: gift.coinCost, type: "gift", giftName: gift.name, description, idempotencyKey: key, balanceAfter: debited.balance });
+    await tx.insert(coinTransactionsTable).values({ fromUserId: user.uid, toUserId: post.ownerUserId, amount: gift.coinCost, type: "gift", giftName: gift.name, giftSnapshot: gift, description, idempotencyKey: key, balanceAfter: debited.balance });
     await tx.insert(postCommentsTable).values({ postId: post.id, userId: user.uid, requestId: key,
       text: `🪙 ${gift.coinCost} coins · ${gift.name}` });
-    return { status: 200, balance: debited.balance };
+    return { status: 200, balance: debited.balance, giftSnapshot: gift };
   });
-  res.status(result.status).json(result.error ? { error: result.error } : { balance: result.balance });
+  res.status(result.status).json(result.error ? { error: result.error } : { balance: result.balance, giftSnapshot: result.giftSnapshot });
+  } catch (error) {
+    if (error instanceof GiftCatalogError) return void res.status(error.status).json({ error: error.message, code: error.code });
+    throw error;
+  }
 });
 
 router.get("/posts/:postId/comments", async (req, res) => {

@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import { useAuth as useClerkAuth } from "@clerk/expo";
 import { useAuth } from "@/context/AuthContext";
+import { refreshGiftCatalog, type GiftSnapshot } from "@/utils/giftCatalog";
 
 const BASE_URL = process.env["EXPO_PUBLIC_DOMAIN"]
   ? `https://${process.env["EXPO_PUBLIC_DOMAIN"]}`
@@ -20,6 +21,7 @@ export interface DmMessage {
   senderId: string;
   senderName: string;
   text: string;
+  giftSnapshot?: GiftSnapshot | null;
   ts: number;
   readAt?: number | null;
   editedAt?: number | null;
@@ -65,7 +67,7 @@ interface RtmContextValue {
   refreshMessages: () => Promise<void>;
   editDm: (messageId: string, text: string) => Promise<{ ok: boolean; error?: string }>;
   deleteDm: (messageId: string, scope: "everyone" | "me") => Promise<{ ok: boolean; error?: string }>;
-  sendGiftDm: (peerId: string, giftId: string, idempotencyKey: string) => Promise<{ ok: boolean; error?: string; uncertain?: boolean; balance?: number; combo?: { id: string; count: number; totalCoins: number } }>;
+  sendGiftDm: (peerId: string, giftId: string, idempotencyKey: string, selection?: { giftRevisionId?: string; expectedCoinCost?: number }) => Promise<{ ok: boolean; error?: string; uncertain?: boolean; balance?: number; giftSnapshot?: GiftSnapshot; combo?: { id: string; count: number; totalCoins: number } }>;
 }
 
 const RtmContext = createContext<RtmContextValue>({
@@ -159,6 +161,7 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
       senderId: message.senderId,
       senderName: message.senderName,
       text: message.text,
+      giftSnapshot: message.giftSnapshot,
       ts: message.ts,
       readAt: message.readAt,
       editedAt: message.editedAt,
@@ -316,19 +319,22 @@ export function RtmProvider({ children }: { children: React.ReactNode }) {
   const editDm = useCallback((messageId: string, text: string) => updateDm(messageId, "PATCH", { text }), [updateDm]);
   const deleteDm = useCallback((messageId: string, scope: "everyone" | "me") => updateDm(messageId, "DELETE", { scope }), [updateDm]);
 
-  const sendGiftDm = useCallback(async (peerId: string, giftId: string, idempotencyKey: string) => {
+  const sendGiftDm = useCallback(async (peerId: string, giftId: string, idempotencyKey: string, selection: { giftRevisionId?: string; expectedCoinCost?: number } = {}) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000);
     try {
       const token = await getTokenRef.current();
       if (!token || !uidStr) return { ok: false, error: "Please sign in again." };
       const response = await fetch(`${BASE_URL}/api/dms/gifts`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ recipientId: Number(peerId), giftId, idempotencyKey }), signal: controller.signal });
-      if (!response.ok) return { ok: false, error: response.status === 402 ? "You may not have enough coins. Try a smaller gift or top up from your profile." : "Please try again.", uncertain: response.status >= 500 };
-      const data = await response.json() as { balance: number; message: PersistedDm; combo: { id: string; count: number; totalCoins: number } };
+        body: JSON.stringify({ recipientId: Number(peerId), giftId, idempotencyKey, ...selection }), signal: controller.signal });
+      if (!response.ok) {
+        if (response.status === 409) void refreshGiftCatalog().catch(() => {});
+        return { ok: false, error: response.status === 402 ? "You may not have enough coins. Try a smaller gift or top up from your profile." : "Please try again.", uncertain: response.status >= 500 };
+      }
+      const data = await response.json() as { balance: number; giftSnapshot?: GiftSnapshot; message: PersistedDm; combo: { id: string; count: number; totalCoins: number } };
       if (!data.message || !data.combo || !Number.isSafeInteger(data.balance)) return { ok: false, uncertain: true };
       storePersistedMessage(data.message, false);
-      return { ok: true, balance: data.balance, combo: data.combo };
+      return { ok: true, balance: data.balance, giftSnapshot: data.giftSnapshot, combo: data.combo };
     } catch { return { ok: false, uncertain: true }; }
     finally { clearTimeout(timeout); }
   }, [uidStr, storePersistedMessage]);

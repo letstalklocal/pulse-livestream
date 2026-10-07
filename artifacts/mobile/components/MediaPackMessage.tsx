@@ -1,4 +1,5 @@
 import { MediaPackGallery } from "./MediaPackGallery";
+import { GoldCoinIcon } from "./GoldCoinIcon";
 import { DirectVideoThumbnail } from "./DirectVideoThumbnail";
 import { t, useAppLanguage, localizedTextStyle } from "@/i18n";
 import { Ionicons } from "@expo/vector-icons";
@@ -217,9 +218,10 @@ export function MediaPackMessage({
         <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>
           {visible ? (mine ? t("Sent pack") : t("Unlocked")) : t("Price")}
         </Text>
-        <Text style={[localizedTextStyle(), styles.price]}>
-          {t("🪙 {v0} coins", { v0: pack.price })}
-        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <GoldCoinIcon size={14} />
+          <Text style={[localizedTextStyle(), styles.price]}>{t("{v0} coins", { v0: pack.price })}</Text>
+        </View>
       </View>
       {!visible && (
         <>

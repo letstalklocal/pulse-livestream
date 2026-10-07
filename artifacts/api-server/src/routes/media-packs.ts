@@ -1,4 +1,5 @@
-import { GIFT_CATALOG } from "../lib/giftCatalog";
+import { GiftCatalogError, resolvePublishedGift } from "../lib/managedGiftCatalog";
+import { giftCatalogDb } from "../lib/giftCatalogTransaction";
 import { purchaseMediaPack } from "../lib/mediaPackPurchase";
 import { StickerError } from "../lib/liveStickers";
 import { pushEarnings } from "../lib/wsHub";
@@ -34,7 +35,7 @@ async function requireUser(req: any, res: any) {
 const packResponse = async (pack: typeof mediaPacksTable.$inferSelect, includeUrls: boolean, unlocked: boolean, isOwner: boolean) => {
   const items = await db.select().from(mediaPackItemsTable).where(eq(mediaPackItemsTable.packId, pack.id)).orderBy(mediaPackItemsTable.position);
   const preview = items.find((item) => item.contentType.startsWith("image/")) ?? items[0];
-  return { id: String(pack.id), name: pack.name, price: pack.coinPrice, giftId: pack.giftId, itemCount: items.length, ownerUserId: String(pack.ownerUserId), unlocked, isOwner, items: await Promise.all(items.map(async (x) => ({
+  return { id: String(pack.id), name: pack.name, price: pack.coinPrice, giftId: pack.giftId, giftSnapshot: pack.giftSnapshot, itemCount: items.length, ownerUserId: String(pack.ownerUserId), unlocked, isOwner, items: await Promise.all(items.map(async (x) => ({
     id: String(x.id),
     position: x.position,
     mediaType: x.contentType.startsWith("video/") ? "video" : "image",
@@ -60,24 +61,30 @@ router.get("/media-packs", async (req, res) => {
 });
 router.post("/media-packs", async (req, res): Promise<any> => {
   const user = await requireUser(req, res); if (!user) return;
-  const { name, items, giftId } = req.body ?? {};
+  const { name, items, giftId, giftRevisionId, expectedCoinCost } = req.body ?? {};
   normalizeDurations(items);
-  if (typeof giftId !== "string" || !Object.hasOwn(GIFT_CATALOG, giftId)) return res.status(400).json({ error: "Choose a valid sticker gift" });
+  if (typeof giftId !== "string" || !/^[a-z][a-z0-9_-]{0,79}$/.test(giftId) || (giftRevisionId !== undefined && typeof giftRevisionId !== "string") || (expectedCoinCost !== undefined && (!Number.isSafeInteger(expectedCoinCost) || expectedCoinCost <= 0))) return res.status(400).json({ error: "Choose a valid sticker gift" });
   if (typeof name !== "string" || !name.trim() || name.trim().length > 80 || !Array.isArray(items) || items.length < 1 || items.length > 20 || items.some((x) => !x || typeof x.objectPath !== "string" || !x.objectPath.startsWith("/objects/") || typeof x.contentType !== "string" || (!x.contentType.startsWith("image/") && !x.contentType.startsWith("video/")) || !Number.isInteger(x.width) || x.width <= 0 || x.width > 2147483647 || !Number.isInteger(x.height) || x.height <= 0 || x.height > 2147483647 || !validDuration(x.durationMs))) return res.status(400).json({ error: "Invalid pack" });
+  try {
   const pack = await db.transaction(async (tx) => {
-    const [created] = await tx.insert(mediaPacksTable).values({ ownerUserId: user.uid, name: name.trim(), coinPrice: GIFT_CATALOG[giftId as keyof typeof GIFT_CATALOG].coinCost, giftId }).returning();
+    const gift = await resolvePublishedGift(giftCatalogDb(tx), giftId, giftRevisionId, expectedCoinCost);
+    const [created] = await tx.insert(mediaPacksTable).values({ ownerUserId: user.uid, name: name.trim(), coinPrice: gift.coinCost, giftId, giftSnapshot: gift }).returning();
     await tx.insert(mediaPackItemsTable).values(items.map((x: any, position: number) => ({ packId: created!.id, position, objectPath: x.objectPath, contentType: x.contentType, width: x.width, height: x.height, durationMs: x.durationMs ?? null })));
     return created!;
   });
   res.status(201).json({ pack: await packResponse(pack, true, true, true) });
+  } catch (error) {
+    if (error instanceof GiftCatalogError) return res.status(error.status).json({ error: error.message, code: error.code });
+    throw error;
+  }
 });
 // Update the existing pack rather than replacing its identity or purchase records.
 router.put("/media-packs/:packId", async (req, res): Promise<any> => {
   const user = await requireUser(req, res); if (!user) return;
   const id = Number(req.params.packId);
-  const { giftId, items } = req.body ?? {};
+  const { giftId, items, giftRevisionId, expectedCoinCost } = req.body ?? {};
   normalizeDurations(items);
-  if (!Number.isSafeInteger(id) || id <= 0 || id > 2147483647 || typeof giftId !== "string" || !Object.hasOwn(GIFT_CATALOG, giftId) || !Array.isArray(items) || items.length < 1 || items.length > 20) return res.status(400).json({ error: "Invalid pack" });
+  if (!Number.isSafeInteger(id) || id <= 0 || id > 2147483647 || typeof giftId !== "string" || !/^[a-z][a-z0-9_-]{0,79}$/.test(giftId) || (giftRevisionId !== undefined && typeof giftRevisionId !== "string") || (expectedCoinCost !== undefined && (!Number.isSafeInteger(expectedCoinCost) || expectedCoinCost <= 0)) || !Array.isArray(items) || items.length < 1 || items.length > 20) return res.status(400).json({ error: "Invalid pack" });
   const retainedIds: number[] = [];
   for (const item of items) {
     if (!item || typeof item !== "object") return res.status(400).json({ error: "Invalid pack item" });
@@ -92,6 +99,7 @@ router.put("/media-packs/:packId", async (req, res): Promise<any> => {
     const pack = await db.transaction(async tx => {
       const [existing] = await tx.select().from(mediaPacksTable).where(and(eq(mediaPacksTable.id, id), eq(mediaPacksTable.ownerUserId, user.uid))).for("update");
       if (!existing) throw new StickerError(404, "Pack not found");
+      const gift = await resolvePublishedGift(giftCatalogDb(tx), giftId, giftRevisionId, expectedCoinCost);
       const oldItems = await tx.select().from(mediaPackItemsTable).where(eq(mediaPackItemsTable.packId, id));
       if (retainedIds.some(itemId => !oldItems.some(item => item.id === itemId))) throw new StickerError(409, "Pack items changed. Reopen the pack and try again.");
       const removed = oldItems.filter(item => !retainedIds.includes(item.id)).map(item => item.id);
@@ -106,11 +114,12 @@ router.put("/media-packs/:packId", async (req, res): Promise<any> => {
           await tx.insert(mediaPackItemsTable).values({ packId: id, position, objectPath: item.objectPath, contentType: item.contentType, width: item.width, height: item.height, durationMs: item.durationMs ?? null });
         }
       }
-      const [updated] = await tx.update(mediaPacksTable).set({ giftId, coinPrice: GIFT_CATALOG[giftId as keyof typeof GIFT_CATALOG].coinCost }).where(eq(mediaPacksTable.id, id)).returning();
+      const [updated] = await tx.update(mediaPacksTable).set({ giftId, coinPrice: gift.coinCost, giftSnapshot: gift }).where(eq(mediaPacksTable.id, id)).returning();
       return updated;
     });
     res.json({ pack: await packResponse(pack, true, true, true) });
   } catch (error) {
+    if (error instanceof GiftCatalogError) return res.status(error.status).json({ error: error.message, code: error.code });
     if (error instanceof StickerError) return res.status(error.status).json({ error: error.message });
     throw error;
   }
@@ -167,6 +176,7 @@ router.post("/media-packs/:packId/unlock", async (req, res): Promise<any> => {
 // Express otherwise returns an HTML error page for an unhandled async route failure.
 const packErrorHandler: ErrorRequestHandler = (error, req, res, next) => {
   if (res.headersSent) return next(error);
+  if (error instanceof GiftCatalogError) return void res.status(error.status).json({ error: error.message, code: error.code });
   req.log?.error({ code: error?.cause?.code ?? error?.code, operation: req.method, route: req.route?.path }, "Media pack request failed");
   res.status(500).json({ error: "Please try again.", code: "MEDIA_PACK_REQUEST_FAILED" });
 };
