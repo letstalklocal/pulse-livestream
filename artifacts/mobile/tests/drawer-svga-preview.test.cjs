@@ -9,11 +9,12 @@ const code = ts.transpileModule(fs.readFileSync(require.resolve('../components/R
 }).outputText;
 function fixture({ type = 'animation', reduced = false, native = true, cached = false } = {}) {
   const slots = [], pending = [], subscriptions = {}, downloads = [], released = [];
-  let cursor = 0;
+  let cursor = 0, cacheReads = 0;
   const React = {
     createElement: (type, props, ...children) => ({ type, props, children }),
     useState(value) { const i = cursor++; slots[i] ??= { value }; return [slots[i].value, value => { slots[i].value = value; }]; },
     useRef(value) { const i = cursor++; return slots[i] ??= { current: value }; },
+    useMemo(fn, deps) { const i = cursor++; const old = slots[i]; if (!old || deps.some((d, j) => !Object.is(d, old.deps[j]))) slots[i] = { deps, value: fn() }; return slots[i].value; },
     useEffect(fn, deps) { const i = cursor++; const old = slots[i];
       if (!old || deps.some((d, j) => !Object.is(d, old.deps[j]))) {
         slots[i] = { deps, cleanup: old?.cleanup };
@@ -29,7 +30,7 @@ function fixture({ type = 'animation', reduced = false, native = true, cached = 
       react: React,
       'react-native': { Platform: { OS: 'android' }, Image: 'Image', Text: 'Text', AppState: { currentState: 'active', addEventListener: listen('app') },
         AccessibilityInfo: { isReduceMotionEnabled: async () => reduced, addEventListener: listen('motion') } },
-      '@/utils/giftAssetCache': { getCachedGiftAssetUri: asset => cached && asset?.id === 'art' ? 'file:///art' : null, acquireGiftAsset: async asset => { downloads.push(asset.id); let done = false; return { uri: `file:///${asset.id}`, release() { if (!done) { done = true; released.push(asset.id); } } }; } },
+      '@/utils/giftAssetCache': { getCachedGiftAssetUri: asset => { cacheReads++; return cached && asset?.id === 'art' ? 'file:///art' : null; }, acquireGiftAsset: async asset => { downloads.push(asset.id); let done = false; return { uri: `file:///${asset.id}`, release() { if (!done) { done = true; released.push(asset.id); } } }; } },
       './GiftImageArtwork': { hasGiftImage: () => false }, './CrownArtwork': { CrownArtwork: 'Crown' },
     };
     assert.ok(modules[id], id); return modules[id];
@@ -37,7 +38,7 @@ function fixture({ type = 'animation', reduced = false, native = true, cached = 
   const snapshot = { id: 'new', name: 'New', type, thumbnail: { id: 'art', sha256: 'art', format: 'png' }, androidAnimation: { id: 'movie', sha256: 'movie', format: 'svga' }, sound: { id: 'audio' } };
   const props = { snapshot, size: 44, animated: true, enabled: true };
   const render = () => { cursor = 0; const node = exports.RemoteGiftArtwork(props); pending.splice(0).forEach(fn => fn()); return node; };
-  return { props, downloads, released, subscriptions, render,
+  return { props, downloads, released, subscriptions, render, get cacheReads() { return cacheReads; },
     async ready() { for (let i = 0; i < 4; i++) { render(); await tick(); } return render(); },
     close() { slots.forEach(slot => slot?.cleanup?.()); },
   };
@@ -46,8 +47,11 @@ test('verified cached artwork appears on the first render without showing the pr
   const f = fixture({ type: 'image', cached: true });
   assert.equal(f.render().props.source.uri, 'file:///art');
   await f.ready();
+  for (let i = 0; i < 20; i++) f.render();
+  assert.equal(f.cacheReads, 1, 'rapid combo rerenders must not repeat synchronous disk checks');
   f.props.snapshot = { ...f.props.snapshot, thumbnail: { id: 'replacement', sha256: 'replacement', format: 'png' } };
   assert.equal(f.render(), null);
+  assert.equal(f.cacheReads, 2, 'replacement artwork still checks its own cache entry');
   f.close();
 });
 test('visible SVGA animation gifts loop muted in their existing drawer cell without downloading sound', async () => {

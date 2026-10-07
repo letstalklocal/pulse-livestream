@@ -98,27 +98,18 @@ export function giftAssetDto(a: any) {
       }
     : null;
 }
-export async function readGiftRevision(db: GiftDb, id: string) {
-  const r = (
-    await db.query(
-      "SELECT r.*,g.legacy FROM gift_revisions r JOIN catalog_gifts g ON g.id=r.gift_id WHERE r.id=$1",
-      [id],
-    )
-  ).rows[0];
-  if (!r) throw new GiftCatalogError("Gift revision not found.", 404);
-  const assets = (
-    await db.query(
-      "SELECT * FROM gift_assets WHERE id=ANY($1::text[]) OR id IN(SELECT audio_asset_id FROM gift_assets WHERE id=ANY($1::text[]))",
-      [
-        [
-          r.thumbnail_asset_id,
-          r.android_asset_id,
-          r.ios_asset_id,
-          r.sound_asset_id,
-        ].filter(Boolean),
-      ],
-    )
-  ).rows;
+// Resolve immutable assets in the same statement as the revision. This avoids
+// extra network round trips while a paid gift holds the existing transaction locks.
+const giftRevisionSelect = `SELECT r.*,g.legacy,g.current_revision_id,
+  g.collection_id AS active_collection_id,
+  COALESCE((SELECT jsonb_agg(a) FROM gift_assets a
+    WHERE a.id IN(r.thumbnail_asset_id,r.android_asset_id,r.ios_asset_id,r.sound_asset_id)
+    OR a.id IN(SELECT linked.audio_asset_id FROM gift_assets linked
+      WHERE linked.id IN(r.thumbnail_asset_id,r.android_asset_id,r.ios_asset_id,r.sound_asset_id))), '[]'::jsonb) AS assets
+  FROM gift_revisions r JOIN catalog_gifts g ON g.id=r.gift_id
+  JOIN gift_collections c ON c.id=g.collection_id`;
+function giftFromRevisionRow(r: any) {
+  const assets: any[] = r.assets;
   const asset = (id: string) =>
     giftAssetDto(assets.find((a: any) => a.id === id));
   const embedded =
@@ -139,6 +130,11 @@ export async function readGiftRevision(db: GiftDb, id: string) {
     legacy: r.legacy,
   };
 }
+export async function readGiftRevision(db: GiftDb, id: string) {
+  const r = (await db.query(`${giftRevisionSelect} WHERE r.id=$1`, [id])).rows[0];
+  if (!r) throw new GiftCatalogError("Gift revision not found.", 404);
+  return giftFromRevisionRow(r);
+}
 export async function resolvePublishedGift(
   db: GiftDb,
   giftId: string,
@@ -148,7 +144,7 @@ export async function resolvePublishedGift(
   await lockGiftCatalog(db);
   const g = (
     await db.query(
-      "SELECT g.* FROM catalog_gifts g JOIN gift_collections c ON c.id=g.collection_id WHERE g.id=$1 AND g.status='published' AND c.status='published'",
+      `${giftRevisionSelect} WHERE g.id=$1 AND r.id=g.current_revision_id AND g.status='published' AND c.status='published'`,
       [giftId],
     )
   ).rows[0];
@@ -166,7 +162,7 @@ export async function resolvePublishedGift(
       "Gift changed. Refresh and confirm the current gift.",
       409,
     );
-  const gift = await readGiftRevision(db, g.current_revision_id);
+  const gift = giftFromRevisionRow(g);
   if (expectedCoinCost !== undefined && expectedCoinCost !== gift.coinCost)
     throw new GiftCatalogError(
       "Gift price changed. Refresh and confirm the price.",
@@ -203,7 +199,7 @@ export async function readPublishedGiftCatalog(
   ).rows;
   const gifts = (
     await db.query(
-      "SELECT g.* FROM catalog_gifts g JOIN gift_revisions r ON r.id=g.current_revision_id WHERE g.status='published' ORDER BY r.coin_cost,g.sort_order,g.id",
+      `${giftRevisionSelect} WHERE r.id=g.current_revision_id AND g.status='published' AND c.status='published' ORDER BY r.coin_cost,g.sort_order,g.id`,
     )
   ).rows;
   const version = String(
@@ -212,25 +208,21 @@ export async function readPublishedGiftCatalog(
   );
   return {
     version,
-    collections: await Promise.all(
-      collections.map(async (c: any) => ({
+    collections: collections.map((c: any) => ({
         id: c.id,
         name: c.name,
         sortOrder: c.sort_order,
         locked: c.locked,
-        gifts: await Promise.all(
-          gifts
-            .filter((g: any) => g.collection_id === c.id)
-            .map(async (g: any) =>
+        gifts: gifts
+            .filter((g: any) => g.active_collection_id === c.id)
+            .map((g: any) =>
               selectPlatformGift(
-                await readGiftRevision(db, g.current_revision_id),
+                giftFromRevisionRow(g),
                 platform,
                 caps,
               ),
             ),
-        ),
       })),
-    ),
   };
 }
 export async function readAdminGiftCatalog(db: GiftDb, actor: string) {

@@ -84,14 +84,19 @@ try {
   );
   await m.publishManagedGift(db, actor, gift, draft.revisionId);
   await m.mutateGiftCollection(db, actor, collection, { status: "published" });
-  const receipt = await m.resolvePublishedGift(db, gift, draft.revisionId, 7);
+  let queries = 0;
+  const countedDb = { query: (...args) => { queries++; return db.query(...args); } };
+  const receipt = await m.resolvePublishedGift(countedDb, gift, draft.revisionId, 7);
+  assert.equal(queries, 2, 'one existing transaction lock plus one complete gift/asset lookup');
   assert.equal(receipt.name, "Original");
   assert.equal(receipt.thumbnail.id, thumb);
   await assert.rejects(
     m.resolvePublishedGift(db, gift),
     (e) => e.status === 409,
   );
-  const catalog = await m.readPublishedGiftCatalog(db, "ios", []);
+  queries = 0;
+  const catalog = await m.readPublishedGiftCatalog(countedDb, "ios", []);
+  assert.equal(queries, 4, 'catalog refresh must not issue extra queries per gift');
   assert.equal(catalog.collections[0].id, "popular");
   assert.equal(
     catalog.collections.find((c) => c.id === collection).gifts[0].coinCost,

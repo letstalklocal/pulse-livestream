@@ -90,25 +90,21 @@ try {
     available = true;
   const db = {
     async query(sql) {
-      if (sql.includes("JOIN gift_collections"))
-        return {
-          rows: available
-            ? [{ id: "rose", legacy, current_revision_id: current }]
-            : [],
-        };
       if (sql.includes("FROM gift_revisions r"))
         return {
-          rows: [
+          rows: available ? [
             {
               id: current,
+              current_revision_id: current,
               gift_id: "rose",
               name: "Rose",
               coin_cost: cost,
               emoji: "🌹",
               legacy,
+              assets: [],
               framing: { preset: "contained", scale: 1, x: 0, y: 0 },
             },
-          ],
+          ] : [],
         };
       return { rows: [] };
     },

@@ -971,6 +971,8 @@ export default function StreamScreen() {
       onClose={() => setShowGiftPicker(false)}
       onSend={async (gift) => {
         if (!user?.uid) return;
+        // Acknowledge each tap immediately; paid playback/counters still wait for confirmation.
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
         pendingGiftPayments.current += 1;
         const giftId = createGiftRequestKey();
         try {
@@ -989,7 +991,6 @@ export default function StreamScreen() {
             queryKey: getGetCoinBalanceQueryKey({ uid: giftRecipient?.uid ?? hostUid ?? 0 }),
           });
           spawnGift(giftFromSnapshot(data.giftSnapshot) ?? gift, giftRecipient ? `${user.name ?? "You"} to ${giftRecipient.name}` : user.name ?? "You", giftId, gift.coins, data.combo);
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         } catch {
           void refreshGiftCatalog().catch(() => {});
           Alert.alert(t("Gift not sent"), t("Check your coin balance and that the selected host is still live."));

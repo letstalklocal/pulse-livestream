@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, AppState, Image, Platform, Text, type ImageStyle, type StyleProp } from "react-native";
 import { acquireGiftAsset, getCachedGiftAssetUri } from "@/utils/giftAssetCache";
 import type { GiftSnapshot } from "@/utils/giftCatalog";
@@ -52,9 +52,13 @@ export function RemoteGiftArtwork({ snapshot, size, style, enabled = true, anima
     }).catch(() => {});
     return () => { active = false; release?.(); };
   }, [snapshot.thumbnail?.id, snapshot.thumbnail?.sha256, enabled]);
+  // Disk metadata checks must not repeat on every tap, wallet update or combo frame.
+  // Acquisition above still validates the file and holds its eviction-protection lease.
+  const cachedUri = useMemo(() => enabled ? getCachedGiftAssetUri(snapshot.thumbnail) : null,
+    [enabled, snapshot.thumbnail?.id, snapshot.thumbnail?.sha256]);
   if (animated && enabled && foreground && !reduceMotion && Player && preview && preview.id === animation?.id)
     return <Player source={preview.uri} loops={0} muteBuiltInAudio style={[{ width: size, height: size }, style]} onError={() => { setPreview(null); previewRelease.current?.(); previewRelease.current = undefined; }} />;
-  const uri = enabled ? getCachedGiftAssetUri(snapshot.thumbnail) ?? (artwork?.id === snapshot.thumbnail?.id && artwork?.sha256 === snapshot.thumbnail?.sha256 ? artwork?.uri : null) : null;
+  const uri = enabled ? (artwork?.id === snapshot.thumbnail?.id && artwork?.sha256 === snapshot.thumbnail?.sha256 ? artwork?.uri : null) ?? cachedUri : null;
   if (uri) return <Image source={{ uri }} resizeMode="contain" accessibilityLabel={snapshot.name} style={[{ width: size, height: size }, style]} />;
   // Attached artwork must not turn into an unrelated emoji/bundled image
   // while loading or unavailable. Original asset-free legacy gifts stay intact.
