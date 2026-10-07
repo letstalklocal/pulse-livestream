@@ -57,7 +57,15 @@ function fixture({ available = true, delayed = false } = {}) {
   assert.equal(addAlphaPlayerPod(patched), patched, 'Native plugin is idempotent');
   assert.throws(() => addAlphaPlayerPod('no target'), /not found/);
   const host = fs.readFileSync(require.resolve('../modules/pulse-alpha-player/ios/PPAlphaPlayerHost.m'), 'utf8');
-  assert.match(host, /MTLClearColorMake\(0, 0, 0, 0\)/);
+  const clearColor = host.match(/\.clearColor = MTLClearColorMake\(([^)]+)\)/);
+  assert.ok(clearColor, 'Metal clear color is explicit');
+  const clearAlpha = Number(clearColor[1].split(',')[3].trim());
+  // Model the pinned renderer's MIN alpha operation, not native/device rendering.
+  for (const mask of [0, 0.1, 0.5, 0.9, 1]) {
+    assert.equal(Math.min(mask, clearAlpha), mask, 'Clear alpha must preserve background, soft edges and opaque subject');
+  }
+  assert.equal(Math.min(1, 0), 0, 'The previous zero-alpha clear erased the opaque subject');
+  assert.match(host, /child\.opaque = NO/);
   assert.match(host, /AVMutableComposition/);
   assert.match(host, /metalView != host.alphaView/);
   assert.doesNotMatch(host.replace(/\/\/[^\n]*/g, ''), /setCategory:|setActive:|Agora|dispatch_after|scheduledTimer/);

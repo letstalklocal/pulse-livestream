@@ -65,7 +65,10 @@
   for (UIView *child in self.alphaView.subviews) {
     child.opaque = NO;
     child.backgroundColor = UIColor.clearColor;
-    if ([child isKindOfClass:MTKView.class]) ((MTKView *)child).clearColor = MTLClearColorMake(0, 0, 0, 0);
+    // BDAlphaPlayer 1.2.2 uses MIN for alpha blending. Clear alpha must be 1:
+    // min(mask, 1) preserves the mask; min(mask, 0) erases even opaque pixels.
+    // The view stays non-opaque; the full-frame shader supplies background alpha 0.
+    if ([child isKindOfClass:MTKView.class]) ((MTKView *)child).clearColor = MTLClearColorMake(0, 0, 0, 1);
   }
   [self addSubview:self.alphaView];
 
