@@ -568,12 +568,12 @@ export async function setPause(db: Database, input: unknown, actor: string) {
   if (typeof b.paused !== "boolean") fail("Paused must be boolean.");
   const reason = note(b.reason, "reason", 2000);
   return tx(db, async (c) => {
-    await c.query(
-      "UPDATE creator_payout_settings SET preparation_paused=$1 WHERE id=1",
+    const saved = await c.query(
+      "INSERT INTO creator_payout_settings(id,preparation_paused) VALUES(1,$1) ON CONFLICT(id) DO UPDATE SET preparation_paused=EXCLUDED.preparation_paused RETURNING preparation_paused",
       [b.paused],
     );
     await event(c, 0, actor, "preparation_pause", { paused: b.paused, reason });
-    return { preparationPaused: b.paused };
+    return { preparationPaused: saved.rows[0].preparation_paused };
   });
 }
 function providerSource(v: unknown) {
@@ -773,7 +773,7 @@ export async function prepare(
         await c.query(
           "SELECT preparation_paused FROM creator_payout_settings WHERE id=1 FOR SHARE",
         )
-      ).rows[0]?.preparation_paused
+      ).rows[0]?.preparation_paused ?? true
     )
       fail("Preparation is paused.", 409);
     if (
@@ -1023,10 +1023,9 @@ export async function humanRelease(
     )
       fail("Current independent check and valid deadline required.", 409);
     const first = a.evidence?.kind === "first_time_link";
-    if (first && !link)
-      fail(
-        "Human release of first-time transfer requires actual provider recipient link.",
-      );
+    // Remitly emails the first-time recipient link directly. Recording the
+    // human's completed provider action does not require copying that link here.
+    // Optional supplied links still pass the provider URL checks above.
     if (!first && !reference)
       fail("Released scheduled transfer requires provider reference.");
     const status = first ? "awaiting_recipient" : "processing";

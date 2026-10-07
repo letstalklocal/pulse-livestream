@@ -9,7 +9,9 @@
 export interface WithdrawalReleaseInput {
   attemptId: string;
   quoteHash: string;
+  /** Optional recipient link; Remitly emails it directly for first-time recipients. Supplied URLs must match configured provider paths. */
   providerLink?: string;
+  /** Optional for first-time recipients; required when recording a saved-recipient scheduled transfer. */
   providerReference?: string;
   /**
      * @minLength 1

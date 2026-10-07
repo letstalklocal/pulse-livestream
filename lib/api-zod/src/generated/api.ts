@@ -2933,8 +2933,8 @@ export const recordHumanWithdrawalReleaseBodyEvidenceMax = 5000;
 export const RecordHumanWithdrawalReleaseBody = zod.object({
   "attemptId": zod.string(),
   "quoteHash": zod.string(),
-  "providerLink": zod.string().optional(),
-  "providerReference": zod.string().optional(),
+  "providerLink": zod.string().optional().describe('Optional recipient link; Remitly emails it directly for first-time recipients. Supplied URLs must match configured provider paths.'),
+  "providerReference": zod.string().optional().describe('Optional for first-time recipients; required when recording a saved-recipient scheduled transfer.'),
   "evidence": zod.string().min(1).max(recordHumanWithdrawalReleaseBodyEvidenceMax),
   "releasedAt": zod.coerce.date()
 })

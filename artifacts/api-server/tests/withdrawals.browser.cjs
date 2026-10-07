@@ -290,10 +290,13 @@ const root = path.resolve(__dirname, "../../admin/public");
         }
         if (action === "release") {
           assert.equal(
-            body.providerLink,
-            "https://www.remitly.com/us/en/transfer/recipient-fixture",
+            Object.hasOwn(body, "providerLink"),
+            false,
+            "email-delivered first-time payout needs no copied link",
           );
-          w.providerLink = body.providerLink;
+          assert.equal(Object.hasOwn(body, "providerReference"), false);
+          w.providerLink = null;
+          w.providerOnboardingStatus = "pending";
           w.status = "awaiting_recipient";
         }
         if (action === "reconcile") {
@@ -444,6 +447,22 @@ const root = path.resolve(__dirname, "../../admin/public");
     await prepare
       .locator("[name=evidence]")
       .fill("Durable claim before provider action");
+    const pauseReason = page.locator("#payout-pause-form [name=reason]");
+    assert.equal(await pauseReason.evaluate((el) => el.required), true);
+    const pausesBeforeEmpty = actions.filter(
+      (a) => a.action === "pause",
+    ).length;
+    await pauseReason.fill("");
+    await page.locator("#payout-pause-button").click();
+    assert.equal(
+      await pauseReason.evaluate((el) => el.validity.valueMissing),
+      true,
+    );
+    assert.equal(
+      actions.filter((a) => a.action === "pause").length,
+      pausesBeforeEmpty,
+      "empty reason blocks submission before any API request",
+    );
     await page
       .locator("#payout-pause-form [name=reason]")
       .fill("Review emergency");
@@ -453,16 +472,46 @@ const root = path.resolve(__dirname, "../../admin/public");
         document.querySelector("#payout-pause-state")?.textContent ===
         "Preparation paused",
     );
+    assert.match(
+      await page.locator("#payout-queue-status").textContent(),
+      /preparation (is )?paused/i,
+    );
     assert.equal(await prepare.locator("button").isDisabled(), true);
     assert.equal(
       await prepare.locator("[name=evidence]").inputValue(),
       "Durable claim before provider action",
     );
+    await pauseReason.fill("");
+    const pausesBeforeEmptyResume = actions.filter(
+      (a) => a.action === "pause",
+    ).length;
+    await page.locator("#payout-pause-button").click();
+    assert.equal(
+      await pauseReason.evaluate((el) => el.validity.valueMissing),
+      true,
+    );
+    assert.equal(
+      actions.filter((a) => a.action === "pause").length,
+      pausesBeforeEmptyResume,
+    );
+    assert.equal(
+      await page.locator("#payout-pause-state").textContent(),
+      "Preparation paused",
+    );
+    await pauseReason.fill("Resume after completed review");
     await page.locator("#payout-pause-button").click();
     await page.waitForFunction(
       () =>
         document.querySelector("#payout-pause-state")?.textContent ===
         "Preparation active",
+    );
+    assert.match(
+      await page.locator("#payout-queue-status").textContent(),
+      /preparation (is )?active/i,
+    );
+    assert.doesNotMatch(
+      await page.locator("#payout-queue-status").textContent(),
+      /while preparation is paused/i,
     );
     await prepare.locator("button").click();
     await page
@@ -550,10 +599,21 @@ const root = path.resolve(__dirname, "../../admin/public");
       await release.textContent(),
       /Saving this record does not send a payment/,
     );
+    assert.equal(
+      await release
+        .locator("[name=providerLink]")
+        .evaluate((el) => el.required),
+      false,
+    );
+    assert.equal(
+      await release
+        .locator("[name=providerReference]")
+        .evaluate((el) => el.required),
+      false,
+    );
     await fill(release, {
-      providerLink: "https://www.remitly.com/us/en/transfer/recipient-fixture",
       releasedAt: now,
-      evidence: "Human recorded actual issued recipient link",
+      evidence: "Human manually issued payout; provider emails recipient link",
     });
     await release.locator("[name=humanActionConfirmed]").check();
     await release.locator("button").click();

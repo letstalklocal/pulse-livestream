@@ -757,8 +757,10 @@ try {
     leaseId: successCheckerLease.leaseId,
     reason: "Human final decision remains pending",
   });
-  process.env.PULSE_PAYOUT_LINK_PREFIXES =
-    "https://www.remitly.com/test-only-fixture/";
+  delete process.env.PULSE_PAYOUT_LINK_PREFIXES;
+  const beforeEmailRelease = await call("/withdrawals/overview", {
+    user: "creator",
+  });
   const released = await call(
     "/admin-data/withdrawals/" + success.id + "/release",
     {
@@ -767,7 +769,6 @@ try {
       body: {
         attemptId: prepared.attemptId,
         quoteHash: sqHash,
-        providerLink: "https://www.remitly.com/test-only-fixture/link",
         evidence:
           "Private recorded human action fixture; no external payment sent",
         releasedAt: new Date().toISOString(),
@@ -776,6 +777,21 @@ try {
   );
   assert.equal(released.status, 200);
   assert.equal(released.body.status, "awaiting_recipient");
+  assert.equal(released.body.providerOnboardingStatus, "pending");
+  assert.equal(released.body.providerLink, null);
+  assert.deepEqual(
+    (await call("/withdrawals/overview", { user: "creator" })).body.balances,
+    beforeEmailRelease.body.balances,
+  );
+  assert.equal(
+    (
+      await pool.query(
+        "SELECT provider_reference FROM creator_payout_attempts WHERE id=$1",
+        [prepared.attemptId],
+      )
+    ).rows[0].provider_reference,
+    null,
+  );
   const successRecLease = (
     await leaseCall(reconciler.token, "acquire", {
       idempotencyKey: "success-reconciler",
@@ -803,6 +819,32 @@ try {
       )
     ).body.status,
     "delivered",
+  );
+  assert.equal(
+    (
+      await pool.query(
+        "SELECT provider_reference FROM creator_payout_attempts WHERE id=$1",
+        [prepared.attemptId],
+      )
+    ).rows[0].provider_reference,
+    delivered.providerReference,
+  );
+  assert.equal(
+    (
+      await action(
+        reconciler.token,
+        success.id,
+        "reconcile",
+        {
+          ...delivered,
+          observationId: "changed-email-transfer-reference",
+          providerReference: "different-private-reference",
+          observedAt: new Date(Date.now() + 1000).toISOString(),
+        },
+        successRecLease.leaseId,
+      )
+    ).status,
+    409,
   );
   await action(
     reconciler.token,

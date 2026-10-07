@@ -394,7 +394,82 @@ try {
   );
   const quoteHash = detail.quote.hash;
   await api.approveQuote(pool, 1, id, { quoteHash });
-  await api.setPause(pool, { paused: true, reason: "test" }, "owner");
+  await pool.query("DELETE FROM creator_payout_settings WHERE id=1");
+  assert.equal(
+    (await call("/admin", { user: "owner" })).body.preparationPaused,
+    true,
+    "missing settings must report paused",
+  );
+  await assert.rejects(
+    () =>
+      api.prepare(
+        pool,
+        "test-business",
+        id,
+        { quoteHash, evidence: "Missing singleton fail-closed check" },
+        "maker",
+      ),
+    /paused/,
+  );
+  assert.equal(
+    (
+      await call("/admin/pause", {
+        user: "owner",
+        method: "POST",
+        body: { paused: false, reason: "" },
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await pool.query(
+        "SELECT count(*)::integer count FROM creator_payout_settings",
+      )
+    ).rows[0].count,
+    0,
+  );
+  const auditBeforePause = Number(
+    (
+      await pool.query(
+        "SELECT count(*) FROM creator_payout_events WHERE action='preparation_pause'",
+      )
+    ).rows[0].count,
+  );
+  const persistPause = async (paused) => {
+    const response = await call("/admin/pause", {
+      user: "owner",
+      method: "POST",
+      body: {
+        paused,
+        reason: paused ? "Pause for review" : "Resume after review",
+      },
+    });
+    assert.equal(response.status, 200);
+    assert.equal(response.body.preparationPaused, paused);
+    assert.deepEqual(
+      (
+        await pool.query(
+          "SELECT id,preparation_paused FROM creator_payout_settings",
+        )
+      ).rows,
+      [{ id: 1, preparation_paused: paused }],
+    );
+    assert.equal(
+      (await call("/admin", { user: "owner" })).body.preparationPaused,
+      paused,
+      "reloaded queue must reflect persisted pause setting",
+    );
+    const audit = (
+      await pool.query(
+        "SELECT actor,evidence FROM creator_payout_events WHERE action='preparation_pause' ORDER BY id DESC LIMIT 1",
+      )
+    ).rows[0];
+    assert.equal(audit.actor, "owner");
+    assert.equal(audit.evidence.paused, paused);
+  };
+  await persistPause(false);
+  await persistPause(true);
   await assert.rejects(
     () =>
       api.prepare(
@@ -406,7 +481,19 @@ try {
       ),
     /paused/,
   );
-  await api.setPause(pool, { paused: false, reason: "test" }, "owner");
+  await persistPause(false);
+  await persistPause(false);
+  assert.equal(
+    Number(
+      (
+        await pool.query(
+          "SELECT count(*) FROM creator_payout_events WHERE action='preparation_pause'",
+        )
+      ).rows[0].count,
+    ),
+    auditBeforePause + 4,
+    "every accepted pause decision is audited",
+  );
   detail = await api.prepare(
     pool,
     "test-business",
@@ -507,21 +594,40 @@ try {
       ),
     /not verified/,
   );
-  process.env.PULSE_PAYOUT_LINK_PREFIXES =
-    "https://www.remitly.com/test-only-fixture/";
-  await api.humanRelease(
+  delete process.env.PULSE_PAYOUT_LINK_PREFIXES;
+  const beforeEmailRelease = await api.overview(pool, 1);
+  const emailedRelease = await api.humanRelease(
     pool,
     "test-business",
     id,
     {
       attemptId,
       quoteHash,
-      providerLink: "https://www.remitly.com/test-only-fixture/recipient",
-      evidence: "Isolated human-release fixture; no payment was sent",
+      evidence:
+        "Isolated human-release fixture: provider emails recipient directly; no payment was sent",
       releasedAt: new Date().toISOString(),
     },
     "owner",
   );
+  assert.equal(emailedRelease.status, "awaiting_recipient");
+  assert.equal(emailedRelease.providerOnboardingStatus, "pending");
+  assert.equal(emailedRelease.providerLink, null);
+  assert.deepEqual(
+    (await api.overview(pool, 1)).balances,
+    beforeEmailRelease.balances,
+    "email-only first-time release keeps wallet and reservation unchanged",
+  );
+  assert.equal(
+    (
+      await pool.query(
+        "SELECT provider_reference FROM creator_payout_attempts WHERE id=$1",
+        [attemptId],
+      )
+    ).rows[0].provider_reference,
+    null,
+  );
+  process.env.PULSE_PAYOUT_LINK_PREFIXES =
+    "https://www.remitly.com/test-only-fixture/";
   assert.equal(
     (await api.withdrawalDetail(pool, id, 1)).checker.actor,
     undefined,
@@ -606,6 +712,33 @@ try {
     /below/,
   );
   await api.reconcile(pool, "test-business", id, outcome, "reconciler");
+  assert.equal(
+    (
+      await pool.query(
+        "SELECT provider_reference FROM creator_payout_attempts WHERE id=$1",
+        [attemptId],
+      )
+    ).rows[0].provider_reference,
+    outcome.providerReference,
+    "first reconciliation binds the emailed transfer's discovered reference",
+  );
+  await assert.rejects(
+    () =>
+      api.reconcile(
+        pool,
+        "test-business",
+        id,
+        {
+          ...outcome,
+          observationId: "changed-email-transfer-reference",
+          providerReference: "different-private-reference",
+          observedAt: new Date(Date.now() + 1000).toISOString(),
+        },
+        "reconciler",
+      ),
+    /reference differs/,
+  );
+
   await api.reconcile(pool, "test-business", id, outcome, "reconciler");
   await api.reconcile(
     pool,

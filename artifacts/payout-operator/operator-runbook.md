@@ -30,6 +30,12 @@ Before any provider attempt, the protected owner action can cancel and return re
 
 Local logs are restricted JSON records containing timestamps, profile/role, fixed event/error codes and bounded counts. Heartbeats contain only time/profile/role/healthy. Provider evidence belongs in the protected backend audit trail. No token, session cookie, MFA value, recipient/contact/bank information, payment URL, amount or screenshot belongs in automation summaries or local logs. No email/Slack notification is configured or sent.
 
+## First-time links emailed by Remitly
+
+The human manually sends the first-time payout in Remitly, which emails the recipient link directly. Pulse accepts recording that completed human action without copying its recipient link or reference; it remains awaiting the recipient with onboarding pending and coins reserved. Supplied links still require approved URL prefixes. Saved-recipient transfers retain their provider-reference requirement.
+
+Later browser acceptance must inspect the sent transfer record to establish its stable reference/activity ID, status labels, URL format and whether a recipient link is available. `scheduledDraftId` identifies scheduled review drafts only; do not assume it is a sent-transfer identifier. Match recipient, route, approved amounts and human release time before recording a discovered reference. Ambiguous matches require human investigation. Existing reconciliation pins the first verified reference and rejects conflicts. Automatic recipient-link retrieval/storage remains future work. Link opening or email delivery alone does not confirm recipient readiness or payment delivery.
+
 ## Manual acceptance checklist
 
 - Store/read/rotate one scoped Keychain credential and verify revoked credentials fail.

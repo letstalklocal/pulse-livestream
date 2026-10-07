@@ -2406,7 +2406,7 @@ async function loadWithdrawals() {
     );
     document.getElementById("payout-summary").innerHTML =
       `<span><strong>${unresolved.length}</strong> unresolved</span><span><strong>${esc(catalogMoney(unresolved.reduce((sum, w) => sum + w.grossCents, 0)))}</strong> reserved gross</span><span><strong>${data.withdrawals.filter(payoutExceptions).length}</strong> exceptions</span>`;
-    status.textContent = `${data.withdrawals.length} withdrawals loaded${data.truncated ? " · Limited to the newest 500 records" : ""}. Reconciliation remains available while preparation is paused. Repeat withdrawals ${data.policy?.repeatAllowed ? "follow the configured policy" : "await an approved policy"}.`;
+    status.textContent = `${data.withdrawals.length} withdrawals loaded${data.truncated ? " · Limited to the newest 500 records" : ""}. Preparation ${data.preparationPaused ? "paused" : "active"}. Reconciliation remains available. Repeat withdrawals ${data.policy?.repeatAllowed ? "follow the configured policy" : "await an approved policy"}.`;
     const pauseForm = document.getElementById("payout-pause-form");
     pauseForm.hidden = false;
     document.getElementById("payout-pause-state").textContent =
@@ -2712,9 +2712,9 @@ function renderWithdrawalDetail() {
       actions += payoutForm(
         "release",
         "Approve payout and record your manual Remitly action",
-        payoutInput("providerLink", "Actual first-time recipient link", {
+        payoutInput("providerLink", "Recipient link (optional)", {
           type: "url",
-          required: attempt?.evidence?.kind === "first_time_link",
+          required: false,
           maxlength: 2000,
         }) +
           payoutInput("providerReference", "Actual provider reference", {
@@ -2730,7 +2730,7 @@ function renderWithdrawalDetail() {
         "Approve and record manual release",
         {
           disabled: !attempt,
-          note: "You make the final approve or decline decision. If approving, review and complete the provider action yourself in Remitly, then record the real issued link or transfer reference here. Saving this record does not send a payment, and it does not mark delivery verified.",
+          note: "You make the final approve or decline decision. Complete the provider action yourself in Remitly, then record what you did. Remitly emails the first-time recipient link directly; copying it here is optional. Saved-recipient transfers still require the provider reference. Saving this record does not send a payment or verify delivery.",
         },
       );
   }
