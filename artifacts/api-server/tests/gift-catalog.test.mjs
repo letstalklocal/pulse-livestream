@@ -69,6 +69,13 @@ try {
     "../../../artifacts/mobile/assets/gifts/",
     import.meta.url,
   );
+  const originalPath = process.env.PATH;
+  try {
+    process.env.PATH = '/nonexistent-gift-validator-test-path';
+    await assert.rejects(validateGiftAsset(await readFile(new URL('rose.png', supplied)), 'thumbnail', 'png'),
+      error => error.status === 503 && error.code === 'GIFT_MEDIA_TOOL_UNAVAILABLE',
+      'a valid PNG with a missing validator is a server dependency error, not an invalid image');
+  } finally { if (originalPath === undefined) delete process.env.PATH; else process.env.PATH = originalPath; }
   for (const [file, kind, format] of [
     ["rose.png", "thumbnail", "png"],
     ["luxury/Blast-Off-Gift.svga", "animation", "svga"],

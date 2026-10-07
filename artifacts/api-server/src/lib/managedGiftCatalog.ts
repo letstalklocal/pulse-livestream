@@ -20,6 +20,13 @@ export class GiftCatalogError extends Error {
     super(message);
   }
 }
+function reportMissingGiftMediaTool(error: unknown, tool: string) {
+  const code = (error as NodeJS.ErrnoException)?.code;
+  if (code === "ENOENT" || code === "EACCES" || code === "ENOEXEC") {
+    console.error("Gift media tool unavailable", { tool, code });
+    throw new GiftCatalogError("Gift uploads are temporarily unavailable: the server media validator is not installed or executable.", 503, "GIFT_MEDIA_TOOL_UNAVAILABLE");
+  }
+}
 export const GIFT_UPLOAD_LIMITS = {
   thumbnail: 4 * 1024 * 1024,
   animation: 30 * 1024 * 1024,
@@ -700,7 +707,8 @@ export async function validateGiftAsset(
         { timeout: 15000, maxBuffer: 1024 * 1024 },
       );
       probe = JSON.parse(stdout);
-    } catch {
+    } catch (error) {
+      reportMissingGiftMediaTool(error, "ffprobe");
       throw new GiftCatalogError("File content could not be validated.");
     }
     const v = probe.streams?.find((s: any) => s.codec_type === "video");
@@ -839,7 +847,8 @@ export async function uploadManagedGiftAsset(
           ],
           { timeout: 30000, maxBuffer: 1024 * 1024 },
         );
-      } catch {
+      } catch (error) {
+        reportMissingGiftMediaTool(error, "ffmpeg");
         throw new GiftCatalogError(
           "Embedded sound could not be validated/extracted.",
         );
