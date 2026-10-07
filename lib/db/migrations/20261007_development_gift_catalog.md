@@ -10,6 +10,14 @@ Development startup skips it. Simultaneous production instances coordinate throu
 
 Automated startup tests cover missing gift schema, simultaneous starts, schema/data rollback on storage failure, development skipping and later admin edits surviving a restart. Actual production execution/permissions and device playback remain separate checks.
 
+## Deployment schema correction — October 7
+
+The user reports this import has already completed in production, but each publication proposes disabling RLS and dropping `gift_catalog_data_migrations`. The startup migration created that table outside the registered Drizzle schema, so deployment schema synchronization treated it as removed. The table is now exported from `lib/db/src/schema/index.ts` with the exact existing column types, nullability, primary key and timestamp default. Keep the completed marker and `previous_catalog` recovery snapshot: deleting them can replay the import and replace later production catalog edits.
+
+Rebuild the deployment plan with the updated schema. Neither a data reimport nor approving the table drop is required. If a previous deployment already dropped the marker, inspect the actual production migration/audit state before deciding recovery.
+
+The isolated PostgreSQL schema regression reproduces the drop with an unregistered table, then verifies repeated Drizzle synchronization produces no SQL and preserves the populated marker and recovery snapshot with the corrected export. Run it from the workspace root with `pnpm --filter @workspace/scripts exec tsx ../lib/db/tests/gift-catalog-schema.integration.ts`. Production plan verification remains a publication check.
+
 ## Optional operator diagnostics (not required for normal deployment)
 
 1. Apply the existing SQL migrations `20261007_gift_catalog.sql`, `20261007_gift_purchase_snapshots.sql`, `20261007_gift_types.sql`, and `20261007_gift_asset_filenames.sql`. The enabled production owner must already exist in `admin_staff` (the previously approved `user_3JJ7roIjFeLukMbmmU9YWqKRvoZ`). No owner privileges are granted by this migration.

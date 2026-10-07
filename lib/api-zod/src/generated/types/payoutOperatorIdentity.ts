@@ -10,6 +10,8 @@ import type { PayoutOperatorIdentityOperator } from './payoutOperatorIdentityOpe
 import type { WithdrawalPolicy } from './withdrawalPolicy';
 
 export interface PayoutOperatorIdentity {
+  /** Current workflow instruction revision; independent of the compatible MCP/profile version. */
+  workflowRevision?: string;
   environment: PayoutOperatorIdentityEnvironment;
   accountKey: string;
   operator: PayoutOperatorIdentityOperator;

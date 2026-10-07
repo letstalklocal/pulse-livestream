@@ -1162,5 +1162,8 @@
   "Phone number": "电话号码",
   "These amounts are estimates based on your selected delivery method.": "这些金额是根据您选择的送达方式估算的。",
   "You will receive an email from Remitly to confirm your payment method.": "您将收到Remitly的电子邮件以确认付款方式。",
-  "Your saved payment method will be used.": "将使用您保存的付款方式。"
+  "Your saved payment method will be used.": "将使用您保存的付款方式。",
+  "Estimated payout": "预计付款",
+  "Estimated total deduction: {v0}": "预计扣款总额：{v0}",
+  "Estimated amount received: {v0} {v1}": "预计到账金额：{v0} {v1}"
 }

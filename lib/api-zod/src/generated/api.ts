@@ -61,6 +61,7 @@ export const RevokePayoutOperatorCredentialResponse = zod.object({
  * @summary Read authenticated role, provider account, environment and playbook version
  */
 export const GetPayoutOperatorIdentityResponse = zod.object({
+  "workflowRevision": zod.string().optional().describe('Current workflow instruction revision; independent of the compatible MCP\/profile version.'),
   "environment": zod.enum(['development', 'production']),
   "accountKey": zod.string(),
   "operator": zod.object({
@@ -169,7 +170,7 @@ export const ListPayoutOperatorWithdrawalsResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -284,7 +285,7 @@ export const GetPayoutOperatorWithdrawalResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -348,6 +349,7 @@ export const GetPayoutOperatorPlaybookParams = zod.object({
 })
 
 export const GetPayoutOperatorPlaybookResponse = zod.object({
+  "workflowRevision": zod.string().optional().describe('Current workflow instruction revision; independent of the compatible MCP\/profile version.'),
   "name": zod.string(),
   "version": zod.string(),
   "role": zod.enum(['all', 'maker', 'checker', 'reconciler']),
@@ -569,7 +571,7 @@ export const RecordPayoutOperatorQuoteResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -684,7 +686,7 @@ export const BeginPayoutOperatorPreparationResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -812,7 +814,7 @@ export const RecordPayoutOperatorPreparationResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -935,7 +937,7 @@ export const CheckPayoutOperatorPreparationResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -1075,7 +1077,7 @@ export const ReconcilePayoutOperatorWithdrawalResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -1200,7 +1202,7 @@ export const RenewPayoutOperatorPreparationLeaseResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -1356,7 +1358,7 @@ export const ReleasePayoutOperatorPreparationLeaseResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -1501,7 +1503,7 @@ export const MarkPayoutOperatorUnknownResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -1657,7 +1659,7 @@ export const GetWithdrawalOverviewResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -1835,7 +1837,7 @@ export const GetWithdrawalDetailResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -1860,8 +1862,9 @@ export const GetWithdrawalDetailResponse = zod.object({
 
 
 /**
- * Creator-scoped authenticated wallet withdrawal; no automatic payments.
- * @summary Creator independently approves current exact signed-in quote hash
+ * Deprecated compatibility endpoint for older clients. Initial withdrawal submission is sufficient consent; valid quotes proceed to preparation without another creator approval. No automatic payments.
+ * @deprecated
+ * @summary Legacy quote acknowledgement; no longer required for preparation
  */
 export const ApproveWithdrawalQuoteParams = zod.object({
   "id": zod.coerce.string()
@@ -1942,7 +1945,7 @@ export const ApproveWithdrawalQuoteResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -2045,7 +2048,7 @@ export const CancelUnpreparedWithdrawalResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -2155,7 +2158,7 @@ export const ListAdminWithdrawalsResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -2366,7 +2369,7 @@ export const GetAdminWithdrawalDetailResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -2537,7 +2540,7 @@ export const RecordWithdrawalQuoteResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -2649,7 +2652,7 @@ export const BeginWithdrawalPreparationResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -2774,7 +2777,7 @@ export const RecordWithdrawalPreparationResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -2894,7 +2897,7 @@ export const CheckWithdrawalPreparationResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -3010,7 +3013,7 @@ export const RecordHumanWithdrawalReleaseResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -3121,7 +3124,7 @@ export const DeclineWithdrawalResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -3233,7 +3236,7 @@ export const MarkWithdrawalInvestigationResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),
@@ -3370,7 +3373,7 @@ export const ReconcileWithdrawalResponse = zod.object({
   "recipientHash": zod.string(),
   "evidenceHash": zod.string()
 }).nullable(),
-  "approvedQuoteHash": zod.string().nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
   "checker": zod.object({
   "status": zod.enum(['passed', 'needs_attention']),
   "checkedAt": zod.coerce.date(),

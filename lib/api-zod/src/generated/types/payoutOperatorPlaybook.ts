@@ -8,6 +8,8 @@
 import type { PayoutOperatorPlaybookRole } from './payoutOperatorPlaybookRole';
 
 export interface PayoutOperatorPlaybook {
+  /** Current workflow instruction revision; independent of the compatible MCP/profile version. */
+  workflowRevision?: string;
   name: string;
   version: string;
   role: PayoutOperatorPlaybookRole;

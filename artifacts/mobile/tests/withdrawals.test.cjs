@@ -89,7 +89,7 @@ assert.equal(
 );
 assert.equal(
   utils.withdrawalStatus("awaiting_confirmation"),
-  "Review your quote",
+  "Preparing withdrawal",
 );
 assert.equal(utils.withdrawalStatus("delivered"), "Paid");
 assert.equal(utils.withdrawalStatus("unknown"), "Payment outcome under review");
@@ -183,6 +183,7 @@ function render() {
 }
 (async () => {
   let api = render();
+  assert.equal(api.approve, undefined, "mobile exposes no second quote approval operation");
   await assert.rejects(api.submit("co-wallet", 1500));
   assert.equal(uuid, 1);
   assert.equal(
@@ -468,21 +469,28 @@ async function verifyQuoteScreen() {
   assert.ok(v.texts.includes("Reserved withdrawal: $15.00"));
   assert.ok(v.texts.includes("Amount sent: $14.01"));
   assert.ok(v.texts.includes("Provider fee: $0.99"));
-  assert.ok(v.texts.includes("Recipient receives: 60000 COP"));
+  assert.ok(v.texts.includes("Estimated amount received: 60000 COP"));
   assert.ok(
     !v.button("Open Remitly recipient link"),
     "link stays hidden before human release",
   );
-  v.button("Confirm this quote").props.onPress();
-  await new Promise((r) => setImmediate(r));
-  assert.equal(approvals[0], "actual-backend-quote-hash");
+  assert.ok(v.texts.includes("Estimated payout"));
+  assert.ok(v.texts.includes("Estimated total deduction: $15.00"));
+  assert.ok(v.texts.includes("Preparing withdrawal"));
+  assert.ok(!v.button("Confirm this quote"), "initial submission is consent; no second creator approval");
+  assert.ok(!v.texts.some((text) => text.startsWith("Quote expires:")), "creator has no quote deadline");
+  assert.equal(approvals.length, 0);
+  const observedQuote = withdrawal.quote;
+  withdrawal.quote = null;
+  const pendingView = render();
+  assert.ok(pendingView.texts.includes("We are checking the current fee and amount received. Your earnings remain reserved."));
+  assert.ok(!pendingView.texts.some((text) => text.includes("COP")), "no recipient amount is fabricated before a provider quote");
+  withdrawal.quote = observedQuote;
   withdrawal.quote.expiresAt = new Date(Date.now() - 1).toISOString();
   v = render();
-  assert.equal(
-    v.button("Confirm this quote").props.disabled,
-    true,
-    "expired quote cannot be confirmed",
-  );
+  assert.ok(!v.button("Confirm this quote"));
+  assert.ok(v.texts.includes("Preparing withdrawal"), "legacy confirmation stays informational after quote expiry");
+  assert.ok(!v.texts.some((text) => text.startsWith("Quote expires:")));
   v.button("Cancel withdrawal").props.onPress();
   assert.equal(cancelAlerts.length, 1);
   assert.equal(
@@ -542,7 +550,7 @@ async function verifyQuoteScreen() {
   assert.ok(render().texts.includes("Sharing is unavailable on this device."));
   assert.equal(files.size, 0);
   console.log(
-    "quote screen exact hash, expiry, truthful amounts, release-gated links and authenticated statement file export passed",
+    "withdrawal screen estimates without second approval/deadlines, release-gated links and authenticated statement file export passed",
   );
 }
 verifyQuoteScreen().catch((error) => {

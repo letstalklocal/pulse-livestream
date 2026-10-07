@@ -92,6 +92,20 @@ test("health validates actual identity and rejects redirects, pauses, unsafe cap
     /api_unavailable/,
   );
 });
+test("updated workflow instructions remain compatible with an existing pinned Mac profile", async (t) => {
+  const home = await fixture(t);
+  const preflight = JSON.parse(await fs.readFile(new URL("../../../lib/payout-mcp/playbooks/preflight.json", import.meta.url), "utf8"));
+  assert.equal(preflight.version, profile.playbookVersion);
+  assert.equal(preflight.workflowRevision, "2026-10-07.1");
+  assert.notEqual(preflight.workflowRevision, preflight.version);
+  await saveProfile(home, profile);
+  const existing = await loadProfile(home, profile.name);
+  const revisedIdentity = { ...identity, workflowRevision: preflight.workflowRevision };
+  const result = await health(existing, token, async () => ({ ok: true, json: async () => revisedIdentity }));
+  assert.equal(result.playbookVersion, profile.playbookVersion);
+  assert.deepEqual(await loadProfile(home, profile.name), profile, "workflow revision never requires rewriting a saved profile");
+  assert.throws(() => verifyIdentity(existing, { ...revisedIdentity, playbookVersion: preflight.workflowRevision }), /identity_mismatch/);
+});
 test("count-only logs and private heartbeat never retain recipient details, URLs or secrets", async (t) => {
   const home = await fixture(t);
   await logEvent(home, profile, "run_completed", {
@@ -213,6 +227,7 @@ test("symlinks and overly broad permissions fail closed", async (t) => {
 });
 test("all five versioned playbooks preserve human final decision and explicit auto-send prohibition", async () => {
   const root = new URL("../../../lib/payout-mcp/playbooks/", import.meta.url);
+  const { workflowRevision } = JSON.parse(await fs.readFile(new URL("preflight.json", root), "utf8"));
   for (const name of [
     "preflight",
     "maker",
@@ -225,6 +240,7 @@ test("all five versioned playbooks preserve human final decision and explicit au
     );
     assert.equal(data.name, name);
     assert.equal(data.version, PLAYBOOK_VERSION);
+    assert.equal(data.workflowRevision, workflowRevision);
     assert.equal(data.humanFinalDecisionRequired, true);
     assert.equal(data.autoSendAllowed, false);
     assert.ok(data.instructions.length >= 8);

@@ -1162,5 +1162,8 @@
   "Phone number": "رقم الهاتف",
   "These amounts are estimates based on your selected delivery method.": "هذه المبالغ تقديرية بناءً على طريقة التسليم المحددة.",
   "You will receive an email from Remitly to confirm your payment method.": "ستتلقى رسالة بريد إلكتروني من Remitly لتأكيد طريقة الدفع.",
-  "Your saved payment method will be used.": "سيتم استخدام طريقة الدفع المحفوظة."
+  "Your saved payment method will be used.": "سيتم استخدام طريقة الدفع المحفوظة.",
+  "Estimated payout": "المبلغ التقديري للدفع",
+  "Estimated total deduction: {v0}": "إجمالي الخصم التقديري: {v0}",
+  "Estimated amount received: {v0} {v1}": "المبلغ التقديري المستلم: {v0} {v1}"
 }

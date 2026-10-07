@@ -1,9 +1,9 @@
 export const withdrawalStatusKeys: Record<string, string> = {
   awaiting_quote: "Awaiting a current quote",
-  awaiting_confirmation: "Review your quote",
-  requested: "Quote confirmed",
+  awaiting_confirmation: "Preparing withdrawal",
+  requested: "Preparing withdrawal",
   quote_approved: "Quote confirmed",
-  quote_recorded: "Review your quote",
+  quote_recorded: "Preparing withdrawal",
   independent_check: "Payment review recorded",
   preparation_recorded: "Ready for payment review",
   human_release_recorded: "Payment released",

@@ -2,15 +2,15 @@
 
 ## Start a verified role run
 
-Check the exact profile health and authoritative versioned preflight playbook first. Confirm the API identity/environment/account/operator/role and the actual Remitly Business browser session. Acquire the backend browser lease before browser access. Maker acquires the durable withdrawal attempt before possible draft creation. Keep auto-send off and stop before final send or link issuance.
+Check the exact profile health and fetch current preflight/role playbooks first. Workflow revision `2026-10-07.1` removes second creator quote approval; compatible profile version `2026-10-04.1` is unchanged, so existing Keychain items and MCP connections remain valid. Confirm the API identity/environment/account/operator/role and the actual Remitly Business browser session. Acquire the backend browser lease before browser access. Maker acquires the durable withdrawal attempt before possible draft creation. Keep auto-send off and stop before final send or link issuance.
 
 Health mismatch, revoked/expired token, Keychain prompt that cannot be satisfied, missing browser access, account mismatch or preparation pause blocks the applicable job. Preserve withdrawal state and return a category/count-only summary. Do not fix a mismatch by pointing a production profile at an unapproved origin or another account.
 
 ## First-time Colombia withdrawal
 
-The creator's existing Pulse wallet is cashable at 400 coins per USD; USD 15 gross reserves 6,000 coins. Enrollment enables permission without granting coins. The maker must obtain an actual signed-in quote for the post-fee send amount, verify provider minimums and method restrictions, and record fee/tax separately. The creator approves the exact quote. If the first-time link flow cannot save an unsent reviewable draft, stop for the human rather than issuing the link.
+The creator's existing Pulse wallet is cashable at 400 coins per USD; USD 15 gross reserves 6,000 coins. Enrollment enables permission without granting coins. The maker must obtain an actual signed-in quote for the post-fee send amount, verify provider minimums and method restrictions, and record fee/tax separately. The original withdrawal submission is consent for its amount and selected method; no second quote approval is required. Record the valid actual quote, then claim preparation and save the supported one-time draft in the same operator run. Retain its draft ID/reference to avoid duplicate entry. If the first-time link flow cannot save an unsent reviewable draft, stop for the human rather than issuing the link.
 
-An independent checker inspects the stored draft/reference and recorded history. The human decides approve or decline, performs the provider action if approved, and records its real link/reference. The creator enters delivery details in Remitly. The reconciler verifies onboarding and authoritative outcomes. Opening a link or returning to Pulse never proves readiness or payment completion.
+An independent checker inspects the stored draft/reference and recorded history. The human decides approve or decline, performs the provider action if approved, and records the manual action; a first-time recipient link is optional, while saved-recipient transfers require their reference. The creator enters delivery details in Remitly. The reconciler verifies onboarding and authoritative outcomes. Opening a link or returning to Pulse never proves readiness or payment completion.
 
 ## Interrupted run or unknown draft
 
@@ -20,7 +20,7 @@ Record factual investigation evidence in protected backend fields, not local log
 
 ## Changed quote, recipient method or delivery amount
 
-Do not silently change an approved route, recipient or financial bounds. Preserve reserved coins and escalate through the backend exception path. A fresh quote/version requires renewed creator approval, fresh preparation binding and independent check. Lower-than-approved receive amount, higher fee/tax or mismatched references cannot settle as success.
+Do not silently change an approved route, recipient or financial bounds. Preserve reserved coins and escalate through the backend exception path. Before any provider attempt, refresh a quote within the existing requested amount and method without asking the creator to approve again. A changed quote/version still needs a fresh preparation binding and independent check; after an attempt, investigate that attempt before replacing it. New request-consented local-currency amounts are estimates and can change with FX. Genuine legacy exact-quote consent retains its receive minimum. Actual USD send/fee/tax violations, changed method/currency or conflicting references require investigation.
 
 ## Human decline
 

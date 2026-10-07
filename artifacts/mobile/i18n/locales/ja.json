@@ -1162,5 +1162,8 @@
   "Phone number": "電話番号",
   "These amounts are estimates based on your selected delivery method.": "これらの金額は選択した送金方法に基づく見積もりです。",
   "You will receive an email from Remitly to confirm your payment method.": "支払い方法を確認するためのメールがRemitlyから届きます。",
-  "Your saved payment method will be used.": "保存された支払い方法が使用されます。"
+  "Your saved payment method will be used.": "保存された支払い方法が使用されます。",
+  "Estimated payout": "送金見積もり",
+  "Estimated total deduction: {v0}": "差し引かれる合計額の見積もり: {v0}",
+  "Estimated amount received: {v0} {v1}": "受取額の見積もり: {v0} {v1}"
 }

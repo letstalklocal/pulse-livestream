@@ -1162,5 +1162,8 @@
   "Phone number": "फ़ोन नंबर",
   "These amounts are estimates based on your selected delivery method.": "ये राशियाँ आपके चुने हुए वितरण तरीके के आधार पर अनुमान हैं।",
   "You will receive an email from Remitly to confirm your payment method.": "भुगतान तरीका पुष्टि करने के लिए आपको Remitly से ईमेल मिलेगा।",
-  "Your saved payment method will be used.": "आपका सहेजा हुआ भुगतान तरीका इस्तेमाल होगा।"
+  "Your saved payment method will be used.": "आपका सहेजा हुआ भुगतान तरीका इस्तेमाल होगा।",
+  "Estimated payout": "अनुमानित भुगतान",
+  "Estimated total deduction: {v0}": "अनुमानित कुल कटौती: {v0}",
+  "Estimated amount received: {v0} {v1}": "प्राप्त होने वाली अनुमानित राशि: {v0} {v1}"
 }

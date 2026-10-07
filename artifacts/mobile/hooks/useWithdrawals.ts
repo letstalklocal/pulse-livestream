@@ -246,15 +246,6 @@ export function useWithdrawals(id?: string) {
       if (submitting.current === lease) submitting.current = null;
     }
   };
-  const approve = async (quoteHash: string) => {
-    const result = await request<CreatorWithdrawal>(
-      `/withdrawals/${encodeURIComponent(id!)}/approve-quote`,
-      "POST",
-      { quoteHash },
-    );
-    await refresh();
-    return result;
-  };
   const cancel = async () => {
     const result = await request<CreatorWithdrawal>(
       `/withdrawals/${encodeURIComponent(id!)}/cancel`,
@@ -279,7 +270,6 @@ export function useWithdrawals(id?: string) {
     refresh,
     saveRecipient,
     submit,
-    approve,
     statement,
     cancel,
     pending,

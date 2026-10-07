@@ -4,7 +4,7 @@
   "role": "checker",
   "instructions": [
     "Complete preflight with a checker credential belonging to a different authorized operator than the maker. Do not obtain a maker credential or independently create another draft.",
-    "Read the current withdrawal snapshot, attempt ID, binding, quote hash, creator confirmation, preparation deadline and audit history. Check that no later version, human decline or unknown state invalidates the attempt.",
+    "Read the initial withdrawal request, current snapshot, attempt ID, binding, quote hash, preparation deadline and audit history. No second creator quote confirmation is required. Check that the method and total deduction match the request and no later version, human decline or unknown state invalidates the attempt.",
     "Acquire the account browser lease, then open the actual approved review URL recorded by the maker. Do not construct a URL or create/recreate a provider object.",
     "Independently compare recipient legal name/contact, recipient country, delivery method, receive currency, funding method, send/fee/tax/receive amounts, reservation and verified provider minimum to the approved snapshot and quote.",
     "Inspect provider homepage, drafts and activity over a meaningful recorded coverage window for duplicate/pending/sent work. A single empty page is not proof of no prior action.",
@@ -15,5 +15,6 @@
     "On uncertainty preserve reservations and mark the attempt unknown through the allowed investigation tool. End with redacted counts and release the account browser lease after browser work stops."
   ],
   "humanFinalDecisionRequired": true,
-  "autoSendAllowed": false
+  "autoSendAllowed": false,
+  "workflowRevision": "2026-10-07.1"
 }

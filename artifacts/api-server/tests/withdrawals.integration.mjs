@@ -380,7 +380,28 @@ try {
   );
   let detail = await api.recordQuote(pool, "test-business", id, quote, "maker");
   const initialHash = detail.quote.hash;
-  await api.approveQuote(pool, 1, id, { quoteHash: initialHash });
+  assert.equal(detail.status, "requested");
+  assert.equal(detail.approvedQuoteHash, null);
+  assert.equal(
+    detail.history.some((e) => e.action === "quote_approved"),
+    false,
+  );
+  for (const invalidQuote of [
+    { methodId: "wrong-method" },
+    { receiveCurrency: "USD" },
+    { fundingMethod: "bank_account" },
+    { providerMinimumSendCents: 1500 },
+    { expiresAt: new Date(Date.now() - 1000).toISOString() },
+  ])
+    await assert.rejects(() =>
+      api.recordQuote(
+        pool,
+        "test-business",
+        id,
+        { ...quote, ...invalidQuote },
+        "maker",
+      ),
+    );
   detail = await api.recordQuote(
     pool,
     "test-business",
@@ -393,7 +414,38 @@ try {
     /changed/,
   );
   const quoteHash = detail.quote.hash;
-  await api.approveQuote(pool, 1, id, { quoteHash });
+  assert.equal(detail.status, "requested");
+  assert.equal(detail.approvedQuoteHash, null);
+  await assert.rejects(
+    () =>
+      api.prepare(
+        pool,
+        "test-business",
+        id,
+        { quoteHash: initialHash, evidence: "Stale pre-refresh binding" },
+        "maker",
+      ),
+    /Current matching provider quote/,
+  );
+  await pool.query(
+    "UPDATE creator_withdrawals SET quote=jsonb_set(quote,'{expiresAt}',to_jsonb($2::text)) WHERE id=$1",
+    [id, new Date(Date.now() - 1000).toISOString()],
+  );
+  await assert.rejects(
+    () =>
+      api.prepare(
+        pool,
+        "test-business",
+        id,
+        { quoteHash, evidence: "Expired quote cannot prepare" },
+        "maker",
+      ),
+    /Current matching provider quote/,
+  );
+  await pool.query("UPDATE creator_withdrawals SET quote=$2 WHERE id=$1", [
+    id,
+    JSON.stringify(detail.quote),
+  ]);
   await pool.query("DELETE FROM creator_payout_settings WHERE id=1");
   assert.equal(
     (await call("/admin", { user: "owner" })).body.preparationPaused,
@@ -511,7 +563,7 @@ try {
         { quoteHash, evidence: "test" },
         "maker",
       ),
-    /approve/,
+    (error) => error.status === 409,
   );
   process.env.PULSE_PAYOUT_LINK_PREFIXES =
     "https://www.remitly.com/test-only-fixture/";
@@ -575,6 +627,19 @@ try {
   await assert.rejects(
     () => api.check(pool, "test-business", id, checks, "maker"),
     /different operator/,
+  );
+  await assert.rejects(() =>
+    api.check(
+      pool,
+      "test-business",
+      id,
+      { ...checks, quoteHash: initialHash },
+      "checker",
+    ),
+  );
+  await assert.rejects(
+    () => api.recordQuote(pool, "test-business", id, quote, "maker"),
+    /after preparation/,
   );
   await api.check(pool, "test-business", id, checks, "checker");
   await assert.rejects(
@@ -700,6 +765,27 @@ try {
       ),
     /violate/,
   );
+  for (const invalidActual of [
+    { receiveAmount: "0" },
+    { receiveAmount: "-1" },
+    { receiveCurrency: "USD" },
+    { sendAmountCents: 1402 },
+    { taxCents: 1 },
+  ])
+    await assert.rejects(() =>
+      api.reconcile(
+        pool,
+        "test-business",
+        id,
+        { ...outcome, ...invalidActual },
+        "reconciler",
+      ),
+    );
+  // A genuine historical exact approval retains its old receive floor.
+  await pool.query(
+    "UPDATE creator_withdrawals SET approved_quote_hash=quote->>'hash' WHERE id=$1",
+    [id],
+  );
   await assert.rejects(
     () =>
       api.reconcile(
@@ -709,8 +795,13 @@ try {
         { ...outcome, receiveAmount: "55000" },
         "reconciler",
       ),
-    /below/,
+    /legacy creator-approved/,
   );
+  await pool.query(
+    "UPDATE creator_withdrawals SET approved_quote_hash=NULL WHERE id=$1",
+    [id],
+  );
+  outcome.receiveAmount = "55000";
   await api.reconcile(pool, "test-business", id, outcome, "reconciler");
   assert.equal(
     (
@@ -776,6 +867,11 @@ try {
     /cannot regress/,
   );
   assert.match(await api.statement(pool, id, 1), /private-test-reference/);
+  assert.doesNotMatch(
+    await api.statement(pool, id, 1),
+    /Creator approved current quote/,
+  );
+  assert.match(await api.statement(pool, id, 1), /Estimated recipient amount/);
   assert.equal(
     (await pool.query("SELECT balance FROM coin_balances WHERE user_id=1"))
       .rows[0].balance,
@@ -874,7 +970,8 @@ try {
     );
     if (amount === 50000) {
       const hash = quoted.quote.hash;
-      await api.approveQuote(pool, 1, repeated.id, { quoteHash: hash });
+      assert.equal(quoted.status, "requested");
+      assert.equal(quoted.approvedQuoteHash, null);
       const prepared = await api.prepare(
         pool,
         "test-business",
@@ -1056,7 +1153,35 @@ try {
     quote,
     "maker",
   );
-  await api.approveQuote(pool, 2, failed.id, { quoteHash: fd.quote.hash });
+  // Older app versions can still acknowledge a saved quote, without making it
+  // an exact creator approval or imposing its expiry on the creator.
+  await pool.query(
+    "UPDATE creator_withdrawals SET status='awaiting_confirmation' WHERE id=$1",
+    [failed.id],
+  );
+  assert.equal(
+    (
+      await call(`/withdrawals/${failed.id}/approve-quote`, {
+        user: "creator",
+        method: "POST",
+        body: { quoteHash: fd.quote.hash },
+      })
+    ).status,
+    404,
+  );
+  const acknowledged = await api.approveQuote(pool, 2, failed.id, {
+    quoteHash: fd.quote.hash,
+  });
+  assert.equal(acknowledged.status, "requested");
+  assert.equal(acknowledged.approvedQuoteHash, null);
+  assert.deepEqual(
+    await api.approveQuote(pool, 2, failed.id, { quoteHash: fd.quote.hash }),
+    acknowledged,
+  );
+  assert.equal(
+    acknowledged.history.some((e) => e.action === "quote_approved"),
+    false,
+  );
   await api.prepare(
     pool,
     "test-business",

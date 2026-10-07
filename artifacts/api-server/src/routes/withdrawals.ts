@@ -112,6 +112,7 @@ creator.get(
     res.type("text/plain").send(text);
   }),
 );
+// Deprecated compatibility endpoint for older clients; no second approval is required.
 creator.post(
   "/withdrawals/:id/approve-quote",
   safe(async (req, res) => {

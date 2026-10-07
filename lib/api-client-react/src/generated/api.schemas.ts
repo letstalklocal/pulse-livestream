@@ -141,6 +141,8 @@ export interface WithdrawalPolicy {
 }
 
 export interface PayoutOperatorIdentity {
+  /** Current workflow instruction revision; independent of the compatible MCP/profile version. */
+  workflowRevision?: string;
   environment: PayoutOperatorIdentityEnvironment;
   accountKey: string;
   operator: PayoutOperatorIdentityOperator;
@@ -294,6 +296,10 @@ export interface CreatorWithdrawal {
   recipient: WithdrawalRecipient;
   route: WithdrawalRoute;
   quote: WithdrawalQuote | null;
+  /**
+     * Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.
+     * @deprecated
+     */
   approvedQuoteHash: string | null;
   checker: WithdrawalChecker | null;
   providerLink: string | null;
@@ -327,6 +333,8 @@ export const PayoutOperatorPlaybookRole = {
 } as const;
 
 export interface PayoutOperatorPlaybook {
+  /** Current workflow instruction revision; independent of the compatible MCP/profile version. */
+  workflowRevision?: string;
   name: string;
   version: string;
   role: PayoutOperatorPlaybookRole;

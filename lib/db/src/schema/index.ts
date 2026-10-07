@@ -44,3 +44,4 @@ export * from "./payout-catalog";
 export * from "./creator-withdrawals";
 
 export * from "./payout-operators";
+export * from "./gift-catalog-migrations";

@@ -1162,5 +1162,8 @@
   "Phone number": "Nomor telepon",
   "These amounts are estimates based on your selected delivery method.": "Jumlah ini merupakan perkiraan berdasarkan metode pengiriman yang dipilih.",
   "You will receive an email from Remitly to confirm your payment method.": "Anda akan menerima email dari Remitly untuk mengonfirmasi metode pembayaran.",
-  "Your saved payment method will be used.": "Metode pembayaran tersimpan Anda akan digunakan."
+  "Your saved payment method will be used.": "Metode pembayaran tersimpan Anda akan digunakan.",
+  "Estimated payout": "Perkiraan pembayaran",
+  "Estimated total deduction: {v0}": "Perkiraan total potongan: {v0}",
+  "Estimated amount received: {v0} {v1}": "Perkiraan jumlah yang diterima: {v0} {v1}"
 }

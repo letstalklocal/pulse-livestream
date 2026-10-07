@@ -9,12 +9,13 @@
     "For first-time links, provider-ready recipient onboarding must be verified from Remitly evidence. App foreground return or successful link opening does not establish completion.",
     "Capture authoritative raw provider status, exact amounts, observation timestamp, approved source/activity URL, evidence and a stable observation ID. Do not mark paid from a pending/scheduled draft, screenshot alone or creator assertion.",
     "Processing leaves the reservation intact. Delivered settles only verified actual send + fee + tax within approved bounds; unused reserved coins return through the backend ledger. Never edit wallet balances yourself.",
-    "If method changed, actual fee/tax exceeds approved bounds, received amount is lower or provider reference conflicts, preserve funds and record an exception. Revised approval or authoritative resolution is required.",
+    "If method changed, actual USD send/fee/tax violates the recorded financial bounds or a provider reference conflicts, preserve funds and record an exception for human resolution. Local-currency amounts are estimates for new request-consented quotes and may change with exchange rates; verify the positive actual receive amount and currency. Preserve any genuine legacy exact-quote receive floor.",
     "Failed/canceled outcomes release coins only after authoritative funding-return evidence. A returned delivered payment appends the provider-confirmed return adjustment; it never automatically resends.",
     "Reuse the same observation ID only for identical evidence. Newer provider observations may advance state; stale evidence must not regress delivered status or recreate a payment.",
     "Unknown, interrupted, expired or human-declined attempts require history investigation and verified provider cancellation/return before refund or retry. Do not assume a local timeout proves nothing was created.",
     "Finish with processed/needs-human counts, protected backend evidence and redacted heartbeat. Release the browser lease after browser work stops. No user/email/Slack notification is sent by this playbook."
   ],
   "humanFinalDecisionRequired": true,
-  "autoSendAllowed": false
+  "autoSendAllowed": false,
+  "workflowRevision": "2026-10-07.1"
 }

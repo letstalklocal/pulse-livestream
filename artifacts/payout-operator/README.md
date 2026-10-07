@@ -2,7 +2,7 @@
 
 This package prepares and checks reviewable Remitly work and reconciles recorded outcomes. Pulse remains authoritative for wallet reservations, approvals, attempts and audit evidence. The human makes the final payout decision and performs the final send or recipient-link issuance in Remitly. No helper or scheduled prompt sends money.
 
-The JavaScript runtime helpers are portable and require Node 22 or newer. Credential setup currently uses **macOS Keychain** and fails closed on other operating systems. The JavaScript CLI and MCP runner need no compiler or project build. Create the credential manually in Apple's built-in Keychain Access; the helper uses macOS's built-in `security` command only to retrieve/delete it. This has not been installed or verified on a real Mac in this session.
+The JavaScript runtime helpers are portable and require Node 22 or newer. Credential setup currently uses **macOS Keychain** and fails closed on other operating systems. The JavaScript CLI and MCP runner need no compiler or project build. Create the credential manually in Apple's built-in Keychain Access; the helper uses macOS's built-in `security` command only to retrieve/delete it. The user reported a working production maker bridge and direct chat MCP identity call on their Mac on October 7; signed-in Remitly browser access and other operator roles remain separate checks. See [the confirmed connection checkpoint](../../docs/remitly-launch-handoff.md#october-7-mac-maker-mcp-connection-confirmed).
 
 ## Manual setup
 
@@ -28,6 +28,10 @@ The JavaScript runtime helpers are portable and require Node 22 or newer. Creden
 
 Profiles, heartbeat/deduplicated-summary files, count-only logs and local run locks live under `~/Library/Application Support/Pulse Payout Operator`, using owner-only directories/files (0700/0600). They contain no stored bearer tokens or provider session data. `PULSE_OPERATOR_HOME` can select another private directory for local tests; it does not change the pinned remote origin. Do not use a shared or symlinked directory.
 
+## Current withdrawal flow
+
+Fetch the current preflight and role playbooks at the start of every job. Workflow revision `2026-10-07.1` treats the initial withdrawal submission as consent: record a current provider quote within the requested gross amount and selected method, then continue to preparation and save a supported one-time draft in the same run. No second creator approval is required. Estimated recipient currency amounts may vary at send time. Independent checking and human final sending remain required. The compatible MCP/profile version is still `2026-10-04.1`; no credential or connection reconfiguration is needed.
+
 ## Automations
 
 Use the role-specific prompts in [`templates/automation-prompts.md`](templates/automation-prompts.md). Configure the cadence, working hours and time zone manually in the Mac's Codex app after the user selects them. No schedule has been installed here. Local desktop automation requires the computer awake/on and the app running, and the actual MCP/browser capability must be verified in that automation. A configured recurrence does not establish unattended Remitly support. See the [official Codex automation guidance](https://learn.chatgpt.com/docs/automations?surface=app).
@@ -52,4 +56,4 @@ This removes only the local lock. It does not alter reservations, provider objec
 
 Run `node --test artifacts/payout-operator/tests/runtime.test.mjs` from the repository root. Tests cover identity/environment/account/role pinning, redirect refusal, paused work, restricted permissions, symlinks, credential/recipient-free logs, concurrent local locks, process interruption/recovery, one-role child environments, deduplicated count summaries and playbook boundaries. Separate MCP/backend tests cover remote authentication and durable browser/attempt leasing.
 
-Actual Mac Keychain manual storage/read, Codex installation, automation recurrence, browser login, provider selectors, interruptions/sleep and real Remitly actions remain unverified. No local simulator is exposed as a creator workflow, and no payment has been sent by this package.
+The maker bridge and direct chat MCP call are confirmed by the user as recorded above. Independent checker/reconciler connections, automation recurrence, browser login, provider selectors, interruptions/sleep and real Remitly actions remain unverified. No local simulator is exposed as a creator workflow, and no payment has been sent by this package.

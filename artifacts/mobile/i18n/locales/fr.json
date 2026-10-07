@@ -1162,5 +1162,8 @@
   "Phone number": "Numéro de téléphone",
   "These amounts are estimates based on your selected delivery method.": "Ces montants sont des estimations basées sur le mode de livraison choisi.",
   "You will receive an email from Remitly to confirm your payment method.": "Vous recevrez un e-mail de Remitly pour confirmer votre mode de paiement.",
-  "Your saved payment method will be used.": "Votre mode de paiement enregistré sera utilisé."
+  "Your saved payment method will be used.": "Votre mode de paiement enregistré sera utilisé.",
+  "Estimated payout": "Paiement estimé",
+  "Estimated total deduction: {v0}": "Déduction totale estimée : {v0}",
+  "Estimated amount received: {v0} {v1}": "Montant estimé à recevoir : {v0} {v1}"
 }

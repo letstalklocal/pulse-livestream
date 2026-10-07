@@ -544,7 +544,19 @@ try {
   );
   let detail = (await action(maker.token, wd.id, "quote", quote)).body;
   const quoteHash = detail.quote.hash;
-  await api.approveQuote(pool, 1, wd.id, { quoteHash });
+  assert.equal(detail.status, "requested");
+  assert.equal(detail.approvedQuoteHash, null);
+  // Existing quoted requests from the previous app must be maker-eligible without
+  // waiting for a creator to return or acknowledging a quote.
+  await pool.query(
+    "UPDATE creator_withdrawals SET status='awaiting_confirmation' WHERE id=$1",
+    [wd.id],
+  );
+  assert.ok(
+    (
+      await call("/api/payout-operator/withdrawals", { token: maker.token })
+    ).body.withdrawals.some((w) => w.id === wd.id),
+  );
   detail = (
     await action(maker.token, wd.id, "prepare", {
       quoteHash,
@@ -681,16 +693,8 @@ try {
     )
   ).body;
   const sqHash = sq.quote.hash;
-  assert.equal(
-    (
-      await call("/withdrawals/" + success.id + "/approve-quote", {
-        user: "creator",
-        method: "POST",
-        body: { quoteHash: sqHash },
-      })
-    ).status,
-    200,
-  );
+  assert.equal(sq.status, "requested");
+  assert.equal(sq.approvedQuoteHash, null);
   const prepared = (
     await action(
       maker.token,
@@ -803,6 +807,7 @@ try {
     status: "delivered",
     providerStatus: "Delivered",
     providerReference: "isolated-delivered-reference",
+    receiveAmount: "55000.00",
     fundingReturned: false,
     recipientReady: true,
     observedAt: new Date().toISOString(),
@@ -863,7 +868,7 @@ try {
     4000,
   );
   console.log(
-    "PASS complete creator approval → scoped maker → independent checker → human release → reconciler delivery without service sending capability",
+    "PASS complete initial creator request → scoped maker → independent checker → human release → reconciler delivery without service sending capability",
   );
 
   // Expired browser access quarantines an interrupted attempt before the next role claims it.
@@ -896,7 +901,7 @@ try {
   const uq = (
     await action(maker.token, uncertain.id, "quote", quote, oldLease.leaseId)
   ).body;
-  await api.approveQuote(pool, 2, uncertain.id, { quoteHash: uq.quote.hash });
+  assert.equal(uq.status, "requested");
   await action(
     maker.token,
     uncertain.id,

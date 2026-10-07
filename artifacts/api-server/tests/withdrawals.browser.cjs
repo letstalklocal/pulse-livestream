@@ -251,7 +251,8 @@ const root = path.resolve(__dirname, "../../admin/public");
             totalEarningsDeductedCents:
               body.sendAmountCents + body.feeCents + body.taxCents,
           };
-          w.status = "awaiting_confirmation";
+          w.status = "requested";
+          w.approvedQuoteHash = null;
           w.version++;
         }
         if (action === "prepare") {
@@ -419,28 +420,20 @@ const root = path.resolve(__dirname, "../../admin/public");
     });
     await form.locator('[name="actualQuoteConfirmed"]').check();
     await form
-      .getByRole("button", { name: "Save quote for creator confirmation" })
+      .getByRole("button", { name: "Save quote and continue preparation" })
       .click();
-    await page
-      .getByText(
-        "Waiting for the creator to approve the exact current quote in Pulse.",
-        { exact: false },
-      )
-      .waitFor();
+    await page.locator('[data-payout-action="prepare"]').waitFor({ state: "attached" });
     const quoteRecord = actions.find((action) => action.action === "quote");
     assert.equal(quoteRecord.body.sendAmountCents, 1401);
     assert.equal(quoteRecord.body.feeCents, 99);
     assert.equal(quoteRecord.body.providerMinimumSendCents, 1000);
-    assert.equal(
-      await page.locator('[data-payout-action="prepare"]').count(),
-      0,
-    );
-    w.status = "requested";
-    w.approvedQuoteHash = w.quote.hash;
+    assert.equal(w.approvedQuoteHash, null, "initial request needs no extra exact quote approval");
+    assert.doesNotMatch(await page.locator("#payout-detail").textContent(), /Waiting for the creator|confirmation required|approved this exact quote/);
+    // Old confirmation-state rows remain preparable without a creator action.
+    w.status = "awaiting_confirmation";
     await page.locator("#refresh-payout-detail").click();
-    await page
-      .locator('[data-payout-action="prepare"]')
-      .waitFor({ state: "attached" });
+    await page.locator('[data-payout-action="prepare"]').waitFor({ state: "attached" });
+    assert.doesNotMatch(await page.locator("#payout-detail").textContent(), /Waiting for the creator|confirmation required/);
     // Pause preparation without blocking reconciliation or discarding unsaved evidence.
     const prepare = page.locator('[data-payout-action="prepare"]');
     await prepare.locator("..").locator("summary").click();

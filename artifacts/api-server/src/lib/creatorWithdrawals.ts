@@ -495,18 +495,30 @@ export async function approveQuote(
   const quoteHash = str(b.quoteHash, "quote hash");
   return tx(db, async (c) => {
     const w = await lockedWithdrawal(c, id, undefined, uid);
-    if (w.status !== "awaiting_confirmation" || w.quote?.hash !== quoteHash)
-      fail("Quote changed or cannot be approved. Reload details.", 409);
+    // Older clients may still call this endpoint. The initial request provides
+    // consent; this compatibility acknowledgement never approves an exact quote.
     if (
-      !Number.isFinite(Date.parse(w.quote.expiresAt)) ||
-      Date.parse(w.quote.expiresAt) <= Date.now()
+      !["requested", "awaiting_confirmation"].includes(w.status) ||
+      w.quote?.hash !== quoteHash
     )
-      fail("Quote expired; request a fresh quote.", 409);
-    await c.query(
-      "UPDATE creator_withdrawals SET status='requested',approved_quote_hash=$2,updated_at=now() WHERE id=$1",
-      [id, quoteHash],
-    );
-    await event(c, uid, `creator:${uid}`, "quote_approved", { quoteHash }, id);
+      fail(
+        "Quote changed or request cannot be acknowledged. Reload details.",
+        409,
+      );
+    if (w.status === "awaiting_confirmation") {
+      await c.query(
+        "UPDATE creator_withdrawals SET status='requested',updated_at=now() WHERE id=$1",
+        [id],
+      );
+      await event(
+        c,
+        uid,
+        `creator:${uid}`,
+        "legacy_quote_acknowledged",
+        { quoteHash },
+        id,
+      );
+    }
     return withdrawalDetail(c, id, uid);
   });
 }
@@ -741,7 +753,7 @@ export async function recordQuote(
     };
     const quote = { ...q, hash: hash(q) };
     await c.query(
-      "UPDATE creator_withdrawals SET quote=$2,status='awaiting_confirmation',approved_quote_hash=NULL,checker=NULL,version=version+1,updated_at=now() WHERE id=$1",
+      "UPDATE creator_withdrawals SET quote=$2,status='requested',approved_quote_hash=NULL,checker=NULL,version=version+1,updated_at=now() WHERE id=$1",
       [id, JSON.stringify(quote)],
     );
     await event(c, w.user_id, actor, "quote_recorded", { quote, evidence }, id);
@@ -773,18 +785,27 @@ export async function prepare(
         await c.query(
           "SELECT preparation_paused FROM creator_payout_settings WHERE id=1 FOR SHARE",
         )
-      ).rows[0]?.preparation_paused ?? true
+      ).rows[0]?.preparation_paused ??
+      true
     )
       fail("Preparation is paused.", 409);
     if (
-      w.status !== "requested" ||
-      !w.approved_quote_hash ||
-      w.approved_quote_hash !== w.quote?.hash ||
+      !["requested", "awaiting_confirmation"].includes(w.status) ||
+      !w.quote ||
       b.quoteHash !== w.quote.hash ||
+      w.quote.methodId !== w.method_id ||
+      w.quote.receiveCurrency !== w.route.receiveCurrency ||
+      w.quote.fundingMethod !== w.route.fundingMethod ||
+      w.quote.recipientHash !== hash(w.recipient) ||
+      w.quote.sendAmountCents + w.quote.feeCents + w.quote.taxCents >
+        w.gross_cents ||
       !Number.isFinite(Date.parse(w.quote.expiresAt)) ||
       Date.parse(w.quote.expiresAt) <= Date.now()
     )
-      fail("Creator must approve a current quote before preparation.", 409);
+      fail(
+        "Current matching provider quote required before preparation; refresh stale quotes.",
+        409,
+      );
     const bal = await balances(c, w.user_id);
     if (BigInt(bal.reservedTicks) < BigInt(w.gross_cents) * 4n)
       fail("Reservation is missing.", 409);
@@ -1180,16 +1201,20 @@ export async function reconcile(
       send + fee + tax > w.gross_cents
     )
       fail(
-        "Provider amounts/method violate approved quote; leave reservation and investigate.",
+        "Provider amounts/method violate the recorded quote; leave reservation and investigate.",
         409,
       );
     const receive = str(b.receiveAmount, "actual receive amount", 40);
+    if (!/^\d+(\.\d{1,8})?$/.test(receive) || !/[1-9]/.test(receive))
+      fail("Actual recipient amount must be an exact positive decimal.", 409);
+    // Older withdrawals may carry genuine exact-quote consent. New withdrawals
+    // authorize the USD gross amount; their receive-currency quote is an estimate.
     if (
-      !/^\d+(\.\d{1,8})?$/.test(receive) ||
+      w.approved_quote_hash === w.quote.hash &&
       decimalCompare(receive, w.quote.receiveAmount) < 0
     )
       fail(
-        "Actual recipient amount is below creator-approved amount; obtain revised approval.",
+        "Actual recipient amount is below the legacy creator-approved amount; investigate before reconciliation.",
         409,
       );
     if (a.provider_reference && a.provider_reference !== reference)
@@ -1361,11 +1386,11 @@ export async function statement(db: Sql, id: string, uid: number) {
   ];
   if (w.quote) {
     lines.push(
-      `Creator approved current quote: ${w.approvedQuoteHash === w.quote.hash ? "yes" : "no"}`,
+      "The initial withdrawal request authorizes preparation within the requested gross amount.",
       `Quoted USD send: ${(w.quote.sendAmountCents / 100).toFixed(2)}`,
       `Quoted fee USD: ${(w.quote.feeCents / 100).toFixed(2)}`,
       `Quoted taxes USD: ${(w.quote.taxCents / 100).toFixed(2)}`,
-      `Quoted recipient amount: ${w.quote.receiveAmount} ${w.quote.receiveCurrency}`,
+      `Estimated recipient amount from provider quote: ${w.quote.receiveAmount} ${w.quote.receiveCurrency}`,
     );
   }
   if (reconciled)
@@ -1375,6 +1400,7 @@ export async function statement(db: Sql, id: string, uid: number) {
       `Observed USD send: ${(reconciled.sendAmountCents / 100).toFixed(2)}`,
       `Observed USD fee: ${(reconciled.feeCents / 100).toFixed(2)}`,
       `Observed USD taxes: ${(reconciled.taxCents / 100).toFixed(2)}`,
+      `Observed recipient amount: ${reconciled.receiveAmount} ${w.quote?.receiveCurrency ?? w.route.receiveCurrency}`,
       `Actual USD cost: ${((reconciled.sendAmountCents + reconciled.feeCents + reconciled.taxCents) / 100).toFixed(2)}`,
     );
   lines.push(

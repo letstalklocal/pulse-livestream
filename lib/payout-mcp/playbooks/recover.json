@@ -16,5 +16,6 @@
     "Complete with only a redacted status/count summary. The human alone performs final sending or link issuance; recovery does not waive that boundary."
   ],
   "humanFinalDecisionRequired": true,
-  "autoSendAllowed": false
+  "autoSendAllowed": false,
+  "workflowRevision": "2026-10-07.1"
 }

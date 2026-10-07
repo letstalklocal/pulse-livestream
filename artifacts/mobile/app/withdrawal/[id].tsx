@@ -221,41 +221,23 @@ export default function WithdrawalScreen() {
                     { backgroundColor: c.card, borderColor: c.border },
                   ]}
                 >
-                  {text(
-                    t(
-                      w.status === "awaiting_confirmation"
-                        ? "Current quote"
-                        : "Confirmed quote",
-                    ),
-                  )}
+                  {text(t("Estimated payout"))}
                   {text(
                     t("Amount sent: {v0}", { v0: money(q.sendAmountCents) }),
                   )}
                   {text(t("Provider fee: {v0}", { v0: money(q.feeCents) }))}
                   {text(t("Tax: {v0}", { v0: money(q.taxCents) }))}
                   {text(
-                    t("Total earnings deducted: {v0}", {
+                    t("Estimated total deduction: {v0}", {
                       v0: money(q.totalEarningsDeductedCents),
                     }),
                   )}
                   {text(
-                    t("Recipient receives: {v0} {v1}", {
+                    t("Estimated amount received: {v0} {v1}", {
                       v0: q.receiveAmount,
                       v1: q.receiveCurrency,
                     }),
                   )}
-                  {text(
-                    t("Quote expires: {v0}", {
-                      v0: new Date(q.expiresAt).toLocaleString(appLocale()),
-                    }),
-                    true,
-                  )}
-                  {w.status === "awaiting_confirmation" &&
-                    button(
-                      "Confirm this quote",
-                      () => void run(() => api.approve(q.hash)),
-                      busy || new Date(q.expiresAt).getTime() <= Date.now(),
-                    )}
                 </View>
               ) : (
                 <View

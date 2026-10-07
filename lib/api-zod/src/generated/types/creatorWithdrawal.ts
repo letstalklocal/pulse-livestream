@@ -25,6 +25,10 @@ export interface CreatorWithdrawal {
   recipient: WithdrawalRecipient;
   route: WithdrawalRoute;
   quote: WithdrawalQuote | null;
+  /**
+     * Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.
+     * @deprecated
+     */
   approvedQuoteHash: string | null;
   checker: WithdrawalChecker | null;
   providerLink: string | null;

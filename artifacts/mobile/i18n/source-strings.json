@@ -1162,5 +1162,8 @@
   "Phone number",
   "These amounts are estimates based on your selected delivery method.",
   "You will receive an email from Remitly to confirm your payment method.",
-  "Your saved payment method will be used."
+  "Your saved payment method will be used.",
+  "Estimated payout",
+  "Estimated total deduction: {v0}",
+  "Estimated amount received: {v0} {v1}"
 ]

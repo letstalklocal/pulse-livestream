@@ -6,16 +6,17 @@
     "Complete the preflight playbook and use only the maker credential. Retrieve the current role-eligible queue; if the response is truncated, do not claim to have processed the full queue.",
     "For an awaiting-quote request, obtain the actual quote in the signed-in Business UI for the selected country, delivery method and debit-card funding. The USD 15 sample is a send amount; do not assume its fee applies to USD 14.01.",
     "Record exact integer-cent send amount, fee, tax, separate promotional discount, provider minimum send amount, exact receive amount/currency, source URL, observed time and expiry. Send + fee + tax must fit the USD 15 gross reservation; unverified discounts cannot fund the transfer.",
-    "If route minimum, changed method/fee, unresolved tax, availability or recipient mismatch prevents the approved bounds, record the exception and stop. Do not silently change method, recipient, amount or quote. The creator must approve a new exact quote hash.",
-    "Wait for creator quote confirmation. Re-read the backend version/hash immediately before preparing. A new or expired quote, declined human decision, paused preparation or missing reservation blocks preparation.",
+    "If the route minimum, fee, unresolved tax, availability or recipient mismatch prevents the submitted gross amount and selected route, record the exception and stop. Never switch the requested method or exceed the gross deduction. A provider quote refresh within those bounds requires no second creator approval.",
+    "After recording a current valid quote, continue directly to preparation in the same operator run. Do not wait for creator confirmation. Re-read the version/hash before claiming preparation; refresh expired quotes before any provider attempt. Human decline, paused preparation or missing reservation blocks work.",
     "Before any browser action that could create a provider object, acquire the durable preparation attempt for this withdrawal while holding the browser lease. Bind the attempt to the current snapshot/quote hash. An existing/unknown attempt requires investigation, not a replacement draft.",
     "First-time recipient: verify actual Send by link availability and whether this account can save a reviewable unsent draft. Use the saved legal/contact snapshot, keep bank and delivery details with Remitly, preserve the approved method restrictions, and leave auto-send off. If the next step would issue the link, stop for the human.",
-    "Repeat recipient: proceed only when repeat withdrawals are explicitly enabled by the backend policy and recipient onboarding is verified. Use Settings \u2192 Contacts \u2192 the verified recipient, as observed for method preservation. Do not use multiple-recipient or other unverified entry points.",
-    "If the provider offers a save-only one-time scheduled draft dated today, verify its timezone, send-by deadline and auto-send off before saving. Do not infer that first-time links support scheduling. Never cross a final send/issue-link boundary.",
+    "Repeat recipient: proceed only when repeat withdrawals are explicitly enabled by the backend policy and recipient onboarding is verified. Use Settings → Contacts → the verified recipient, as observed for method preservation. Do not use multiple-recipient or other unverified entry points.",
+    "If the provider supports a save-only one-time scheduled draft dated today, verify timezone, send-by deadline and auto-send off, then save it during the same run after quote recording and durable preparation claim. Reuse the existing saved draft rather than re-entering it. Do not assume first-time link flows support saving. Never cross a final send/issue-link boundary.",
     "Record the actual draft ID, approved review URL, deadline, quote hash, snapshot/amount match, one-time/auto-send flags and exact history coverage/evidence. Never fabricate a scheduledDraftId or provider reference from a URL pattern.",
     "Leave the prepared item for an independent checker and the human final payout decision. The human may approve or decline. No maker service tool authorizes sending or issuance.",
     "If navigation, timeout, logout, browser crash or interruption leaves possible draft creation unresolved, mark the attempt unknown without releasing coins. Do not restart preparation. End with count-only summary and release the account browser lease after browser work stops."
   ],
   "humanFinalDecisionRequired": true,
-  "autoSendAllowed": false
+  "autoSendAllowed": false,
+  "workflowRevision": "2026-10-07.1"
 }

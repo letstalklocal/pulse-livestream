@@ -2296,7 +2296,7 @@ function resetPayoutDesk() {
 }
 const payoutStatusNames = {
   awaiting_quote: "Awaiting actual quote",
-  awaiting_confirmation: "Awaiting creator confirmation",
+  awaiting_confirmation: "Ready to prepare",
   requested: "Ready to prepare",
   preparing: "Preparing",
   awaiting_human_review: "Awaiting human review",
@@ -2422,7 +2422,7 @@ async function loadWithdrawals() {
       ? "All existing wallet coins can be withdrawn, including bought, gifted and granted coins. 400 coins equal USD 1; USD 15 gross reserves 6,000 coins. Enabling an account does not add or remove coins."
       : "Withdrawal balance policy is awaiting confirmation. Enrollment is unavailable until that policy is configured.";
     renderWithdrawalRows();
-    if (payoutDesk.detail?.status === "requested") {
+    if (["requested", "awaiting_confirmation"].includes(payoutDesk.detail?.status)) {
       const button = document.querySelector(
         '[data-payout-action="prepare"] button',
       );
@@ -2506,7 +2506,7 @@ function quoteActionForm(w) {
       ) +
       payoutInput(
         "receiveAmount",
-        `Recipient amount · ${w.route.receiveCurrency}`,
+        `Estimated recipient amount · ${w.route.receiveCurrency}`,
         { maxlength: 40 },
       ) +
       payoutUsdInput(
@@ -2526,9 +2526,9 @@ function quoteActionForm(w) {
         "I checked this exact send amount, delivery method, funding method, minimum, taxes and recipient amount in the signed-in Business account.",
         true,
       ),
-    "Save quote for creator confirmation",
+    "Save quote and continue preparation",
     {
-      note: "Do not infer a USD 14.01 quote from the saved USD 15 fee sample. The creator must approve this exact quote in Pulse before preparation. Promotions cannot fund the withdrawal.",
+      note: "Do not infer a USD 14.01 quote from the saved USD 15 fee sample. The initial withdrawal request authorizes preparation within its amount and selected method. Save the actual quote, then continue preparing. Promotions cannot fund the withdrawal.",
     },
   );
 }
@@ -2606,10 +2606,7 @@ function renderWithdrawalDetail() {
     ["awaiting_quote", "awaiting_confirmation", "requested"].includes(w.status)
   )
     actions += quoteActionForm(w);
-  if (w.status === "awaiting_confirmation")
-    actions +=
-      '<p class="payout-callout">Waiting for the creator to approve the exact current quote in Pulse. Refresh after they confirm. Staff cannot approve it on their behalf.</p>';
-  if (w.status === "requested")
+  if (["requested", "awaiting_confirmation"].includes(w.status) && q)
     actions += payoutForm(
       "prepare",
       "Claim preparation before any provider draft action",
@@ -2828,7 +2825,7 @@ function renderWithdrawalDetail() {
           : "No provider attempt exists. Declining cancels this request and returns its reserved wallet coins once. This action does not send a payment.",
       },
     );
-  target.innerHTML = `<section class="panel payout-detail-panel"><div class="panel-heading"><div><h2>Withdrawal ${esc(w.id)}</h2><p>Version ${esc(w.version)} · Updated ${esc(payoutTime(w.updatedAt))}</p></div><div class="payout-detail-toolbar"><button class="page-button" id="refresh-payout-detail">Refresh details</button><button class="page-button" id="close-payout-detail">Close</button></div></div><div class="payout-content"><dl class="payout-facts">${facts.map(([label, value]) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join("")}</dl>${q ? `<section class="payout-quote"><h3>Current quote · creator ${w.approvedQuoteHash === q.hash ? "approved this exact quote" : "confirmation required"}</h3><p>Send ${esc(catalogMoney(q.sendAmountCents))} + fee ${esc(catalogMoney(q.feeCents))} + tax ${esc(catalogMoney(q.taxCents))} = ${esc(catalogMoney(q.totalEarningsDeductedCents))} total wallet deduction.</p><p>Recipient estimate: ${esc(q.receiveAmount)} ${esc(q.receiveCurrency)} · ${esc(q.fundingMethod)}. Promotion: ${esc(catalogMoney(q.promotionalDiscountCents))}, separate from fees.</p><p>Observed ${esc(payoutTime(q.observedAt))} · Expires ${esc(payoutTime(q.expiresAt))}</p><p class="payout-hash">Quote reference: ${esc(q.hash)}</p></section>` : '<p class="payout-callout">No exact signed-in provider quote recorded. Do not prepare a transfer from catalog fee estimates.</p>'}<div class="payout-links">${attempt?.evidence?.reviewUrl ? payoutLink(attempt.evidence.reviewUrl, "Review in Remitly") : ""}${w.providerLink ? payoutLink(w.providerLink, "Recipient link") : ""}${events.findLast((e) => e.evidence?.activityUrl)?.evidence?.activityUrl ? payoutLink(events.findLast((e) => e.evidence?.activityUrl).evidence.activityUrl, "Provider activity") : ""}</div>${["unknown", "expired"].includes(w.status) ? `<p class="payout-callout">${w.status === "expired" ? "Expired withdrawal" : "Unknown outcome"}: reservation retained. Replacement preparation is blocked until provider history resolves the existing attempt.</p>` : ""}${actions}<details class="payout-history"><summary>Evidence and history (${events.length} events)</summary>${events.map((e) => `<article><strong>${esc(e.action?.replaceAll("_", " "))}</strong><small>${esc(payoutTime(e.createdAt || e.created_at))}${e.actor ? ` · ${esc(e.actor)}` : ""}</small>${e.evidence ? `<pre>${esc(typeof e.evidence === "string" ? e.evidence : JSON.stringify(e.evidence, null, 2))}</pre>` : ""}</article>`).join("") || "<p>No events recorded.</p>"}</details></div></section>`;
+  target.innerHTML = `<section class="panel payout-detail-panel"><div class="panel-heading"><div><h2>Withdrawal ${esc(w.id)}</h2><p>Version ${esc(w.version)} · Updated ${esc(payoutTime(w.updatedAt))}</p></div><div class="payout-detail-toolbar"><button class="page-button" id="refresh-payout-detail">Refresh details</button><button class="page-button" id="close-payout-detail">Close</button></div></div><div class="payout-content"><dl class="payout-facts">${facts.map(([label, value]) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join("")}</dl>${q ? `<section class="payout-quote"><h3>Current provider quote</h3><p>Send ${esc(catalogMoney(q.sendAmountCents))} + fee ${esc(catalogMoney(q.feeCents))} + tax ${esc(catalogMoney(q.taxCents))} = ${esc(catalogMoney(q.totalEarningsDeductedCents))} total wallet deduction.</p><p>Recipient estimate: ${esc(q.receiveAmount)} ${esc(q.receiveCurrency)} · ${esc(q.fundingMethod)}. Promotion: ${esc(catalogMoney(q.promotionalDiscountCents))}, separate from fees.</p><p>Observed ${esc(payoutTime(q.observedAt))} · Expires ${esc(payoutTime(q.expiresAt))}</p><p class="payout-hash">Quote reference: ${esc(q.hash)}</p></section>` : '<p class="payout-callout">No exact signed-in provider quote recorded. Do not prepare a transfer from catalog fee estimates.</p>'}<div class="payout-links">${attempt?.evidence?.reviewUrl ? payoutLink(attempt.evidence.reviewUrl, "Review in Remitly") : ""}${w.providerLink ? payoutLink(w.providerLink, "Recipient link") : ""}${events.findLast((e) => e.evidence?.activityUrl)?.evidence?.activityUrl ? payoutLink(events.findLast((e) => e.evidence?.activityUrl).evidence.activityUrl, "Provider activity") : ""}</div>${["unknown", "expired"].includes(w.status) ? `<p class="payout-callout">${w.status === "expired" ? "Expired withdrawal" : "Unknown outcome"}: reservation retained. Replacement preparation is blocked until provider history resolves the existing attempt.</p>` : ""}${actions}<details class="payout-history"><summary>Evidence and history (${events.length} events)</summary>${events.map((e) => `<article><strong>${esc(e.action?.replaceAll("_", " "))}</strong><small>${esc(payoutTime(e.createdAt || e.created_at))}${e.actor ? ` · ${esc(e.actor)}` : ""}</small>${e.evidence ? `<pre>${esc(typeof e.evidence === "string" ? e.evidence : JSON.stringify(e.evidence, null, 2))}</pre>` : ""}</article>`).join("") || "<p>No events recorded.</p>"}</details></div></section>`;
 }
 async function loadWithdrawalDetail(id) {
   if (!authorized || section !== "Payout desk") return;

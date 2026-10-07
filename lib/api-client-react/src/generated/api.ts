@@ -2047,8 +2047,9 @@ export const getApproveWithdrawalQuoteUrl = (id: string,) => {
 }
 
 /**
- * Creator-scoped authenticated wallet withdrawal; no automatic payments.
- * @summary Creator independently approves current exact signed-in quote hash
+ * Deprecated compatibility endpoint for older clients. Initial withdrawal submission is sufficient consent; valid quotes proceed to preparation without another creator approval. No automatic payments.
+ * @deprecated
+ * @summary Legacy quote acknowledgement; no longer required for preparation
  */
 export const approveWithdrawalQuote = async (id: string,
     withdrawalQuoteApprovalInput: WithdrawalQuoteApprovalInput, options?: RequestInit): Promise<WithdrawalDetail> => {
@@ -2098,7 +2099,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ApproveWithdrawalQuoteMutationError = ErrorType<void>
 
     /**
- * @summary Creator independently approves current exact signed-in quote hash
+ * @deprecated
+ * @summary Legacy quote acknowledgement; no longer required for preparation
  */
 export const useApproveWithdrawalQuote = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveWithdrawalQuote>>, TError,{id: string;data: BodyType<WithdrawalQuoteApprovalInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
