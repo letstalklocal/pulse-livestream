@@ -53,17 +53,38 @@ test('catalog refresh coalesces requests, preserves last valid publication on fa
   mode = 'invalid'; await assert.rejects(service.refreshGiftCatalog(), /Invalid gift catalog/); assert.equal(service.getGiftCatalog().version, '7');
   mode = 'offline'; await assert.rejects(service.refreshGiftCatalog(), /offline/); assert.equal(service.getGiftCatalog().version, '7');
 });
+test('a mounted closed drawer refreshes the catalog and warms Popular artwork before opening', () => {
+  const artwork = { id: 'uploaded-art' }; let refreshes = 0; const warmed = [], effects = [], cleanups = [];
+  const current = { version: '1', collections: [{ id: 'popular', gifts: [{ snapshot: { thumbnail: artwork } }] }] };
+  const hook = moduleFrom('../hooks/useGiftCatalog.ts', {
+    react: { useState: init => [init(), () => {}], useEffect: fn => effects.push(fn) },
+    'react-native': { AppState: { addEventListener: () => { throw Error('closed drawer must not start polling'); } } },
+    '@/utils/giftCatalog': { getGiftCatalog: () => current, subscribeGiftCatalog: () => () => {}, refreshGiftCatalog: async () => { refreshes++; } },
+    '@/components/GiftPicker': { POPULAR_GIFTS: [], LUXURY_GIFTS: [] },
+    '@/utils/giftAssetCache': { prefetchGiftThumbnails: async assets => { warmed.push(...assets); } },
+  });
+  hook.useGiftCatalog(false);
+  effects.forEach(effect => cleanups.push(effect()));
+  assert.equal(refreshes, 1);
+  assert.deepEqual(warmed, [artwork]);
+  cleanups.forEach(cleanup => cleanup?.());
+});
 function cacheHarness() {
-  const files = new Map(); let downloads = 0;
+  const files = new Map(), modified = new Map(), fixtures = new Map(); let downloads = 0, reads = 0, active = 0, peak = 0;
   let downloaded = Buffer.from('verified artwork');
   class File {
     constructor(root, name) { this.name = name; this.uri = name ? `file:///${name}` : root; }
     get exists() { return files.has(this.uri); }
     get size() { return files.get(this.uri)?.length ?? 0; }
-    get modificationTime() { return 0; }
-    async bytes() { return files.get(this.uri); }
+    get modificationTime() { return modified.get(this.uri) ?? 0; }
+    async bytes() { reads++; return files.get(this.uri); }
     delete() { files.delete(this.uri); }
-    static async downloadFileAsync(url, file) { downloads++; await new Promise(resolve => setTimeout(resolve, 5)); files.set(file.uri, downloaded); return file; }
+    static async downloadFileAsync(url, file) {
+      downloads++; active++; peak = Math.max(peak, active);
+      const fixture = fixtures.get(url);
+      await (fixture?.wait ?? new Promise(resolve => setTimeout(resolve, 5)));
+      files.set(file.uri, fixture?.bytes ?? downloaded); active--; return file;
+    }
   }
   class Directory { create() {} list() { return []; } }
   const service = moduleFrom('../utils/giftAssetCache.ts', {
@@ -71,8 +92,39 @@ function cacheHarness() {
     'expo-crypto': { CryptoDigestAlgorithm: { SHA256: 'sha256' }, digest: async (_, bytes) => Uint8Array.from(crypto.createHash('sha256').update(bytes).digest()).buffer },
     './giftCatalog': { giftAssetUrl: url => url },
   });
-  return { service, files, get downloads() { return downloads; }, setDownloaded(value) { downloaded = value; }, asset: { id: 'asset', url: '/api/gift-catalog/assets/asset', sha256: crypto.createHash('sha256').update(downloaded).digest('hex'), byteSize: downloaded.length, format: 'png' } };
+  return { service, files, modified, get reads() { return reads; }, get peak() { return peak; },
+    addAsset(id, format = 'png', wait) { const bytes = Buffer.from(id); const url = `/api/gift-catalog/assets/${id}`; fixtures.set(url, { bytes, wait }); return { id, url, format, byteSize: bytes.length, sha256: crypto.createHash('sha256').update(bytes).digest('hex') }; },
+    get downloads() { return downloads; }, setDownloaded(value) { downloaded = value; }, asset: { id: 'asset', url: '/api/gift-catalog/assets/asset', sha256: crypto.createHash('sha256').update(downloaded).digest('hex'), byteSize: downloaded.length, format: 'png' } };
 }
+test('verified cache hits skip hashing; changed or missing files are not exposed as warm artwork', async () => {
+  const h = cacheHarness();
+  assert.equal(h.service.getCachedGiftAssetUri(h.asset), null);
+  const first = await h.service.acquireGiftAsset(h.asset); first.release();
+  assert.equal(h.service.getCachedGiftAssetUri(h.asset), first.uri);
+  (await h.service.acquireGiftAsset(h.asset)).release();
+  assert.equal(h.reads, 1);
+  h.modified.set(first.uri, 1);
+  assert.equal(h.service.getCachedGiftAssetUri(h.asset), null);
+  (await h.service.acquireGiftAsset(h.asset)).release();
+  assert.equal(h.reads, 2);
+  h.files.delete(first.uri);
+  assert.equal(h.service.getCachedGiftAssetUri(h.asset), null);
+  (await h.service.acquireGiftAsset(h.asset)).release();
+  assert.equal(h.downloads, 2);
+});
+test('thumbnail warming is bounded to eight cells and proceeds while a movie download is blocked', async () => {
+  const h = cacheHarness(); let unblock;
+  const wait = new Promise(resolve => { unblock = resolve; });
+  const movie = h.service.acquireGiftAsset(h.addAsset('movie', 'mp4', wait));
+  try {
+    const thumbs = Array.from({ length: 12 }, (_, i) => h.addAsset(`thumb-${i}`));
+    await Promise.race([h.service.prefetchGiftThumbnails(thumbs), new Promise((_, reject) => { const timer = setTimeout(() => reject(Error('artwork blocked by movie')), 1000); timer.unref(); })]);
+    assert.equal(h.downloads, 9);
+    assert.equal(h.peak, 4);
+    thumbs.slice(0, 8).forEach(asset => assert.ok(h.service.getCachedGiftAssetUri(asset)));
+    assert.equal(h.service.getCachedGiftAssetUri(thumbs[8]), null);
+  } finally { unblock(); (await movie).release(); }
+});
 test('concurrent asset callers share one verified download and independent protected leases', async () => {
   const harness = cacheHarness();
   const leases = await Promise.all(Array.from({ length: 8 }, () => harness.service.acquireGiftAsset(harness.asset)));

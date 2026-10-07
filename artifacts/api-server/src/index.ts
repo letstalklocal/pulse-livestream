@@ -10,6 +10,7 @@ import { logger } from "./lib/logger";
 import { attachReactionSocket } from "./lib/liveReactions";
 import * as wsHub from "./lib/wsHub";
 import { canAccessChannel } from "./lib/privateChannelAccess";
+import { runProductionGiftMigration } from "./lib/productionGiftMigration";
 
 // Local sandbox credentials stay in the ignored .local directory. Explicit
 // process environment values take precedence; production never loads this file.
@@ -30,6 +31,14 @@ const port = Number(rawPort);
 
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
+}
+
+// Do not accept purchases/admin writes until the atomic, production-only import finishes.
+// Failure stops this new instance; the completion marker makes every later startup a no-op.
+try { await runProductionGiftMigration(); }
+catch (err) {
+  logger.error({ err }, "Production gift migration failed; refusing to serve a partial catalog");
+  process.exit(1);
 }
 
 const server = http.createServer(app);

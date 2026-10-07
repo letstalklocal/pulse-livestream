@@ -7,7 +7,7 @@ const tick = () => new Promise(setImmediate);
 const code = ts.transpileModule(fs.readFileSync(require.resolve('../components/RemoteGiftArtwork.tsx'), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React },
 }).outputText;
-function fixture({ type = 'animation', reduced = false, native = true } = {}) {
+function fixture({ type = 'animation', reduced = false, native = true, cached = false } = {}) {
   const slots = [], pending = [], subscriptions = {}, downloads = [], released = [];
   let cursor = 0;
   const React = {
@@ -29,7 +29,7 @@ function fixture({ type = 'animation', reduced = false, native = true } = {}) {
       react: React,
       'react-native': { Platform: { OS: 'android' }, Image: 'Image', Text: 'Text', AppState: { currentState: 'active', addEventListener: listen('app') },
         AccessibilityInfo: { isReduceMotionEnabled: async () => reduced, addEventListener: listen('motion') } },
-      '@/utils/giftAssetCache': { acquireGiftAsset: async asset => { downloads.push(asset.id); let done = false; return { uri: `file:///${asset.id}`, release() { if (!done) { done = true; released.push(asset.id); } } }; } },
+      '@/utils/giftAssetCache': { getCachedGiftAssetUri: asset => cached && asset?.id === 'art' ? 'file:///art' : null, acquireGiftAsset: async asset => { downloads.push(asset.id); let done = false; return { uri: `file:///${asset.id}`, release() { if (!done) { done = true; released.push(asset.id); } } }; } },
       './GiftImageArtwork': { hasGiftImage: () => false }, './CrownArtwork': { CrownArtwork: 'Crown' },
     };
     assert.ok(modules[id], id); return modules[id];
@@ -42,6 +42,14 @@ function fixture({ type = 'animation', reduced = false, native = true } = {}) {
     close() { slots.forEach(slot => slot?.cleanup?.()); },
   };
 }
+test('verified cached artwork appears on the first render without showing the previous revision', async () => {
+  const f = fixture({ type: 'image', cached: true });
+  assert.equal(f.render().props.source.uri, 'file:///art');
+  await f.ready();
+  f.props.snapshot = { ...f.props.snapshot, thumbnail: { id: 'replacement', sha256: 'replacement', format: 'png' } };
+  assert.equal(f.render(), null);
+  f.close();
+});
 test('visible SVGA animation gifts loop muted in their existing drawer cell without downloading sound', async () => {
   const f = fixture(); const node = await f.ready();
   assert.equal(node.type, 'Svga'); assert.equal(node.props.loops, 0); assert.equal(node.props.muteBuiltInAudio, true);

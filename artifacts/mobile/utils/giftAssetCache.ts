@@ -4,17 +4,32 @@ import { giftAssetUrl, type CatalogAsset } from "./giftCatalog";
 
 const budget = 96 * 1024 * 1024;
 const root = new Directory(Paths.cache, "gift-assets-v1");
-type Entry = { file: File; size: number; used: number; leases: number };
+type Entry = { file: File; size: number; used: number; leases: number; verifiedAt?: number | null };
 const entries = new Map<string, Entry>();
 const pending = new Map<string, Promise<Entry>>();
 let initialized = false;
-let serial = Promise.resolve();
-async function exclusive<T>(run: () => Promise<T>): Promise<T> {
-  const previous = serial;
-  let release!: () => void;
-  serial = new Promise<void>(resolve => { release = resolve; });
-  await previous;
-  try { return await run(); } finally { release(); }
+const lanes = {
+  artwork: { active: 0, limit: 3, waiting: [] as Array<() => void> },
+  media: { active: 0, limit: 1, waiting: [] as Array<() => void> },
+};
+async function scheduled<T>(asset: CatalogAsset, run: () => Promise<T>): Promise<T> {
+  const lane = /^(png|jpeg|webp)$/.test(asset.format) ? lanes.artwork : lanes.media;
+  if (lane.active >= lane.limit) await new Promise<void>(resolve => lane.waiting.push(resolve));
+  else lane.active++;
+  try { return await run(); } finally {
+    const next = lane.waiting.shift();
+    if (next) next(); else lane.active--;
+  }
+}
+const assetKey = (asset: CatalogAsset) => `${asset.sha256.toLowerCase()}.${asset.format.replace(/[^a-z0-9]/gi, "")}`;
+function reusable(entry: Entry | undefined, asset: CatalogAsset): entry is Entry {
+  return !!entry && entry.verifiedAt !== undefined && entry.file.exists && entry.file.size === asset.byteSize && entry.file.modificationTime === entry.verifiedAt;
+}
+/** Only exposes files already checksum-verified this session; cold disk files still require verification. */
+export function getCachedGiftAssetUri(asset: CatalogAsset | null | undefined): string | null {
+  if (!asset) return null;
+  const entry = entries.get(assetKey(asset));
+  return reusable(entry, asset) ? entry.file.uri : null;
 }
 function initialize() {
   if (initialized) return;
@@ -39,11 +54,12 @@ function evict() {
 /** A lease protects mounted artwork/playback from LRU deletion. No payment occurs here. */
 export async function acquireGiftAsset(asset: CatalogAsset): Promise<{ uri: string; release: () => void }> {
   if (!/^[a-f0-9]{64}$/i.test(asset.sha256) || !Number.isSafeInteger(asset.byteSize) || asset.byteSize <= 0 || asset.byteSize > 40 * 1024 * 1024) throw new Error("Invalid gift asset");
-  const key = `${asset.sha256.toLowerCase()}.${asset.format.replace(/[^a-z0-9]/gi, "")}`;
+  const key = assetKey(asset);
   initialize();
   let operation = pending.get(key);
   if (!operation) {
-    operation = exclusive(async () => {
+    const cached = entries.get(key);
+    operation = reusable(cached, asset) ? Promise.resolve(cached) : scheduled(asset, async () => {
       const file = new File(root, key);
       if (file.exists) {
         try { await verified(file, asset); } catch { if (entries.get(key)?.leases) throw new Error("Active asset corrupted"); file.delete(); entries.delete(key); }
@@ -53,18 +69,21 @@ export async function acquireGiftAsset(asset: CatalogAsset): Promise<{ uri: stri
         catch (error) { if (file.exists) file.delete(); throw error; }
       }
       const entry = entries.get(key) ?? { file, size: asset.byteSize, used: Date.now(), leases: 0 };
+      entry.verifiedAt = file.modificationTime;
       entries.set(key, entry);
       return entry;
-    }).finally(() => { pending.delete(key); });
+    }).catch(error => { pending.delete(key); throw error; });
     pending.set(key, operation);
   }
   const entry = await operation;
-  entry.leases++; entry.used = Date.now(); evict();
+  entry.leases++; entry.used = Date.now();
+  if (pending.get(key) === operation) pending.delete(key);
+  evict();
   let released = false;
   return { uri: entry.file.uri, release: () => { if (!released) { released = true; entry.leases--; entry.used = Date.now(); evict(); } } };
 }
 export async function prefetchGiftThumbnails(assets: Array<CatalogAsset | null | undefined>) {
-  // Two workers, first visible row only; never prefetch full animations.
-  const queue = assets.filter((asset): asset is CatalogAsset => !!asset).slice(0, 4);
-  await Promise.all([0, 1].map(async () => { while (queue.length) { const asset = queue.shift()!; try { const lease = await acquireGiftAsset(asset); lease.release(); } catch { /* Safe static fallback. */ } } }));
+  // First two drawer rows only. Separate media lane prevents large movies blocking artwork.
+  const queue = assets.slice(0, 8).filter((asset): asset is CatalogAsset => !!asset);
+  await Promise.all([0, 1, 2].map(async () => { while (queue.length) { const asset = queue.shift()!; try { const lease = await acquireGiftAsset(asset); lease.release(); } catch { /* Retry when the artwork is displayed. */ } } }));
 }

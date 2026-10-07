@@ -1,0 +1,1083 @@
+{
+  "id": "20261007_development_gift_catalog",
+  "capturedAt": "2026-10-07T05:42:21.467Z",
+  "sourceObjectDir": "/replit-objstore-848a54d7-2696-4eb5-99d3-067ced6c60f6/.private",
+  "productionOwner": "user_3JJ7roIjFeLukMbmmU9YWqKRvoZ",
+  "gift_collections": [
+    {
+      "id": "halloween",
+      "name": "Halloween",
+      "sort_order": 2,
+      "locked": false,
+      "status": "published",
+      "created_at": "2026-10-07T04:22:18.450Z"
+    },
+    {
+      "id": "luxury",
+      "name": "Luxury",
+      "sort_order": 1,
+      "locked": false,
+      "status": "published",
+      "created_at": "2026-10-07T02:48:06.356Z"
+    },
+    {
+      "id": "popular",
+      "name": "Popular",
+      "sort_order": 0,
+      "locked": true,
+      "status": "published",
+      "created_at": "2026-10-07T02:48:06.356Z"
+    }
+  ],
+  "catalog_gifts": [
+    {
+      "id": "crown",
+      "collection_id": "popular",
+      "sort_order": 7,
+      "status": "published",
+      "current_revision_id": "67fea18d-5a7b-4202-bc57-3de05b1a6f6c",
+      "draft_revision_id": null,
+      "legacy": true
+    },
+    {
+      "id": "diamond",
+      "collection_id": "popular",
+      "sort_order": 4,
+      "status": "published",
+      "current_revision_id": "b6ae121a-c7ca-49fd-8581-7cbaaeaf9f00",
+      "draft_revision_id": null,
+      "legacy": true
+    },
+    {
+      "id": "dragon",
+      "collection_id": "luxury",
+      "sort_order": 2,
+      "status": "published",
+      "current_revision_id": "dragon_legacy_v1",
+      "draft_revision_id": null,
+      "legacy": true
+    },
+    {
+      "id": "heart",
+      "collection_id": "popular",
+      "sort_order": 1,
+      "status": "published",
+      "current_revision_id": "heart_legacy_v1",
+      "draft_revision_id": null,
+      "legacy": true
+    },
+    {
+      "id": "kisses",
+      "collection_id": "luxury",
+      "sort_order": 0,
+      "status": "published",
+      "current_revision_id": "kisses_legacy_v1",
+      "draft_revision_id": null,
+      "legacy": true
+    },
+    {
+      "id": "lips",
+      "collection_id": "popular",
+      "sort_order": 4,
+      "status": "published",
+      "current_revision_id": "lips_legacy_v1",
+      "draft_revision_id": null,
+      "legacy": true
+    },
+    {
+      "id": "luxury_rocket",
+      "collection_id": "luxury",
+      "sort_order": 1,
+      "status": "published",
+      "current_revision_id": "luxury_rocket_legacy_v1",
+      "draft_revision_id": null,
+      "legacy": true
+    },
+    {
+      "id": "party",
+      "collection_id": "popular",
+      "sort_order": 2,
+      "status": "published",
+      "current_revision_id": "f2a3cf45-0e57-437b-b061-b39209d28c7b",
+      "draft_revision_id": null,
+      "legacy": true
+    },
+    {
+      "id": "pumpkin_head1",
+      "collection_id": "halloween",
+      "sort_order": 0,
+      "status": "published",
+      "current_revision_id": "63ee33f2-b690-4d88-931d-4437dd733369",
+      "draft_revision_id": null,
+      "legacy": false
+    },
+    {
+      "id": "rocket",
+      "collection_id": "popular",
+      "sort_order": 6,
+      "status": "published",
+      "current_revision_id": "9754d3a8-491e-49fc-a171-4558184ccc37",
+      "draft_revision_id": null,
+      "legacy": true
+    },
+    {
+      "id": "rose",
+      "collection_id": "popular",
+      "sort_order": 0,
+      "status": "published",
+      "current_revision_id": "rose_legacy_v1",
+      "draft_revision_id": null,
+      "legacy": true
+    },
+    {
+      "id": "strawberry",
+      "collection_id": "popular",
+      "sort_order": 3,
+      "status": "published",
+      "current_revision_id": "strawberry_legacy_v1",
+      "draft_revision_id": null,
+      "legacy": true
+    }
+  ],
+  "gift_revisions": [
+    {
+      "id": "147a9842-cdae-4919-b9e7-bed6f70fb078",
+      "gift_id": "party",
+      "name": "Party",
+      "emoji": "🎉",
+      "coin_cost": 10,
+      "thumbnail_asset_id": "9f196650-2c27-4667-a56a-b79b7653e754",
+      "android_asset_id": null,
+      "ios_asset_id": null,
+      "sound_asset_id": null,
+      "framing": {
+        "x": 0,
+        "y": 0,
+        "scale": 1,
+        "preset": "contained"
+      },
+      "created_at": "2026-10-07T04:33:25.698Z",
+      "collection_id": "popular",
+      "sort_order": 2,
+      "gift_type": "image"
+    },
+    {
+      "id": "56439f30-3d28-494b-9c0f-9692282b16eb",
+      "gift_id": "rocket",
+      "name": "Rocket",
+      "emoji": "🚀",
+      "coin_cost": 1499,
+      "thumbnail_asset_id": "cdf86680-6410-4d47-89a3-a5f743ff4513",
+      "android_asset_id": null,
+      "ios_asset_id": null,
+      "sound_asset_id": "4f2ee9ec-1732-4ac1-b85a-ce1e3d3470c7",
+      "framing": {
+        "x": 0,
+        "y": 0,
+        "scale": 1,
+        "preset": "fullscreen"
+      },
+      "created_at": "2026-10-07T04:57:12.296Z",
+      "collection_id": "popular",
+      "sort_order": 6,
+      "gift_type": "image"
+    },
+    {
+      "id": "601b0fec-4e50-49fd-9cd6-ef5364e3ed7d",
+      "gift_id": "pumpkin_head1",
+      "name": "Pumpkin Head",
+      "emoji": "",
+      "coin_cost": 1,
+      "thumbnail_asset_id": "9720ee9a-f419-4f65-905b-8542d59dcf6a",
+      "android_asset_id": "148595af-f8b8-4894-abf4-5be9722690e4",
+      "ios_asset_id": null,
+      "sound_asset_id": null,
+      "framing": {
+        "x": 0,
+        "y": 0,
+        "scale": 1,
+        "preset": "fullscreen"
+      },
+      "created_at": "2026-10-07T05:05:01.979Z",
+      "collection_id": "halloween",
+      "sort_order": 0,
+      "gift_type": "animation"
+    },
+    {
+      "id": "63ee33f2-b690-4d88-931d-4437dd733369",
+      "gift_id": "pumpkin_head1",
+      "name": "Pumpkin Head",
+      "emoji": "",
+      "coin_cost": 1999,
+      "thumbnail_asset_id": "9720ee9a-f419-4f65-905b-8542d59dcf6a",
+      "android_asset_id": "148595af-f8b8-4894-abf4-5be9722690e4",
+      "ios_asset_id": "b49a5e15-98c7-41d4-b8fc-a1c25871c762",
+      "sound_asset_id": null,
+      "framing": {
+        "x": 0,
+        "y": 0,
+        "scale": 1,
+        "preset": "fullscreen"
+      },
+      "created_at": "2026-10-07T05:11:48.757Z",
+      "collection_id": "halloween",
+      "sort_order": 0,
+      "gift_type": "animation"
+    },
+    {
+      "id": "67fea18d-5a7b-4202-bc57-3de05b1a6f6c",
+      "gift_id": "crown",
+      "name": "Crown",
+      "emoji": "👑",
+      "coin_cost": 500,
+      "thumbnail_asset_id": "234144fb-047c-407f-955f-41103e9489e8",
+      "android_asset_id": null,
+      "ios_asset_id": null,
+      "sound_asset_id": "4f2ee9ec-1732-4ac1-b85a-ce1e3d3470c7",
+      "framing": {
+        "x": 0,
+        "y": 0,
+        "scale": 0.96,
+        "preset": "contained"
+      },
+      "created_at": "2026-10-07T05:14:35.038Z",
+      "collection_id": "popular",
+      "sort_order": 7,
+      "gift_type": "image"
+    },
+    {
+      "id": "9754d3a8-491e-49fc-a171-4558184ccc37",
+      "gift_id": "rocket",
+      "name": "Rocket",
+      "emoji": "🚀",
+      "coin_cost": 1499,
+      "thumbnail_asset_id": "cdf86680-6410-4d47-89a3-a5f743ff4513",
+      "android_asset_id": null,
+      "ios_asset_id": null,
+      "sound_asset_id": "4f2ee9ec-1732-4ac1-b85a-ce1e3d3470c7",
+      "framing": {
+        "x": 0,
+        "y": 0,
+        "scale": 1.06,
+        "preset": "fullscreen"
+      },
+      "created_at": "2026-10-07T05:39:43.726Z",
+      "collection_id": "popular",
+      "sort_order": 6,
+      "gift_type": "image"
+    },
+    {
+      "id": "9ba3d971-1ff1-46c6-852c-d8416ffef85c",
+      "gift_id": "diamond",
+      "name": "Diamond",
+      "emoji": "💎",
+      "coin_cost": 999,
+      "thumbnail_asset_id": null,
+      "android_asset_id": null,
+      "ios_asset_id": null,
+      "sound_asset_id": null,
+      "framing": {
+        "x": 0,
+        "y": 0,
+        "scale": 1,
+        "preset": "contained"
+      },
+      "created_at": "2026-10-07T03:15:27.735Z",
+      "collection_id": "popular",
+      "sort_order": 4,
+      "gift_type": null
+    },
+    {
+      "id": "b21a0f34-c516-4a86-8db0-69fd0659f311",
+      "gift_id": "rocket",
+      "name": "Rocket",
+      "emoji": "🚀",
+      "coin_cost": 1499,
+      "thumbnail_asset_id": null,
+      "android_asset_id": null,
+      "ios_asset_id": null,
+      "sound_asset_id": null,
+      "framing": {
+        "x": 0,
+        "y": 0,
+        "scale": 1,
+        "preset": "contained"
+      },
+      "created_at": "2026-10-07T03:16:47.490Z",
+      "collection_id": "popular",
+      "sort_order": 6,
+      "gift_type": null
+    },
+    {
+      "id": "b6ae121a-c7ca-49fd-8581-7cbaaeaf9f00",
+      "gift_id": "diamond",
+      "name": "Diamond",
+      "emoji": "💎",
+      "coin_cost": 999,
+      "thumbnail_asset_id": "66daebe2-28b8-4f66-b471-c1448400faac",
+      "android_asset_id": null,
+      "ios_asset_id": null,
+      "sound_asset_id": "4f2ee9ec-1732-4ac1-b85a-ce1e3d3470c7",
+      "framing": {
+        "x": 0,
+        "y": 0,
+        "scale": 1,
+        "preset": "contained"
+      },
+      "created_at": "2026-10-07T04:42:09.616Z",
+      "collection_id": "popular",
+      "sort_order": 4,
+      "gift_type": "image"
+    },
+    {
+      "id": "ba66a2e9-b308-47b7-ab38-c410ad153c65",
+      "gift_id": "pumpkin_head1",
+      "name": "Pumpkin Head",
+      "emoji": "",
+      "coin_cost": 1,
+      "thumbnail_asset_id": "9720ee9a-f419-4f65-905b-8542d59dcf6a",
+      "android_asset_id": "148595af-f8b8-4894-abf4-5be9722690e4",
+      "ios_asset_id": null,
+      "sound_asset_id": "4f2ee9ec-1732-4ac1-b85a-ce1e3d3470c7",
+      "framing": {
+        "x": 0,
+        "y": 0,
+        "scale": 1,
+        "preset": "fullscreen"
+      },
+      "created_at": "2026-10-07T05:04:20.719Z",
+      "collection_id": "halloween",
+      "sort_order": 0,
+      "gift_type": "animation"
+    },
+    {
+      "id": "crown_legacy_v1",
+      "gift_id": "crown",
+      "name": "Crown",
+      "emoji": "👑",
+      "coin_cost": 500,
+      "thumbnail_asset_id": null,
+      "android_asset_id": null,
+      "ios_asset_id": null,
+      "sound_asset_id": null,
+      "framing": {
+        "x": 0,
+        "y": 0,
+        "scale": 1,
+        "preset": "contained"
+      },
+      "created_at": "2026-10-07T02:48:06.356Z",
+      "collection_id": null,
+      "sort_order": null,
+      "gift_type": null
+    },
+    {
+      "id": "diamond_legacy_v1",
+      "gift_id": "diamond",
+      "name": "Diamond",
+      "emoji": "💎",
+      "coin_cost": 50,
+      "thumbnail_asset_id": null,
+      "android_asset_id": null,
+      "ios_asset_id": null,
+      "sound_asset_id": null,
+      "framing": {
+        "x": 0,
+        "y": 0,
+        "scale": 1,
+        "preset": "contained"
+      },
+      "created_at": "2026-10-07T02:48:06.356Z",
+      "collection_id": null,
+      "sort_order": null,
+      "gift_type": null
+    },
+    {
+      "id": "dragon_legacy_v1",
+      "gift_id": "dragon",
+      "name": "Dragon",
+      "emoji": "🐉",
+      "coin_cost": 9999,
+      "thumbnail_asset_id": null,
+      "android_asset_id": null,
+      "ios_asset_id": null,
+      "sound_asset_id": null,
+      "framing": {
+        "x": 0,
+        "y": 0,
+        "scale": 1,
+        "preset": "fullscreen"
+      },
+      "created_at": "2026-10-07T02:48:06.356Z",
+      "collection_id": null,
+      "sort_order": null,
+      "gift_type": null
+    },
+    {
+      "id": "f2a3cf45-0e57-437b-b061-b39209d28c7b",
+      "gift_id": "party",
+      "name": "Party",
+      "emoji": "🎉",
+      "coin_cost": 10,
+      "thumbnail_asset_id": "6dfcf608-3ca8-4159-93a6-f3e2579902ab",
+      "android_asset_id": null,
+      "ios_asset_id": null,
+      "sound_asset_id": null,
+      "framing": {
+        "x": 0,
+        "y": 0,
+        "scale": 1,
+        "preset": "contained"
+      },
+      "created_at": "2026-10-07T04:34:44.303Z",
+      "collection_id": "popular",
+      "sort_order": 2,
+      "gift_type": "image"
+    },
+    {
+      "id": "f6270ef7-4f10-43db-aff6-dbf1053ed9d7",
+      "gift_id": "pumpkin_head1",
+      "name": "Pumpkin Head",
+      "emoji": "",
+      "coin_cost": 1999,
+      "thumbnail_asset_id": "9720ee9a-f419-4f65-905b-8542d59dcf6a",
+      "android_asset_id": "148595af-f8b8-4894-abf4-5be9722690e4",
+      "ios_asset_id": null,
+      "sound_asset_id": null,
+      "framing": {
+        "x": 0,
+        "y": 0,
+        "scale": 1,
+        "preset": "fullscreen"
+      },
+      "created_at": "2026-10-07T05:05:19.081Z",
+      "collection_id": "halloween",
+      "sort_order": 0,
+      "gift_type": "animation"
+    },
+    {
+      "id": "heart_legacy_v1",
+      "gift_id": "heart",
+      "name": "Heart",
+      "emoji": "❤️",
+      "coin_cost": 5,
+      "thumbnail_asset_id": null,
+      "android_asset_id": null,
+      "ios_asset_id": null,
+      "sound_asset_id": null,
+      "framing": {
+        "x": 0,
+        "y": 0,
+        "scale": 1,
+        "preset": "contained"
+      },
+      "created_at": "2026-10-07T02:48:06.356Z",
+      "collection_id": null,
+      "sort_order": null,
+      "gift_type": null
+    },
+    {
+      "id": "kisses_legacy_v1",
+      "gift_id": "kisses",
+      "name": "Kisses",
+      "emoji": "💋",
+      "coin_cost": 1999,
+      "thumbnail_asset_id": null,
+      "android_asset_id": null,
+      "ios_asset_id": null,
+      "sound_asset_id": null,
+      "framing": {
+        "x": 0,
+        "y": 0,
+        "scale": 1,
+        "preset": "fullscreen"
+      },
+      "created_at": "2026-10-07T02:48:06.356Z",
+      "collection_id": null,
+      "sort_order": null,
+      "gift_type": null
+    },
+    {
+      "id": "lips_legacy_v1",
+      "gift_id": "lips",
+      "name": "Lips",
+      "emoji": "💋",
+      "coin_cost": 99,
+      "thumbnail_asset_id": null,
+      "android_asset_id": null,
+      "ios_asset_id": null,
+      "sound_asset_id": null,
+      "framing": {
+        "x": 0,
+        "y": 0,
+        "scale": 1,
+        "preset": "contained"
+      },
+      "created_at": "2026-10-07T02:48:06.356Z",
+      "collection_id": null,
+      "sort_order": null,
+      "gift_type": null
+    },
+    {
+      "id": "luxury_rocket_legacy_v1",
+      "gift_id": "luxury_rocket",
+      "name": "Blast Off",
+      "emoji": "🚀",
+      "coin_cost": 4999,
+      "thumbnail_asset_id": null,
+      "android_asset_id": null,
+      "ios_asset_id": null,
+      "sound_asset_id": null,
+      "framing": {
+        "x": 0,
+        "y": -0.1,
+        "scale": 1.12,
+        "preset": "fullscreen"
+      },
+      "created_at": "2026-10-07T02:48:06.356Z",
+      "collection_id": null,
+      "sort_order": null,
+      "gift_type": null
+    },
+    {
+      "id": "party_legacy_v1",
+      "gift_id": "party",
+      "name": "Party",
+      "emoji": "🎉",
+      "coin_cost": 10,
+      "thumbnail_asset_id": null,
+      "android_asset_id": null,
+      "ios_asset_id": null,
+      "sound_asset_id": null,
+      "framing": {
+        "x": 0,
+        "y": 0,
+        "scale": 1,
+        "preset": "contained"
+      },
+      "created_at": "2026-10-07T02:48:06.356Z",
+      "collection_id": null,
+      "sort_order": null,
+      "gift_type": null
+    },
+    {
+      "id": "rocket_legacy_v1",
+      "gift_id": "rocket",
+      "name": "Rocket",
+      "emoji": "🚀",
+      "coin_cost": 100,
+      "thumbnail_asset_id": null,
+      "android_asset_id": null,
+      "ios_asset_id": null,
+      "sound_asset_id": null,
+      "framing": {
+        "x": 0,
+        "y": 0,
+        "scale": 1,
+        "preset": "contained"
+      },
+      "created_at": "2026-10-07T02:48:06.356Z",
+      "collection_id": null,
+      "sort_order": null,
+      "gift_type": null
+    },
+    {
+      "id": "rose_legacy_v1",
+      "gift_id": "rose",
+      "name": "Rose",
+      "emoji": "🌹",
+      "coin_cost": 1,
+      "thumbnail_asset_id": null,
+      "android_asset_id": null,
+      "ios_asset_id": null,
+      "sound_asset_id": null,
+      "framing": {
+        "x": 0,
+        "y": 0,
+        "scale": 1,
+        "preset": "contained"
+      },
+      "created_at": "2026-10-07T02:48:06.356Z",
+      "collection_id": null,
+      "sort_order": null,
+      "gift_type": null
+    },
+    {
+      "id": "strawberry_legacy_v1",
+      "gift_id": "strawberry",
+      "name": "Strawberry",
+      "emoji": "🍓",
+      "coin_cost": 49,
+      "thumbnail_asset_id": null,
+      "android_asset_id": null,
+      "ios_asset_id": null,
+      "sound_asset_id": null,
+      "framing": {
+        "x": 0,
+        "y": 0,
+        "scale": 1,
+        "preset": "contained"
+      },
+      "created_at": "2026-10-07T02:48:06.356Z",
+      "collection_id": null,
+      "sort_order": null,
+      "gift_type": null
+    }
+  ],
+  "gift_assets": [
+    {
+      "id": "02083b34-62a0-4f4a-b299-46eaedaa4a12",
+      "kind": "thumbnail",
+      "format": "png",
+      "object_path": "/objects/gifts/02083b34-62a0-4f4a-b299-46eaedaa4a12",
+      "sha256": "187ec213e03b92325ab2cdaedf9c36486f5a837f58aa38385c79b43ff0c08fdd",
+      "byte_size": 181597,
+      "duration_ms": null,
+      "width": 392,
+      "height": 290,
+      "audio_asset_id": null,
+      "created_at": "2026-10-07T03:40:31.846Z",
+      "original_filename": null
+    },
+    {
+      "id": "05ab67e3-3856-48f0-b823-6f54fb48860d",
+      "kind": "sound",
+      "format": "mp3",
+      "object_path": "/objects/gifts/05ab67e3-3856-48f0-b823-6f54fb48860d",
+      "sha256": "087ce9a7b7b147c72d138a29e06571d16c3f23496f707fa7027ad11bcb744d90",
+      "byte_size": 33069,
+      "duration_ms": 2040,
+      "width": null,
+      "height": null,
+      "audio_asset_id": null,
+      "created_at": "2026-10-07T05:01:17.477Z",
+      "original_filename": null
+    },
+    {
+      "id": "1195177e-df73-44a9-8b4a-0a065b342d04",
+      "kind": "sound",
+      "format": "mp3",
+      "object_path": "/objects/gifts/1195177e-df73-44a9-8b4a-0a065b342d04",
+      "sha256": "087ce9a7b7b147c72d138a29e06571d16c3f23496f707fa7027ad11bcb744d90",
+      "byte_size": 33069,
+      "duration_ms": 2040,
+      "width": null,
+      "height": null,
+      "audio_asset_id": null,
+      "created_at": "2026-10-07T05:01:59.179Z",
+      "original_filename": null
+    },
+    {
+      "id": "148595af-f8b8-4894-abf4-5be9722690e4",
+      "kind": "animation",
+      "format": "webm-alpha",
+      "object_path": "/objects/gifts/148595af-f8b8-4894-abf4-5be9722690e4",
+      "sha256": "c50cd72f8cb4a000b7605ca001ea8bd43a6c69c15742bad9fa3d0a5162d6c9cd",
+      "byte_size": 3639337,
+      "duration_ms": 2008,
+      "width": 1080,
+      "height": 1920,
+      "audio_asset_id": "1195177e-df73-44a9-8b4a-0a065b342d04",
+      "created_at": "2026-10-07T05:01:59.179Z",
+      "original_filename": "PumpkinBrute_march_short_9x16.webm"
+    },
+    {
+      "id": "234144fb-047c-407f-955f-41103e9489e8",
+      "kind": "thumbnail",
+      "format": "png",
+      "object_path": "/objects/gifts/234144fb-047c-407f-955f-41103e9489e8",
+      "sha256": "0da138036d21d344e6cec11cca509c32371f6db46e03e54e14ea4ac67bfe575d",
+      "byte_size": 26705,
+      "duration_ms": null,
+      "width": 512,
+      "height": 512,
+      "audio_asset_id": null,
+      "created_at": "2026-10-07T03:40:31.846Z",
+      "original_filename": null
+    },
+    {
+      "id": "4267e813-5e21-4a7f-aed8-d9c3aff3d0f2",
+      "kind": "thumbnail",
+      "format": "png",
+      "object_path": "/objects/gifts/4267e813-5e21-4a7f-aed8-d9c3aff3d0f2",
+      "sha256": "9e7c0344a37b2d09d8ddb911e6782d93649418e833d4f3b5b97202fd9da391bf",
+      "byte_size": 156364,
+      "duration_ms": null,
+      "width": 512,
+      "height": 341,
+      "audio_asset_id": null,
+      "created_at": "2026-10-07T03:40:31.846Z",
+      "original_filename": null
+    },
+    {
+      "id": "4594f017-d028-4256-929b-5809e48780e7",
+      "kind": "animation",
+      "format": "svga",
+      "object_path": "/objects/gifts/4594f017-d028-4256-929b-5809e48780e7",
+      "sha256": "6c36c7b327bd82f1e3c2b60d3ce652ae40fcefe94d9cfd0f641786bb61cc67f0",
+      "byte_size": 528352,
+      "duration_ms": 6467,
+      "width": 720,
+      "height": 1280,
+      "audio_asset_id": null,
+      "created_at": "2026-10-07T03:40:31.846Z",
+      "original_filename": null
+    },
+    {
+      "id": "4b143948-3a42-41b3-995e-c584c4520516",
+      "kind": "thumbnail",
+      "format": "png",
+      "object_path": "/objects/gifts/4b143948-3a42-41b3-995e-c584c4520516",
+      "sha256": "53c1946a27cfe2bf037980f648e076cb412c26d0fb8b1eb14de7d82831ac4c6e",
+      "byte_size": 212128,
+      "duration_ms": null,
+      "width": 351,
+      "height": 366,
+      "audio_asset_id": null,
+      "created_at": "2026-10-07T03:40:31.846Z",
+      "original_filename": null
+    },
+    {
+      "id": "4f2ee9ec-1732-4ac1-b85a-ce1e3d3470c7",
+      "kind": "sound",
+      "format": "mp3",
+      "object_path": "/objects/gifts/4f2ee9ec-1732-4ac1-b85a-ce1e3d3470c7",
+      "sha256": "80bccb418acd715f35470d1ede345c29ef828fc66e505950cbad386f57fefa7b",
+      "byte_size": 22509,
+      "duration_ms": 1848,
+      "width": null,
+      "height": null,
+      "audio_asset_id": null,
+      "created_at": "2026-10-07T04:29:37.821Z",
+      "original_filename": "default-gift.mp3"
+    },
+    {
+      "id": "62afaff1-8218-4c1c-946b-d191116ab65a",
+      "kind": "thumbnail",
+      "format": "png",
+      "object_path": "/objects/gifts/62afaff1-8218-4c1c-946b-d191116ab65a",
+      "sha256": "8a27feb78c4e27fbbeeb2b61f213bb01ecb3705255c03cc83e4828d4e3f0bb2a",
+      "byte_size": 220851,
+      "duration_ms": null,
+      "width": 370,
+      "height": 370,
+      "audio_asset_id": null,
+      "created_at": "2026-10-07T03:40:31.846Z",
+      "original_filename": null
+    },
+    {
+      "id": "62cc5749-b876-463e-878b-e3efe2ba68e7",
+      "kind": "animation",
+      "format": "webm-alpha",
+      "object_path": "/objects/gifts/62cc5749-b876-463e-878b-e3efe2ba68e7",
+      "sha256": "c50cd72f8cb4a000b7605ca001ea8bd43a6c69c15742bad9fa3d0a5162d6c9cd",
+      "byte_size": 3639337,
+      "duration_ms": 2008,
+      "width": 1080,
+      "height": 1920,
+      "audio_asset_id": "05ab67e3-3856-48f0-b823-6f54fb48860d",
+      "created_at": "2026-10-07T05:01:17.477Z",
+      "original_filename": "PumpkinBrute_march_short_9x16.webm"
+    },
+    {
+      "id": "66daebe2-28b8-4f66-b471-c1448400faac",
+      "kind": "thumbnail",
+      "format": "png",
+      "object_path": "/objects/gifts/66daebe2-28b8-4f66-b471-c1448400faac",
+      "sha256": "83832090a93f8bfbedb459a7724536813073abd9ff1f4d47552c2e65785946fb",
+      "byte_size": 64807,
+      "duration_ms": null,
+      "width": 500,
+      "height": 500,
+      "audio_asset_id": null,
+      "created_at": "2026-10-07T04:42:02.764Z",
+      "original_filename": "diamond gift.png"
+    },
+    {
+      "id": "6dfcf608-3ca8-4159-93a6-f3e2579902ab",
+      "kind": "thumbnail",
+      "format": "png",
+      "object_path": "/objects/gifts/6dfcf608-3ca8-4159-93a6-f3e2579902ab",
+      "sha256": "17f446c1a8b69cd8ab0095d3e98493b4613c5ea90b9855b2e6ee986d45ab29c7",
+      "byte_size": 1572256,
+      "duration_ms": null,
+      "width": 1181,
+      "height": 1181,
+      "audio_asset_id": null,
+      "created_at": "2026-10-07T04:34:37.250Z",
+      "original_filename": null
+    },
+    {
+      "id": "8feb7171-9b38-4201-a503-98ed0ef3e8fe",
+      "kind": "sound",
+      "format": "mp3",
+      "object_path": "/objects/gifts/8feb7171-9b38-4201-a503-98ed0ef3e8fe",
+      "sha256": "087ce9a7b7b147c72d138a29e06571d16c3f23496f707fa7027ad11bcb744d90",
+      "byte_size": 33069,
+      "duration_ms": 2040,
+      "width": null,
+      "height": null,
+      "audio_asset_id": null,
+      "created_at": "2026-10-07T04:59:56.179Z",
+      "original_filename": null
+    },
+    {
+      "id": "9720ee9a-f419-4f65-905b-8542d59dcf6a",
+      "kind": "thumbnail",
+      "format": "png",
+      "object_path": "/objects/gifts/9720ee9a-f419-4f65-905b-8542d59dcf6a",
+      "sha256": "b37c71c75b3d320fd0bbb15eeaa762bf0bd245f13aacc4a92227f3d26e2fcaaa",
+      "byte_size": 833424,
+      "duration_ms": null,
+      "width": 640,
+      "height": 745,
+      "audio_asset_id": null,
+      "created_at": "2026-10-07T05:02:55.622Z",
+      "original_filename": "Screenshot 2026-10-07 at 1.02.44 AM.png"
+    },
+    {
+      "id": "9a87fb19-9a89-47f5-8ad8-a10421dae198",
+      "kind": "thumbnail",
+      "format": "png",
+      "object_path": "/objects/gifts/9a87fb19-9a89-47f5-8ad8-a10421dae198",
+      "sha256": "53c1946a27cfe2bf037980f648e076cb412c26d0fb8b1eb14de7d82831ac4c6e",
+      "byte_size": 212128,
+      "duration_ms": null,
+      "width": 351,
+      "height": 366,
+      "audio_asset_id": null,
+      "created_at": "2026-10-07T04:18:51.170Z",
+      "original_filename": null
+    },
+    {
+      "id": "9f196650-2c27-4667-a56a-b79b7653e754",
+      "kind": "thumbnail",
+      "format": "png",
+      "object_path": "/objects/gifts/9f196650-2c27-4667-a56a-b79b7653e754",
+      "sha256": "439600ce7f2cfcf3d32e514886531ec060e24f4dac784dab95ab3c020e69cabc",
+      "byte_size": 1566833,
+      "duration_ms": null,
+      "width": 1181,
+      "height": 1181,
+      "audio_asset_id": null,
+      "created_at": "2026-10-07T04:33:11.990Z",
+      "original_filename": null
+    },
+    {
+      "id": "9f40f0b9-0811-4e39-9dd6-3153c0a52d01",
+      "kind": "thumbnail",
+      "format": "png",
+      "object_path": "/objects/gifts/9f40f0b9-0811-4e39-9dd6-3153c0a52d01",
+      "sha256": "556d201990459f55a907eb098849c53d3ab32cb291c20997f425c2aac3ae6d38",
+      "byte_size": 185309,
+      "duration_ms": null,
+      "width": 425,
+      "height": 377,
+      "audio_asset_id": null,
+      "created_at": "2026-10-07T03:40:31.846Z",
+      "original_filename": null
+    },
+    {
+      "id": "b49a5e15-98c7-41d4-b8fc-a1c25871c762",
+      "kind": "animation",
+      "format": "packed-alpha-mp4",
+      "object_path": "/objects/gifts/b49a5e15-98c7-41d4-b8fc-a1c25871c762",
+      "sha256": "10018646a4b115976d4df1fb24cae82fccdb9b18d5238eb8ccec542580115d14",
+      "byte_size": 4334074,
+      "duration_ms": 3807,
+      "width": 2160,
+      "height": 1920,
+      "audio_asset_id": "ba708f1b-7998-4e71-bfb6-d7f07b203c83",
+      "created_at": "2026-10-07T05:11:48.179Z",
+      "original_filename": "pumpkin.compact-crf26.mp4"
+    },
+    {
+      "id": "ba708f1b-7998-4e71-bfb6-d7f07b203c83",
+      "kind": "sound",
+      "format": "mp3",
+      "object_path": "/objects/gifts/ba708f1b-7998-4e71-bfb6-d7f07b203c83",
+      "sha256": "d0f4113b8ba7e6460f31ea50016cfd872df4902fc7f7a874895f2beadde5c6ef",
+      "byte_size": 62356,
+      "duration_ms": 3864,
+      "width": null,
+      "height": null,
+      "audio_asset_id": null,
+      "created_at": "2026-10-07T05:11:47.139Z",
+      "original_filename": null
+    },
+    {
+      "id": "c88c0142-56e8-4f19-bc65-548907cbb6e0",
+      "kind": "animation",
+      "format": "svga",
+      "object_path": "/objects/gifts/c88c0142-56e8-4f19-bc65-548907cbb6e0",
+      "sha256": "0ef6fd6bf7156afb394c7f68044a55c15c55281d1c945ad76dc6ea1b249c4c1c",
+      "byte_size": 658647,
+      "duration_ms": 8000,
+      "width": 750,
+      "height": 1334,
+      "audio_asset_id": null,
+      "created_at": "2026-10-07T03:40:31.846Z",
+      "original_filename": null
+    },
+    {
+      "id": "cdf86680-6410-4d47-89a3-a5f743ff4513",
+      "kind": "thumbnail",
+      "format": "png",
+      "object_path": "/objects/gifts/cdf86680-6410-4d47-89a3-a5f743ff4513",
+      "sha256": "dc5887201ee1c4888a65387f7830aeadd50cfd39e75a4bdfd59f335e894f3243",
+      "byte_size": 137375,
+      "duration_ms": null,
+      "width": 500,
+      "height": 500,
+      "audio_asset_id": null,
+      "created_at": "2026-10-07T04:56:39.557Z",
+      "original_filename": "rocket.png"
+    },
+    {
+      "id": "df8967d0-e05c-4245-b6d4-b1bf4f905cef",
+      "kind": "animation",
+      "format": "webm-alpha",
+      "object_path": "/objects/gifts/df8967d0-e05c-4245-b6d4-b1bf4f905cef",
+      "sha256": "c50cd72f8cb4a000b7605ca001ea8bd43a6c69c15742bad9fa3d0a5162d6c9cd",
+      "byte_size": 3639337,
+      "duration_ms": 2008,
+      "width": 1080,
+      "height": 1920,
+      "audio_asset_id": "8feb7171-9b38-4201-a503-98ed0ef3e8fe",
+      "created_at": "2026-10-07T04:59:56.179Z",
+      "original_filename": "PumpkinBrute_march_short_9x16.webm"
+    },
+    {
+      "id": "e229ac0e-6fca-4d6a-a9e0-700c9885ae19",
+      "kind": "thumbnail",
+      "format": "png",
+      "object_path": "/objects/gifts/e229ac0e-6fca-4d6a-a9e0-700c9885ae19",
+      "sha256": "f2baba1c32a29f2fcd225d20ebbefd816a9119cbdd3263680076f6c78fe658e7",
+      "byte_size": 256993,
+      "duration_ms": null,
+      "width": 512,
+      "height": 341,
+      "audio_asset_id": null,
+      "created_at": "2026-10-07T03:40:31.846Z",
+      "original_filename": null
+    },
+    {
+      "id": "ee6ec8f4-22b1-45fe-b1a3-fdeb2fbe336e",
+      "kind": "thumbnail",
+      "format": "png",
+      "object_path": "/objects/gifts/ee6ec8f4-22b1-45fe-b1a3-fdeb2fbe336e",
+      "sha256": "7156f41d1cc4c064290dc3fd079ec200f502e56ddcd11c031e88d28c0c894661",
+      "byte_size": 202184,
+      "duration_ms": null,
+      "width": 479,
+      "height": 512,
+      "audio_asset_id": null,
+      "created_at": "2026-10-07T03:40:31.846Z",
+      "original_filename": null
+    },
+    {
+      "id": "fad5eda0-e407-4527-bb80-6d65116501ba",
+      "kind": "animation",
+      "format": "svga",
+      "object_path": "/objects/gifts/fad5eda0-e407-4527-bb80-6d65116501ba",
+      "sha256": "13d880ad671724beaab2d6456a43d6fbc929bab2220c58fa9eae9feff82f1ffe",
+      "byte_size": 136323,
+      "duration_ms": 3300,
+      "width": 750,
+      "height": 1334,
+      "audio_asset_id": null,
+      "created_at": "2026-10-07T03:40:31.846Z",
+      "original_filename": null
+    }
+  ],
+  "gift_revision_publications": [
+    {
+      "revision_id": "147a9842-cdae-4919-b9e7-bed6f70fb078",
+      "published_at": "2026-10-07T04:33:36.116Z"
+    },
+    {
+      "revision_id": "56439f30-3d28-494b-9c0f-9692282b16eb",
+      "published_at": "2026-10-07T04:57:23.677Z"
+    },
+    {
+      "revision_id": "601b0fec-4e50-49fd-9cd6-ef5364e3ed7d",
+      "published_at": "2026-10-07T05:05:05.614Z"
+    },
+    {
+      "revision_id": "63ee33f2-b690-4d88-931d-4437dd733369",
+      "published_at": "2026-10-07T05:11:48.757Z"
+    },
+    {
+      "revision_id": "67fea18d-5a7b-4202-bc57-3de05b1a6f6c",
+      "published_at": "2026-10-07T05:14:35.038Z"
+    },
+    {
+      "revision_id": "9754d3a8-491e-49fc-a171-4558184ccc37",
+      "published_at": "2026-10-07T05:39:43.726Z"
+    },
+    {
+      "revision_id": "b21a0f34-c516-4a86-8db0-69fd0659f311",
+      "published_at": "2026-10-07T04:45:59.539Z"
+    },
+    {
+      "revision_id": "b6ae121a-c7ca-49fd-8581-7cbaaeaf9f00",
+      "published_at": "2026-10-07T04:42:11.267Z"
+    },
+    {
+      "revision_id": "ba66a2e9-b308-47b7-ab38-c410ad153c65",
+      "published_at": "2026-10-07T05:04:27.083Z"
+    },
+    {
+      "revision_id": "crown_legacy_v1",
+      "published_at": "2026-10-07T02:48:06.356Z"
+    },
+    {
+      "revision_id": "diamond_legacy_v1",
+      "published_at": "2026-10-07T02:48:06.356Z"
+    },
+    {
+      "revision_id": "dragon_legacy_v1",
+      "published_at": "2026-10-07T02:48:06.356Z"
+    },
+    {
+      "revision_id": "f2a3cf45-0e57-437b-b061-b39209d28c7b",
+      "published_at": "2026-10-07T04:34:46.509Z"
+    },
+    {
+      "revision_id": "f6270ef7-4f10-43db-aff6-dbf1053ed9d7",
+      "published_at": "2026-10-07T05:05:20.457Z"
+    },
+    {
+      "revision_id": "heart_legacy_v1",
+      "published_at": "2026-10-07T02:48:06.356Z"
+    },
+    {
+      "revision_id": "kisses_legacy_v1",
+      "published_at": "2026-10-07T02:48:06.356Z"
+    },
+    {
+      "revision_id": "lips_legacy_v1",
+      "published_at": "2026-10-07T02:48:06.356Z"
+    },
+    {
+      "revision_id": "luxury_rocket_legacy_v1",
+      "published_at": "2026-10-07T02:48:06.356Z"
+    },
+    {
+      "revision_id": "party_legacy_v1",
+      "published_at": "2026-10-07T02:48:06.356Z"
+    },
+    {
+      "revision_id": "rocket_legacy_v1",
+      "published_at": "2026-10-07T02:48:06.356Z"
+    },
+    {
+      "revision_id": "rose_legacy_v1",
+      "published_at": "2026-10-07T02:48:06.356Z"
+    },
+    {
+      "revision_id": "strawberry_legacy_v1",
+      "published_at": "2026-10-07T02:48:06.356Z"
+    }
+  ]
+}

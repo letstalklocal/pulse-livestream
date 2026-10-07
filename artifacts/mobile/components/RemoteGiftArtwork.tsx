@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, AppState, Image, Platform, Text, type ImageStyle, type StyleProp } from "react-native";
-import { acquireGiftAsset } from "@/utils/giftAssetCache";
+import { acquireGiftAsset, getCachedGiftAssetUri } from "@/utils/giftAssetCache";
 import type { GiftSnapshot } from "@/utils/giftCatalog";
 import { GiftImageArtwork, hasGiftImage } from "./GiftImageArtwork";
 import { CrownArtwork } from "./CrownArtwork";
@@ -16,7 +16,7 @@ function getDrawerPlayer() {
 
 /** Purchase snapshots take precedence over the mutable published catalog. */
 export function RemoteGiftArtwork({ snapshot, size, style, enabled = true, animated = false }: { snapshot: GiftSnapshot; size: number; style?: StyleProp<ImageStyle>; enabled?: boolean; animated?: boolean }) {
-  const [uri, setUri] = useState<string | null>(null);
+  const [artwork, setArtwork] = useState<{ id: string; sha256: string; uri: string } | null>(null);
   const [preview, setPreview] = useState<{ id: string; uri: string } | null>(null);
   const [foreground, setForeground] = useState(AppState.currentState !== "background" && AppState.currentState !== "inactive");
   const [reduceMotion, setReduceMotion] = useState(true);
@@ -45,15 +45,16 @@ export function RemoteGiftArtwork({ snapshot, size, style, enabled = true, anima
   useEffect(() => {
     let active = true;
     let release: (() => void) | undefined;
-    setUri(null);
+    setArtwork(null);
     if (enabled && snapshot.thumbnail) void acquireGiftAsset(snapshot.thumbnail).then(lease => {
       if (!active) { lease.release(); return; }
-      release = lease.release; setUri(lease.uri);
+      release = lease.release; setArtwork({ id: snapshot.thumbnail!.id, sha256: snapshot.thumbnail!.sha256, uri: lease.uri });
     }).catch(() => {});
     return () => { active = false; release?.(); };
   }, [snapshot.thumbnail?.id, snapshot.thumbnail?.sha256, enabled]);
   if (animated && enabled && foreground && !reduceMotion && Player && preview && preview.id === animation?.id)
     return <Player source={preview.uri} loops={0} muteBuiltInAudio style={[{ width: size, height: size }, style]} onError={() => { setPreview(null); previewRelease.current?.(); previewRelease.current = undefined; }} />;
+  const uri = enabled ? getCachedGiftAssetUri(snapshot.thumbnail) ?? (artwork?.id === snapshot.thumbnail?.id && artwork?.sha256 === snapshot.thumbnail?.sha256 ? artwork?.uri : null) : null;
   if (uri) return <Image source={{ uri }} resizeMode="contain" accessibilityLabel={snapshot.name} style={[{ width: size, height: size }, style]} />;
   // Attached artwork must not turn into an unrelated emoji/bundled image
   // while loading or unavailable. Original asset-free legacy gifts stay intact.
