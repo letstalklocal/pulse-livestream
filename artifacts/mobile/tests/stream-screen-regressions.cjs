@@ -5,6 +5,7 @@ const tests = [
   'artifacts/mobile/tests/live-media-controls.test.cjs',
   'artifacts/mobile/tests/live-gift-sound.test.cjs',
   'artifacts/mobile/tests/agora-gift-test.test.cjs',
+  'artifacts/mobile/tests/alpha-gift-test.test.cjs',
   'artifacts/mobile/tests/live-control-ui.test.cjs',
   'artifacts/mobile/tests/back-handler-platform.test.cjs',
   'artifacts/mobile/tests/live-stickers.test.cjs',

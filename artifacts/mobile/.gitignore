@@ -12,6 +12,11 @@ expo-env.d.ts
 # Native
 ios/
 android/
+# Checked-in iOS gift module/assets, not generated native project directories.
+!modules/pulse-alpha-player/ios/
+!modules/pulse-alpha-player/ios/**
+!assets/gifts/ios/
+!assets/gifts/ios/**
 *.orig.*
 *.jks
 *.p8
