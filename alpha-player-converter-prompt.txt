@@ -1,0 +1,23 @@
+Build a standalone converter that takes a transparent VP8/VP9 WebM gift and outputs a packed-alpha H.264 MP4 compatible with ByteDance AlphaPlayer.
+
+Reference implementation:
+https://github.com/bytedance/AlphaPlayer
+https://github.com/bytedance/AlphaPlayer/blob/master/convertAlphaVideo.py
+
+Requirements:
+- Use FFmpeg. Include installation instructions for my PC's operating system.
+- Correctly decode the WebM alpha channel. Do not silently discard transparency or replace it with a background.
+- Put the grayscale transparency mask on the LEFT and the color image on the RIGHT, matching AlphaPlayer's standard uncompressed-mask layout. Verify the layout and mask interpretation against AlphaPlayer's source.
+- Preserve the full animation duration, frame rate, and original visible dimensions. The packed video's total width will be twice the visible image width. Validate codec dimension constraints and report any necessary padding rather than silently resizing or cropping.
+- Preserve sound by converting the original audio to AAC, keeping it synchronized with the animation. Support silent input files too.
+- Keep the original file unchanged. Do not overwrite an existing output without explicit permission.
+- Provide a command-line interface with explicit input and output paths, useful progress reporting, and clear error messages.
+- Validate that the input has a usable alpha channel, not just an alpha metadata flag. Distinguish a missing alpha channel from an intentionally fully opaque animation.
+- Test with the original pumpkin WebM I provide. Check output dimensions, duration, frame rate, audio, and the extracted transparency mask. Generate a diagnostic preview over a checkerboard if useful, separately from the actual packed output.
+- Document that ordinary video players show the mask and color halves; AlphaPlayer reconstructs the transparent animation.
+- Report conversion checks separately from actual iPhone/AlphaPlayer playback verification. Do not claim device compatibility without a device test.
+
+Scope:
+This is a standalone converter only. Do not change the mobile app, install a mobile player, or start an app build. Design it so the conversion logic could later be reused in an admin upload workflow, but do not implement that backend integration now.
+
+Use the original transparent pumpkin WebM, not a copy exported with a background.
