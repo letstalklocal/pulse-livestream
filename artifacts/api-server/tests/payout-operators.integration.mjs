@@ -7,7 +7,10 @@ import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
-import { runMcpIntegration } from "./payout-mcp.real-service.mjs";
+import {
+  runMcpIntegration,
+  runMakerRetryMcp,
+} from "./payout-mcp.real-service.mjs";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const temporary = mkdtempSync(join(tmpdir(), "pulse-operators-"));
 const output = join(root, "tests", `.operators-${randomUUID()}.cjs`);
@@ -657,7 +660,7 @@ try {
   assert.equal(
     (await call("/api/payout-operator/identity", { token: maker.token })).body
       .workflowRevision,
-    "2026-10-08.4",
+    "2026-10-08.5",
   );
 
   assert.equal(
@@ -1056,11 +1059,18 @@ try {
       body: { phone: "+12025550123" },
     })
   ).body;
-  const correctedOperatorView = (await call(`/api/payout-operator/withdrawals/${uncertain.id}`, { token: reconciler.token })).body;
+  const correctedOperatorView = (
+    await call(`/api/payout-operator/withdrawals/${uncertain.id}`, {
+      token: reconciler.token,
+    })
+  ).body;
   assert.equal(correctedOperatorView.status, "unknown");
   assert.equal(correctedOperatorView.creatorStatus, "correction_saved");
   assert.equal(correctedOperatorView.progress.stage, "correction_saved");
-  assert.equal(correctedOperatorView.progress.nextAction, "verify_saved_correction");
+  assert.equal(
+    correctedOperatorView.progress.nextAction,
+    "verify_saved_correction",
+  );
   assert.equal(correctedOperatorView.progress.blocked, true);
   const recoveryAttempt = (
     await api.adminWithdrawalDetail(pool, uncertain.id, "operator-business")
@@ -1182,6 +1192,258 @@ try {
   });
   console.log(
     "PASS reconciler-only fenced recipient recovery preserves reservation and rejects maker/checker, stale leases and possible link issuance",
+  );
+  // A new phone rejection before any provider object is saved belongs to Maker.
+  const retryLease = (
+    await leaseCall(otherMaker.token, "acquire", {
+      idempotencyKey: "maker-unsaved-retry",
+    })
+  ).body;
+  const retryQuote = await action(
+    otherMaker.token,
+    uncertain.id,
+    "quote",
+    quote,
+    retryLease.leaseId,
+  );
+  assert.equal(retryQuote.status, 200);
+  const retryAttempt = await action(
+    otherMaker.token,
+    uncertain.id,
+    "prepare",
+    {
+      quoteHash: retryQuote.body.quote.hash,
+      evidence: "No-record recipient validation fixture",
+    },
+    retryLease.leaseId,
+  );
+  assert.equal(retryAttempt.status, 200);
+  const reportRetryIssue = async (fields = ["phone"]) => {
+    await api.markUnknown(
+      pool,
+      "operator-business",
+      uncertain.id,
+      {
+        reason: "Recipient validation failed before anything was saved",
+        recipientIssue: { code: "recipient_validation_failed", fields },
+      },
+      `operator:${otherMaker.credential.id}`,
+    );
+    return api.submitAdminRecipientCorrection(
+      pool,
+      "operator-business",
+      uncertain.id,
+      { phone: "+12025550124", email: "corrected@example.com" },
+      "owner",
+    );
+  };
+  let retryCorrection = await reportRetryIssue();
+  const retryData = {
+    ...recipientRecovery,
+    attemptId: retryAttempt.body.attemptId,
+    correctionHash: retryCorrection.recipientCorrection.hash,
+    observationId: "maker-unsaved-validation-retry",
+    observedAt: new Date().toISOString(),
+    noRecipientSaved: true,
+    noDraftSaved: true,
+  };
+  const retryAction = (
+    data = retryData,
+    token = otherMaker.token,
+    leaseId = retryLease.leaseId,
+  ) => action(token, uncertain.id, "retry-recipient-creation", data, leaseId);
+  const retryLedger = (
+    await pool.query(
+      "SELECT * FROM creator_cash_ledger WHERE user_id=2 ORDER BY id",
+    )
+  ).rows;
+  const retryWallet = (
+    await pool.query(
+      "SELECT * FROM coin_transactions WHERE from_user_id=2 OR to_user_id=2 ORDER BY id",
+    )
+  ).rows;
+  assert(
+    (
+      await call("/api/payout-operator/identity", { token: otherMaker.token })
+    ).body.capabilities.includes("retry_recipient_creation"),
+  );
+  assert(
+    (
+      await call("/api/payout-operator/withdrawals", {
+        token: otherMaker.token,
+      })
+    ).body.withdrawals.some((w) => w.id === uncertain.id),
+  );
+  for (const token of [checker.token, reconciler.token])
+    assert.equal((await retryAction(retryData, token)).status, 403);
+  assert.equal(
+    (await retryAction(retryData, otherMaker.token, "wrong-lease")).status,
+    409,
+  );
+  for (const flag of [
+    "noRecipientSaved",
+    "noDraftSaved",
+    "noFundsSent",
+    "noFundingDebit",
+    "noRecipientLinkIssued",
+    "noPendingTransfers",
+    "noUnknownTransfers",
+    "historyInspected",
+    "recipientRecordInspected",
+    "recipientCorrectionApplied",
+    "previousDraftClosed",
+  ]) {
+    assert.equal(
+      (await retryAction({ ...retryData, [flag]: false })).status,
+      409,
+    );
+    const missing = { ...retryData };
+    delete missing[flag];
+    assert.equal((await retryAction(missing)).status, 409);
+  }
+  assert.equal(
+    (await retryAction({ ...retryData, correctionHash: "stale" })).status,
+    409,
+  );
+  assert.equal(
+    (
+      await retryAction({
+        ...retryData,
+        observedAt: new Date(Date.now() - 90000000).toISOString(),
+      })
+    ).status,
+    409,
+  );
+  await pool.query(
+    "UPDATE creator_payout_settings SET preparation_paused=true WHERE id=1",
+  );
+  assert.equal((await retryAction()).status, 409);
+  await pool.query(
+    "UPDATE creator_payout_settings SET preparation_paused=false WHERE id=1",
+  );
+  for (const field of ["draft_id", "provider_reference", "activity_id"]) {
+    await pool.query(
+      `UPDATE creator_payout_attempts SET ${field}='existing-record' WHERE id=$1`,
+      [retryData.attemptId],
+    );
+    assert.equal((await retryAction()).status, 409);
+    await pool.query(
+      `UPDATE creator_payout_attempts SET ${field}=NULL WHERE id=$1`,
+      [retryData.attemptId],
+    );
+  }
+  for (const marker of [
+    { recipientSaved: true },
+    { draftSaved: true },
+    { providerRecipientId: "contact" },
+    { paymentSent: true },
+    { fundingDebited: true },
+    { recipientLinkIssued: true },
+  ]) {
+    await pool.query(
+      "UPDATE creator_payout_attempts SET evidence=evidence || $2::jsonb WHERE id=$1",
+      [retryData.attemptId, JSON.stringify(marker)],
+    );
+    assert.equal((await retryAction()).status, 409);
+    await pool.query(
+      "UPDATE creator_payout_attempts SET evidence=evidence-$2 WHERE id=$1",
+      [retryData.attemptId, Object.keys(marker)[0]],
+    );
+  }
+  retryCorrection = await reportRetryIssue(["phone", "name"]);
+  assert.equal(
+    (
+      await retryAction({
+        ...retryData,
+        correctionHash: retryCorrection.recipientCorrection.hash,
+        observedAt: new Date().toISOString(),
+      })
+    ).status,
+    409,
+  );
+  await api.markUnknown(
+    pool,
+    "operator-business",
+    uncertain.id,
+    { reason: "Generic uncertain interruption" },
+    "fixture",
+  );
+  assert.equal((await retryAction()).status, 409);
+  retryCorrection = await reportRetryIssue();
+  retryData.correctionHash = retryCorrection.recipientCorrection.hash;
+  retryData.observedAt = new Date().toISOString();
+  const retried = await runMakerRetryMcp({
+    base,
+    maker: otherMaker,
+    id: uncertain.id,
+    leaseId: retryLease.leaseId,
+    data: retryData,
+  });
+  assert.equal(retried.status, 200, JSON.stringify(retried.body));
+  assert.equal(retried.body.status, "awaiting_quote");
+  assert.equal(retried.body.recipient.phone, "+12025550124");
+  assert.equal(retried.body.quote, null);
+  assert.equal(retried.body.checker, null);
+  assert.deepEqual(
+    (
+      await pool.query(
+        "SELECT * FROM creator_cash_ledger WHERE user_id=2 ORDER BY id",
+      )
+    ).rows,
+    retryLedger,
+  );
+  assert.deepEqual(
+    (
+      await pool.query(
+        "SELECT * FROM coin_transactions WHERE from_user_id=2 OR to_user_id=2 ORDER BY id",
+      )
+    ).rows,
+    retryWallet,
+  );
+  assert.equal(
+    (await retryAction()).status,
+    200,
+    "identical retry evidence is idempotent",
+  );
+  assert.equal(
+    (await retryAction({ ...retryData, evidence: "changed evidence" })).status,
+    409,
+  );
+  const requote = await action(
+    otherMaker.token,
+    uncertain.id,
+    "quote",
+    quote,
+    retryLease.leaseId,
+  );
+  assert.equal(requote.status, 200);
+  const recreated = await action(
+    otherMaker.token,
+    uncertain.id,
+    "prepare",
+    {
+      quoteHash: requote.body.quote.hash,
+      evidence: "Fresh corrected creation attempt",
+    },
+    retryLease.leaseId,
+  );
+  assert.equal(recreated.status, 200);
+  assert.notEqual(recreated.body.attemptId, retryData.attemptId);
+  assert.equal(
+    (
+      await pool.query(
+        "SELECT state FROM creator_payout_attempts WHERE id=$1",
+        [retryData.attemptId],
+      )
+    ).rows[0].state,
+    "canceled",
+  );
+  await leaseCall(otherMaker.token, "release", {
+    leaseId: retryLease.leaseId,
+    reason: "Maker retry fixture finished",
+  });
+  console.log(
+    "PASS Maker retries unsaved validation failures with saved correction; roles, lease, pause, stale data, saved objects/effects and generic/mixed errors guarded; ledger untouched and fresh attempt required",
   );
   const rate = await issue("maker", "rate");
   await pool.query(

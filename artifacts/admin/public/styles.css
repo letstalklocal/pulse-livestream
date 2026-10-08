@@ -1462,6 +1462,18 @@ dd {
   display: block;
   margin-top: 5px;
 }
+.payouts-panel .user-button[data-withdrawal] small {
+  font-size: 8px;
+  line-height: 1.4;
+  max-width: 150px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.payouts-panel td:nth-child(5) > small {
+  width: 50%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .payout-header-actions,
 .payout-preparation-controls {
   display: flex;

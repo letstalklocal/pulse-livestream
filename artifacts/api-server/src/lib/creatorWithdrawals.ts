@@ -1290,14 +1290,16 @@ export async function reportRecipientError(
 // Explicitly approved recovery: operator observations must establish that the
 // original attempt has no payment/link effects before retaining its reservation
 // for a fresh quote. This function never calls a provider or moves wallet funds.
-export async function resolveRecipientError(
+async function recoverRecipientError(
   db: Database,
   account: string,
   id: string,
   input: unknown,
   actor: string,
+  makerRetry = false,
 ) {
   const b = body(input, [
+    ...(makerRetry ? ["noRecipientSaved", "noDraftSaved"] : []),
     "attemptId",
     "correctionHash",
     "observationId",
@@ -1344,9 +1346,24 @@ export async function resolveRecipientError(
       );
   if (Date.parse(observedAt) < Date.now() - 86400000)
     fail("Recovery provider observation must be recent.", 409);
+  if (makerRetry && (b.noRecipientSaved !== true || b.noDraftSaved !== true))
+    fail(
+      "Maker retry requires confirmation that no provider recipient or draft was saved.",
+      409,
+    );
   const observationHash = hash(b);
   return tx(db, async (c) => {
     const w = await lockedWithdrawal(c, id, account);
+    if (
+      makerRetry &&
+      ((
+        await c.query(
+          "SELECT preparation_paused FROM creator_payout_settings WHERE id=1 FOR SHARE",
+        )
+      ).rows[0]?.preparation_paused ??
+        true)
+    )
+      fail("Preparation is paused.", 409);
     const old = (
       await c.query(
         "SELECT evidence FROM creator_payout_events WHERE withdrawal_id=$1 AND action='recipient_error_resolved' AND evidence->>'observationId'=$2",
@@ -1400,6 +1417,25 @@ export async function resolveRecipientError(
     )
       fail(
         "The current uncertain recipient attempt must be inspected before recovery.",
+        409,
+      );
+    if (
+      makerRetry &&
+      attempts.some(
+        (item) =>
+          item.draft_id ||
+          item.evidence?.kind ||
+          item.evidence?.reviewUrl ||
+          item.evidence?.draftId ||
+          item.evidence?.scheduledDraftId ||
+          item.evidence?.recipientId ||
+          item.evidence?.providerRecipientId ||
+          item.evidence?.recipientSaved === true ||
+          item.evidence?.draftSaved === true,
+      )
+    )
+      fail(
+        "Recorded provider recipient or preparation blocks Maker retry; inspect the existing record instead.",
         409,
       );
     const released = (
@@ -1501,6 +1537,28 @@ export async function resolveRecipientError(
     return withdrawalDetail(c, id, undefined, account);
   });
 }
+export async function resolveRecipientError(
+  db: Database,
+  account: string,
+  id: string,
+  input: unknown,
+  actor: string,
+) {
+  return recoverRecipientError(db, account, id, input, actor);
+}
+
+// Maker retries only validation failures verified to have saved no provider
+// objects. This is preparation retry, never transfer reconciliation or sending.
+export async function retryRecipientCreation(
+  db: Database,
+  account: string,
+  id: string,
+  input: unknown,
+  actor: string,
+) {
+  return recoverRecipientError(db, account, id, input, actor, true);
+}
+
 export async function markUnknown(
   db: Database,
   account: string,

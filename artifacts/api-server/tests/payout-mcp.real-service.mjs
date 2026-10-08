@@ -60,6 +60,10 @@ export async function runMcpIntegration({
                 : "reconcile"),
         ),
       );
+      assert.equal(
+        names.includes("pulse_payout_retry_recipient_creation"),
+        role === "maker",
+      );
       assert(
         !names.some((n) =>
           /^pulse_payout_(release|decline|enroll|pause|issue|revoke)$/.test(n),
@@ -122,5 +126,36 @@ export async function runMcpIntegration({
     );
   } finally {
     await Promise.all(clients.map((client) => client.close()));
+  }
+}
+
+/** Runs the real Maker tool against the real handler and isolated test DB. */
+export async function runMakerRetryMcp({ base, maker, id, leaseId, data }) {
+  const client = new Client(
+    { name: "pulse-maker-retry-fixture", version: "1" },
+    { capabilities: {} },
+  );
+  try {
+    await client.connect(
+      new StreamableHTTPClientTransport(new URL(base + "/api/payout-mcp"), {
+        requestInit: { headers: { Authorization: "Bearer " + maker.token } },
+      }),
+    );
+    const identity = await client.callTool({
+      name: "pulse_payout_identity",
+      arguments: {},
+    });
+    assert.equal(identity.structuredContent.workflowRevision, "2026-10-08.5");
+    const result = await client.callTool({
+      name: "pulse_payout_retry_recipient_creation",
+      arguments: { id, leaseId, data },
+    });
+    assert(!result.isError, JSON.stringify(result));
+    return {
+      status: 200,
+      body: result.structuredContent ?? JSON.parse(result.content[0].text),
+    };
+  } finally {
+    await client.close();
   }
 }

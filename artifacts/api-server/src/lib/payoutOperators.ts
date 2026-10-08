@@ -31,7 +31,7 @@ export class OperatorError extends Error {
 }
 export const PLAYBOOK_VERSION = "2026-10-04.1";
 // Compatible MCP/profile version stays fixed; workflow instructions have their own revision.
-export const WORKFLOW_REVISION = "2026-10-08.4";
+export const WORKFLOW_REVISION = "2026-10-08.5";
 export const operatorEnvironment = (): Operator["environment"] =>
   process.env.NODE_ENV === "production" ? "production" : "development";
 const hash = (v: string) => createHash("sha256").update(v).digest("hex");
@@ -242,6 +242,7 @@ const capabilities = {
     "renew_preparation_lease",
     "release_preparation_lease",
     "record_unknown",
+    "retry_recipient_creation",
   ],
   checker: [
     "read_identity",
@@ -301,6 +302,8 @@ export async function operatorWithdrawals(
       "awaiting_confirmation",
       "requested",
       "preparing",
+      "unknown",
+      "expired",
     ],
     checker: ["awaiting_human_review"],
     reconciler: ["awaiting_recipient", "processing", "unknown", "expired"],

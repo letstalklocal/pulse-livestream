@@ -138,6 +138,10 @@ const actions = {
   preparation: { roles: ["maker"], fn: w.completePreparation },
   check: { roles: ["checker"], fn: w.check },
   reconcile: { roles: ["reconciler"], fn: w.reconcile },
+  "retry-recipient-creation": {
+    roles: ["maker"],
+    fn: w.retryRecipientCreation,
+  },
   "resolve-recipient-error": {
     roles: ["reconciler"],
     fn: w.resolveRecipientError,
