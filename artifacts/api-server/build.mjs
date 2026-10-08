@@ -18,7 +18,8 @@ async function buildAll() {
   const giftMigrationDir = path.join(distDir, "gift-migrations");
   await mkdir(giftMigrationDir, { recursive: true });
   for (const name of ["20261007_development_gift_catalog.mjs", "20261007_development_gift_catalog.json",
-    "20261007_gift_catalog.sql", "20261007_gift_purchase_snapshots.sql", "20261007_gift_types.sql", "20261007_gift_asset_filenames.sql"]) {
+    "20261007_gift_catalog.sql", "20261007_gift_purchase_snapshots.sql", "20261007_gift_types.sql", "20261007_gift_asset_filenames.sql",
+    "20261008_gift_catalog_migration_marker.sql"]) {
     await cp(path.resolve(artifactDir, "../../lib/db/migrations", name), path.join(giftMigrationDir, name));
   }
   await cp(path.resolve(artifactDir, "../admin/public"), path.join(distDir, "admin"), { recursive: true });
