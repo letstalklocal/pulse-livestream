@@ -96,6 +96,7 @@ import type {
   PayoutOperatorPrepareInput,
   PayoutOperatorQueue,
   PayoutOperatorQuoteInput,
+  PayoutOperatorRecipientRecoveryInput,
   PayoutOperatorReconcileInput,
   PayoutOperatorReleased,
   PayoutOperatorRevoked,
@@ -160,6 +161,7 @@ import type {
   WithdrawalRecipient,
   WithdrawalRecipientCorrectionInput,
   WithdrawalRecipientInput,
+  WithdrawalRecipientRecoveryInput,
   WithdrawalReconcileInput,
   WithdrawalReleaseInput,
   WithdrawalRequestInput
@@ -1297,6 +1299,79 @@ export const useCheckPayoutOperatorPreparation = <TError = ErrorType<void>,
       return useMutation(getCheckPayoutOperatorPreparationMutationOptions(options));
     }
 
+export const getResolvePayoutOperatorRecipientErrorUrl = (id: string,) => {
+
+
+
+
+  return `/api/payout-operator/withdrawals/${id}/resolve-recipient-error`
+}
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Reconciler applies latest pending recipient correction after verified no-transfer recovery; coins remain reserved
+ */
+export const resolvePayoutOperatorRecipientError = async (id: string,
+    payoutOperatorRecipientRecoveryInput: PayoutOperatorRecipientRecoveryInput, options?: RequestInit): Promise<WithdrawalDetail> => {
+
+  return customFetch<WithdrawalDetail>(getResolvePayoutOperatorRecipientErrorUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      payoutOperatorRecipientRecoveryInput,)
+  }
+);}
+
+
+
+
+export const getResolvePayoutOperatorRecipientErrorMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolvePayoutOperatorRecipientError>>, TError,{id: string;data: BodyType<PayoutOperatorRecipientRecoveryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resolvePayoutOperatorRecipientError>>, TError,{id: string;data: BodyType<PayoutOperatorRecipientRecoveryInput>}, TContext> => {
+
+const mutationKey = ['resolvePayoutOperatorRecipientError'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolvePayoutOperatorRecipientError>>, {id: string;data: BodyType<PayoutOperatorRecipientRecoveryInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  resolvePayoutOperatorRecipientError(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolvePayoutOperatorRecipientErrorMutationResult = NonNullable<Awaited<ReturnType<typeof resolvePayoutOperatorRecipientError>>>
+    export type ResolvePayoutOperatorRecipientErrorMutationBody = BodyType<PayoutOperatorRecipientRecoveryInput>
+    export type ResolvePayoutOperatorRecipientErrorMutationError = ErrorType<void>
+
+    /**
+ * @summary Reconciler applies latest pending recipient correction after verified no-transfer recovery; coins remain reserved
+ */
+export const useResolvePayoutOperatorRecipientError = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolvePayoutOperatorRecipientError>>, TError,{id: string;data: BodyType<PayoutOperatorRecipientRecoveryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resolvePayoutOperatorRecipientError>>,
+        TError,
+        {id: string;data: BodyType<PayoutOperatorRecipientRecoveryInput>},
+        TContext
+      > => {
+      return useMutation(getResolvePayoutOperatorRecipientErrorMutationOptions(options));
+    }
+
 export const getReconcilePayoutOperatorWithdrawalUrl = (id: string,) => {
 
 
@@ -2038,6 +2113,78 @@ export function useGetWithdrawalDetail<TData = Awaited<ReturnType<typeof getWith
 
 
 
+
+export const getSubmitAdminWithdrawalRecipientCorrectionUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin-data/withdrawals/${id}/recipient-correction`
+}
+
+/**
+ * @summary Enabled owner records pending recipient phone/email correction without changing active snapshot or funds
+ */
+export const submitAdminWithdrawalRecipientCorrection = async (id: string,
+    withdrawalRecipientCorrectionInput: WithdrawalRecipientCorrectionInput, options?: RequestInit): Promise<WithdrawalDetail> => {
+
+  return customFetch<WithdrawalDetail>(getSubmitAdminWithdrawalRecipientCorrectionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      withdrawalRecipientCorrectionInput,)
+  }
+);}
+
+
+
+
+export const getSubmitAdminWithdrawalRecipientCorrectionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitAdminWithdrawalRecipientCorrection>>, TError,{id: string;data: BodyType<WithdrawalRecipientCorrectionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitAdminWithdrawalRecipientCorrection>>, TError,{id: string;data: BodyType<WithdrawalRecipientCorrectionInput>}, TContext> => {
+
+const mutationKey = ['submitAdminWithdrawalRecipientCorrection'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitAdminWithdrawalRecipientCorrection>>, {id: string;data: BodyType<WithdrawalRecipientCorrectionInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  submitAdminWithdrawalRecipientCorrection(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitAdminWithdrawalRecipientCorrectionMutationResult = NonNullable<Awaited<ReturnType<typeof submitAdminWithdrawalRecipientCorrection>>>
+    export type SubmitAdminWithdrawalRecipientCorrectionMutationBody = BodyType<WithdrawalRecipientCorrectionInput>
+    export type SubmitAdminWithdrawalRecipientCorrectionMutationError = ErrorType<void>
+
+    /**
+ * @summary Enabled owner records pending recipient phone/email correction without changing active snapshot or funds
+ */
+export const useSubmitAdminWithdrawalRecipientCorrection = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitAdminWithdrawalRecipientCorrection>>, TError,{id: string;data: BodyType<WithdrawalRecipientCorrectionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitAdminWithdrawalRecipientCorrection>>,
+        TError,
+        {id: string;data: BodyType<WithdrawalRecipientCorrectionInput>},
+        TContext
+      > => {
+      return useMutation(getSubmitAdminWithdrawalRecipientCorrectionMutationOptions(options));
+    }
 
 export const getSubmitWithdrawalRecipientCorrectionUrl = (id: string,) => {
 
@@ -3229,6 +3376,79 @@ export const useMarkWithdrawalInvestigation = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getMarkWithdrawalInvestigationMutationOptions(options));
+    }
+
+export const getResolveWithdrawalRecipientErrorUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin-data/withdrawals/${id}/resolve-recipient-error`
+}
+
+/**
+ * Authenticated owner bearer and enabled membership required. Additionally requires configured reconciler operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
+ * @summary Reconciler applies latest pending recipient correction after verified no-transfer recovery; coins remain reserved
+ */
+export const resolveWithdrawalRecipientError = async (id: string,
+    withdrawalRecipientRecoveryInput: WithdrawalRecipientRecoveryInput, options?: RequestInit): Promise<WithdrawalDetail> => {
+
+  return customFetch<WithdrawalDetail>(getResolveWithdrawalRecipientErrorUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      withdrawalRecipientRecoveryInput,)
+  }
+);}
+
+
+
+
+export const getResolveWithdrawalRecipientErrorMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveWithdrawalRecipientError>>, TError,{id: string;data: BodyType<WithdrawalRecipientRecoveryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resolveWithdrawalRecipientError>>, TError,{id: string;data: BodyType<WithdrawalRecipientRecoveryInput>}, TContext> => {
+
+const mutationKey = ['resolveWithdrawalRecipientError'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolveWithdrawalRecipientError>>, {id: string;data: BodyType<WithdrawalRecipientRecoveryInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  resolveWithdrawalRecipientError(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolveWithdrawalRecipientErrorMutationResult = NonNullable<Awaited<ReturnType<typeof resolveWithdrawalRecipientError>>>
+    export type ResolveWithdrawalRecipientErrorMutationBody = BodyType<WithdrawalRecipientRecoveryInput>
+    export type ResolveWithdrawalRecipientErrorMutationError = ErrorType<void>
+
+    /**
+ * @summary Reconciler applies latest pending recipient correction after verified no-transfer recovery; coins remain reserved
+ */
+export const useResolveWithdrawalRecipientError = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveWithdrawalRecipientError>>, TError,{id: string;data: BodyType<WithdrawalRecipientRecoveryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resolveWithdrawalRecipientError>>,
+        TError,
+        {id: string;data: BodyType<WithdrawalRecipientRecoveryInput>},
+        TContext
+      > => {
+      return useMutation(getResolveWithdrawalRecipientErrorMutationOptions(options));
     }
 
 export const getReconcileWithdrawalUrl = (id: string,) => {

@@ -168,6 +168,12 @@ const root = path.resolve(__dirname, "../../admin/public");
         unknown.errorMessage = "<script>untrusted</script> arbitrary raw error";
         return route.fulfill({ json: unknown });
       }
+      if (endpoint === "/withdrawals/wd_unknown/recipient-correction" && req.method() === "POST") {
+        const body = req.postDataJSON();
+        actions.push({ action: "recipient-correction", body, id: unknown.id });
+        unknown.recipientCorrection = { ...body, hash: "pending-correction-hash", requestedAt: now };
+        return route.fulfill({ json: unknown });
+      }
       if (endpoint === "/withdrawals/wd_unknown/resolve-recipient-error" && req.method() === "POST") {
         const body = req.postDataJSON();
         actions.push({ action: "resolve-recipient-error", body, id: unknown.id });
@@ -413,6 +419,8 @@ const root = path.resolve(__dirname, "../../admin/public");
     );
     await page.locator("#payout-filter").selectOption("all");
     await page.locator('[data-withdrawal="wd_unknown"]').first().click();
+    assert.equal(await page.locator('[data-payout-action="recipient-correction"]').count(), 0, "generic unknown cannot invent a phone rejection");
+    assert.equal(await page.locator('#payout-detail .payout-action summary').first().textContent(), "Identify the rejected recipient details");
     const issueForm = page.locator('[data-payout-action="unknown"]');
     await issueForm.locator("..").locator("summary").click();
     await issueForm.locator("[name=reason]").fill("Observed recipient phone and email rejected; inspect persisted contacts before resuming");
@@ -423,6 +431,7 @@ const root = path.resolve(__dirname, "../../admin/public");
     assert.deepEqual(actions.findLast(a => a.action === "unknown").body.recipientIssue, {
       code: "recipient_validation_failed", fields: ["phone", "email"],
     });
+    assert.equal(actions.findLast(a => a.action === "unknown").body.status, "unknown");
     assert.match(await page.locator('#payout-detail [role=alert]').textContent(), /Recipient details need attention[\s\S]*phone number, email address[\s\S]*Coins remain reserved/);
     assert.doesNotMatch(await page.locator('#payout-detail [role=alert]').textContent(), /raw provider text/);
     assert.equal(await page.locator('#payout-detail img').count(), 0);
@@ -432,10 +441,21 @@ const root = path.resolve(__dirname, "../../admin/public");
     assert.equal(await page.locator('#payout-rows [data-withdrawal="wd_unknown"]').count(), 2);
     assert.match(await page.locator('#payout-detail .payout-facts').textContent(), /Transfer statusError[\s\S]*Error Message[\s\S]*Operational statusUnknown outcome/);
     assert.doesNotMatch(await page.locator('#payout-detail [role=alert]').textContent(), /arbitrary raw error/);
+    const contactForm = page.locator('[data-payout-action="recipient-correction"]');
+    await contactForm.locator('..').locator('summary').click();
+    await contactForm.locator('[name=phone]').fill('+57 (300) 111-2233');
+    await contactForm.locator('[name=email]').fill('corrected@example.test');
+    const beforeContact = JSON.stringify({ recipient: unknown.recipient, version: unknown.version, quote: unknown.quote, status: unknown.status });
+    await contactForm.locator('button').click();
+    await page.getByText('Correction pending reconciler review', { exact: true }).waitFor();
+    assert.deepEqual(actions.findLast(a => a.action === 'recipient-correction').body, { phone: '+573001112233', email: 'corrected@example.test' });
+    assert.equal(JSON.stringify({ recipient: unknown.recipient, version: unknown.version, quote: unknown.quote, status: unknown.status }), beforeContact);
+    assert.equal(await page.locator('[data-payout-action="resolve-recipient-error"]').count(), 0);
     unknown.recipientIssue.fields = ['name', 'other'];
     await page.locator('#refresh-payout-detail').click();
     await page.getByText('Remitly could not accept the recipient legal name, other recipient details. Coins remain reserved.', { exact: true }).last().waitFor();
     assert.equal(await page.locator('[data-payout-action="prepare"]').count(), 0);
+    assert.equal(await page.locator('[data-payout-action="recipient-correction"]').count(), 0, 'legal-name/other errors cannot edit phone/email');
     await page.locator('#payout-filter').selectOption('all');
     // Re-recording a generic unknown must not carry an old recipient warning.
     await issueForm.locator("..").locator("summary").click();
@@ -462,6 +482,12 @@ const root = path.resolve(__dirname, "../../admin/public");
     assert.equal(await page.locator('[data-payout-action="resolve-recipient-error"]').count(), 0);
     assert.equal(await page.locator('[data-payout-action="prepare"], [data-payout-action="quote"], [data-payout-action="check"], [data-payout-action="release"]').count(), 0);
     unknown.canResolveRecipientError = true;
+    unknown.recipientIssue.fields = ['phone', 'name'];
+    await page.locator('#refresh-payout-detail').click();
+    await page.getByRole('heading', { name: 'Withdrawal wd_unknown' }).waitFor();
+    assert.equal(await page.locator('[data-payout-action="recipient-correction"]').count(), 1);
+    assert.equal(await page.locator('[data-payout-action="resolve-recipient-error"]').count(), 0, 'contact correction cannot clear an unresolved legal-name rejection');
+    unknown.recipientIssue.fields = ['phone', 'email'];
     await page.locator('#refresh-payout-detail').click();
     const recovery = page.locator('[data-payout-action="resolve-recipient-error"]');
     await recovery.waitFor({ state: "attached" });

@@ -1426,7 +1426,7 @@ try {
     acknowledged.history.some((e) => e.action === "quote_approved"),
     false,
   );
-  await api.prepare(
+  const rejectedContactAttempt = await api.prepare(
     pool,
     "test-business",
     failed.id,
@@ -1436,12 +1436,561 @@ try {
     },
     "maker",
   );
+  await api.markUnknown(
+    pool,
+    "test-business",
+    failed.id,
+    {
+      reason: "Provider rejects old phone before any transfer",
+      recipientIssue: {
+        code: "recipient_validation_failed",
+        fields: ["phone"],
+      },
+    },
+    "reconciler",
+  );
+  assert.equal(
+    (await call(`/admin/${failed.id}`, { user: "owner" })).body
+      .canResolveRecipientError,
+    false,
+  );
+  const beforeAdminCorrection = await api.withdrawalDetail(pool, failed.id, 2);
+  assert.equal(
+    (
+      await call(`/admin/${failed.id}/recipient-correction`, {
+        user: null,
+        method: "POST",
+        body: { phone: "+12025550123" },
+      })
+    ).status,
+    401,
+  );
+  assert.equal(
+    (
+      await call(`/admin/${failed.id}/recipient-correction`, {
+        user: "creator",
+        method: "POST",
+        body: { phone: "+12025550123" },
+      })
+    ).status,
+    403,
+  );
+  await assert.rejects(
+    () =>
+      api.submitAdminRecipientCorrection(
+        pool,
+        "other-business",
+        failed.id,
+        { phone: "+12025550123" },
+        "owner",
+      ),
+    (error) => error.status === 404,
+  );
+  const adminPendingResponse = await call(
+    `/admin/${failed.id}/recipient-correction`,
+    {
+      user: "owner",
+      method: "POST",
+      body: { phone: "+12025550123", email: "operator-corrected@example.com" },
+    },
+  );
+  assert.equal(adminPendingResponse.status, 200);
+  assert.deepEqual(
+    adminPendingResponse.body.recipient,
+    beforeAdminCorrection.recipient,
+  );
+  assert.equal(
+    adminPendingResponse.body.version,
+    beforeAdminCorrection.version,
+  );
+  assert.deepEqual(
+    adminPendingResponse.body.quote,
+    beforeAdminCorrection.quote,
+  );
+  assert.equal(adminPendingResponse.body.status, "unknown");
+  assert.equal(
+    (
+      await api.adminWithdrawalDetail(pool, failed.id, "test-business")
+    ).events.findLast((e) => e.action === "recipient_correction_submitted")
+      .actor,
+    "owner",
+  );
+  const recipientRecovery = {
+    attemptId: rejectedContactAttempt.attemptId,
+    correctionHash: adminPendingResponse.body.recipientCorrection.hash,
+    observationId: "contact-recipientRecovery-one",
+    sourceUrl: quote.sourceUrl,
+    observedAt: new Date().toISOString(),
+    evidence:
+      "Private fixture: recipient record absent, closed draft verified and no payment/link/funding effects; corrected details ready for fresh preparation",
+    historyCoverage:
+      "All provider draft, contact, pending and sent fixtures inspected",
+    historyInspected: true,
+    recipientRecordInspected: true,
+    recipientCorrectionApplied: true,
+    noRecipientLinkIssued: true,
+    noFundsSent: true,
+    noFundingDebit: true,
+    noPendingTransfers: true,
+    noUnknownTransfers: true,
+    previousDraftClosed: true,
+  };
+  const recoveryBalances = (await api.overview(pool, 2)).balances;
+  let ledgerBeforeRecovery = (
+    await pool.query(
+      "SELECT * FROM creator_cash_ledger WHERE user_id=2 ORDER BY id",
+    )
+  ).rows;
+  const walletEventsBeforeRecovery = (
+    await pool.query(
+      "SELECT * FROM coin_transactions WHERE from_user_id=2 OR to_user_id=2 ORDER BY id",
+    )
+  ).rows;
+  assert.equal(
+    (
+      await call(`/admin/${failed.id}/resolve-recipient-error`, {
+        user: "owner",
+        method: "POST",
+        body: recipientRecovery,
+      })
+    ).status,
+    403,
+  );
+  process.env.PULSE_PAYOUT_RECONCILER_IDS = "owner";
+  assert.equal(
+    (await call(`/admin/${failed.id}`, { user: "owner" })).body
+      .canResolveRecipientError,
+    true,
+  );
+  assert.equal(
+    (await call("/admin", { user: "owner" })).body.canResolveRecipientError,
+    true,
+  );
+  for (const flag of [
+    "historyInspected",
+    "recipientRecordInspected",
+    "recipientCorrectionApplied",
+    "noRecipientLinkIssued",
+    "noFundsSent",
+    "noFundingDebit",
+    "noPendingTransfers",
+    "noUnknownTransfers",
+    "previousDraftClosed",
+  ]) {
+    assert.equal(
+      (
+        await call(`/admin/${failed.id}/resolve-recipient-error`, {
+          user: "owner",
+          method: "POST",
+          body: { ...recipientRecovery, [flag]: false },
+        })
+      ).status,
+      409,
+    );
+  }
+  const noLinkFlag = { ...recipientRecovery };
+  delete noLinkFlag.noRecipientLinkIssued;
+  assert.equal(
+    (
+      await call(`/admin/${failed.id}/resolve-recipient-error`, {
+        user: "owner",
+        method: "POST",
+        body: noLinkFlag,
+      })
+    ).status,
+    409,
+  );
+  await assert.rejects(
+    () =>
+      api.resolveRecipientError(
+        pool,
+        "other-business",
+        failed.id,
+        recipientRecovery,
+        "reconciler",
+      ),
+    (error) => error.status === 404,
+  );
+  await assert.rejects(
+    () =>
+      api.resolveRecipientError(
+        pool,
+        "test-business",
+        failed.id,
+        { ...recipientRecovery, correctionHash: "stale-correction" },
+        "reconciler",
+      ),
+    (error) => error.status === 409,
+  );
+  await assert.rejects(
+    () =>
+      api.resolveRecipientError(
+        pool,
+        "test-business",
+        failed.id,
+        { ...recipientRecovery, attemptId: "old-attempt" },
+        "reconciler",
+      ),
+    (error) => error.status === 409,
+  );
+  await assert.rejects(
+    () =>
+      api.resolveRecipientError(
+        pool,
+        "test-business",
+        failed.id,
+        {
+          ...recipientRecovery,
+          observedAt: new Date(Date.now() - 90000000).toISOString(),
+        },
+        "reconciler",
+      ),
+    (error) => error.status === 409,
+  );
+  await pool.query(
+    "UPDATE creator_payout_attempts SET provider_reference='private-conflicting-reference' WHERE id=$1",
+    [recipientRecovery.attemptId],
+  );
+  await assert.rejects(
+    () =>
+      api.resolveRecipientError(
+        pool,
+        "test-business",
+        failed.id,
+        recipientRecovery,
+        "reconciler",
+      ),
+    /provider activity/,
+  );
+  await pool.query(
+    "UPDATE creator_payout_attempts SET provider_reference=NULL WHERE id=$1",
+    [recipientRecovery.attemptId],
+  );
+  await pool.query(
+    "UPDATE creator_payout_attempts SET evidence=evidence || '{\"recipientLinkIssued\":true}'::jsonb WHERE id=$1",
+    [recipientRecovery.attemptId],
+  );
+  await assert.rejects(
+    () =>
+      api.resolveRecipientError(
+        pool,
+        "test-business",
+        failed.id,
+        recipientRecovery,
+        "reconciler",
+      ),
+    /provider activity/,
+  );
+  await pool.query(
+    "UPDATE creator_payout_attempts SET evidence=evidence-'recipientLinkIssued' WHERE id=$1",
+    [recipientRecovery.attemptId],
+  );
+  await pool.query(
+    "INSERT INTO creator_cash_ledger(user_id,kind,source_ref,reserved_ticks,withdrawal_id,actor,reason) VALUES(2,'adjustment','private-recipientRecovery-missing',-6000,$1,'fixture','Missing target reserve'),(2,'adjustment','private-recipientRecovery-other',6000,'different-private-withdrawal','fixture','Other reservation cannot mask missing target')",
+    [failed.id],
+  );
+  assert.deepEqual(
+    (await api.overview(pool, 2)).balances,
+    recoveryBalances,
+    "aggregate reserve remains unchanged while exact request reserve is missing",
+  );
+  await assert.rejects(
+    () =>
+      api.resolveRecipientError(
+        pool,
+        "test-business",
+        failed.id,
+        recipientRecovery,
+        "reconciler",
+      ),
+    /Exact withdrawal reservation/,
+  );
+  await pool.query(
+    "INSERT INTO creator_cash_ledger(user_id,kind,source_ref,reserved_ticks,withdrawal_id,actor,reason) VALUES(2,'adjustment','private-recipientRecovery-restored',6000,$1,'fixture','Restore target fixture reserve'),(2,'adjustment','private-recipientRecovery-other-cleared',-6000,'different-private-withdrawal','fixture','Restore fixture baseline')",
+    [failed.id],
+  );
+  ledgerBeforeRecovery = (
+    await pool.query(
+      "SELECT * FROM creator_cash_ledger WHERE user_id=2 ORDER BY id",
+    )
+  ).rows;
+  await api.markUnknown(
+    pool,
+    "test-business",
+    failed.id,
+    {
+      reason: "Mixed provider rejection",
+      recipientIssue: {
+        code: "recipient_validation_failed",
+        fields: ["phone", "name"],
+      },
+    },
+    "reconciler",
+  );
+  const mixedCorrection = await api.submitAdminRecipientCorrection(
+    pool,
+    "test-business",
+    failed.id,
+    { phone: "+12025550123", email: "operator-corrected@example.com" },
+    "owner",
+  );
+  await assert.rejects(
+    () =>
+      api.resolveRecipientError(
+        pool,
+        "test-business",
+        failed.id,
+        {
+          ...recipientRecovery,
+          correctionHash: mixedCorrection.recipientCorrection.hash,
+          observedAt: new Date().toISOString(),
+        },
+        "reconciler",
+      ),
+    (error) => error.status === 409,
+  );
+  await api.markUnknown(
+    pool,
+    "test-business",
+    failed.id,
+    { reason: "New generic uncertainty supersedes error" },
+    "reconciler",
+  );
+  await assert.rejects(
+    () =>
+      api.resolveRecipientError(
+        pool,
+        "test-business",
+        failed.id,
+        recipientRecovery,
+        "reconciler",
+      ),
+    (error) => error.status === 409,
+  );
+  await api.markUnknown(
+    pool,
+    "test-business",
+    failed.id,
+    {
+      reason: "Reverified only phone rejection",
+      recipientIssue: {
+        code: "recipient_validation_failed",
+        fields: ["phone"],
+      },
+    },
+    "reconciler",
+  );
+  const latestCorrection = await api.submitAdminRecipientCorrection(
+    pool,
+    "test-business",
+    failed.id,
+    { phone: "+12025550123", email: "operator-corrected@example.com" },
+    "owner",
+  );
+  recipientRecovery.correctionHash = latestCorrection.recipientCorrection.hash;
+  recipientRecovery.observedAt = new Date().toISOString();
+  await assert.rejects(
+    () =>
+      api.resolveRecipientError(
+        pool,
+        "test-business",
+        failed.id,
+        {
+          ...recipientRecovery,
+          observedAt: new Date(
+            Date.parse(latestCorrection.recipientCorrection.requestedAt) - 1,
+          ).toISOString(),
+        },
+        "reconciler",
+      ),
+    /latest correction/,
+  );
+  await pool.query(
+    "UPDATE creator_payout_attempts SET draft_id='private-definitively-closed-draft' WHERE id=$1",
+    [recipientRecovery.attemptId],
+  );
+  const recoveredResponse = await call(
+    `/admin/${failed.id}/resolve-recipient-error`,
+    { user: "owner", method: "POST", body: recipientRecovery },
+  );
+  assert.equal(recoveredResponse.status, 200);
+  const recovered = recoveredResponse.body;
+  assert.equal(recovered.id, failed.id);
+  assert.equal(recovered.status, "awaiting_quote");
+  assert.equal(recovered.creatorStatus, "awaiting_quote");
+  assert.equal(recovered.version, beforeAdminCorrection.version + 1);
+  assert.equal(recovered.recipient.phone, "+12025550123");
+  assert.equal(recovered.recipient.email, "operator-corrected@example.com");
+  assert.equal(
+    recovered.recipient.revision,
+    beforeAdminCorrection.recipient.revision + 1,
+  );
+  assert.equal(recovered.quote, null);
+  assert.equal(recovered.checker, null);
+  assert.equal(recovered.approvedQuoteHash, null);
+  assert.equal(recovered.recipientIssue, null);
+  assert.equal(recovered.recipientCorrection, null);
+  assert.equal(recovered.errorMessage, null);
+  assert.deepEqual((await api.overview(pool, 2)).balances, recoveryBalances);
+  assert.deepEqual(
+    (
+      await pool.query(
+        "SELECT * FROM creator_cash_ledger WHERE user_id=2 ORDER BY id",
+      )
+    ).rows,
+    ledgerBeforeRecovery,
+  );
+  assert.deepEqual(
+    (
+      await pool.query(
+        "SELECT * FROM coin_transactions WHERE from_user_id=2 OR to_user_id=2 ORDER BY id",
+      )
+    ).rows,
+    walletEventsBeforeRecovery,
+  );
+  assert.equal(
+    (
+      await pool.query(
+        "SELECT state FROM creator_payout_attempts WHERE id=$1",
+        [recipientRecovery.attemptId],
+      )
+    ).rows[0].state,
+    "canceled",
+  );
+  assert.equal(
+    (
+      await pool.query(
+        "SELECT draft_id FROM creator_payout_attempts WHERE id=$1",
+        [recipientRecovery.attemptId],
+      )
+    ).rows[0].draft_id,
+    "private-definitively-closed-draft",
+  );
+  assert.deepEqual(
+    await api.resolveRecipientError(
+      pool,
+      "test-business",
+      failed.id,
+      recipientRecovery,
+      "reconciler",
+    ),
+    await api.withdrawalDetail(pool, failed.id, 2),
+  );
+  await assert.rejects(
+    () =>
+      api.resolveRecipientError(
+        pool,
+        "test-business",
+        failed.id,
+        {
+          ...recipientRecovery,
+          evidence: "Different evidence with same observation",
+        },
+        "reconciler",
+      ),
+    (error) => error.status === 409,
+  );
+  await assert.rejects(
+    () =>
+      api.resolveRecipientError(
+        pool,
+        "test-business",
+        failed.id,
+        {
+          ...recipientRecovery,
+          observationId: "stale-second-recipientRecovery",
+        },
+        "reconciler",
+      ),
+    (error) => error.status === 409,
+  );
+  await assert.rejects(
+    () =>
+      api.prepare(
+        pool,
+        "test-business",
+        failed.id,
+        { quoteHash: fd.quote.hash, evidence: "Old quote cannot resume" },
+        "maker",
+      ),
+    (error) => error.status === 409,
+  );
+  const freshCorrectedQuote = await api.recordQuote(
+    pool,
+    "test-business",
+    failed.id,
+    {
+      ...quote,
+      observedAt: new Date().toISOString(),
+      evidence: "Fresh quote for corrected recipient",
+    },
+    "maker",
+  );
+  const freshCorrectedAttempt = await api.prepare(
+    pool,
+    "test-business",
+    failed.id,
+    {
+      quoteHash: freshCorrectedQuote.quote.hash,
+      evidence: "Fresh durable attempt after verified recipientRecovery",
+    },
+    "maker",
+  );
+  assert.notEqual(freshCorrectedAttempt.attemptId, recipientRecovery.attemptId);
+  assert.equal(
+    (
+      await pool.query(
+        "SELECT count(*)::integer count FROM creator_payout_attempts WHERE withdrawal_id=$1",
+        [failed.id],
+      )
+    ).rows[0].count,
+    2,
+  );
+  console.log(
+    "PASS admin/creator pending contacts and independently verified recipient recovery preserve the same reserved withdrawal and invalidate every old quote/check/attempt",
+  );
   await api.humanDecline(
     pool,
     "test-business",
     failed.id,
     { reason: "Decline after possible provider action" },
     "owner",
+  );
+  await api.markUnknown(
+    pool,
+    "test-business",
+    failed.id,
+    {
+      reason: "Phone rejection remains after human decline",
+      recipientIssue: {
+        code: "recipient_validation_failed",
+        fields: ["phone"],
+      },
+    },
+    "reconciler",
+  );
+  const declinedCorrection = await api.submitRecipientCorrection(
+    pool,
+    2,
+    failed.id,
+    { phone: "+12025550124" },
+  );
+  await assert.rejects(
+    () =>
+      api.resolveRecipientError(
+        pool,
+        "test-business",
+        failed.id,
+        {
+          ...recipientRecovery,
+          attemptId: freshCorrectedAttempt.attemptId,
+          correctionHash: declinedCorrection.recipientCorrection.hash,
+          observationId: "cannot-undo-human-decline",
+          observedAt: new Date().toISOString(),
+        },
+        "reconciler",
+      ),
+    /Recorded human decision/,
   );
   assert.equal(
     (await pool.query("SELECT balance FROM coin_balances WHERE user_id=2"))

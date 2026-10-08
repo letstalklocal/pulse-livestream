@@ -657,7 +657,7 @@ try {
   assert.equal(
     (await call("/api/payout-operator/identity", { token: maker.token })).body
       .workflowRevision,
-    "2026-10-08.1",
+    "2026-10-08.2",
   );
 
   assert.equal(
@@ -1025,6 +1025,157 @@ try {
   );
   console.log(
     "PASS expired browser lease quarantines uncertain attempt and credential revocation releases exclusive resource without refund or recreation",
+  );
+  const recoveryLease = (
+    await leaseCall(reconciler.token, "acquire", {
+      idempotencyKey: "approved-contact-recovery",
+    })
+  ).body;
+  assert.equal(
+    (
+      await call(`/api/payout-operator/withdrawals/${uncertain.id}/unknown`, {
+        token: reconciler.token,
+        method: "POST",
+        body: {
+          data: {
+            reason: "Provider rejection confirmed, no transfer or link",
+            recipientIssue: {
+              code: "recipient_validation_failed",
+              fields: ["phone"],
+            },
+          },
+        },
+      })
+    ).status,
+    200,
+  );
+  const serviceCorrection = (
+    await call(`/withdrawals/${uncertain.id}/recipient-correction`, {
+      user: "other",
+      method: "POST",
+      body: { phone: "+12025550123" },
+    })
+  ).body;
+  const recoveryAttempt = (
+    await api.adminWithdrawalDetail(pool, uncertain.id, "operator-business")
+  ).attempts[0];
+  const recipientRecovery = {
+    attemptId: recoveryAttempt.id,
+    correctionHash: serviceCorrection.recipientCorrection.hash,
+    observationId: "leased-contact-recovery",
+    sourceUrl: quote.sourceUrl,
+    observedAt: new Date().toISOString(),
+    evidence:
+      "Private verified-absence fixture: no recipient/transfer/link/debit and prior draft closed",
+    historyCoverage: "All contact/draft/pending/sent records inspected",
+    historyInspected: true,
+    recipientRecordInspected: true,
+    recipientCorrectionApplied: true,
+    noRecipientLinkIssued: true,
+    noFundsSent: true,
+    noFundingDebit: true,
+    noPendingTransfers: true,
+    noUnknownTransfers: true,
+    previousDraftClosed: true,
+  };
+  const serviceRecoveryBalances = (await api.overview(pool, 2)).balances;
+  const serviceRecoveryLedger = (
+    await pool.query(
+      "SELECT * FROM creator_cash_ledger WHERE user_id=2 ORDER BY id",
+    )
+  ).rows;
+  assert.equal(
+    (
+      await action(
+        checker.token,
+        uncertain.id,
+        "resolve-recipient-error",
+        recipientRecovery,
+        recoveryLease.leaseId,
+      )
+    ).status,
+    403,
+  );
+  const otherMaker = await issue("maker", "recovery-denied-maker");
+  assert.equal(
+    (
+      await action(
+        otherMaker.token,
+        uncertain.id,
+        "resolve-recipient-error",
+        recipientRecovery,
+        recoveryLease.leaseId,
+      )
+    ).status,
+    403,
+  );
+  assert.equal(
+    (
+      await action(
+        reconciler.token,
+        uncertain.id,
+        "resolve-recipient-error",
+        recipientRecovery,
+        "wrong-lease",
+      )
+    ).status,
+    409,
+  );
+  assert.equal(
+    (
+      await action(
+        reconciler.token,
+        uncertain.id,
+        "resolve-recipient-error",
+        { ...recipientRecovery, noRecipientLinkIssued: false },
+        recoveryLease.leaseId,
+      )
+    ).status,
+    409,
+  );
+  const leasedRecovery = await action(
+    reconciler.token,
+    uncertain.id,
+    "resolve-recipient-error",
+    recipientRecovery,
+    recoveryLease.leaseId,
+  );
+  assert.equal(leasedRecovery.status, 200);
+  assert.equal(leasedRecovery.body.status, "awaiting_quote");
+  assert.equal(leasedRecovery.body.recipient.phone, "+12025550123");
+  assert.equal(leasedRecovery.body.quote, null);
+  assert.equal(leasedRecovery.body.errorMessage, null);
+  assert.deepEqual(
+    (await api.overview(pool, 2)).balances,
+    serviceRecoveryBalances,
+  );
+  assert.deepEqual(
+    (
+      await pool.query(
+        "SELECT * FROM creator_cash_ledger WHERE user_id=2 ORDER BY id",
+      )
+    ).rows,
+    serviceRecoveryLedger,
+  );
+  assert.equal(
+    (
+      await action(
+        reconciler.token,
+        uncertain.id,
+        "resolve-recipient-error",
+        recipientRecovery,
+        recoveryLease.leaseId,
+      )
+    ).status,
+    200,
+  );
+  await leaseCall(reconciler.token, "release", {
+    leaseId: recoveryLease.leaseId,
+    reason:
+      "Verified contact recovery complete; human sending remains required",
+  });
+  console.log(
+    "PASS reconciler-only fenced recipient recovery preserves reservation and rejects maker/checker, stale leases and possible link issuance",
   );
   const rate = await issue("maker", "rate");
   await pool.query(

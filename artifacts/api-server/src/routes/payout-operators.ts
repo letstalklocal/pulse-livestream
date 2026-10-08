@@ -138,6 +138,10 @@ const actions = {
   preparation: { roles: ["maker"], fn: w.completePreparation },
   check: { roles: ["checker"], fn: w.check },
   reconcile: { roles: ["reconciler"], fn: w.reconcile },
+  "resolve-recipient-error": {
+    roles: ["reconciler"],
+    fn: w.resolveRecipientError,
+  },
 } as const;
 for (const [action, config] of Object.entries(actions))
   operatorRouter.post(

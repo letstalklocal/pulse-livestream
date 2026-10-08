@@ -181,6 +181,12 @@ const requireRole =
     }
     next();
   };
+const canResolveRecipientError = (actor: string) =>
+  !!actor &&
+  (process.env.PULSE_PAYOUT_RECONCILER_IDS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .includes(actor);
 export const adminWithdrawalsRouter = Router();
 adminWithdrawalsRouter.use(
   safe(async (req, res, next) => {
@@ -195,7 +201,10 @@ adminWithdrawalsRouter.use(
 adminWithdrawalsRouter.get(
   "/",
   safe(async (_req, res) => {
-    res.json(await w.listWithdrawals(pool, account()));
+    res.json({
+      ...(await w.listWithdrawals(pool, account())),
+      canResolveRecipientError: canResolveRecipientError(res.locals.adminId),
+    });
   }),
 );
 adminWithdrawalsRouter.get(
@@ -221,9 +230,14 @@ adminWithdrawalsRouter.post(
 adminWithdrawalsRouter.get(
   "/:id",
   safe(async (req, res) => {
-    res.json(
-      await w.adminWithdrawalDetail(pool, String(req.params.id), account()),
-    );
+    res.json({
+      ...(await w.adminWithdrawalDetail(
+        pool,
+        String(req.params.id),
+        account(),
+      )),
+      canResolveRecipientError: canResolveRecipientError(res.locals.adminId),
+    });
   }),
 );
 adminWithdrawalsRouter.post(
@@ -315,18 +329,50 @@ adminWithdrawalsRouter.post(
   }),
 );
 adminWithdrawalsRouter.post(
-  "/:id/unknown",
-  requireRole("reconciler"),
+  "/:id/recipient-correction",
   safe(async (req, res) => {
-    res.json(
-      await w.markUnknown(
+    res.json({
+      ...(await w.submitAdminRecipientCorrection(
         pool,
         account(),
         String(req.params.id),
         req.body,
         res.locals.adminId,
-      ),
-    );
+      )),
+      canResolveRecipientError: canResolveRecipientError(res.locals.adminId),
+    });
+  }),
+);
+adminWithdrawalsRouter.post(
+  "/:id/unknown",
+  requireRole("reconciler"),
+  safe(async (req, res) => {
+    res.json({
+      ...(await w.markUnknown(
+        pool,
+        account(),
+        String(req.params.id),
+        req.body,
+        res.locals.adminId,
+      )),
+      canResolveRecipientError: canResolveRecipientError(res.locals.adminId),
+    });
+  }),
+);
+adminWithdrawalsRouter.post(
+  "/:id/resolve-recipient-error",
+  requireRole("reconciler"),
+  safe(async (req, res) => {
+    res.json({
+      ...(await w.resolveRecipientError(
+        pool,
+        account(),
+        String(req.params.id),
+        req.body,
+        res.locals.adminId,
+      )),
+      canResolveRecipientError: canResolveRecipientError(res.locals.adminId),
+    });
   }),
 );
 adminWithdrawalsRouter.post(

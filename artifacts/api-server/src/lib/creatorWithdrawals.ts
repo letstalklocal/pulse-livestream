@@ -1144,12 +1144,34 @@ export async function submitRecipientCorrection(
   id: string,
   input: unknown,
 ) {
+  return saveRecipientCorrection(
+    db,
+    { uid, actor: `creator:${uid}` },
+    id,
+    input,
+  );
+}
+export async function submitAdminRecipientCorrection(
+  db: Database,
+  account: string,
+  id: string,
+  input: unknown,
+  actor: string,
+) {
+  return saveRecipientCorrection(db, { account, actor }, id, input);
+}
+async function saveRecipientCorrection(
+  db: Database,
+  scope: { uid?: number; account?: string; actor: string },
+  id: string,
+  input: unknown,
+) {
   const b = body(input, ["phone", "email"]);
   if (b.phone === undefined && b.email === undefined)
     fail("Enter a corrected phone number or email address.");
   return tx(db, async (c) => {
-    const w = await lockedWithdrawal(c, id, undefined, uid);
-    const current = await withdrawalDetail(c, id, uid);
+    const w = await lockedWithdrawal(c, id, scope.account, scope.uid);
+    const current = await withdrawalDetail(c, id, scope.uid, scope.account);
     if (
       !current.recipientIssue ||
       !current.recipientIssue.fields.some(
@@ -1186,8 +1208,8 @@ export async function submitRecipientCorrection(
     if (current.recipientCorrection?.hash === correctionHash) return current;
     await event(
       c,
-      uid,
-      `creator:${uid}`,
+      w.user_id,
+      scope.actor,
       "recipient_correction_submitted",
       {
         hash: correctionHash,
@@ -1199,7 +1221,221 @@ export async function submitRecipientCorrection(
       },
       id,
     );
-    return withdrawalDetail(c, id, uid);
+    return withdrawalDetail(c, id, scope.uid, scope.account);
+  });
+}
+// Explicitly approved recovery: operator observations must establish that the
+// original attempt has no payment/link effects before retaining its reservation
+// for a fresh quote. This function never calls a provider or moves wallet funds.
+export async function resolveRecipientError(
+  db: Database,
+  account: string,
+  id: string,
+  input: unknown,
+  actor: string,
+) {
+  const b = body(input, [
+    "attemptId",
+    "correctionHash",
+    "observationId",
+    "sourceUrl",
+    "observedAt",
+    "evidence",
+    "historyCoverage",
+    "historyInspected",
+    "recipientRecordInspected",
+    "recipientCorrectionApplied",
+    "noRecipientLinkIssued",
+    "noFundsSent",
+    "noFundingDebit",
+    "noPendingTransfers",
+    "noUnknownTransfers",
+    "previousDraftClosed",
+  ]);
+  const attemptId = str(b.attemptId, "attempt ID"),
+    correctionHash = str(b.correctionHash, "correction hash"),
+    observationId = str(b.observationId, "observation ID"),
+    sourceUrl = providerSource(b.sourceUrl),
+    observedAt = date(b.observedAt, "recovery observation"),
+    evidence = note(b.evidence, "recovery evidence", 5000),
+    historyCoverage = note(
+      b.historyCoverage,
+      "provider history coverage",
+      2000,
+    );
+  for (const flag of [
+    "historyInspected",
+    "recipientRecordInspected",
+    "recipientCorrectionApplied",
+    "noRecipientLinkIssued",
+    "noFundsSent",
+    "noFundingDebit",
+    "noPendingTransfers",
+    "noUnknownTransfers",
+    "previousDraftClosed",
+  ])
+    if (b[flag] !== true)
+      fail(
+        "Recovery requires confirmed correction, closed prior drafts and no recipient link, sent/debited funds, pending or uncertain transfer.",
+        409,
+      );
+  if (Date.parse(observedAt) < Date.now() - 86400000)
+    fail("Recovery provider observation must be recent.", 409);
+  const observationHash = hash(b);
+  return tx(db, async (c) => {
+    const w = await lockedWithdrawal(c, id, account);
+    const old = (
+      await c.query(
+        "SELECT evidence FROM creator_payout_events WHERE withdrawal_id=$1 AND action='recipient_error_resolved' AND evidence->>'observationId'=$2",
+        [id, observationId],
+      )
+    ).rows[0];
+    if (old) {
+      if (old.evidence.observationHash !== observationHash)
+        fail("Recovery observation ID reused with different evidence.", 409);
+      return withdrawalDetail(c, id, undefined, account);
+    }
+    const current = await withdrawalDetail(c, id, undefined, account);
+    const correction = current.recipientCorrection;
+    if (!correction)
+      throw new WithdrawalError(
+        "Latest pending recipient correction required.",
+        409,
+      );
+    if (
+      !current.recipientIssue ||
+      !current.recipientIssue.fields.every(
+        (field) => field === "phone" || field === "email",
+      ) ||
+      !current.recipientCorrection ||
+      current.recipientCorrection.hash !== correctionHash
+    )
+      fail(
+        "Current recipient error and latest pending correction required.",
+        409,
+      );
+    if (Date.parse(observedAt) < Date.parse(correction.requestedAt))
+      fail(
+        "Provider recovery inspection must cover the latest correction.",
+        409,
+      );
+    const attempts = (
+      await c.query(
+        "SELECT * FROM creator_payout_attempts WHERE withdrawal_id=$1 ORDER BY created_at FOR UPDATE",
+        [id],
+      )
+    ).rows;
+    const a = attempts.find((item) => item.id === attemptId);
+    if (
+      !a ||
+      !["unknown", "expired"].includes(a.state) ||
+      attempts.some(
+        (item) =>
+          item.id !== attemptId &&
+          !["delivered", "failed", "canceled", "returned"].includes(item.state),
+      )
+    )
+      fail(
+        "The current uncertain recipient attempt must be inspected before recovery.",
+        409,
+      );
+    const released = (
+      await c.query(
+        "SELECT 1 FROM creator_payout_events WHERE withdrawal_id=$1 AND action IN('human_release_recorded','human_declined','reconciled') LIMIT 1",
+        [id],
+      )
+    ).rows.length;
+    if (
+      released ||
+      attempts.some(
+        (item) =>
+          item.provider_reference ||
+          item.activity_id ||
+          item.evidence?.providerLink ||
+          item.evidence?.recipientLink ||
+          item.evidence?.providerReference ||
+          item.evidence?.activityId ||
+          item.evidence?.releasedAt ||
+          item.evidence?.sentAt ||
+          item.evidence?.recipientLinkIssued === true ||
+          item.evidence?.linkIssued === true ||
+          item.evidence?.paymentSent === true ||
+          item.evidence?.fundingDebited === true,
+      ) ||
+      w.provider_link
+    )
+      fail(
+        "Recorded human decision or provider activity blocks recipient recovery; reconcile the existing transfer instead.",
+        409,
+      );
+    const reserved = (
+      await c.query(
+        "SELECT COALESCE(sum(reserved_ticks),0)::text reserved FROM creator_cash_ledger WHERE user_id=$1 AND withdrawal_id=$2",
+        [w.user_id, id],
+      )
+    ).rows[0].reserved;
+    if (BigInt(reserved) !== BigInt(w.gross_cents) * 4n)
+      fail("Exact withdrawal reservation is missing or inconsistent.", 409);
+    const contact = (
+      await c.query(
+        "SELECT * FROM creator_payout_recipients WHERE user_id=$1 FOR UPDATE",
+        [w.user_id],
+      )
+    ).rows[0];
+    if (
+      !contact ||
+      contact.revision !== w.recipient.revision ||
+      hash(contact.data) !==
+        hash(
+          Object.fromEntries(
+            Object.entries(w.recipient).filter(
+              ([key]) => !["revision", "status"].includes(key),
+            ),
+          ),
+        )
+    )
+      fail(
+        "Saved recipient changed; investigate before applying correction.",
+        409,
+      );
+    const recipientRecord = (
+      await c.query(
+        "UPDATE creator_payout_recipients SET data=jsonb_set(jsonb_set(data,'{phone}',to_jsonb($2::text)),'{email}',to_jsonb($3::text)),revision=revision+1,updated_at=now() WHERE user_id=$1 RETURNING revision",
+        [w.user_id, correction.phone, correction.email],
+      )
+    ).rows[0];
+    const recipient = {
+      ...w.recipient,
+      phone: correction.phone,
+      email: correction.email,
+      revision: recipientRecord.revision,
+    };
+    await c.query(
+      "UPDATE creator_payout_attempts SET state='canceled',lease_until=now(),updated_at=now() WHERE id=$1",
+      [attemptId],
+    );
+    await c.query(
+      "UPDATE creator_withdrawals SET status='awaiting_quote',recipient=$2,quote=NULL,approved_quote_hash=NULL,checker=NULL,provider_link=NULL,provider_onboarding_status='pending',version=version+1,updated_at=now() WHERE id=$1",
+      [id, JSON.stringify(recipient)],
+    );
+    await event(
+      c,
+      w.user_id,
+      actor,
+      "recipient_error_resolved",
+      {
+        ...b,
+        sourceUrl,
+        observedAt,
+        evidence,
+        historyCoverage,
+        observationHash,
+        recipientHash: hash(recipient),
+        reservationRetained: true,
+      },
+      id,
+    );
+    return withdrawalDetail(c, id, undefined, account);
   });
 }
 export async function markUnknown(

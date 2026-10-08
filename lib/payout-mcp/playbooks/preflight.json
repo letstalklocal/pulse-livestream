@@ -4,7 +4,7 @@
   "role": "all",
   "instructions": [
     "Run the role-scoped Pulse identity/health check. Require the configured HTTPS origin, environment, provider-account alias, operator ID, role and playbook version 2026-10-04.1 to match before continuing. A healthy API does not prove browser access.",
-    "Fetch the current preflight and role playbooks at the start of every run. Require workflowRevision 2026-10-08.1 for initial-request consent and structured recipient validation errors; the compatible MCP/profile version remains 2026-10-04.1. Do not rely on cached prompts that wait for creator quote approval.",
+    "Fetch the current preflight and role playbooks at the start of every run. Require workflowRevision 2026-10-08.2 for initial-request consent and structured recipient validation errors; the compatible MCP/profile version remains 2026-10-04.1. Do not rely on cached prompts that wait for creator quote approval.",
     "Use one role credential in this job. Maker and checker must be different authorized operators; an agent must not check work that it prepared by switching credentials.",
     "Check whether preparation is paused. Maker/checker stop while paused; reconciliation may inspect existing outcomes. Never disable the pause yourself.",
     "Confirm an actually available authenticated browser capability in this local Codex session. If absent, report blocked browser access and stop. Do not pretend a browser or Remitly API exists.",
@@ -20,5 +20,5 @@
   ],
   "humanFinalDecisionRequired": true,
   "autoSendAllowed": false,
-  "workflowRevision": "2026-10-08.1"
+  "workflowRevision": "2026-10-08.2"
 }

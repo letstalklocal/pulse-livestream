@@ -861,6 +861,7 @@ export interface AdminWithdrawalQueue {
   withdrawals: AdminWithdrawalSummary[];
   preparationPaused: boolean;
   policy: WithdrawalPolicy;
+  canResolveRecipientError?: boolean;
 }
 
 export type WithdrawalAttemptEvidence = { [key: string]: unknown };
@@ -892,6 +893,8 @@ export type AdminWithdrawalDetail = WithdrawalDetail & {
   attempts: WithdrawalAttempt[];
   events: WithdrawalAuditEvent[];
   balances: WithdrawalBalances;
+  /** Current enabled admin actor is configured as payout reconciler. */
+  canResolveRecipientError?: boolean;
 };
 
 export type WithdrawalPrepareResult = WithdrawalDetail & {
@@ -2177,6 +2180,31 @@ export interface WithdrawalRecipientCorrectionInput {
   phone?: string;
   /** @maxLength 254 */
   email?: string;
+}
+
+export interface WithdrawalRecipientRecoveryInput {
+  attemptId: string;
+  correctionHash: string;
+  observationId: string;
+  sourceUrl: string;
+  evidence: string;
+  historyCoverage: string;
+  observedAt: string;
+  historyInspected: true;
+  recipientRecordInspected: true;
+  /** Existing provider contact corrected, OR inspection confirms none persisted and fresh preparation will use corrected details; document the branch in evidence. */
+  recipientCorrectionApplied: true;
+  noRecipientLinkIssued: true;
+  noFundsSent: true;
+  noFundingDebit: true;
+  noPendingTransfers: true;
+  noUnknownTransfers: true;
+  previousDraftClosed: true;
+}
+
+export interface PayoutOperatorRecipientRecoveryInput {
+  leaseId: string;
+  data: WithdrawalRecipientRecoveryInput;
 }
 
 export type ListPayoutOperatorWithdrawalsParams = {

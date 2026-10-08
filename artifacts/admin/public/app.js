@@ -2615,6 +2615,7 @@ function renderWithdrawalDetail() {
     ],
   ];
   let actions = "";
+  let recipientActions = "";
   if (
     ["awaiting_quote", "awaiting_confirmation", "requested"].includes(w.status)
   )
@@ -2808,20 +2809,29 @@ function renderWithdrawalDetail() {
       w.status,
     )
   )
-    actions += payoutForm(
+    recipientActions += payoutForm(
       "unknown",
-      "Report an uncertain outcome or rejected recipient details",
+      ["unknown", "expired"].includes(w.status) ? "Identify the rejected recipient details" : "Report an uncertain outcome or rejected recipient details",
       payoutEvidence("reason", "Reason and investigation notes") +
         [["phone", "Phone number"], ["email", "Email address"], ["name", "Legal name"], ["other", "Other recipient details"]].map(([field, label]) =>
           payoutCheckbox(`recipientIssue_${field}`, `Remitly rejected: ${label}`)
         ).join(""),
-      "Record unknown outcome",
+      ["unknown", "expired"].includes(w.status) ? "Save error details" : "Record unknown outcome",
       {
-        note: "Select only recipient fields explicitly rejected by Remitly. The creator sees a safe field-specific error; investigation notes stay protected. Leave all fields unchecked for a generic unknown outcome. Reserved wallet coins stay unavailable to spend. Inspect provider history before correcting contact records or making a replacement attempt.",
+        note: "Select only recipient fields explicitly rejected by Remitly. The creator sees a safe field-specific error; investigation notes stay protected. Leave all fields unchecked for a generic unknown outcome. Reserved wallet coins stay unavailable to spend. Inspect provider history before correcting contact records or making a replacement attempt." + (w.canResolveRecipientError === false ? " Your admin account is not configured as a payout reconciler. A configured reconciler, or the Mac maker through MCP, must record the rejected fields." : ""),
       },
     );
-  if (payoutRecipientIssueFields(w).length && w.recipientCorrection?.hash && attempt && w.canResolveRecipientError === true)
-    actions += payoutForm(
+  if (payoutRecipientIssueFields(w).some(field => ["phone", "email"].includes(field)))
+    recipientActions += payoutForm(
+      "recipient-correction",
+      "Correct recipient contact details",
+      payoutInput("phone", "Corrected international phone number", { value: w.recipientCorrection?.phone ?? w.recipient?.phone ?? "", maxlength: 20 }) +
+        payoutInput("email", "Corrected email address", { value: w.recipientCorrection?.email ?? w.recipient?.email ?? "", type: "email", maxlength: 254 }),
+      "Save corrected contact details",
+      { note: "Save the details verified with the creator. The correction stays pending review; saving does not resume preparation, change the active recipient or release reserved coins." },
+    );
+  if (payoutRecipientIssueFields(w).length && payoutRecipientIssueFields(w).every(field => ["phone", "email"].includes(field)) && w.recipientCorrection?.hash && attempt && w.canResolveRecipientError === true)
+    recipientActions += payoutForm(
       "resolve-recipient-error",
       "Reconciler recovery after recipient correction",
       payoutInput("observationId", "Stable recovery observation ID") +
@@ -2829,8 +2839,8 @@ function renderWithdrawalDetail() {
         payoutTimestampInput("observedAt", "Provider history inspected") +
         payoutInput("historyCoverage", "Provider history coverage inspected", { maxlength: 2000 }) +
         [["historyInspected", "I inspected provider history for this exact withdrawal and prior attempt."],
-         ["recipientRecordInspected", "I inspected the saved Remitly recipient record."],
-         ["recipientCorrectionApplied", "I applied the creator's pending corrected contact details to the saved Remitly recipient record."],
+         ["recipientRecordInspected", "I inspected Remitly recipient records and verified the existing contact or its absence."],
+         ["recipientCorrectionApplied", "Corrected contact is ready: I updated the existing Remitly recipient, or verified that no recipient/contact was saved and the next preparation will use these corrected details."],
          ["noRecipientLinkIssued", "No recipient link was issued for this prior attempt."],
          ["noFundsSent", "No funds were sent for this prior attempt."],
          ["noFundingDebit", "No funding debit exists for this prior attempt."],
@@ -2841,6 +2851,7 @@ function renderWithdrawalDetail() {
       "Record verified correction recovery",
       { note: "Configured reconcilers only. This preserves reserved coins, closes the prior attempt and returns to a fresh quote. It does not send a payment or make a replacement draft. Human release or provider transfer references block this recovery." },
     );
+  actions = recipientActions + actions;
   const events = w.events || w.history || [];
   if (
     !["delivered", "failed", "canceled", "returned"].includes(w.status) &&
@@ -2864,7 +2875,7 @@ function renderWithdrawalDetail() {
     );
   const issueFields = payoutRecipientIssueFields(w);
   const recipientIssue = issueFields.length
-    ? `<section class="payout-callout" role="alert"><strong>Error · Recipient details need attention</strong><p><strong>Error Message:</strong> ${esc(payoutRecipientErrorMessage(w))}</p><p>Verify the saved details and inspect provider history before correction or resuming. Preparation stays blocked until reconciler recovery.</p>${w.recipientCorrection ? `<p><strong>Correction pending reconciler review</strong><br>${w.recipientCorrection.phone ? `Phone: ${esc(w.recipientCorrection.phone)}<br>` : ""}${w.recipientCorrection.email ? `Email: ${esc(w.recipientCorrection.email)}<br>` : ""}Submitted ${esc(payoutTime(w.recipientCorrection.requestedAt))}. The immutable recipient snapshot has not changed.</p>` : '<p>Waiting for the creator to correct the rejected contact details. Legal-name or other recipient issues require operator review.</p>'}</section>` : "";
+    ? `<section class="payout-callout" role="alert"><strong>Error · Recipient details need attention</strong><p><strong>Error Message:</strong> ${esc(payoutRecipientErrorMessage(w))}</p><p>Verify the saved details and inspect provider history before correction or resuming. Preparation stays blocked until reconciler recovery.</p>${w.recipientCorrection ? `<p><strong>Correction pending reconciler review</strong><br>${w.recipientCorrection.phone ? `Phone: ${esc(w.recipientCorrection.phone)}<br>` : ""}${w.recipientCorrection.email ? `Email: ${esc(w.recipientCorrection.email)}<br>` : ""}Submitted ${esc(payoutTime(w.recipientCorrection.requestedAt))}. The corrected contact has not been applied yet.</p>` : '<p>Use Correct recipient contact details below, or ask the creator to save a correction in the updated app. Legal-name or other recipient issues require operator review.</p>'}</section>` : "";
   target.innerHTML = `<section class="panel payout-detail-panel"><div class="panel-heading"><div><h2>Withdrawal ${esc(w.id)}</h2><p>Version ${esc(w.version)} · Updated ${esc(payoutTime(w.updatedAt))}</p></div><div class="payout-detail-toolbar"><button class="page-button" id="refresh-payout-detail">Refresh details</button><button class="page-button" id="close-payout-detail">Close</button></div></div><div class="payout-content"><dl class="payout-facts">${facts.map(([label, value]) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join("")}</dl>${q ? `<section class="payout-quote"><h3>Current provider quote</h3><p>Send ${esc(catalogMoney(q.sendAmountCents))} + fee ${esc(catalogMoney(q.feeCents))} + tax ${esc(catalogMoney(q.taxCents))} = ${esc(catalogMoney(q.totalEarningsDeductedCents))} total wallet deduction.</p><p>Recipient estimate: ${esc(q.receiveAmount)} ${esc(q.receiveCurrency)} · ${esc(q.fundingMethod)}. Promotion: ${esc(catalogMoney(q.promotionalDiscountCents))}, separate from fees.</p><p>Observed ${esc(payoutTime(q.observedAt))} · Expires ${esc(payoutTime(q.expiresAt))}</p><p class="payout-hash">Quote reference: ${esc(q.hash)}</p></section>` : '<p class="payout-callout">No exact signed-in provider quote recorded. Do not prepare a transfer from catalog fee estimates.</p>'}<div class="payout-links">${attempt?.evidence?.reviewUrl ? payoutLink(attempt.evidence.reviewUrl, "Review in Remitly") : ""}${w.providerLink ? payoutLink(w.providerLink, "Recipient link") : ""}${events.findLast((e) => e.evidence?.activityUrl)?.evidence?.activityUrl ? payoutLink(events.findLast((e) => e.evidence?.activityUrl).evidence.activityUrl, "Provider activity") : ""}</div>${["unknown", "expired"].includes(w.status) ? `<p class="payout-callout">${w.status === "expired" ? "Expired withdrawal" : "Unknown outcome"}: reservation retained. Replacement preparation is blocked until provider history resolves the existing attempt.</p>` : ""}${recipientIssue}${actions}<details class="payout-history"><summary>Evidence and history (${events.length} events)</summary>${events.map((e) => `<article><strong>${esc(e.action?.replaceAll("_", " "))}</strong><small>${esc(payoutTime(e.createdAt || e.created_at))}${e.actor ? ` · ${esc(e.actor)}` : ""}</small>${e.evidence ? `<pre>${esc(typeof e.evidence === "string" ? e.evidence : JSON.stringify(e.evidence, null, 2))}</pre>` : ""}</article>`).join("") || "<p>No events recorded.</p>"}</details></div></section>`;
 }
 async function loadWithdrawalDetail(id) {
@@ -2959,11 +2970,14 @@ async function submitPayoutAction(form) {
     } else if (action === "unknown" || action === "decline") {
       body = { reason: get("reason") };
       if (action === "unknown") {
+        if (["unknown", "expired"].includes(w.status)) body.status = w.status;
         const fields = ["phone", "email", "name", "other"].filter(field => checked(`recipientIssue_${field}`));
         if (fields.length) body.recipientIssue = { code: "recipient_validation_failed", fields };
       }
+    } else if (action === "recipient-correction") {
+      body = { phone: get("phone").trim().replace(/[\s().-]/g, ""), email: get("email").trim() };
     } else if (action === "resolve-recipient-error") {
-      if (!attempt || !w.recipientCorrection?.hash || w.canResolveRecipientError !== true || !payoutRecipientIssueFields(w).length)
+      if (!attempt || !w.recipientCorrection?.hash || w.canResolveRecipientError !== true || !payoutRecipientIssueFields(w).length || !payoutRecipientIssueFields(w).every(field => ["phone", "email"].includes(field)))
         throw new Error("Refresh details to confirm current reconciler permission and pending correction.");
       body = {
         attemptId: attempt.id,

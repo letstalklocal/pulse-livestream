@@ -13,4 +13,5 @@ export interface AdminWithdrawalQueue {
   withdrawals: AdminWithdrawalSummary[];
   preparationPaused: boolean;
   policy: WithdrawalPolicy;
+  canResolveRecipientError?: boolean;
 }
