@@ -158,6 +158,9 @@ try {
    // Approved recipient-rejection warning adds only its decorative icon and keyed local messages.
    // Withdrawal render tests cover its allowlisted copy, accessibility and financial guards.
    if(file.endsWith('/app/withdrawal/[id].tsx')&&ts.isJsxAttribute(n)&&((n.name.getText(a)==='name'&&n.parent.parent.tagName?.getText(a)==='Ionicons'&&n.initializer?.text==='alert-circle-outline')||(n.name.getText(a)==='key'&&n.parent.parent.tagName?.getText(a)==='Text'&&n.initializer?.getText(a)==='{message}')))return;
+   // User-requested progress chevrons and saved-correction icon are decorative.
+   // Withdrawal render tests verify stages, single-save feedback and retained funds.
+   if(file.endsWith('/app/withdrawal/[id].tsx')&&ts.isJsxAttribute(n)&&((n.name.getText(a)==='name'&&n.parent.parent.tagName?.getText(a)==='Ionicons'&&(['checkmark','chevron-forward'].includes(n.initializer?.text)||n.initializer?.getText(a).replace(/\s/g,'')==='{correctionSaved?"checkmark-circle-outline":"alert-circle-outline"}'))||(n.name.getText(a)==='key'&&n.parent.parent.tagName?.getText(a)==='View'&&n.initializer?.getText(a)==='{step.key}')))return;
    // Approved anonymous avatar uses a generic person icon instead of identifying initials.
    if(file.endsWith('/components/Avatar.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='person')return;
    // Approved Premium entry checkbox is additive; retain all existing admission controls.

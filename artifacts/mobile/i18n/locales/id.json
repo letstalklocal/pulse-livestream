@@ -1,4 +1,13 @@
 {
+  "Error — awaiting identification": "Kesalahan — menunggu identifikasi",
+  "Error — identified": "Kesalahan — teridentifikasi",
+  "Correction saved — awaiting processing": "Perbaikan disimpan — menunggu pemrosesan",
+  "Transfer progress": "Progres transfer",
+  "Requested": "Diajukan",
+  "Preparing": "Persiapan",
+  "Review": "Peninjauan",
+  "Processing": "Pemrosesan",
+  "Edit contact details": "Edit detail kontak",
   "Test": "Tes",
   " · paid": " · dibayar",
   " · refunded": " · dikembalikan",

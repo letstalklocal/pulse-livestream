@@ -26,9 +26,85 @@ export const withdrawalStatusKeys: Record<string, string> = {
   cancelled: "Cancelled",
   unknown: "Payment outcome under review",
   exception: "Needs review",
+  error_unknown: "Error — awaiting identification",
+  error_identified: "Error — identified",
+  correction_saved: "Correction saved — awaiting processing",
+  recipient_correction_submitted: "Correction saved — awaiting processing",
+  recipient_error_resolved: "Preparing withdrawal",
 };
 export function withdrawalStatus(status: string) {
   return withdrawalStatusKeys[status] ?? "Withdrawal under review";
+}
+export const withdrawalProgressSteps = [
+  { key: "requested", label: "Requested" },
+  { key: "preparing", label: "Preparing" },
+  { key: "review", label: "Review" },
+  { key: "recipient", label: "Recipient" },
+  { key: "processing", label: "Processing" },
+  { key: "delivered", label: "Paid" },
+] as const;
+type ProgressStep = (typeof withdrawalProgressSteps)[number]["key"];
+type ProgressWithdrawal = {
+  status: string;
+  recipientIssue?: { code?: unknown; fields?: unknown } | null;
+  recipientCorrection?: { hash?: unknown } | null;
+  providerLink?: string | null;
+  progress?: { stage?: unknown; currentStep?: unknown } | null;
+};
+/** Fixed display labels only; saved corrections never imply a payment was retried. */
+export function withdrawalProgress(withdrawal: ProgressWithdrawal) {
+  const fields = withdrawal.recipientIssue?.fields;
+  const validIssue =
+    ["unknown", "expired"].includes(withdrawal.status) &&
+    withdrawal.recipientIssue?.code === "recipient_validation_failed" &&
+    Array.isArray(fields) &&
+    fields.length > 0 &&
+    fields.length <= 4 &&
+    new Set(fields).size === fields.length &&
+    fields.every((field) =>
+      ["phone", "email", "name", "other"].includes(field),
+    );
+  const correctionSaved =
+    validIssue &&
+    fields.every((field) => field === "phone" || field === "email") &&
+    typeof withdrawal.recipientCorrection?.hash === "string" &&
+    withdrawal.recipientCorrection.hash.length > 0;
+  // Derive error stages from the current issue and correction, including on older APIs.
+  const stage = ["unknown", "expired"].includes(withdrawal.status)
+    ? correctionSaved
+      ? "correction_saved"
+      : validIssue
+        ? "error_identified"
+        : "error_unknown"
+    : withdrawal.status;
+  const stepByStatus: Record<string, ProgressStep> = {
+    awaiting_quote: "requested",
+    awaiting_confirmation: "requested",
+    requested: "requested",
+    preparing: "preparing",
+    awaiting_human_review: "review",
+    prepared: "review",
+    awaiting_recipient: "recipient",
+    processing: "processing",
+    delivered: "delivered",
+    paid: "delivered",
+    completed: "delivered",
+    returned: "processing",
+    unknown: withdrawal.providerLink ? "recipient" : "preparing",
+    expired: withdrawal.providerLink ? "recipient" : "preparing",
+  };
+  const serverStep = withdrawal.progress?.currentStep;
+  const currentStep = withdrawalProgressSteps.some(
+    ({ key }) => key === serverStep,
+  )
+    ? (serverStep as ProgressStep)
+    : (stepByStatus[withdrawal.status] ?? "requested");
+  return {
+    stage,
+    currentStep,
+    correctionSaved,
+    statusLabel: withdrawalStatus(stage),
+  };
 }
 const recipientIssueCopy: Record<string, string> = {
   phone:

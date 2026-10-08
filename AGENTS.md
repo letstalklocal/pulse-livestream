@@ -12,6 +12,8 @@ Before changing coin artwork, wallet purchases, Premium gift requests, or Revenu
 
 Before diagnosing data disappearing after edits, Metro refresh connectivity, Android hostname/DNS errors, or Replit Remote SSH failures, read [docs/development-connectivity.md](docs/development-connectivity.md) and follow its troubleshooting sequence.
 
+Before adding native-only APIs to shared mobile modules, adding platform-specific implementations, or diagnosing web preview/artifact reload errors, read [the web/native cache and Metro reload requirements](docs/development-connectivity.md#october-8-web-preview-native-file-cache-crash-and-stale-reload-graph). Never execute native file-system constructors or native path getters on web, including during module import. Verify the actual running lazy/reload bundle after adding platform-specific files; a successful fresh bundle or typecheck alone does not establish preview recovery.
+
 Treat the recorded user decisions as requirements to preserve. Implement the requested change without silently removing, redesigning, or reverting unrelated approved behavior. When the user requests a rollback, revert only the specified change. Later explicit user instructions take precedence; update the document when they change a recorded requirement.
 
 For chat UI changes, check the relevant regression cases in that document. Distinguish type/build checks from actual visual or device checks in your report.
@@ -20,4 +22,4 @@ After creating or changing API endpoints or backend behavior, rebuild and restar
 
 ## Sub-agent coding preference
 
-When delegating future coding work, use `gpt-5.6-terra` for coding sub-agents. The primary agent must review their changes and verification results before reporting completion.
+When delegating future coding work, use `gpt-6-sol` with reasoning effort `medium` for coding sub-agents (`model: "gpt-6-sol"`, `reasoning_effort: "medium"`). The primary agent must review their changes and verification results before reporting completion.

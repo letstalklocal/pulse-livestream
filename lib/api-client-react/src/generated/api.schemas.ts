@@ -329,6 +329,7 @@ export const CreatorWithdrawalCreatorStatus = {
   returned: 'returned',
   unknown: 'unknown',
   error: 'error',
+  correction_saved: 'correction_saved',
 } as const;
 
 export interface WithdrawalRecipientCorrection {
@@ -342,6 +343,68 @@ export interface WithdrawalRecipientCorrection {
   hash: string;
   requestedAt: string;
 }
+
+export type CreatorWithdrawalProgressCurrentStep = typeof CreatorWithdrawalProgressCurrentStep[keyof typeof CreatorWithdrawalProgressCurrentStep];
+
+
+export const CreatorWithdrawalProgressCurrentStep = {
+  requested: 'requested',
+  preparing: 'preparing',
+  review: 'review',
+  recipient: 'recipient',
+  processing: 'processing',
+  delivered: 'delivered',
+} as const;
+
+export type CreatorWithdrawalProgressNextAction = typeof CreatorWithdrawalProgressNextAction[keyof typeof CreatorWithdrawalProgressNextAction];
+
+
+export const CreatorWithdrawalProgressNextAction = {
+  verify_saved_correction: 'verify_saved_correction',
+  correct_recipient_details: 'correct_recipient_details',
+  identify_error: 'identify_error',
+  continue: 'continue',
+  none: 'none',
+} as const;
+
+export type CreatorWithdrawalProgressStepsItemKey = typeof CreatorWithdrawalProgressStepsItemKey[keyof typeof CreatorWithdrawalProgressStepsItemKey];
+
+
+export const CreatorWithdrawalProgressStepsItemKey = {
+  requested: 'requested',
+  preparing: 'preparing',
+  review: 'review',
+  recipient: 'recipient',
+  processing: 'processing',
+  delivered: 'delivered',
+} as const;
+
+export type CreatorWithdrawalProgressStepsItemState = typeof CreatorWithdrawalProgressStepsItemState[keyof typeof CreatorWithdrawalProgressStepsItemState];
+
+
+export const CreatorWithdrawalProgressStepsItemState = {
+  complete: 'complete',
+  current: 'current',
+  upcoming: 'upcoming',
+} as const;
+
+export type CreatorWithdrawalProgressStepsItem = {
+  key: CreatorWithdrawalProgressStepsItemKey;
+  label: string;
+  state: CreatorWithdrawalProgressStepsItemState;
+};
+
+/**
+ * Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.
+ */
+export type CreatorWithdrawalProgress = {
+  stage: string;
+  statusLabel: string;
+  currentStep: CreatorWithdrawalProgressCurrentStep;
+  blocked: boolean;
+  nextAction: CreatorWithdrawalProgressNextAction;
+  steps: CreatorWithdrawalProgressStepsItem[];
+};
 
 export interface CreatorWithdrawal {
   id: string;
@@ -371,6 +434,8 @@ export interface CreatorWithdrawal {
   creatorStatus?: CreatorWithdrawalCreatorStatus;
   errorMessage?: string | null;
   recipientCorrection?: WithdrawalRecipientCorrection | null;
+  /** Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery. */
+  progress?: CreatorWithdrawalProgress;
 }
 
 export type AdminWithdrawalSummary = CreatorWithdrawal & ({

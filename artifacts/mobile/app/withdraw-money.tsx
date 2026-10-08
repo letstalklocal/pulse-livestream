@@ -21,7 +21,7 @@ import { useColors } from "@/hooks/useColors";
 import { useWithdrawals, type PayoutRecipient } from "@/hooks/useWithdrawals";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { GoldCoinIcon } from "@/components/GoldCoinIcon";
-import { usdCents, withdrawalStatus } from "@/utils/withdrawals";
+import { usdCents, withdrawalProgress } from "@/utils/withdrawals";
 import {
   getCountryCallingCode,
   isSupportedCountry,
@@ -1165,7 +1165,7 @@ export default function WithdrawMoneyScreen() {
                           >
                             <View style={{ flex: 1 }}>
                               {text(money(w.grossCents))}
-                              {text(t(withdrawalStatus(w.creatorStatus ?? w.status)), true)}
+                              {text(t(withdrawalProgress(w).statusLabel), true)}
                               {text(
                                 new Date(w.createdAt).toLocaleDateString(
                                   appLocale(),

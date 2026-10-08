@@ -3,7 +3,9 @@
   "version": "2026-10-04.1",
   "role": "maker",
   "instructions": [
+    "Read progress.stage and progress.nextAction alongside the operational status. error_unknown needs investigation, error_identified needs the rejected details corrected, and correction_saved with verify_saved_correction means the edit is already saved and awaits reconciler verification. progress.blocked=true is not permission to retry. After guarded recovery, awaiting_quote/continue returns the same withdrawal to fresh quoting; never request a repeated edit or treat the old rejection as an unsaved correction.",
     "Complete the preflight playbook and use only the maker credential. Retrieve the current role-eligible queue; if the response is truncated, do not claim to have processed the full queue.",
+    "When an unknown/expired withdrawal has recipientCorrection, the user's edit is complete. Do not ask for another edit, manual recovery form or quote approval. Leave the attempt reserved for the existing reconciler workflow to inspect history and apply the saved correction. Do not re-record the original rejection just to acknowledge an edit, create another contact or retry preparation while unknown. After verified recovery returns awaiting_quote, use the updated recipient snapshot and obtain a fresh quote. Maker credentials cannot invoke reconciler tools or impersonate an owner.",
     "For an awaiting-quote request, obtain the actual quote in the signed-in Business UI for the selected country, delivery method and debit-card funding. The USD 15 sample is a send amount; do not assume its fee applies to USD 14.01.",
     "Record exact integer-cent send amount, fee, tax, separate promotional discount, provider minimum send amount, exact receive amount/currency, source URL, observed time and expiry. Send + fee + tax must fit the USD 15 gross reservation; unverified discounts cannot fund the transfer.",
     "If the route minimum, fee, unresolved tax, availability or recipient mismatch prevents the submitted gross amount and selected route, record the exception and stop. Never switch the requested method or exceed the gross deduction. A provider quote refresh within those bounds requires no second creator approval.",
@@ -19,5 +21,5 @@
   ],
   "humanFinalDecisionRequired": true,
   "autoSendAllowed": false,
-  "workflowRevision": "2026-10-08.2"
+  "workflowRevision": "2026-10-08.4"
 }

@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { readCatalog } from "./payoutCatalog";
+import { withdrawalProgress } from "./withdrawalProgress";
 type Row = Record<string, any>;
 type Sql = {
   query(
@@ -331,7 +332,8 @@ function publicRecipientIssue(r: Row) {
   };
 }
 const recipientCorrectionEvidence = (alias: string) =>
-  `(SELECT evidence FROM creator_payout_events WHERE withdrawal_id=${alias}.id AND action='recipient_correction_submitted' ORDER BY id DESC LIMIT 1) recipient_correction_evidence`;
+  `(SELECT evidence FROM creator_payout_events WHERE withdrawal_id=${alias}.id AND action='recipient_correction_submitted' ORDER BY id DESC LIMIT 1) recipient_correction_evidence,
+   (SELECT CASE WHEN action='reconciled' THEN 'processing' ELSE 'recipient' END FROM creator_payout_events WHERE withdrawal_id=${alias}.id AND action IN ('human_release_recorded','reconciled') ORDER BY id DESC LIMIT 1) progress_recorded_stage`;
 function publicRecipientCorrection(r: Row) {
   const correction = r.recipient_correction_evidence;
   if (
@@ -348,29 +350,51 @@ function publicRecipientCorrection(r: Row) {
     requestedAt: correction.requestedAt,
   };
 }
-const summary = (r: Row) => ({
-  id: r.id,
-  userId: r.user_id,
-  status: r.status,
-  grossCents: r.gross_cents,
-  methodId: r.method_id,
-  recipient: r.recipient,
-  route: r.route,
-  quote: r.quote,
-  approvedQuoteHash: r.approved_quote_hash,
-  checker: r.checker
-    ? { status: r.checker.status, checkedAt: r.checker.checkedAt }
-    : null,
-  providerLink: r.provider_link,
-  providerOnboardingStatus: r.provider_onboarding_status,
-  recipientIssue: publicRecipientIssue(r),
-  creatorStatus: publicRecipientIssue(r) ? "error" : r.status,
-  errorMessage: publicRecipientIssue(r)?.message ?? null,
-  recipientCorrection: publicRecipientCorrection(r),
-  version: r.version,
-  createdAt: r.created_at,
-  updatedAt: r.updated_at,
-});
+const summary = (r: Row) => {
+  const recipientIssue = publicRecipientIssue(r);
+  const recipientCorrection = publicRecipientCorrection(r);
+  const progress = withdrawalProgress({
+    status: r.status,
+    providerLink: r.provider_link,
+    checker: r.checker,
+    quote: r.quote,
+    recipientIssue,
+    recipientCorrection,
+    recordedStage: r.progress_recorded_stage,
+  });
+  return {
+    id: r.id,
+    userId: r.user_id,
+    status: r.status,
+    grossCents: r.gross_cents,
+    methodId: r.method_id,
+    recipient: r.recipient,
+    route: r.route,
+    quote: r.quote,
+    approvedQuoteHash: r.approved_quote_hash,
+    checker: r.checker
+      ? { status: r.checker.status, checkedAt: r.checker.checkedAt }
+      : null,
+    providerLink: r.provider_link,
+    providerOnboardingStatus: r.provider_onboarding_status,
+    recipientIssue,
+    creatorStatus:
+      progress.stage === "correction_saved"
+        ? "correction_saved"
+        : recipientIssue
+          ? "error"
+          : r.status,
+    errorMessage:
+      progress.stage === "correction_saved"
+        ? null
+        : (recipientIssue?.message ?? null),
+    recipientCorrection,
+    progress,
+    version: r.version,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+};
 export async function overview(db: Database, uid: number) {
   return tx(db, async (c) => {
     await lock(c, uid);

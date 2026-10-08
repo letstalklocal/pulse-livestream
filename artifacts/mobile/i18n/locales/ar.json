@@ -1,4 +1,13 @@
 {
+  "Error — awaiting identification": "خطأ — بانتظار تحديد السبب",
+  "Error — identified": "خطأ — تم تحديد السبب",
+  "Correction saved — awaiting processing": "تم حفظ التصحيح — بانتظار المعالجة",
+  "Transfer progress": "تقدم التحويل",
+  "Requested": "تم الطلب",
+  "Preparing": "قيد التجهيز",
+  "Review": "المراجعة",
+  "Processing": "قيد المعالجة",
+  "Edit contact details": "تعديل بيانات الاتصال",
   "Test": "اختبار",
   " · paid": " · مدفوع",
   " · refunded": " · تم استرداد المبلغ",

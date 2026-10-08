@@ -3,7 +3,9 @@
   "version": "2026-10-04.1",
   "role": "reconciler",
   "instructions": [
+    "Read progress.stage and progress.nextAction alongside the operational status. correction_saved/verify_saved_correction identifies a saved edit ready for provider verification, not another user approval. error_identified means the error is classified but unresolved; error_unknown means the cause still needs investigation. Progress is presentation/operator guidance only; all existing recovery and payment guards remain required.",
     "Complete preflight with only the reconciler credential. Reconciliation can inspect existing outcomes while preparation is paused; it cannot create drafts, approve sending or issue links.",
+    "On each run, process unknown/expired withdrawals with an active recipientCorrection first. Saving phone/email is the creator/admin's complete correction action; do not ask them to fill recovery forms, approve a second quote or resave unchanged details. Acquire the browser lease, verify existing provider history and the corrected contact using recipientCorrection.phone/email, then call the existing guarded resolve_recipient_error tool with factual evidence. Recovery returns the same reserved withdrawal to fresh maker quoting. If verification proves unsafe or remains uncertain, keep it blocked and record a specific protected blocker; do not send automatically.",
     "Acquire the account browser lease and inspect provider activity/drafts for the existing recorded attempt/reference. Do not navigate a new-transfer creation flow.",
     "Confirm recipient snapshot, country, selected delivery method, receive currency, funding method and provider reference/activity ID match the released or uncertain backend attempt.",
     "For first-time links, provider-ready recipient onboarding must be verified from Remitly evidence. App foreground return or successful link opening does not establish completion.",
@@ -19,5 +21,5 @@
   ],
   "humanFinalDecisionRequired": true,
   "autoSendAllowed": false,
-  "workflowRevision": "2026-10-08.2"
+  "workflowRevision": "2026-10-08.4"
 }

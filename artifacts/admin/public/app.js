@@ -41,13 +41,21 @@ const giftState = {
 let giftSvgaPromise;
 function loadGiftSvga() {
   if (window.SVGA) return Promise.resolve(window.SVGA);
-  if (!giftSvgaPromise) giftSvgaPromise = new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = "./gift-svga.js";
-    script.onload = () => window.SVGA ? resolve(window.SVGA) : reject(new Error("SVGA preview player unavailable."));
-    script.onerror = () => { giftSvgaPromise = null; script.remove(); reject(new Error("Unable to load SVGA preview player.")); };
-    document.head.append(script);
-  });
+  if (!giftSvgaPromise)
+    giftSvgaPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "./gift-svga.js";
+      script.onload = () =>
+        window.SVGA
+          ? resolve(window.SVGA)
+          : reject(new Error("SVGA preview player unavailable."));
+      script.onerror = () => {
+        giftSvgaPromise = null;
+        script.remove();
+        reject(new Error("Unable to load SVGA preview player."));
+      };
+      document.head.append(script);
+    });
   return giftSvgaPromise;
 }
 function stopGiftAnimation(field) {
@@ -57,18 +65,23 @@ function stopGiftAnimation(field) {
   if (state.previewFrame) cancelAnimationFrame(state.previewFrame);
   state.svga?.stopAnimation(true);
   for (const media of [state.previewMedia, state.previewAudio]) {
-    if (media) { media.pause(); media.removeAttribute("src"); media.load(); }
+    if (media) {
+      media.pause();
+      media.removeAttribute("src");
+      media.load();
+    }
   }
   state.previewMedia = null;
   state.previewAudio = null;
   state.previewFrame = null;
-  state.urls.forEach(url => URL.revokeObjectURL(url));
+  state.urls.forEach((url) => URL.revokeObjectURL(url));
   delete giftState.animationPreviews[field];
 }
 const giftCoin =
   '<svg class="gift-coin" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#E5A400" stroke="#A96B00" stroke-width="1"/><circle cx="12" cy="12" r="8.5" fill="#FFD54A" stroke="#FFF0A3" stroke-width="1.5"/><path d="M15 8.5a4.5 4.5 0 1 0 0 7" fill="none" stroke="#B87900" stroke-width="2" stroke-linecap="round"/></svg>';
 function stopGiftPreview(preserveArtwork = false) {
-  if (!preserveArtwork) Object.keys(giftState.animationPreviews).forEach(stopGiftAnimation);
+  if (!preserveArtwork)
+    Object.keys(giftState.animationPreviews).forEach(stopGiftAnimation);
   giftState.previewVersion++;
   if (giftState.previewFrame) cancelAnimationFrame(giftState.previewFrame);
   giftState.previewFrame = null;
@@ -113,9 +126,12 @@ function bindGiftEvents() {
     const b = event.target.closest("button");
     if (!b || giftState.busy) return;
     if (b.id === "gift-new-collection") return renderGiftCollectionEditor(true);
-    if (b.id === "gift-manage-collection") return renderGiftCollectionEditor(false);
-    if (b.id === "gift-collection-close" || b.id === "gift-collection-cancel") return closeGiftCollectionEditor();
-    if (b.id === "gift-editor-close" || b.id === "gift-editor-cancel") return closeGiftEditor();
+    if (b.id === "gift-manage-collection")
+      return renderGiftCollectionEditor(false);
+    if (b.id === "gift-collection-close" || b.id === "gift-collection-cancel")
+      return closeGiftCollectionEditor();
+    if (b.id === "gift-editor-close" || b.id === "gift-editor-cancel")
+      return closeGiftEditor();
     if (b.id === "gift-refresh") return loadGifts();
     if (b.dataset.giftCollection) {
       giftState.version++;
@@ -182,18 +198,27 @@ function bindGiftEvents() {
   });
   main.addEventListener("change", async (event) => {
     const input = event.target;
-    if (input.name === "soundChoice" && input.form?.getAttribute("id") === "gift-draft-form") {
+    if (
+      input.name === "soundChoice" &&
+      input.form?.getAttribute("id") === "gift-draft-form"
+    ) {
       stopGiftPreview(true);
       updateGiftSound(input.form);
       return;
     }
-    if (input.name === "type" && input.form?.getAttribute("id") === "gift-draft-form") {
+    if (
+      input.name === "type" &&
+      input.form?.getAttribute("id") === "gift-draft-form"
+    ) {
       stopGiftPreview();
       updateGiftType(input.form);
       previewGiftSelections(input.form);
       return;
     }
-    if (input.name === "thumbnailAssetId" && input.form?.getAttribute("id") === "gift-draft-form") {
+    if (
+      input.name === "thumbnailAssetId" &&
+      input.form?.getAttribute("id") === "gift-draft-form"
+    ) {
       previewGiftAsset("thumbnailAssetId");
       return;
     }
@@ -202,7 +227,17 @@ function bindGiftEvents() {
     if (!file) return;
     const field = input.dataset.giftUpload,
       extension = file.name.split(".").pop().toLowerCase(),
-      format = ({png:"png",jpg:"jpeg",jpeg:"jpeg",webp:"webp",svga:"svga",webm:"webm-alpha",mp4:"packed-alpha-mp4",mp3:"mp3",aac:"aac"})[extension],
+      format = {
+        png: "png",
+        jpg: "jpeg",
+        jpeg: "jpeg",
+        webp: "webp",
+        svga: "svga",
+        webm: "webm-alpha",
+        mp4: "packed-alpha-mp4",
+        mp3: "mp3",
+        aac: "aac",
+      }[extension],
       feedback = main.querySelector(`[data-upload-feedback="${field}"]`),
       version = giftState.version;
     const allowed = input.dataset.formats.split(",");
@@ -270,8 +305,11 @@ function bindGiftEvents() {
       result.fileName = file.name;
       giftState.data.assets.push(result);
       main.querySelector(`[name="${field}"]`).value = result.id;
-      main.querySelector(`[data-current-file="${field}"]`).textContent = file.name;
-      if (field === "soundAssetId") main.querySelector('[name="soundAssetId"]').dataset.customSoundId = result.id;
+      main.querySelector(`[data-current-file="${field}"]`).textContent =
+        file.name;
+      if (field === "soundAssetId")
+        main.querySelector('[name="soundAssetId"]').dataset.customSoundId =
+          result.id;
       if (field !== "soundAssetId") previewGiftAsset(field);
       feedback.textContent =
         "Validated upload ready. Save the draft to attach it.";
@@ -299,9 +337,29 @@ async function previewGiftAsset(field) {
     URL.revokeObjectURL(giftState.artworkUrl);
     giftState.artworkUrl = null;
   }
-  const state = animationPreview ? (giftState.animationPreviews[field] = {previewVersion: 0, urls: [], previewMedia: null, previewAudio: null, previewFrame: null}) : giftState;
-  const screen = document.getElementById(soundPreview ? "gift-sound-preview" : animationPreview ? `gift-${field}-preview` : "gift-preview-screen"),
-    feedback = document.getElementById(soundPreview ? "gift-sound-preview-feedback" : animationPreview ? `gift-${field}-feedback` : "gift-preview-feedback"),
+  const state = animationPreview
+    ? (giftState.animationPreviews[field] = {
+        previewVersion: 0,
+        urls: [],
+        previewMedia: null,
+        previewAudio: null,
+        previewFrame: null,
+      })
+    : giftState;
+  const screen = document.getElementById(
+      soundPreview
+        ? "gift-sound-preview"
+        : animationPreview
+          ? `gift-${field}-preview`
+          : "gift-preview-screen",
+    ),
+    feedback = document.getElementById(
+      soundPreview
+        ? "gift-sound-preview-feedback"
+        : animationPreview
+          ? `gift-${field}-feedback`
+          : "gift-preview-feedback",
+    ),
     version = giftState.version,
     previewVersion = state.previewVersion;
   screen.replaceChildren();
@@ -316,7 +374,12 @@ async function previewGiftAsset(field) {
   feedback.textContent = "Loading preview…";
   try {
     const token = await window.Clerk.session?.getToken();
-    if (version !== giftState.version || previewVersion !== state.previewVersion || !authorized) return;
+    if (
+      version !== giftState.version ||
+      previewVersion !== state.previewVersion ||
+      !authorized
+    )
+      return;
     const response = await fetch(asset.url, {
       headers: { Authorization: "Bearer " + token },
       credentials: "omit",
@@ -342,7 +405,10 @@ async function previewGiftAsset(field) {
       audio.controls = true;
       screen.append(audio);
       feedback.textContent = "Sound preview.";
-      audio.play().catch(() => { if (version === giftState.version) feedback.textContent = "Press Play to preview sound."; });
+      audio.play().catch(() => {
+        if (version === giftState.version)
+          feedback.textContent = "Press Play to preview sound.";
+      });
       return;
     }
     const form = document.getElementById("gift-draft-form"),
@@ -368,7 +434,12 @@ async function previewGiftAsset(field) {
     }
     if (asset.format === "svga") {
       const SVGA = await loadGiftSvga();
-      if (version !== giftState.version || previewVersion !== state.previewVersion || !authorized) return;
+      if (
+        version !== giftState.version ||
+        previewVersion !== state.previewVersion ||
+        !authorized
+      )
+        return;
       const canvas = document.createElement("canvas");
       canvas.width = asset.width || 720;
       canvas.height = asset.height || 1280;
@@ -380,20 +451,35 @@ async function previewGiftAsset(field) {
       player.loops = 0;
       player.clearsAfterStop = false;
       player.setContentMode("AspectFit");
-      const item = await new Promise((resolve, reject) => new SVGA.Parser().load(url, resolve, reject));
-      if (version !== giftState.version || previewVersion !== state.previewVersion || !authorized) { player.stopAnimation(true); return; }
+      const item = await new Promise((resolve, reject) =>
+        new SVGA.Parser().load(url, resolve, reject),
+      );
+      if (
+        version !== giftState.version ||
+        previewVersion !== state.previewVersion ||
+        !authorized
+      ) {
+        player.stopAnimation(true);
+        return;
+      }
       player.setVideoItem(item);
       const controls = document.createElement("button");
       controls.type = "button";
       controls.className = "page-button";
       controls.textContent = "Pause preview";
       controls.onclick = () => {
-        if (controls.textContent === "Pause preview") { player.pauseAnimation(); controls.textContent = "Play preview"; }
-        else { player.startAnimation(); controls.textContent = "Pause preview"; }
+        if (controls.textContent === "Pause preview") {
+          player.pauseAnimation();
+          controls.textContent = "Play preview";
+        } else {
+          player.startAnimation();
+          controls.textContent = "Pause preview";
+        }
       };
       screen.append(controls);
       player.startAnimation();
-      feedback.textContent = "SVGA animation preview (silent). Check native playback separately.";
+      feedback.textContent =
+        "SVGA animation preview (silent). Check native playback separately.";
       return;
     }
     const media = document.createElement(
@@ -438,10 +524,15 @@ async function previewGiftAsset(field) {
       });
       media.addEventListener("pause", () => audio.pause());
       media.addEventListener("ended", () => audio.pause());
-      media.addEventListener("volumechange", () => { audio.muted = media.muted; });
+      media.addEventListener("volumechange", () => {
+        audio.muted = media.muted;
+      });
     }
     media.addEventListener("error", () => {
-      if (version === giftState.version && previewVersion === state.previewVersion)
+      if (
+        version === giftState.version &&
+        previewVersion === state.previewVersion
+      )
         feedback.textContent =
           "This browser could not decode the asset. Check native playback separately.";
     });
@@ -502,7 +593,11 @@ async function previewGiftAsset(field) {
           : "Play to preview Android WebM. Browser transparency is separate from device verification.";
     }
   } catch (error) {
-    if (version === giftState.version && previewVersion === state.previewVersion && !accessError(error))
+    if (
+      version === giftState.version &&
+      previewVersion === state.previewVersion &&
+      !accessError(error)
+    )
       feedback.textContent = error.message;
   }
 }
@@ -518,7 +613,8 @@ async function loadGifts() {
   if (status) status.textContent = "Loading gifts…";
   try {
     await api("/gifts/assets/import-existing", { method: "POST" });
-    if (version !== giftState.version || !authorized || section !== "Gifts") return;
+    if (version !== giftState.version || !authorized || section !== "Gifts")
+      return;
     const data = await api("/gifts");
     if (version !== giftState.version || !authorized || section !== "Gifts")
       return;
@@ -544,16 +640,83 @@ function renderGifts() {
   document.getElementById("gift-editor-modal")?.close();
   closeGiftCollectionEditor();
   const d = giftState.data;
-  const collections = [...d.collections].sort((a,b) => a.sortOrder-b.sortOrder);
-  const c = collections.find(collection => collection.id === giftState.collection);
-  const gifts = d.gifts.filter(gift => gift.collectionId === c?.id).sort((a,b) => (giftRevision(a)?.coinCost ?? 0)-(giftRevision(b)?.coinCost ?? 0) || a.id.localeCompare(b.id));
+  const collections = [...d.collections].sort(
+    (a, b) => a.sortOrder - b.sortOrder,
+  );
+  const c = collections.find(
+    (collection) => collection.id === giftState.collection,
+  );
+  const gifts = d.gifts
+    .filter((gift) => gift.collectionId === c?.id)
+    .sort(
+      (a, b) =>
+        (giftRevision(a)?.coinCost ?? 0) - (giftRevision(b)?.coinCost ?? 0) ||
+        a.id.localeCompare(b.id),
+    );
   document.getElementById("gift-workspace").innerHTML =
-    '<div class="gift-collections">' + collections.map(collection => '<button class="page-button ' + (collection.id === giftState.collection ? "selected" : "") + '" data-gift-collection="' + esc(collection.id) + '" aria-pressed="' + (collection.id === giftState.collection) + '" ' + (!collection.locked ? 'draggable="true" title="Drag to reorder; Alt + Left/Right also works"' : 'draggable="false"') + '>' + (!collection.locked ? '<span class="gift-collection-drag-handle" aria-hidden="true">⠿</span> ' : "") + esc(collection.name) + (collection.locked ? " · Default" : "") + '</button>').join("") +
-    '<button class="page-button" id="gift-new-collection">+ Add collection</button></div><div class="gift-list-heading"><span id="gift-collection-summary">Gifts: ' + gifts.length + ' · Status: ' + esc(c ? c.status.charAt(0).toUpperCase() + c.status.slice(1) : "—") + '</span><div class="gift-actions">' + (c && !c.locked ? '<button class="page-button" id="gift-manage-collection">Manage collection</button>' : "") + '<button class="primary-button" id="gift-new">Add gift</button></div></div>' +
-    '<div class="gift-grid">' + (gifts.map(g => {
-      const revision = giftRevision(g);
-      return '<article class="gift-card"><button class="gift-card-open" data-gift-open="' + esc(g.id) + '"><span class="gift-art-placeholder" ' + (revision?.thumbnailAssetId ? 'data-card-artwork="' + esc(revision.thumbnailAssetId) + '"' : "") + '>' + (revision?.thumbnailAssetId ? '<small>Loading artwork…</small>' : g.legacy ? esc(revision?.emoji || "") : '<small>No artwork</small>') + '</span><strong>' + esc(revision?.name || g.id) + '</strong><span>' + giftCoin + ' ' + esc(revision?.coinCost?.toLocaleString() || "—") + '</span><small>' + esc(g.status) + (g.draftRevisionId ? " · Draft changes" : "") + '</small></button></article>';
-    }).join("") || '<p>No gifts yet. Add a gift to begin.</p>') + '</div><div id="gift-editor"></div><div id="gift-collection-editor-slot"></div>';
+    '<div class="gift-collections">' +
+    collections
+      .map(
+        (collection) =>
+          '<button class="page-button ' +
+          (collection.id === giftState.collection ? "selected" : "") +
+          '" data-gift-collection="' +
+          esc(collection.id) +
+          '" aria-pressed="' +
+          (collection.id === giftState.collection) +
+          '" ' +
+          (!collection.locked
+            ? 'draggable="true" title="Drag to reorder; Alt + Left/Right also works"'
+            : 'draggable="false"') +
+          ">" +
+          (!collection.locked
+            ? '<span class="gift-collection-drag-handle" aria-hidden="true">⠿</span> '
+            : "") +
+          esc(collection.name) +
+          (collection.locked ? " · Default" : "") +
+          "</button>",
+      )
+      .join("") +
+    '<button class="page-button" id="gift-new-collection">+ Add collection</button></div><div class="gift-list-heading"><span id="gift-collection-summary">Gifts: ' +
+    gifts.length +
+    " · Status: " +
+    esc(c ? c.status.charAt(0).toUpperCase() + c.status.slice(1) : "—") +
+    '</span><div class="gift-actions">' +
+    (c && !c.locked
+      ? '<button class="page-button" id="gift-manage-collection">Manage collection</button>'
+      : "") +
+    '<button class="primary-button" id="gift-new">Add gift</button></div></div>' +
+    '<div class="gift-grid">' +
+    (gifts
+      .map((g) => {
+        const revision = giftRevision(g);
+        return (
+          '<article class="gift-card"><button class="gift-card-open" data-gift-open="' +
+          esc(g.id) +
+          '"><span class="gift-art-placeholder" ' +
+          (revision?.thumbnailAssetId
+            ? 'data-card-artwork="' + esc(revision.thumbnailAssetId) + '"'
+            : "") +
+          ">" +
+          (revision?.thumbnailAssetId
+            ? "<small>Loading artwork…</small>"
+            : g.legacy
+              ? esc(revision?.emoji || "")
+              : "<small>No artwork</small>") +
+          "</span><strong>" +
+          esc(revision?.name || g.id) +
+          "</strong><span>" +
+          giftCoin +
+          " " +
+          esc(revision?.coinCost?.toLocaleString() || "—") +
+          "</span><small>" +
+          esc(g.status) +
+          (g.draftRevisionId ? " · Draft changes" : "") +
+          "</small></button></article>"
+        );
+      })
+      .join("") || "<p>No gifts yet. Add a gift to begin.</p>") +
+    '</div><div id="gift-editor"></div><div id="gift-collection-editor-slot"></div>';
   if (giftState.selected) renderGiftEditor();
   loadGiftCardArtwork();
 }
@@ -563,109 +726,238 @@ function closeGiftCollectionEditor() {
   modal?.remove();
 }
 function giftStableId(value) {
-  return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"").replace(/^[^a-z]+/,"").slice(0,64);
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/^[^a-z]+/, "")
+    .slice(0, 64);
 }
 function renderGiftCollectionEditor(create) {
   closeGiftCollectionEditor();
-  const collection = giftState.data.collections.find(c => c.id === giftState.collection);
+  const collection = giftState.data.collections.find(
+    (c) => c.id === giftState.collection,
+  );
   if (!create && (!collection || collection.locked)) return;
-  document.getElementById("gift-collection-editor-slot").innerHTML = '<dialog id="gift-collection-modal" class="gift-modal" aria-labelledby="gift-collection-title"><header class="gift-modal-header"><h2 id="gift-collection-title">' + (create ? "Add collection" : "Manage collection") + '</h2><button class="page-button" id="gift-collection-close" aria-label="Close collection editor">✕</button></header><form id="' + (create ? "gift-add-collection" : "gift-collection-editor") + '" class="gift-draft"><label>Name<input name="name" maxlength="80" required autofocus value="' + esc(create ? "" : collection.name) + '"></label>' +
-    (create ? '<details class="gift-options"><summary>Collection identifier</summary><label>Stable collection ID<input name="id" pattern="[a-z][a-z0-9_-]*" maxlength="64" required></label></details>' : '<label>Publication<select name="status">' + ["draft","published","archived"].map(status => '<option value="' + status + '" ' + (status === collection.status ? "selected" : "") + '>' + status + '</option>').join("") + '</select></label><details class="gift-options"><summary>Archive</summary><button type="button" class="page-button" id="gift-archive-collection">Archive collection</button></details>') +
-    '<p id="gift-collection-feedback" role="status"></p><footer class="gift-actions gift-modal-actions"><button type="button" class="page-button" id="gift-collection-cancel">Cancel</button><button class="primary-button" type="submit">' + (create ? "Add collection" : "Save collection") + '</button></footer></form></dialog>';
-  const modal = document.getElementById("gift-collection-modal"), form = modal.querySelector("form");
-  modal.addEventListener("cancel", event => { event.preventDefault(); if (!giftState.busy) closeGiftCollectionEditor(); });
-  form.addEventListener("invalid", event => event.target.closest("details")?.setAttribute("open",""), true);
+  document.getElementById("gift-collection-editor-slot").innerHTML =
+    '<dialog id="gift-collection-modal" class="gift-modal" aria-labelledby="gift-collection-title"><header class="gift-modal-header"><h2 id="gift-collection-title">' +
+    (create ? "Add collection" : "Manage collection") +
+    '</h2><button class="page-button" id="gift-collection-close" aria-label="Close collection editor">✕</button></header><form id="' +
+    (create ? "gift-add-collection" : "gift-collection-editor") +
+    '" class="gift-draft"><label>Name<input name="name" maxlength="80" required autofocus value="' +
+    esc(create ? "" : collection.name) +
+    '"></label>' +
+    (create
+      ? '<details class="gift-options"><summary>Collection identifier</summary><label>Stable collection ID<input name="id" pattern="[a-z][a-z0-9_-]*" maxlength="64" required></label></details>'
+      : '<label>Publication<select name="status">' +
+        ["draft", "published", "archived"]
+          .map(
+            (status) =>
+              '<option value="' +
+              status +
+              '" ' +
+              (status === collection.status ? "selected" : "") +
+              ">" +
+              status +
+              "</option>",
+          )
+          .join("") +
+        '</select></label><details class="gift-options"><summary>Archive</summary><button type="button" class="page-button" id="gift-archive-collection">Archive collection</button></details>') +
+    '<p id="gift-collection-feedback" role="status"></p><footer class="gift-actions gift-modal-actions"><button type="button" class="page-button" id="gift-collection-cancel">Cancel</button><button class="primary-button" type="submit">' +
+    (create ? "Add collection" : "Save collection") +
+    "</button></footer></form></dialog>";
+  const modal = document.getElementById("gift-collection-modal"),
+    form = modal.querySelector("form");
+  modal.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    if (!giftState.busy) closeGiftCollectionEditor();
+  });
+  form.addEventListener(
+    "invalid",
+    (event) => event.target.closest("details")?.setAttribute("open", ""),
+    true,
+  );
   if (create) {
-    form.elements.name.addEventListener("input", () => { if (!form.elements.id.dataset.manual) form.elements.id.value = giftStableId(form.elements.name.value); });
-    form.elements.id.addEventListener("input", () => { form.elements.id.dataset.manual = "true"; });
+    form.elements.name.addEventListener("input", () => {
+      if (!form.elements.id.dataset.manual)
+        form.elements.id.value = giftStableId(form.elements.name.value);
+    });
+    form.elements.id.addEventListener("input", () => {
+      form.elements.id.dataset.manual = "true";
+    });
   }
   modal.showModal();
 }
 function clearGiftCardArtwork() {
   giftState.cardVersion = (giftState.cardVersion || 0) + 1;
-  giftState.cardUrls.forEach(url => URL.revokeObjectURL(url));
+  giftState.cardUrls.forEach((url) => URL.revokeObjectURL(url));
   giftState.cardUrls = [];
 }
 function bindCollectionDragEvents() {
-  let dragged = null, touch = null;
-  const allowed = id => authorized && section === "Gifts" && !giftState.busy && giftState.data?.collections.some(collection => collection.id === id && !collection.locked);
+  let dragged = null,
+    touch = null;
+  const allowed = (id) =>
+    authorized &&
+    section === "Gifts" &&
+    !giftState.busy &&
+    giftState.data?.collections.some(
+      (collection) => collection.id === id && !collection.locked,
+    );
   const clear = () => {
-    main.querySelectorAll(".gift-collection-dragging, .gift-collection-drop-target").forEach(button => button.classList.remove("gift-collection-dragging", "gift-collection-drop-target"));
+    main
+      .querySelectorAll(
+        ".gift-collection-dragging, .gift-collection-drop-target",
+      )
+      .forEach((button) =>
+        button.classList.remove(
+          "gift-collection-dragging",
+          "gift-collection-drop-target",
+        ),
+      );
     dragged = null;
     touch = null;
   };
   const reorder = async (id, targetId, after) => {
     if (!allowed(id) || !allowed(targetId) || id === targetId) return;
-    const ordered = [...giftState.data.collections].sort((a,b) => a.sortOrder-b.sortOrder);
-    const moved = ordered.find(collection => collection.id === id);
-    const remaining = ordered.filter(collection => collection.id !== id);
-    const index = remaining.findIndex(collection => collection.id === targetId) + (after ? 1 : 0);
+    const ordered = [...giftState.data.collections].sort(
+      (a, b) => a.sortOrder - b.sortOrder,
+    );
+    const moved = ordered.find((collection) => collection.id === id);
+    const remaining = ordered.filter((collection) => collection.id !== id);
+    const index =
+      remaining.findIndex((collection) => collection.id === targetId) +
+      (after ? 1 : 0);
     remaining.splice(index, 0, moved);
-    if (remaining.map(collection => collection.id).join(",") === ordered.map(collection => collection.id).join(",")) return;
-    const result = await giftMutation("/collections/reorder", {ids:remaining.map(collection => collection.id)});
-    if (result && authorized && section === "Gifts") Array.from(main.querySelectorAll("[data-gift-collection]")).find(button => button.dataset.giftCollection === id)?.focus();
+    if (
+      remaining.map((collection) => collection.id).join(",") ===
+      ordered.map((collection) => collection.id).join(",")
+    )
+      return;
+    const result = await giftMutation("/collections/reorder", {
+      ids: remaining.map((collection) => collection.id),
+    });
+    if (result && authorized && section === "Gifts")
+      Array.from(main.querySelectorAll("[data-gift-collection]"))
+        .find((button) => button.dataset.giftCollection === id)
+        ?.focus();
     return result;
   };
-  const targetAt = (x,y) => document.elementFromPoint(x,y)?.closest("[data-gift-collection]");
-  const highlight = button => {
-    main.querySelectorAll(".gift-collection-drop-target").forEach(node => node.classList.remove("gift-collection-drop-target"));
-    if (button && allowed(button.dataset.giftCollection) && button.dataset.giftCollection !== dragged) button.classList.add("gift-collection-drop-target");
+  const targetAt = (x, y) =>
+    document.elementFromPoint(x, y)?.closest("[data-gift-collection]");
+  const highlight = (button) => {
+    main
+      .querySelectorAll(".gift-collection-drop-target")
+      .forEach((node) => node.classList.remove("gift-collection-drop-target"));
+    if (
+      button &&
+      allowed(button.dataset.giftCollection) &&
+      button.dataset.giftCollection !== dragged
+    )
+      button.classList.add("gift-collection-drop-target");
   };
-  main.addEventListener("dragstart", event => {
+  main.addEventListener("dragstart", (event) => {
     const button = event.target.closest("[data-gift-collection]");
-    if (!button || !allowed(button.dataset.giftCollection)) { if (button) event.preventDefault(); return; }
+    if (!button || !allowed(button.dataset.giftCollection)) {
+      if (button) event.preventDefault();
+      return;
+    }
     dragged = button.dataset.giftCollection;
     button.classList.add("gift-collection-dragging");
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("text/plain", dragged);
   });
-  main.addEventListener("dragover", event => {
+  main.addEventListener("dragover", (event) => {
     const button = event.target.closest("[data-gift-collection]");
     if (!dragged || !button || !allowed(button.dataset.giftCollection)) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
     highlight(button);
   });
-  main.addEventListener("drop", event => {
+  main.addEventListener("drop", (event) => {
     const button = event.target.closest("[data-gift-collection]");
     if (!dragged || !button) return clear();
     event.preventDefault();
-    const id = dragged, target = button.dataset.giftCollection, after = event.clientX > button.getBoundingClientRect().left + button.offsetWidth/2;
+    const id = dragged,
+      target = button.dataset.giftCollection,
+      after =
+        event.clientX >
+        button.getBoundingClientRect().left + button.offsetWidth / 2;
     clear();
-    reorder(id,target,after);
+    reorder(id, target, after);
   });
   main.addEventListener("dragend", clear);
-  main.addEventListener("pointerdown", event => {
-    if (event.pointerType === "mouse" || !event.target.closest(".gift-collection-drag-handle")) return;
+  main.addEventListener("pointerdown", (event) => {
+    if (
+      event.pointerType === "mouse" ||
+      !event.target.closest(".gift-collection-drag-handle")
+    )
+      return;
     const button = event.target.closest("[data-gift-collection]");
     if (!button || !allowed(button.dataset.giftCollection)) return;
     event.preventDefault();
     dragged = button.dataset.giftCollection;
-    touch = {id:event.pointerId,x:event.clientX,y:event.clientY,moved:false,button};
+    touch = {
+      id: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      moved: false,
+      button,
+    };
     event.target.setPointerCapture(event.pointerId);
   });
-  main.addEventListener("pointermove", event => {
+  main.addEventListener("pointermove", (event) => {
     if (!touch || touch.id !== event.pointerId) return;
     event.preventDefault();
-    touch.moved ||= Math.hypot(event.clientX-touch.x,event.clientY-touch.y)>8;
-    if (touch.moved) { touch.button.classList.add("gift-collection-dragging"); highlight(targetAt(event.clientX,event.clientY)); }
+    touch.moved ||=
+      Math.hypot(event.clientX - touch.x, event.clientY - touch.y) > 8;
+    if (touch.moved) {
+      touch.button.classList.add("gift-collection-dragging");
+      highlight(targetAt(event.clientX, event.clientY));
+    }
   });
-  main.addEventListener("pointerup", event => {
+  main.addEventListener("pointerup", (event) => {
     if (!touch || touch.id !== event.pointerId) return;
     event.preventDefault();
-    const id = dragged, moved = touch.moved, button = targetAt(event.clientX,event.clientY);
+    const id = dragged,
+      moved = touch.moved,
+      button = targetAt(event.clientX, event.clientY);
     clear();
-    if (moved && button) reorder(id,button.dataset.giftCollection,event.clientX>button.getBoundingClientRect().left+button.offsetWidth/2);
+    if (moved && button)
+      reorder(
+        id,
+        button.dataset.giftCollection,
+        event.clientX >
+          button.getBoundingClientRect().left + button.offsetWidth / 2,
+      );
   });
-  main.addEventListener("pointercancel", event => { if (touch?.id === event.pointerId) clear(); });
-  main.addEventListener("keydown", event => {
+  main.addEventListener("pointercancel", (event) => {
+    if (touch?.id === event.pointerId) clear();
+  });
+  main.addEventListener("keydown", (event) => {
     const button = event.target.closest("[data-gift-collection]");
-    if (!button || !event.altKey || !["ArrowLeft","ArrowRight"].includes(event.key) || !allowed(button.dataset.giftCollection)) return;
+    if (
+      !button ||
+      !event.altKey ||
+      !["ArrowLeft", "ArrowRight"].includes(event.key) ||
+      !allowed(button.dataset.giftCollection)
+    )
+      return;
     event.preventDefault();
-    const list = [...giftState.data.collections].sort((a,b) => a.sortOrder-b.sortOrder);
-    const index = list.findIndex(collection => collection.id === button.dataset.giftCollection), next = index + (event.key === "ArrowLeft" ? -1 : 1);
+    const list = [...giftState.data.collections].sort(
+      (a, b) => a.sortOrder - b.sortOrder,
+    );
+    const index = list.findIndex(
+        (collection) => collection.id === button.dataset.giftCollection,
+      ),
+      next = index + (event.key === "ArrowLeft" ? -1 : 1);
     if (next < 1 || next >= list.length) return;
-    reorder(button.dataset.giftCollection,list[next].id,event.key === "ArrowRight");
+    reorder(
+      button.dataset.giftCollection,
+      list[next].id,
+      event.key === "ArrowRight",
+    );
   });
 }
 async function loadGiftCardArtwork() {
@@ -674,33 +966,75 @@ async function loadGiftCardArtwork() {
   if (!cards.length) return;
   try {
     const token = await window.Clerk.session?.getToken();
-    if (!token || version !== giftState.cardVersion || !authorized || section !== "Gifts") return;
+    if (
+      !token ||
+      version !== giftState.cardVersion ||
+      !authorized ||
+      section !== "Gifts"
+    )
+      return;
     const queue = [...cards];
-    await Promise.all(Array.from({length: Math.min(4, queue.length)}, async () => {
-      while (queue.length && version === giftState.cardVersion && authorized && section === "Gifts") {
-        const card = queue.shift(), asset = giftAsset(card.dataset.cardArtwork);
-        if (!asset || asset.kind !== "thumbnail" || !/^\/api\/gift-catalog\/assets\/[a-zA-Z0-9_-]+$/.test(asset.url)) {
-          card.textContent = "Artwork unavailable";
-          continue;
+    await Promise.all(
+      Array.from({ length: Math.min(4, queue.length) }, async () => {
+        while (
+          queue.length &&
+          version === giftState.cardVersion &&
+          authorized &&
+          section === "Gifts"
+        ) {
+          const card = queue.shift(),
+            asset = giftAsset(card.dataset.cardArtwork);
+          if (
+            !asset ||
+            asset.kind !== "thumbnail" ||
+            !/^\/api\/gift-catalog\/assets\/[a-zA-Z0-9_-]+$/.test(asset.url)
+          ) {
+            card.textContent = "Artwork unavailable";
+            continue;
+          }
+          try {
+            const response = await fetch(asset.url, {
+              headers: { Authorization: "Bearer " + token },
+              credentials: "omit",
+              cache: "no-store",
+            });
+            if (!response.ok)
+              throw Object.assign(new Error("Artwork unavailable"), {
+                status: response.status,
+              });
+            const blob = await response.blob();
+            if (
+              version !== giftState.cardVersion ||
+              !card.isConnected ||
+              !authorized ||
+              section !== "Gifts"
+            )
+              continue;
+            const url = URL.createObjectURL(blob);
+            giftState.cardUrls.push(url);
+            const image = new Image();
+            image.src = url;
+            image.alt =
+              card.closest("button").querySelector("strong").textContent +
+              " artwork";
+            image.onerror = () => {
+              if (card.isConnected) card.textContent = "Artwork unavailable";
+            };
+            card.replaceChildren(image);
+          } catch (error) {
+            if (
+              version === giftState.cardVersion &&
+              card.isConnected &&
+              !accessError(error)
+            )
+              card.textContent = "Artwork unavailable";
+          }
         }
-        try {
-          const response = await fetch(asset.url, {headers:{Authorization:"Bearer " + token},credentials:"omit",cache:"no-store"});
-          if (!response.ok) throw Object.assign(new Error("Artwork unavailable"), {status:response.status});
-          const blob = await response.blob();
-          if (version !== giftState.cardVersion || !card.isConnected || !authorized || section !== "Gifts") continue;
-          const url = URL.createObjectURL(blob);
-          giftState.cardUrls.push(url);
-          const image = new Image();
-          image.src = url;
-          image.alt = card.closest("button").querySelector("strong").textContent + " artwork";
-          image.onerror = () => { if (card.isConnected) card.textContent = "Artwork unavailable"; };
-          card.replaceChildren(image);
-        } catch (error) {
-          if (version === giftState.cardVersion && card.isConnected && !accessError(error)) card.textContent = "Artwork unavailable";
-        }
-      }
-    }));
-  } catch (error) { if (version === giftState.cardVersion) accessError(error); }
+      }),
+    );
+  } catch (error) {
+    if (version === giftState.cardVersion) accessError(error);
+  }
 }
 function closeGiftEditor() {
   const modal = document.getElementById("gift-editor-modal");
@@ -711,20 +1045,88 @@ function closeGiftEditor() {
   stopGiftPreview();
   modal?.close();
   modal?.remove();
-  const trigger = selected === "__new__" ? document.getElementById("gift-new") : Array.from(main.querySelectorAll("[data-gift-open]")).find(button => button.dataset.giftOpen === selected);
+  const trigger =
+    selected === "__new__"
+      ? document.getElementById("gift-new")
+      : Array.from(main.querySelectorAll("[data-gift-open]")).find(
+          (button) => button.dataset.giftOpen === selected,
+        );
   trigger?.focus();
 }
 function giftAssetControl(label, field, kind, formats, selected) {
   const asset = giftAsset(selected);
-  const accept = formats.map(format => "." + ({"webm-alpha":"webm","packed-alpha-mp4":"mp4",jpeg:"jpg"}[format] || format)).join(",") + (formats.includes("jpeg") ? ",.jpeg" : "");
-  const current = asset ? (asset.fileName || asset.label || "Original filename not recorded · " + asset.format.toUpperCase()) : (kind === "sound" ? "No custom sound attached" : "No file attached");
-  return '<fieldset class="gift-asset-field"><legend>' + esc(label) + '</legend><input type="hidden" name="' + field + '" value="' + esc(selected || "") + '"><span class="gift-current-file" data-current-file="' + field + '">' + esc(current) + '</span><label>' + (selected ? "Replace file" : "Choose file") + '<input type="file" data-gift-upload="' + field + '" data-kind="' + kind + '" data-formats="' + formats.join(",") + '" accept="' + accept + '"></label><small>' + (kind === "thumbnail" ? "PNG, JPG or WebP" : kind === "sound" ? "Optional MP3 or AAC" : field === "androidAssetId" ? "Transparent WebM or SVGA" : "AlphaPlayer MP4 or SVGA") + '</small><button type="button" class="page-button" data-gift-preview="' + field + '">Preview ' + esc(label.toLowerCase()) + '</button>' + '<small data-upload-feedback="' + field + '" role="status"></small></fieldset>';
+  const accept =
+    formats
+      .map(
+        (format) =>
+          "." +
+          ({ "webm-alpha": "webm", "packed-alpha-mp4": "mp4", jpeg: "jpg" }[
+            format
+          ] || format),
+      )
+      .join(",") + (formats.includes("jpeg") ? ",.jpeg" : "");
+  const current = asset
+    ? asset.fileName ||
+      asset.label ||
+      "Original filename not recorded · " + asset.format.toUpperCase()
+    : kind === "sound"
+      ? "No custom sound attached"
+      : "No file attached";
+  return (
+    '<fieldset class="gift-asset-field"><legend>' +
+    esc(label) +
+    '</legend><input type="hidden" name="' +
+    field +
+    '" value="' +
+    esc(selected || "") +
+    '"><span class="gift-current-file" data-current-file="' +
+    field +
+    '">' +
+    esc(current) +
+    "</span><label>" +
+    (selected ? "Replace file" : "Choose file") +
+    '<input type="file" data-gift-upload="' +
+    field +
+    '" data-kind="' +
+    kind +
+    '" data-formats="' +
+    formats.join(",") +
+    '" accept="' +
+    accept +
+    '"></label><small>' +
+    (kind === "thumbnail"
+      ? "PNG, JPG or WebP"
+      : kind === "sound"
+        ? "Optional MP3 or AAC"
+        : field === "androidAssetId"
+          ? "Transparent WebM or SVGA"
+          : "AlphaPlayer MP4 or SVGA") +
+    '</small><button type="button" class="page-button" data-gift-preview="' +
+    field +
+    '">Preview ' +
+    esc(label.toLowerCase()) +
+    "</button>" +
+    '<small data-upload-feedback="' +
+    field +
+    '" role="status"></small></fieldset>'
+  );
 }
 function giftAnimationControl(label, field, formats, selected) {
-  return '<div class="gift-platform-preview">' + giftAssetControl(label, field, "animation", formats, selected) + '<div class="gift-preview-screen" id="gift-' + field + '-preview" aria-label="' + esc(label) + ' preview"><span>No animation attached</span></div><p id="gift-' + field + '-feedback" role="status"></p></div>';
+  return (
+    '<div class="gift-platform-preview">' +
+    giftAssetControl(label, field, "animation", formats, selected) +
+    '<div class="gift-preview-screen" id="gift-' +
+    field +
+    '-preview" aria-label="' +
+    esc(label) +
+    ' preview"><span>No animation attached</span></div><p id="gift-' +
+    field +
+    '-feedback" role="status"></p></div>'
+  );
 }
 function previewGiftSelections(form) {
-  if (form.elements.thumbnailAssetId.value) previewGiftAsset("thumbnailAssetId");
+  if (form.elements.thumbnailAssetId.value)
+    previewGiftAsset("thumbnailAssetId");
   if (form.elements.type.value === "animation") {
     for (const field of ["androidAssetId", "iosAssetId"]) {
       if (form.elements[field].value) previewGiftAsset(field);
@@ -734,30 +1136,121 @@ function previewGiftSelections(form) {
 function renderGiftEditor() {
   stopGiftPreview();
   document.getElementById("gift-editor-modal")?.close();
-  const g = giftState.data.gifts.find(gift => gift.id === giftState.selected);
+  const g = giftState.data.gifts.find((gift) => gift.id === giftState.selected);
   const r = g ? giftRevision(g) : {};
-  const f = r?.framing || {preset:"contained",scale:1,x:0,y:0};
-  const type = r?.type || (r?.androidAssetId || r?.iosAssetId || ["kisses","luxury_rocket","dragon"].includes(g?.id) ? "animation" : "image");
-  document.getElementById("gift-editor").innerHTML = '<dialog id="gift-editor-modal" class="gift-modal" aria-labelledby="gift-modal-title"><header class="gift-modal-header"><h2 id="gift-modal-title">' + (g ? "Edit gift" : "Add gift") + '</h2><button type="button" class="page-button" id="gift-editor-close" aria-label="Close gift editor">✕</button></header><form id="gift-draft-form" class="gift-draft">' +
-    '<fieldset class="gift-type-controls"><legend>Gift type</legend><label class="gift-type-choice"><input type="radio" name="type" value="image" ' + (type === "image" ? "checked autofocus" : "") + '><span>▧ Image</span></label><label class="gift-type-choice"><input type="radio" name="type" value="animation" ' + (type === "animation" ? "checked autofocus" : "") + '><span>▷ Animation</span></label></fieldset>' +
-    '<div class="gift-artwork-section">' + giftAssetControl("Artwork", "thumbnailAssetId", "thumbnail", ["png","jpeg","webp"], r?.thumbnailAssetId) + '<div class="gift-artwork-preview"><div class="gift-preview-screen" id="gift-preview-screen"><span>' + (r?.thumbnailAssetId ? "Loading artwork…" : "No artwork attached") + '</span></div><p id="gift-preview-feedback" role="status"></p></div></div>' +
-    '<div id="gift-animation-controls" class="gift-animation-controls">' + giftAnimationControl("Android animation", "androidAssetId", ["svga","webm-alpha"], r?.androidAssetId) + giftAnimationControl("iPhone animation", "iosAssetId", ["svga","packed-alpha-mp4"], r?.iosAssetId) + '</div>' +
-    '<fieldset class="gift-details-fields"><legend>Details</legend><label>Name<input name="name" value="' + esc(r?.name) + '" maxlength="100" required></label><label class="gift-price-field"><span>Coin price</span><div class="gift-price-input">' + giftCoin + '<input name="coinCost" type="number" min="1" max="100000000" step="1" required value="' + esc(r?.coinCost || 1) + '"></div></label></fieldset>' +
-    '<fieldset class="gift-sound-controls"><legend>Sound</legend><div class="gift-sound-choices"><label><input type="radio" name="soundChoice" value="default">Default gift sound</label><label id="gift-original-sound-choice"><input type="radio" name="soundChoice" value="original">Original animation audio</label><label><input type="radio" name="soundChoice" value="custom">Custom sound</label></div><div id="gift-custom-sound">' + giftAssetControl("Custom sound file", "soundAssetId", "sound", ["mp3","aac"], r?.soundAssetId) + '</div><button type="button" class="page-button" id="gift-default-sound-preview" data-gift-preview="soundAssetId">Preview default sound</button><p id="gift-sound-hint"></p><div id="gift-sound-preview"></div><p id="gift-sound-preview-feedback" role="status"></p></fieldset>' +
-    '<details class="gift-options" id="gift-advanced-options"><summary>Size, position &amp; identifier</summary><fieldset><legend>Playback position</legend><label>Preset<select name="preset"><option value="contained" ' + (f.preset === "contained" ? "selected" : "") + '>Contained</option><option value="fullscreen" ' + (f.preset === "fullscreen" ? "selected" : "") + '>Full screen</option></select></label><label>Scale<input name="scale" type="number" min="0.25" max="3" step="0.01" value="' + esc(f.scale) + '" required></label><label>Horizontal offset<input name="x" type="number" min="-1" max="1" step="0.01" value="' + esc(f.x) + '" required></label><label>Vertical offset<input name="y" type="number" min="-1" max="1" step="0.01" value="' + esc(f.y) + '" required></label></fieldset><label>Stable gift ID<input name="id" value="' + esc(g?.id) + '" pattern="[a-z][a-z0-9_-]*" maxlength="64" required ' + (g ? "readonly" : "") + '></label></details>' +
-    (g ? '<details class="gift-options"><summary>Manage gift</summary><div class="gift-actions"><button type="button" class="page-button" id="gift-history">Revision history</button><button type="button" class="page-button" id="gift-archive">Archive gift</button>' + '</div><div id="gift-history-records"></div></details>' : "") +
-    '<fieldset class="gift-publication-status"><legend>Status</legend><label class="gift-type-choice"><input type="radio" name="status" value="draft" ' + (g?.status !== "published" ? "checked" : "") + ' required><span>Draft</span></label><label class="gift-type-choice"><input type="radio" name="status" value="published" ' + (g?.status === "published" ? "checked" : "") + ' required><span>Published</span></label></fieldset><small>Published makes this gift available in its published collection. Draft hides it from the app. Previous sent gifts stay unchanged.</small><p id="gift-editor-feedback" role="status"></p><footer class="gift-actions gift-modal-actions"><button type="button" class="page-button" id="gift-editor-cancel">Cancel</button><button class="primary-button" type="submit">Save</button></footer></form></dialog>';
+  const f = r?.framing || { preset: "contained", scale: 1, x: 0, y: 0 };
+  const type =
+    r?.type ||
+    (r?.androidAssetId ||
+    r?.iosAssetId ||
+    ["kisses", "luxury_rocket", "dragon"].includes(g?.id)
+      ? "animation"
+      : "image");
+  document.getElementById("gift-editor").innerHTML =
+    '<dialog id="gift-editor-modal" class="gift-modal" aria-labelledby="gift-modal-title"><header class="gift-modal-header"><h2 id="gift-modal-title">' +
+    (g ? "Edit gift" : "Add gift") +
+    '</h2><button type="button" class="page-button" id="gift-editor-close" aria-label="Close gift editor">✕</button></header><form id="gift-draft-form" class="gift-draft">' +
+    '<fieldset class="gift-type-controls"><legend>Gift type</legend><label class="gift-type-choice"><input type="radio" name="type" value="image" ' +
+    (type === "image" ? "checked autofocus" : "") +
+    '><span>▧ Image</span></label><label class="gift-type-choice"><input type="radio" name="type" value="animation" ' +
+    (type === "animation" ? "checked autofocus" : "") +
+    "><span>▷ Animation</span></label></fieldset>" +
+    '<div class="gift-artwork-section">' +
+    giftAssetControl(
+      "Artwork",
+      "thumbnailAssetId",
+      "thumbnail",
+      ["png", "jpeg", "webp"],
+      r?.thumbnailAssetId,
+    ) +
+    '<div class="gift-artwork-preview"><div class="gift-preview-screen" id="gift-preview-screen"><span>' +
+    (r?.thumbnailAssetId ? "Loading artwork…" : "No artwork attached") +
+    '</span></div><p id="gift-preview-feedback" role="status"></p></div></div>' +
+    '<div id="gift-animation-controls" class="gift-animation-controls">' +
+    giftAnimationControl(
+      "Android animation",
+      "androidAssetId",
+      ["svga", "webm-alpha"],
+      r?.androidAssetId,
+    ) +
+    giftAnimationControl(
+      "iPhone animation",
+      "iosAssetId",
+      ["svga", "packed-alpha-mp4"],
+      r?.iosAssetId,
+    ) +
+    "</div>" +
+    '<fieldset class="gift-details-fields"><legend>Details</legend><label>Name<input name="name" value="' +
+    esc(r?.name) +
+    '" maxlength="100" required></label><label class="gift-price-field"><span>Coin price</span><div class="gift-price-input">' +
+    giftCoin +
+    '<input name="coinCost" type="number" min="1" max="100000000" step="1" required value="' +
+    esc(r?.coinCost || 1) +
+    '"></div></label></fieldset>' +
+    '<fieldset class="gift-sound-controls"><legend>Sound</legend><div class="gift-sound-choices"><label><input type="radio" name="soundChoice" value="default">Default gift sound</label><label id="gift-original-sound-choice"><input type="radio" name="soundChoice" value="original">Original animation audio</label><label><input type="radio" name="soundChoice" value="custom">Custom sound</label></div><div id="gift-custom-sound">' +
+    giftAssetControl(
+      "Custom sound file",
+      "soundAssetId",
+      "sound",
+      ["mp3", "aac"],
+      r?.soundAssetId,
+    ) +
+    '</div><button type="button" class="page-button" id="gift-default-sound-preview" data-gift-preview="soundAssetId">Preview default sound</button><p id="gift-sound-hint"></p><div id="gift-sound-preview"></div><p id="gift-sound-preview-feedback" role="status"></p></fieldset>' +
+    '<details class="gift-options" id="gift-advanced-options"><summary>Size, position &amp; identifier</summary><fieldset><legend>Playback position</legend><label>Preset<select name="preset"><option value="contained" ' +
+    (f.preset === "contained" ? "selected" : "") +
+    '>Contained</option><option value="fullscreen" ' +
+    (f.preset === "fullscreen" ? "selected" : "") +
+    '>Full screen</option></select></label><label>Scale<input name="scale" type="number" min="0.25" max="3" step="0.01" value="' +
+    esc(f.scale) +
+    '" required></label><label>Horizontal offset<input name="x" type="number" min="-1" max="1" step="0.01" value="' +
+    esc(f.x) +
+    '" required></label><label>Vertical offset<input name="y" type="number" min="-1" max="1" step="0.01" value="' +
+    esc(f.y) +
+    '" required></label></fieldset><label>Stable gift ID<input name="id" value="' +
+    esc(g?.id) +
+    '" pattern="[a-z][a-z0-9_-]*" maxlength="64" required ' +
+    (g ? "readonly" : "") +
+    "></label></details>" +
+    (g
+      ? '<details class="gift-options"><summary>Manage gift</summary><div class="gift-actions"><button type="button" class="page-button" id="gift-history">Revision history</button><button type="button" class="page-button" id="gift-archive">Archive gift</button>' +
+        '</div><div id="gift-history-records"></div></details>'
+      : "") +
+    '<fieldset class="gift-publication-status"><legend>Status</legend><label class="gift-type-choice"><input type="radio" name="status" value="draft" ' +
+    (g?.status !== "published" ? "checked" : "") +
+    ' required><span>Draft</span></label><label class="gift-type-choice"><input type="radio" name="status" value="published" ' +
+    (g?.status === "published" ? "checked" : "") +
+    ' required><span>Published</span></label></fieldset><small>Published makes this gift available in its published collection. Draft hides it from the app. Previous sent gifts stay unchanged.</small><p id="gift-editor-feedback" role="status"></p><footer class="gift-actions gift-modal-actions"><button type="button" class="page-button" id="gift-editor-cancel">Cancel</button><button class="primary-button" type="submit">Save</button></footer></form></dialog>';
   const modal = document.getElementById("gift-editor-modal");
-  modal.addEventListener("cancel", event => { event.preventDefault(); if (!giftState.busy) closeGiftEditor(); });
+  modal.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    if (!giftState.busy) closeGiftEditor();
+  });
   const form = document.getElementById("gift-draft-form");
   const savedSound = giftAsset(r?.soundAssetId);
-  form.elements.soundChoice.value = savedSound?.isDefaultSound ? "default" : r?.soundAssetId ? "custom" : type === "image" ? "default" : "original";
-  form.elements.soundAssetId.dataset.customSoundId = savedSound && !savedSound.isDefaultSound ? savedSound.id : "";
-  form.addEventListener("invalid", event => { event.target.closest("details")?.setAttribute("open", ""); }, true);
-  if (!g) form.elements.name.addEventListener("input", () => {
-    if (!form.elements.id.dataset.manual) form.elements.id.value = giftStableId(form.elements.name.value);
+  form.elements.soundChoice.value = savedSound?.isDefaultSound
+    ? "default"
+    : r?.soundAssetId
+      ? "custom"
+      : type === "image"
+        ? "default"
+        : "original";
+  form.elements.soundAssetId.dataset.customSoundId =
+    savedSound && !savedSound.isDefaultSound ? savedSound.id : "";
+  form.addEventListener(
+    "invalid",
+    (event) => {
+      event.target.closest("details")?.setAttribute("open", "");
+    },
+    true,
+  );
+  if (!g)
+    form.elements.name.addEventListener("input", () => {
+      if (!form.elements.id.dataset.manual)
+        form.elements.id.value = giftStableId(form.elements.name.value);
+    });
+  form.elements.id.addEventListener("input", () => {
+    form.elements.id.dataset.manual = "true";
   });
-  form.elements.id.addEventListener("input", () => { form.elements.id.dataset.manual = "true"; });
   updateGiftType(form);
   modal.showModal();
   previewGiftSelections(form);
@@ -766,24 +1259,43 @@ function updateGiftType(form) {
   const image = form.elements.type.value === "image";
   const animations = document.getElementById("gift-animation-controls");
   animations.hidden = image;
-  animations.querySelectorAll("input, select, button").forEach(control => { control.disabled = image; });
-  document.getElementById("gift-editor-modal").dataset.giftType = image ? "image" : "animation";
+  animations.querySelectorAll("input, select, button").forEach((control) => {
+    control.disabled = image;
+  });
+  document.getElementById("gift-editor-modal").dataset.giftType = image
+    ? "image"
+    : "animation";
   const original = document.getElementById("gift-original-sound-choice");
   original.hidden = image;
   original.querySelector("input").disabled = image;
-  if (image && form.elements.soundChoice.value === "original") form.elements.soundChoice.value = "default";
+  if (image && form.elements.soundChoice.value === "original")
+    form.elements.soundChoice.value = "default";
   updateGiftSound(form);
 }
 function updateGiftSound(form) {
   const mode = form.elements.soundChoice.value;
-  const defaultAsset = giftState.data.assets.find(asset => asset.isDefaultSound);
+  const defaultAsset = giftState.data.assets.find(
+    (asset) => asset.isDefaultSound,
+  );
   const reference = form.elements.soundAssetId;
-  reference.value = mode === "default" ? defaultAsset?.id || "" : mode === "original" ? "" : reference.dataset.customSoundId || "";
+  reference.value =
+    mode === "default"
+      ? defaultAsset?.id || ""
+      : mode === "original"
+        ? ""
+        : reference.dataset.customSoundId || "";
   document.getElementById("gift-custom-sound").hidden = mode !== "custom";
-  document.getElementById("gift-default-sound-preview").hidden = mode !== "default";
-  document.getElementById("gift-sound-hint").textContent = mode === "default" ? "Uses the standard gift chime." : mode === "original" ? "Uses audio embedded in the animation file, if present." : "Upload an MP3 or AAC to replace the gift's other audio.";
+  document.getElementById("gift-default-sound-preview").hidden =
+    mode !== "default";
+  document.getElementById("gift-sound-hint").textContent =
+    mode === "default"
+      ? "Uses the standard gift chime."
+      : mode === "original"
+        ? "Uses audio embedded in the animation file, if present."
+        : "Upload an MP3 or AAC to replace the gift's other audio.";
   const custom = giftAsset(reference.dataset.customSoundId);
-  main.querySelector('[data-current-file="soundAssetId"]').textContent = custom?.fileName || custom?.label || "No custom sound attached";
+  main.querySelector('[data-current-file="soundAssetId"]').textContent =
+    custom?.fileName || custom?.label || "No custom sound attached";
 }
 async function giftMutation(path, body, method = "POST") {
   if (giftState.busy || !authorized || section !== "Gifts") return;
@@ -803,7 +1315,11 @@ async function giftMutation(path, body, method = "POST") {
     return result;
   } catch (error) {
     if (version === giftState.version && !accessError(error))
-      (document.getElementById("gift-editor-feedback") || document.getElementById("gift-collection-feedback") || document.getElementById("gift-status")).textContent =
+      (
+        document.getElementById("gift-editor-feedback") ||
+        document.getElementById("gift-collection-feedback") ||
+        document.getElementById("gift-status")
+      ).textContent =
         error.status === 409
           ? "This catalog changed. Refresh gifts before saving again."
           : error.message;
@@ -846,8 +1362,14 @@ function bindGiftSubmit() {
         "PATCH",
       );
     const g = giftState.data.gifts.find((g) => g.id === giftState.selected);
-    if (["default", "custom"].includes(values.soundChoice) && !values.soundAssetId) {
-      document.getElementById("gift-editor-feedback").textContent = values.soundChoice === "custom" ? "Upload a custom sound, or choose Default gift sound." : "Default sound is unavailable. Refresh gifts and retry.";
+    if (
+      ["default", "custom"].includes(values.soundChoice) &&
+      !values.soundAssetId
+    ) {
+      document.getElementById("gift-editor-feedback").textContent =
+        values.soundChoice === "custom"
+          ? "Upload a custom sound, or choose Default gift sound."
+          : "Default sound is unavailable. Refresh gifts and retry.";
       return;
     }
     const body = {
@@ -859,8 +1381,10 @@ function bindGiftSubmit() {
       emoji: g ? giftRevision(g)?.emoji || "" : "",
       coinCost: Number(values.coinCost),
       thumbnailAssetId: values.thumbnailAssetId || null,
-      androidAssetId: values.type === "animation" ? values.androidAssetId || null : null,
-      iosAssetId: values.type === "animation" ? values.iosAssetId || null : null,
+      androidAssetId:
+        values.type === "animation" ? values.androidAssetId || null : null,
+      iosAssetId:
+        values.type === "animation" ? values.iosAssetId || null : null,
       soundAssetId: values.soundAssetId || null,
       framing: {
         preset: values.preset,
@@ -1960,7 +2484,7 @@ function render() {
   main.innerHTML = `<div class="page-heading"><div><div class="eyebrow">PULSE WORKSPACE</div><h1>${section}</h1><p>${section === "Overview" ? "Welcome back. Your community workspace." : section === "Users" ? "Find and review the people who make Pulse." : section === "Payout desk" ? "Review creator withdrawals and record verified provider outcomes." : "Your space for " + section.toLowerCase() + "."}</p></div><div class="date-label">${section === "Payout methods" ? "Catalog management" : section === "Payout desk" ? "Human release required" : section === "Payout operators" ? "Credential management" : section === "Users" ? "Account management" : "Read-only access"}</div></div>${section === "Overview" ? overview() : section === "Users" ? table() : section === "Account removals" ? removals() : section === "Verification" ? reviews() : section === "Payout methods" ? catalogPage() : section === "Payout desk" ? payoutDeskPage() : section === "Payout operators" ? operatorCredentialsPage() : operations[section] ? operationsPage() : `<section class="panel coming-soon"><span class="empty-icon">${icon(section)}</span><span class="tag">COMING NEXT</span><h2>${section}</h2><p>This section is not connected yet.</p><a class="primary-button" href="#users">Open user directory →</a></section>`}`;
   if (section === "Users" || section === "Overview") loadUsers();
   if (section === "Gifts") {
-    main.querySelector('.date-label').textContent='Catalog management';
+    main.querySelector(".date-label").textContent = "Catalog management";
     main.insertAdjacentHTML("beforeend", giftsPage());
     main.querySelector(".coming-soon")?.remove();
     loadGifts();
@@ -2285,6 +2809,7 @@ setInterval(() => {
 }, 60000);
 start();
 function resetPayoutDesk() {
+  closePayoutPauseDialog(true);
   payoutDesk.version++;
   payoutDesk.detailVersion++;
   payoutDesk.records = [];
@@ -2306,20 +2831,94 @@ const payoutStatusNames = {
   failed: "Failed",
   canceled: "Canceled",
   returned: "Returned",
-  unknown: "Unknown outcome",
-  error: "Error",
+  unknown: "Error — awaiting identification",
+  error: "Error — identified",
+  correction_saved: "Correction saved — awaiting processing",
   expired: "Expired / investigation required",
 };
-const payoutRecipientIssueLabels = { phone: "phone number", email: "email address", name: "legal name", other: "other recipient details" };
+const payoutRecipientIssueLabels = {
+  phone: "phone number",
+  email: "email address",
+  name: "legal name",
+  other: "other recipient details",
+};
 function payoutRecipientIssueFields(w) {
   const fields = w.recipientIssue?.fields;
-  if (!["unknown", "expired"].includes(w.status) || w.recipientIssue?.code !== "recipient_validation_failed" || !Array.isArray(fields) || !fields.length || fields.length > 4 || new Set(fields).size !== fields.length || fields.some(field => !Object.hasOwn(payoutRecipientIssueLabels, field))) return [];
-  return ["phone", "email", "name", "other"].filter(field => fields.includes(field));
+  if (
+    !["unknown", "expired"].includes(w.status) ||
+    w.recipientIssue?.code !== "recipient_validation_failed" ||
+    !Array.isArray(fields) ||
+    !fields.length ||
+    fields.length > 4 ||
+    new Set(fields).size !== fields.length ||
+    fields.some((field) => !Object.hasOwn(payoutRecipientIssueLabels, field))
+  )
+    return [];
+  return ["phone", "email", "name", "other"].filter((field) =>
+    fields.includes(field),
+  );
 }
-const payoutDisplayStatus = (w) => payoutRecipientIssueFields(w).length ? "error" : w.status;
+const payoutCorrectionSaved = (w) => {
+  const fields = payoutRecipientIssueFields(w);
+  return (
+    fields.length > 0 &&
+    fields.every((field) => ["phone", "email"].includes(field)) &&
+    !!w.recipientCorrection?.hash
+  );
+};
+const payoutDisplayStatus = (w) =>
+  payoutCorrectionSaved(w)
+    ? "correction_saved"
+    : payoutRecipientIssueFields(w).length
+      ? "error"
+      : w.status;
+function payoutProgress(w) {
+  const keys = [
+    "requested",
+    "preparing",
+    "review",
+    "recipient",
+    "processing",
+    "delivered",
+  ];
+  const labels = [
+    "Requested",
+    "Preparation",
+    "Payment review",
+    "Recipient setup",
+    "Processing",
+    "Delivered",
+  ];
+  let index = {
+    awaiting_quote: 0,
+    awaiting_confirmation: 1,
+    requested: 1,
+    preparing: 1,
+    awaiting_human_review: 2,
+    awaiting_recipient: 3,
+    processing: 4,
+    delivered: 5,
+    returned: 5,
+  }[w.status];
+  if (index === undefined)
+    index = w.providerLink
+      ? 3
+      : w.checker
+        ? 2
+        : w.quote || payoutRecipientIssueFields(w).length
+          ? 1
+          : 0;
+  const savedStep = keys.indexOf(w.progress?.currentStep);
+  if (savedStep >= 0) index = savedStep;
+  return `<ol class="payout-progress" aria-label="Transfer progress">${keys.map((key, i) => `<li class="${i < index || (i === index && w.status === "delivered") ? "complete" : i === index ? "current" : "upcoming"}" ${i === index ? 'aria-current="step"' : ""}>${esc(labels[i])}</li>`).join("")}</ol><p class="payout-progress-status" role="status">${esc(payoutStatusNames[payoutDisplayStatus(w)] || w.status)}</p>`;
+}
 const payoutRecipientErrorMessage = (w) => {
   const fields = payoutRecipientIssueFields(w);
-  return fields.length ? `Remitly could not accept the recipient ${fields.map(field => payoutRecipientIssueLabels[field]).join(", ")}. Coins remain reserved.` : "";
+  if (payoutCorrectionSaved(w))
+    return "The corrected contact details are saved and ready for Codex to verify before retry. Coins remain reserved.";
+  return fields.length
+    ? `Remitly could not accept the recipient ${fields.map((field) => payoutRecipientIssueLabels[field]).join(", ")}. Coins remain reserved.`
+    : "";
 };
 const payoutExceptions = (w) =>
   ["unknown", "expired"].includes(w.status) ||
@@ -2358,7 +2957,48 @@ function payoutLink(value, label) {
   }
 }
 function payoutDeskPage() {
-  return `<section class="panel payouts-panel"><div class="panel-heading"><div><h2>Creator withdrawal queue</h2><p>USD 15 maximum includes fees and taxes. Saved catalog prices are estimates.</p></div><button id="refresh-withdrawals" class="page-button">Refresh queue</button></div><div class="payout-content"><div id="payout-summary" class="payout-summary"></div><p id="payout-queue-status" role="status">Loading withdrawals…</p><form id="payout-pause-form" class="payout-pause-form" hidden><span id="payout-pause-state"></span><label>Reason<input name="reason" maxlength="2000" required placeholder="Why preparation should pause or resume"></label><button type="submit" class="page-button" id="payout-pause-button">Pause preparation</button><span class="payout-feedback" role="status"></span></form></div><div class="table-tools"><label class="search"><span aria-hidden="true">⌕</span><input id="payout-search" type="search" maxlength="100" value="${esc(payoutDesk.query)}" placeholder="Creator, recipient or withdrawal ID…" aria-label="Search withdrawals"></label><label>Status <select id="payout-filter">${[["all", "All withdrawals"], ["exceptions", "Exceptions"], ...Object.entries(payoutStatusNames)].map(([value, label]) => `<option value="${value}" ${value === payoutDesk.filter ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label></div><div class="table-scroll"><table><thead><tr><th>Creator / withdrawal</th><th>Recipient / route</th><th>Gross limit</th><th>Fee / send · USD</th><th>Transfer status</th><th>Independent checker</th><th>Review deadline · UTC</th><th>Review</th></tr></thead><tbody id="payout-rows"></tbody></table></div><div class="table-footer"><span id="payout-result-count"></span><span>Internal approval does not mean payment was sent.</span></div></section><section id="payout-detail" aria-live="polite"></section><details class="panel payout-enrollment"><summary>Creator withdrawal access</summary><div class="payout-content"><p id="payout-funding-status">Withdrawal balance policy is awaiting confirmation. Enrollment is unavailable until that policy is configured.</p><form id="payout-enrollment-preview"><label>Pulse user ID<input name="userId" type="number" min="1" step="1" required></label><button class="page-button" type="submit" disabled>Preview withdrawal balance</button><span class="payout-feedback" role="status"></span></form><div id="payout-enrollment-result"></div></div></details>`;
+  return `<section class="panel payouts-panel"><div class="panel-heading"><div><h2>Creator withdrawal queue</h2><p>USD 15 maximum includes fees and taxes. Saved catalog prices are estimates.</p></div><div class="payout-header-actions"><div id="payout-preparation-controls" class="payout-preparation-controls" hidden><span id="payout-pause-state" class="payout-preparation-state" role="status"></span><button id="payout-pause-toggle" class="page-button" type="button" aria-haspopup="dialog" aria-controls="payout-pause-modal">Pause</button></div><button id="refresh-withdrawals" class="page-button">Refresh queue</button></div></div><div class="payout-content"><div id="payout-summary" class="payout-summary"></div><p id="payout-queue-status" role="status">Loading withdrawals…</p></div><div class="table-tools"><label class="search"><span aria-hidden="true">⌕</span><input id="payout-search" type="search" maxlength="100" value="${esc(payoutDesk.query)}" placeholder="Creator, recipient or withdrawal ID…" aria-label="Search withdrawals"></label><label>Status <select id="payout-filter">${[["all", "All withdrawals"], ["exceptions", "Exceptions"], ...Object.entries(payoutStatusNames)].map(([value, label]) => `<option value="${value}" ${value === payoutDesk.filter ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label></div><div class="table-scroll"><table><thead><tr><th>Creator / withdrawal</th><th>Recipient / route</th><th>Gross limit</th><th>Fee / send · USD</th><th>Transfer status</th><th>Independent checker</th><th>Review deadline · UTC</th><th>Review</th></tr></thead><tbody id="payout-rows"></tbody></table></div><div class="table-footer"><span id="payout-result-count"></span><span>Internal approval does not mean payment was sent.</span></div></section><section id="payout-detail" aria-live="polite"></section><details class="panel payout-enrollment"><summary>Creator withdrawal access</summary><div class="payout-content"><p id="payout-funding-status">Withdrawal balance policy is awaiting confirmation. Enrollment is unavailable until that policy is configured.</p><form id="payout-enrollment-preview"><label>Pulse user ID<input name="userId" type="number" min="1" step="1" required></label><button class="page-button" type="submit" disabled>Preview withdrawal balance</button><span class="payout-feedback" role="status"></span></form><div id="payout-enrollment-result"></div></div></details>${payoutPauseDialog()}`;
+}
+function payoutPauseDialog() {
+  return `<dialog id="payout-pause-modal" class="payout-pause-modal" aria-labelledby="payout-pause-title" aria-describedby="payout-pause-description"><div class="dialog-top"><h2 id="payout-pause-title">Pause preparation</h2><button id="payout-pause-close" class="icon-button" type="button" aria-label="Close preparation dialog">×</button></div><p id="payout-pause-description">Pausing stops new preparation. Outcome checks remain available.</p><form id="payout-pause-form" class="payout-content payout-pause-form"><label>Reason<textarea name="reason" maxlength="2000" required rows="3" autofocus placeholder="Why preparation should pause or resume"></textarea></label><span class="payout-feedback" role="status"></span><div class="catalog-actions"><button id="payout-pause-cancel" class="page-button" type="button">Cancel</button><button id="payout-pause-button" class="primary-button" type="submit">Pause preparation</button></div></form></dialog>`;
+}
+function closePayoutPauseDialog(force = false) {
+  const modal = document.getElementById("payout-pause-modal");
+  if (
+    !modal ||
+    (!force && modal.querySelector("form")?.dataset.busy === "true")
+  )
+    return;
+  if (modal.open) modal.close();
+  if (!force && authorized && section === "Payout desk")
+    document.getElementById("payout-pause-toggle")?.focus();
+}
+function openPayoutPauseDialog() {
+  if (!payoutDesk.settings) return;
+  const modal = document.getElementById("payout-pause-modal");
+  if (!modal || modal.open) return;
+  const form = modal.querySelector("form");
+  form.reset();
+  form.dataset.paused = String(!payoutDesk.settings.preparationPaused);
+  form.querySelector(".payout-feedback").textContent = "";
+  const title = payoutDesk.settings.preparationPaused
+    ? "Resume preparation"
+    : "Pause preparation";
+  document.getElementById("payout-pause-title").textContent = title;
+  document.getElementById("payout-pause-button").textContent = title;
+  document.getElementById("payout-pause-description").textContent = payoutDesk
+    .settings.preparationPaused
+    ? "Resume new preparation. Final sending still requires a human."
+    : "Pausing stops new preparation. Outcome checks remain available.";
+  if (!modal.dataset.bound) {
+    modal.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      closePayoutPauseDialog();
+    });
+    modal.dataset.bound = "true";
+  }
+  modal.showModal();
+  form.elements.reason.focus();
 }
 function renderWithdrawalRows() {
   const target = document.getElementById("payout-rows");
@@ -2387,7 +3027,7 @@ function renderWithdrawalRows() {
     records
       .map((w) => {
         const attempt = payoutAttempt(w);
-        return `<tr><td><button class="user-button" data-withdrawal="${esc(w.id)}"><span><strong>${esc(w.creatorName || `UID ${w.userId}`)}</strong><small>${esc(w.id)}</small></span></button></td><td>${esc(payoutRecipientName(w))}<small>${esc(w.route?.country || w.route?.countryCode)} · ${esc(w.route?.method)} · ${esc(w.route?.receiveCurrency)}</small></td><td>${esc(catalogMoney(w.grossCents))}</td><td>${w.quote ? `${esc(catalogMoney(w.quote.feeCents))} / ${esc(catalogMoney(w.quote.sendAmountCents))}` : "Actual quote needed"}${w.quote?.taxCents ? `<small>Tax ${esc(catalogMoney(w.quote.taxCents))}</small>` : ""}</td><td><span class="status ${w.status === "delivered" ? "verified" : payoutExceptions(w) ? "payout-exception" : "pending"}">${esc(payoutStatusNames[payoutDisplayStatus(w)] || w.status)}</span>${payoutRecipientErrorMessage(w) ? `<small><strong>Error Message:</strong> ${esc(payoutRecipientErrorMessage(w))}</small>` : ""}</td><td>${esc(w.checker?.status?.replaceAll("_", " ") || "Not checked")}${w.checker?.actor ? `<small>${esc(w.checker.actor)}</small>` : ""}</td><td>${esc(payoutTime(attempt?.evidence?.deadline || w.reviewDeadline))}</td><td><button class="page-button" data-withdrawal="${esc(w.id)}">Open details</button></td></tr>`;
+        return `<tr><td><button class="user-button" data-withdrawal="${esc(w.id)}"><span><strong>${esc(w.creatorName || `UID ${w.userId}`)}</strong><small>${esc(w.id)}</small></span></button></td><td>${esc(payoutRecipientName(w))}<small>${esc(w.route?.country || w.route?.countryCode)} · ${esc(w.route?.method)} · ${esc(w.route?.receiveCurrency)}</small></td><td>${esc(catalogMoney(w.grossCents))}</td><td>${w.quote ? `${esc(catalogMoney(w.quote.feeCents))} / ${esc(catalogMoney(w.quote.sendAmountCents))}` : "Actual quote needed"}${w.quote?.taxCents ? `<small>Tax ${esc(catalogMoney(w.quote.taxCents))}</small>` : ""}</td><td><span class="status ${w.status === "delivered" ? "verified" : payoutExceptions(w) ? "payout-exception" : "pending"}">${esc(payoutStatusNames[payoutDisplayStatus(w)] || w.status)}</span>${payoutRecipientErrorMessage(w) ? `<small><strong>${payoutCorrectionSaved(w) ? "Next step" : "Error Message"}:</strong> ${esc(payoutRecipientErrorMessage(w))}</small>` : ""}</td><td>${esc(w.checker?.status?.replaceAll("_", " ") || "Not checked")}${w.checker?.actor ? `<small>${esc(w.checker.actor)}</small>` : ""}</td><td>${esc(payoutTime(attempt?.evidence?.deadline || w.reviewDeadline))}</td><td><button class="page-button" data-withdrawal="${esc(w.id)}">Open details</button></td></tr>`;
       })
       .join("") ||
     '<tr><td colspan="8" class="empty">No withdrawals match this view.</td></tr>';
@@ -2418,13 +3058,15 @@ async function loadWithdrawals() {
     );
     document.getElementById("payout-summary").innerHTML =
       `<span><strong>${unresolved.length}</strong> unresolved</span><span><strong>${esc(catalogMoney(unresolved.reduce((sum, w) => sum + w.grossCents, 0)))}</strong> reserved gross</span><span><strong>${data.withdrawals.filter(payoutExceptions).length}</strong> exceptions</span>`;
-    status.textContent = `${data.withdrawals.length} withdrawals loaded${data.truncated ? " · Limited to the newest 500 records" : ""}. Preparation ${data.preparationPaused ? "paused" : "active"}. Reconciliation remains available. Repeat withdrawals ${data.policy?.repeatAllowed ? "follow the configured policy" : "await an approved policy"}.`;
-    const pauseForm = document.getElementById("payout-pause-form");
-    pauseForm.hidden = false;
+    status.textContent = `${data.withdrawals.length} withdrawals loaded${data.truncated ? " · Limited to the newest 500 records" : ""}.`;
+    document.getElementById("payout-preparation-controls").hidden = false;
     document.getElementById("payout-pause-state").textContent =
       data.preparationPaused ? "Preparation paused" : "Preparation active";
-    document.getElementById("payout-pause-button").textContent =
-      data.preparationPaused ? "Resume preparation" : "Pause preparation";
+    document.getElementById("payout-pause-state").dataset.paused = String(
+      data.preparationPaused,
+    );
+    document.getElementById("payout-pause-toggle").textContent =
+      data.preparationPaused ? "Resume" : "Pause";
     const fundingReady = data.policy?.fundingPolicyReady === true;
     const enrollmentButton = document.querySelector(
       "#payout-enrollment-preview button",
@@ -2434,7 +3076,9 @@ async function loadWithdrawals() {
       ? "All existing wallet coins can be withdrawn, including bought, gifted and granted coins. 400 coins equal USD 1; USD 15 gross reserves 6,000 coins. Enabling an account does not add or remove coins."
       : "Withdrawal balance policy is awaiting confirmation. Enrollment is unavailable until that policy is configured.";
     renderWithdrawalRows();
-    if (["requested", "awaiting_confirmation"].includes(payoutDesk.detail?.status)) {
+    if (
+      ["requested", "awaiting_confirmation"].includes(payoutDesk.detail?.status)
+    ) {
       const button = document.querySelector(
         '[data-payout-action="prepare"] button',
       );
@@ -2454,7 +3098,8 @@ async function loadWithdrawals() {
     );
     if (prepareButton) prepareButton.disabled = true;
     document.getElementById("payout-summary").replaceChildren();
-    document.getElementById("payout-pause-form").hidden = true;
+    document.getElementById("payout-preparation-controls").hidden = true;
+    closePayoutPauseDialog(true);
     document.getElementById("payout-rows").innerHTML =
       '<tr><td colspan="8" class="empty">Withdrawal queue unavailable. Use Refresh queue to retry.</td></tr>';
     document.getElementById("payout-result-count").textContent =
@@ -2494,16 +3139,16 @@ const payoutEvidence = (
   maxlength = 5000,
 ) =>
   `<label class="payout-wide">${esc(label)}<textarea name="${esc(name)}" required maxlength="${maxlength}" rows="3" placeholder="Record what you independently observed. Keep bank account details with Remitly."></textarea></label>`;
-const payoutCheckbox = (name, label, required = false) =>
-  `<label class="payout-check"><input name="${esc(name)}" type="checkbox" ${required ? "required" : ""}> ${esc(label)}</label>`;
+const payoutCheckbox = (name, label, required = false, checked = false) =>
+  `<label class="payout-check"><input name="${esc(name)}" type="checkbox" ${required ? "required" : ""} ${checked ? "checked" : ""}> ${esc(label)}</label>`;
 function payoutForm(
   action,
   title,
   content,
   button,
-  { disabled = false, note = "" } = {},
+  { disabled = false, note = "", open = false } = {},
 ) {
-  return `<details class="payout-action"><summary>${esc(title)}</summary><form class="payout-action-form" data-payout-action="${action}">${note ? `<p class="payout-wide">${esc(note)}</p>` : ""}<div class="payout-fields">${content}</div><div class="catalog-actions"><button type="submit" class="primary-button" ${disabled ? "disabled" : ""}>${esc(button)}</button><span class="payout-feedback" role="status"></span></div></form></details>`;
+  return `<details class="payout-action" ${open ? "open" : ""}><summary>${esc(title)}</summary><form class="payout-action-form" data-payout-action="${action}">${note ? `<p class="payout-wide">${esc(note)}</p>` : ""}<div class="payout-fields">${content}</div><div class="catalog-actions"><button type="submit" class="primary-button" ${disabled ? "disabled" : ""}>${esc(button)}</button><span class="payout-feedback" role="status"></span></div></form></details>`;
 }
 function quoteActionForm(w) {
   return payoutForm(
@@ -2590,7 +3235,15 @@ function renderWithdrawalDetail() {
         ]
       : []),
     ["Transfer status", payoutStatusNames[payoutDisplayStatus(w)] || w.status],
-    ...(payoutRecipientErrorMessage(w) ? [["Error Message", payoutRecipientErrorMessage(w)], ["Operational status", payoutStatusNames[w.status] || w.status]] : []),
+    ...(payoutRecipientErrorMessage(w)
+      ? [
+          [
+            payoutCorrectionSaved(w) ? "Next step" : "Error Message",
+            payoutRecipientErrorMessage(w),
+          ],
+          ["Operational status", payoutStatusNames[w.status] || w.status],
+        ]
+      : []),
     [
       "Recipient onboarding",
       w.providerOnboardingStatus === "ready"
@@ -2616,6 +3269,7 @@ function renderWithdrawalDetail() {
   ];
   let actions = "";
   let recipientActions = "";
+  let contactAction = "";
   if (
     ["awaiting_quote", "awaiting_confirmation", "requested"].includes(w.status)
   )
@@ -2804,52 +3458,120 @@ function renderWithdrawalDetail() {
         note: "Only provider evidence confirms delivery. Unknown outcomes retain the reservation and block retries. Failed, canceled and returned outcomes require confirmed funding return. Reuse the same observation ID and identical evidence when retrying an uncertain save.",
       },
     );
-  if (
-    !["delivered", "failed", "canceled", "returned"].includes(
-      w.status,
-    )
-  )
+  if (!["delivered", "failed", "canceled", "returned"].includes(w.status))
     recipientActions += payoutForm(
       "unknown",
-      ["unknown", "expired"].includes(w.status) ? "Identify the rejected recipient details" : "Report an uncertain outcome or rejected recipient details",
+      ["unknown", "expired"].includes(w.status)
+        ? "Identify the rejected recipient details"
+        : "Report an uncertain outcome or rejected recipient details",
       payoutEvidence("reason", "Reason and investigation notes") +
-        [["phone", "Phone number"], ["email", "Email address"], ["name", "Legal name"], ["other", "Other recipient details"]].map(([field, label]) =>
-          payoutCheckbox(`recipientIssue_${field}`, `Remitly rejected: ${label}`)
-        ).join(""),
-      ["unknown", "expired"].includes(w.status) ? "Save error details" : "Record unknown outcome",
+        [
+          ["phone", "Phone number"],
+          ["email", "Email address"],
+          ["name", "Legal name"],
+          ["other", "Other recipient details"],
+        ]
+          .map(([field, label]) =>
+            payoutCheckbox(
+              `recipientIssue_${field}`,
+              `Remitly rejected: ${label}`,
+              false,
+              payoutRecipientIssueFields(w).includes(field),
+            ),
+          )
+          .join(""),
+      ["unknown", "expired"].includes(w.status)
+        ? "Save error details"
+        : "Record unknown outcome",
       {
-        note: "Select only recipient fields explicitly rejected by Remitly. An admin owner can record those fields on a withdrawal already under review. The creator sees a safe field-specific error; investigation notes stay protected. Reserved wallet coins stay unavailable to spend. Inspect provider history before correcting contact records or making a replacement attempt. A generic outcome report without rejected fields follows the separate payout investigation permissions.",
+        note: "The checked fields show the saved rejection. Use this form only to record new provider evidence; notes are saved in Evidence and history. Reclassifying a rejection supersedes its pending correction. To fix a phone or email, use the contact form instead. A generic outcome report without rejected fields follows the separate payout investigation permissions.",
       },
     );
-  if (payoutRecipientIssueFields(w).some(field => ["phone", "email"].includes(field)))
-    recipientActions += payoutForm(
+  if (
+    payoutRecipientIssueFields(w).some((field) =>
+      ["phone", "email"].includes(field),
+    )
+  )
+    contactAction = payoutForm(
       "recipient-correction",
-      "Correct recipient contact details",
-      payoutInput("phone", "Corrected international phone number", { value: w.recipientCorrection?.phone ?? w.recipient?.phone ?? "", maxlength: 20 }) +
-        payoutInput("email", "Corrected email address", { value: w.recipientCorrection?.email ?? w.recipient?.email ?? "", type: "email", maxlength: 254 }),
+      w.recipientCorrection?.hash
+        ? "Edit saved contact correction"
+        : "Correct recipient contact details",
+      payoutInput("phone", "Corrected international phone number", {
+        value: w.recipientCorrection?.phone ?? w.recipient?.phone ?? "",
+        maxlength: 20,
+      }) +
+        payoutInput("email", "Corrected email address", {
+          value: w.recipientCorrection?.email ?? w.recipient?.email ?? "",
+          type: "email",
+          maxlength: 254,
+        }),
       "Save corrected contact details",
-      { note: "Save the details verified with the creator. The correction stays pending review; saving does not resume preparation, change the active recipient or release reserved coins." },
+      {
+        open: !w.recipientCorrection?.hash,
+        note: "Save once. The payout operator checks the existing Remitly attempt before retrying with these details. Coins stay reserved.",
+      },
     );
-  if (payoutRecipientIssueFields(w).length && payoutRecipientIssueFields(w).every(field => ["phone", "email"].includes(field)) && w.recipientCorrection?.hash && attempt && w.canResolveRecipientError === true)
+  if (
+    payoutRecipientIssueFields(w).length &&
+    payoutRecipientIssueFields(w).every((field) =>
+      ["phone", "email"].includes(field),
+    ) &&
+    w.recipientCorrection?.hash &&
+    attempt &&
+    w.canResolveRecipientError === true
+  )
     recipientActions += payoutForm(
       "resolve-recipient-error",
-      "Admin recovery after recipient correction",
+      "Advanced: manual recovery fallback",
       payoutInput("observationId", "Stable recovery observation ID") +
-        payoutInput("sourceUrl", "Signed-in Remitly evidence source URL", { type: "url", maxlength: 2000 }) +
+        payoutInput("sourceUrl", "Signed-in Remitly evidence source URL", {
+          type: "url",
+          maxlength: 2000,
+        }) +
         payoutTimestampInput("observedAt", "Provider history inspected") +
-        payoutInput("historyCoverage", "Provider history coverage inspected", { maxlength: 2000 }) +
-        [["historyInspected", "I inspected provider history for this exact withdrawal and prior attempt."],
-         ["recipientRecordInspected", "I inspected Remitly recipient records and verified the existing contact or its absence."],
-         ["recipientCorrectionApplied", "Corrected contact is ready: I updated the existing Remitly recipient, or verified that no recipient/contact was saved and the next preparation will use these corrected details."],
-         ["noRecipientLinkIssued", "No recipient link was issued for this prior attempt."],
-         ["noFundsSent", "No funds were sent for this prior attempt."],
-         ["noFundingDebit", "No funding debit exists for this prior attempt."],
-         ["noPendingTransfers", "No pending transfer exists for this prior attempt."],
-         ["noUnknownTransfers", "No uncertain transfer remains for this prior attempt."],
-         ["previousDraftClosed", "Every prior draft or recipient link for this attempt is definitively canceled or removed."]]
-          .map(([name, label]) => payoutCheckbox(name, label, true)).join("") + payoutEvidence(),
+        payoutInput("historyCoverage", "Provider history coverage inspected", {
+          maxlength: 2000,
+        }) +
+        [
+          [
+            "historyInspected",
+            "I inspected provider history for this exact withdrawal and prior attempt.",
+          ],
+          [
+            "recipientRecordInspected",
+            "I inspected Remitly recipient records and verified the existing contact or its absence.",
+          ],
+          [
+            "recipientCorrectionApplied",
+            "Corrected contact is ready: I updated the existing Remitly recipient, or verified that no recipient/contact was saved and the next preparation will use these corrected details.",
+          ],
+          [
+            "noRecipientLinkIssued",
+            "No recipient link was issued for this prior attempt.",
+          ],
+          ["noFundsSent", "No funds were sent for this prior attempt."],
+          ["noFundingDebit", "No funding debit exists for this prior attempt."],
+          [
+            "noPendingTransfers",
+            "No pending transfer exists for this prior attempt.",
+          ],
+          [
+            "noUnknownTransfers",
+            "No uncertain transfer remains for this prior attempt.",
+          ],
+          [
+            "previousDraftClosed",
+            "Every prior draft or recipient link for this attempt is definitively canceled or removed.",
+          ],
+        ]
+          .map(([name, label]) => payoutCheckbox(name, label, true))
+          .join("") +
+        payoutEvidence(),
       "Record verified correction recovery",
-      { note: "Admin owners can recover this recipient error after verifying every provider check. This preserves reserved coins, closes the prior attempt and returns to a fresh quote. It does not send a payment or make a replacement draft. Human release or provider transfer references block this recovery." },
+      {
+        note: "Codex normally verifies and recovers saved corrections through the reconciler workflow. This manual fallback is for an admin handling provider verification directly. Saving the corrected contact is the normal user step; no extra approval is required. This preserves reserved coins and never sends a payment.",
+      },
     );
   actions = recipientActions + actions;
   const events = w.events || w.history || [];
@@ -2874,9 +3596,16 @@ function renderWithdrawalDetail() {
       },
     );
   const issueFields = payoutRecipientIssueFields(w);
+  const savedCorrection = payoutCorrectionSaved(w);
   const recipientIssue = issueFields.length
-    ? `<section class="payout-callout" role="alert"><strong>Error · Recipient details need attention</strong><p><strong>Error Message:</strong> ${esc(payoutRecipientErrorMessage(w))}</p><p>Verify the saved details and inspect provider history before correction or resuming. Preparation stays blocked until admin recovery.</p>${w.recipientCorrection ? `<p><strong>Correction pending admin review</strong><br>${w.recipientCorrection.phone ? `Phone: ${esc(w.recipientCorrection.phone)}<br>` : ""}${w.recipientCorrection.email ? `Email: ${esc(w.recipientCorrection.email)}<br>` : ""}Submitted ${esc(payoutTime(w.recipientCorrection.requestedAt))}. The corrected contact has not been applied yet.</p>` : '<p>Use Correct recipient contact details below, or ask the creator to save a correction in the updated app. Legal-name or other recipient issues require operator review.</p>'}</section>` : "";
-  target.innerHTML = `<section class="panel payout-detail-panel"><div class="panel-heading"><div><h2>Withdrawal ${esc(w.id)}</h2><p>Version ${esc(w.version)} · Updated ${esc(payoutTime(w.updatedAt))}</p></div><div class="payout-detail-toolbar"><button class="page-button" id="refresh-payout-detail">Refresh details</button><button class="page-button" id="close-payout-detail">Close</button></div></div><div class="payout-content"><dl class="payout-facts">${facts.map(([label, value]) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join("")}</dl>${q ? `<section class="payout-quote"><h3>Current provider quote</h3><p>Send ${esc(catalogMoney(q.sendAmountCents))} + fee ${esc(catalogMoney(q.feeCents))} + tax ${esc(catalogMoney(q.taxCents))} = ${esc(catalogMoney(q.totalEarningsDeductedCents))} total wallet deduction.</p><p>Recipient estimate: ${esc(q.receiveAmount)} ${esc(q.receiveCurrency)} · ${esc(q.fundingMethod)}. Promotion: ${esc(catalogMoney(q.promotionalDiscountCents))}, separate from fees.</p><p>Observed ${esc(payoutTime(q.observedAt))} · Expires ${esc(payoutTime(q.expiresAt))}</p><p class="payout-hash">Quote reference: ${esc(q.hash)}</p></section>` : '<p class="payout-callout">No exact signed-in provider quote recorded. Do not prepare a transfer from catalog fee estimates.</p>'}<div class="payout-links">${attempt?.evidence?.reviewUrl ? payoutLink(attempt.evidence.reviewUrl, "Review in Remitly") : ""}${w.providerLink ? payoutLink(w.providerLink, "Recipient link") : ""}${events.findLast((e) => e.evidence?.activityUrl)?.evidence?.activityUrl ? payoutLink(events.findLast((e) => e.evidence?.activityUrl).evidence.activityUrl, "Provider activity") : ""}</div>${["unknown", "expired"].includes(w.status) ? `<p class="payout-callout">${w.status === "expired" ? "Expired withdrawal" : "Unknown outcome"}: reservation retained. Replacement preparation is blocked until provider history resolves the existing attempt.</p>` : ""}${recipientIssue}${actions}<details class="payout-history"><summary>Evidence and history (${events.length} events)</summary>${events.map((e) => `<article><strong>${esc(e.action?.replaceAll("_", " "))}</strong><small>${esc(payoutTime(e.createdAt || e.created_at))}${e.actor ? ` · ${esc(e.actor)}` : ""}</small>${e.evidence ? `<pre>${esc(typeof e.evidence === "string" ? e.evidence : JSON.stringify(e.evidence, null, 2))}</pre>` : ""}</article>`).join("") || "<p>No events recorded.</p>"}</details></div></section>`;
+    ? `<section class="payout-callout" role="alert"><strong>${savedCorrection ? "Correction saved — awaiting processing" : "Error — identified"}</strong><p>${esc(payoutRecipientErrorMessage(w))}</p>${savedCorrection ? "<p>Your edit is complete. The payout operator checks the existing Remitly attempt before retrying. No additional form or approval is needed from you.</p>" : `<p>${issueFields.some((field) => ["phone", "email"].includes(field)) ? "Correct the contact details below and save once." : "An operator needs to review the rejected recipient details."}${issueFields.some((field) => ["name", "other"].includes(field)) ? " Legal-name or other recipient issues still need operator review." : ""}</p>`}${w.recipientCorrection ? `<p><strong>Saved contact correction</strong><br>${w.recipientCorrection.phone ? `Phone: ${esc(w.recipientCorrection.phone)}<br>` : ""}${w.recipientCorrection.email ? `Email: ${esc(w.recipientCorrection.email)}<br>` : ""}Saved ${esc(payoutTime(w.recipientCorrection.requestedAt))}.</p>` : ""}</section>`
+    : "";
+  const evidenceHistory = `<details class="payout-history"><summary>Evidence and history (${events.length} events)</summary>${events.map((e) => `<article><strong>${esc(e.action?.replaceAll("_", " "))}</strong><small>${esc(payoutTime(e.createdAt || e.created_at))}${e.actor ? ` · ${esc(e.actor)}` : ""}</small>${e.evidence ? `<pre>${esc(typeof e.evidence === "string" ? e.evidence : JSON.stringify(e.evidence, null, 2))}</pre>` : ""}</article>`).join("") || "<p>No events recorded.</p>"}</details>`;
+  const technicalDetails = `<dl class="payout-facts">${facts.map(([label, value]) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join("")}</dl>${q ? `<section class="payout-quote"><h3>Current provider quote</h3><p>Send ${esc(catalogMoney(q.sendAmountCents))} + fee ${esc(catalogMoney(q.feeCents))} + tax ${esc(catalogMoney(q.taxCents))} = ${esc(catalogMoney(q.totalEarningsDeductedCents))} total wallet deduction.</p><p>Recipient estimate: ${esc(q.receiveAmount)} ${esc(q.receiveCurrency)} · ${esc(q.fundingMethod)}. Promotion: ${esc(catalogMoney(q.promotionalDiscountCents))}, separate from fees.</p><p>Observed ${esc(payoutTime(q.observedAt))} · Expires ${esc(payoutTime(q.expiresAt))}</p><p class="payout-hash">Quote reference: ${esc(q.hash)}</p></section>` : '<p class="payout-callout">No exact signed-in provider quote recorded. Do not prepare a transfer from catalog fee estimates.</p>'}<div class="payout-links">${attempt?.evidence?.reviewUrl ? payoutLink(attempt.evidence.reviewUrl, "Review in Remitly") : ""}${w.providerLink ? payoutLink(w.providerLink, "Recipient link") : ""}${events.findLast((e) => e.evidence?.activityUrl)?.evidence?.activityUrl ? payoutLink(events.findLast((e) => e.evidence?.activityUrl).evidence.activityUrl, "Provider activity") : ""}</div>${["unknown", "expired"].includes(w.status) ? '<p class="payout-callout">Reservation retained. Replacement preparation is blocked until provider history resolves the existing attempt.</p>' : ""}`;
+  const body = issueFields.length
+    ? `<p class="payout-withdrawal-summary">${esc(creatorName)} · ${esc(w.route?.country || w.route?.countryCode)} · ${esc(w.route?.method)}<br>${esc(catalogMoney(w.grossCents))} total wallet deduction${w.balances ? ` · ${esc(w.balances.reservedCoins)} coins reserved` : ""}</p>${recipientIssue}${contactAction}<details class="payout-advanced"><summary>Advanced details and operator actions</summary><div class="payout-advanced-content">${technicalDetails}${actions}${evidenceHistory}</div></details>`
+    : `${technicalDetails}${actions}${evidenceHistory}`;
+  target.innerHTML = `<section class="panel payout-detail-panel"><div class="panel-heading"><div><h2>Withdrawal ${esc(w.id)}</h2><p>Updated ${esc(payoutTime(w.updatedAt))}</p></div><div class="payout-detail-toolbar"><button class="page-button" id="refresh-payout-detail">Refresh details</button><button class="page-button" id="close-payout-detail">Close</button></div></div><div class="payout-content"><p id="payout-detail-feedback" role="status"></p>${payoutProgress(w)}${body}</div></section>`;
 }
 async function loadWithdrawalDetail(id) {
   if (!authorized || section !== "Payout desk") return;
@@ -2971,25 +3700,59 @@ async function submitPayoutAction(form) {
       body = { reason: get("reason") };
       if (action === "unknown") {
         if (["unknown", "expired"].includes(w.status)) body.status = w.status;
-        const fields = ["phone", "email", "name", "other"].filter(field => checked(`recipientIssue_${field}`));
-        if (fields.length) body.recipientIssue = { code: "recipient_validation_failed", fields };
+        const fields = ["phone", "email", "name", "other"].filter((field) =>
+          checked(`recipientIssue_${field}`),
+        );
+        if (fields.length)
+          body.recipientIssue = { code: "recipient_validation_failed", fields };
       }
     } else if (action === "recipient-correction") {
-      body = { phone: get("phone").trim().replace(/[\s().-]/g, ""), email: get("email").trim() };
+      body = {
+        phone: get("phone")
+          .trim()
+          .replace(/[\s().-]/g, ""),
+        email: get("email").trim(),
+      };
     } else if (action === "resolve-recipient-error") {
-      if (!attempt || !w.recipientCorrection?.hash || w.canResolveRecipientError !== true || !payoutRecipientIssueFields(w).length || !payoutRecipientIssueFields(w).every(field => ["phone", "email"].includes(field)))
-        throw new Error("Refresh details to confirm current reconciler permission and pending correction.");
+      if (
+        !attempt ||
+        !w.recipientCorrection?.hash ||
+        w.canResolveRecipientError !== true ||
+        !payoutRecipientIssueFields(w).length ||
+        !payoutRecipientIssueFields(w).every((field) =>
+          ["phone", "email"].includes(field),
+        )
+      )
+        throw new Error(
+          "Refresh details to confirm current reconciler permission and pending correction.",
+        );
       body = {
         attemptId: attempt.id,
         correctionHash: w.recipientCorrection.hash,
         observationId: get("observationId"),
         sourceUrl: get("sourceUrl"),
-        observedAt: payoutTimestamp(get("observedAt"), "Provider history inspection time"),
+        observedAt: payoutTimestamp(
+          get("observedAt"),
+          "Provider history inspection time",
+        ),
         evidence: get("evidence"),
         historyCoverage: get("historyCoverage"),
       };
-      ["historyInspected", "recipientRecordInspected", "recipientCorrectionApplied", "noRecipientLinkIssued", "noFundsSent", "noFundingDebit", "noPendingTransfers", "noUnknownTransfers", "previousDraftClosed"].forEach(name => {
-        if (!checked(name)) throw new Error("Confirm every independent recovery check before proceeding.");
+      [
+        "historyInspected",
+        "recipientRecordInspected",
+        "recipientCorrectionApplied",
+        "noRecipientLinkIssued",
+        "noFundsSent",
+        "noFundingDebit",
+        "noPendingTransfers",
+        "noUnknownTransfers",
+        "previousDraftClosed",
+      ].forEach((name) => {
+        if (!checked(name))
+          throw new Error(
+            "Confirm every independent recovery check before proceeding.",
+          );
         body[name] = true;
       });
     } else if (action === "preparation") {
@@ -3085,7 +3848,12 @@ async function submitPayoutAction(form) {
   buttons.forEach(({ button }) => (button.disabled = true));
   feedback.textContent = "Saving verified record…";
   try {
-    const endpointAction = action === "unknown" && body.recipientIssue && ["unknown", "expired"].includes(w.status) ? "recipient-error" : action;
+    const endpointAction =
+      action === "unknown" &&
+      body.recipientIssue &&
+      ["unknown", "expired"].includes(w.status)
+        ? "recipient-error"
+        : action;
     if (endpointAction === "recipient-error") delete body.status;
     await api(`/withdrawals/${encodeURIComponent(w.id)}/${endpointAction}`, {
       method: "POST",
@@ -3099,6 +3867,18 @@ async function submitPayoutAction(form) {
       return;
     await loadWithdrawalDetail(w.id);
     await loadWithdrawals();
+    if (
+      authorized &&
+      section === "Payout desk" &&
+      payoutDesk.detail?.id === w.id
+    ) {
+      const notice = document.getElementById("payout-detail-feedback");
+      if (notice && ["unknown", "recipient-correction"].includes(action))
+        notice.textContent =
+          action === "recipient-correction"
+            ? "Contact correction saved. No further form is required; the operator verifies the previous attempt before retrying."
+            : "Error details saved. The selected fields and investigation notes are available in Advanced details and operator actions.";
+    }
   } catch (e) {
     if (version !== payoutDesk.detailVersion) return;
     if (accessError(e)) return;
@@ -3166,19 +3946,43 @@ document.addEventListener("submit", async (event) => {
     return submitEnrollmentPreview(form);
   const version = payoutDesk.version,
     feedback = form.querySelector(".payout-feedback"),
-    button = form.querySelector("button");
+    button =
+      form.querySelector("button[type=submit]") || form.querySelector("button");
+  const pauseAction = form.id === "payout-pause-form";
+  if (pauseAction) {
+    if (form.dataset.busy === "true" || !payoutDesk.settings) return;
+    if (!form.elements.reason.value.trim()) {
+      feedback.textContent = "Enter a reason before changing preparation.";
+      form.elements.reason.focus();
+      return;
+    }
+    const paused = form.dataset.paused === "true";
+    if (paused === payoutDesk.settings.preparationPaused) {
+      feedback.textContent =
+        "Preparation has already changed. Close this dialog and check the current status.";
+      return;
+    }
+    form.dataset.busy = "true";
+    form.setAttribute("aria-busy", "true");
+    feedback.textContent = "Saving preparation setting…";
+    document.getElementById("payout-pause-close").disabled = true;
+    document.getElementById("payout-pause-cancel").disabled = true;
+  }
   button.disabled = true;
   try {
-    if (form.id === "payout-pause-form") {
-      if (!payoutDesk.settings) return;
+    if (pauseAction) {
       await api("/withdrawals/pause", {
         method: "POST",
         body: JSON.stringify({
-          paused: !payoutDesk.settings.preparationPaused,
+          paused: form.dataset.paused === "true",
           reason: form.elements.reason.value.trim(),
         }),
       });
-      if (authorized && version === payoutDesk.version) await loadWithdrawals();
+      if (authorized && section === "Payout desk" && form.isConnected) {
+        closePayoutPauseDialog(true);
+        document.getElementById("payout-pause-toggle")?.focus();
+        await loadWithdrawals();
+      }
     } else {
       const p = payoutDesk.enrollment;
       if (
@@ -3201,14 +4005,24 @@ document.addEventListener("submit", async (event) => {
         '<p role="status">Withdrawal access enabled for this account. Its wallet balance is unchanged. The user completes recipient setup and requests their own withdrawal in Pulse.</p>';
     }
   } catch (e) {
-    if (version !== payoutDesk.version) return;
+    if (pauseAction) {
+      if (!authorized || section !== "Payout desk" || !form.isConnected) return;
+    } else if (version !== payoutDesk.version) return;
     if (accessError(e)) return;
     feedback.textContent =
       e.status === 409
         ? `${e.message} Preview or refresh again before retrying.`
         : e.message;
   } finally {
-    if (form.isConnected) button.disabled = false;
+    if (form.isConnected) {
+      button.disabled = false;
+      if (pauseAction) {
+        delete form.dataset.busy;
+        form.removeAttribute("aria-busy");
+        document.getElementById("payout-pause-close").disabled = false;
+        document.getElementById("payout-pause-cancel").disabled = false;
+      }
+    }
   }
 });
 document.addEventListener("input", (event) => {
@@ -3237,6 +4051,19 @@ document.addEventListener("change", (event) => {
 });
 document.addEventListener("click", (event) => {
   if (!authorized || section !== "Payout desk") return;
+  if (event.target.id === "payout-pause-toggle") openPayoutPauseDialog();
+  if (["payout-pause-cancel", "payout-pause-close"].includes(event.target.id))
+    closePayoutPauseDialog();
+  if (event.target.id === "payout-pause-modal") {
+    const bounds = event.target.getBoundingClientRect();
+    if (
+      event.clientX < bounds.left ||
+      event.clientX > bounds.right ||
+      event.clientY < bounds.top ||
+      event.clientY > bounds.bottom
+    )
+      closePayoutPauseDialog();
+  }
   const row = event.target.closest("[data-withdrawal]");
   if (row) loadWithdrawalDetail(row.dataset.withdrawal);
   if (event.target.id === "refresh-withdrawals") loadWithdrawals();

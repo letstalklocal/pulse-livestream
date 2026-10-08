@@ -1,4 +1,13 @@
 {
+  "Error — awaiting identification": "エラー — 原因の確認待ち",
+  "Error — identified": "エラー — 原因を確認済み",
+  "Correction saved — awaiting processing": "修正を保存しました — 処理待ち",
+  "Transfer progress": "送金の進捗",
+  "Requested": "申請済み",
+  "Preparing": "準備中",
+  "Review": "審査",
+  "Processing": "処理中",
+  "Edit contact details": "連絡先情報を編集",
   "Test": "テスト",
   " · paid": " ・有料",
   " · refunded": " ・返金済み",

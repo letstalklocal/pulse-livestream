@@ -752,6 +752,9 @@ try {
   );
   assert(!JSON.stringify(issueDetail).includes(privateProviderReason));
   assert.equal(issueDetail.creatorStatus, "error");
+  assert.equal(issueDetail.progress.stage, "error_identified");
+  assert.equal(issueDetail.progress.statusLabel, "Error — identified");
+  assert.equal(issueDetail.progress.nextAction, "correct_recipient_details");
   assert.equal(
     issueDetail.status,
     "unknown",
@@ -816,7 +819,19 @@ try {
     "pending edits never alter active recipient snapshot",
   );
   assert.equal(pending.status, "unknown");
-  assert.equal(pending.creatorStatus, "error");
+  assert.equal(pending.creatorStatus, "correction_saved");
+  assert.equal(pending.errorMessage, null);
+  assert.equal(pending.progress.stage, "correction_saved");
+  assert.equal(
+    pending.progress.statusLabel,
+    "Correction saved — awaiting processing",
+  );
+  assert.equal(pending.progress.nextAction, "verify_saved_correction");
+  assert.equal(
+    pending.progress.blocked,
+    true,
+    "saved edit awaits verified recovery, not another edit",
+  );
   assert.equal(pending.version, originalErrorVersion);
   assert.equal(pending.recipientCorrection.phone, correctionBody.phone);
   assert.equal(pending.recipientCorrection.email, correctionBody.email);
@@ -914,6 +929,8 @@ try {
     "generic uncertainty supersedes earlier validation errors",
   );
   assert.equal(issueDetail.creatorStatus, "unknown");
+  assert.equal(issueDetail.progress.stage, "error_unknown");
+  assert.equal(issueDetail.progress.nextAction, "identify_error");
   assert.equal(issueDetail.errorMessage, null);
   assert.equal(
     issueDetail.recipientCorrection,
@@ -1851,6 +1868,12 @@ try {
     { phone: "+12025550123", email: "operator-corrected@example.com" },
     "owner",
   );
+  assert.equal(
+    mixedCorrection.progress.stage,
+    "error_identified",
+    "a phone edit cannot clear unresolved legal-name errors",
+  );
+  assert.equal(mixedCorrection.creatorStatus, "error");
   await assert.rejects(
     () =>
       api.resolveRecipientError(
@@ -1935,6 +1958,9 @@ try {
   assert.equal(recovered.id, failed.id);
   assert.equal(recovered.status, "awaiting_quote");
   assert.equal(recovered.creatorStatus, "awaiting_quote");
+  assert.equal(recovered.progress.stage, "awaiting_quote");
+  assert.equal(recovered.progress.blocked, false);
+  assert.equal(recovered.progress.nextAction, "continue");
   assert.equal(recovered.version, beforeAdminCorrection.version + 1);
   assert.equal(recovered.recipient.phone, "+12025550123");
   assert.equal(recovered.recipient.email, "operator-corrected@example.com");

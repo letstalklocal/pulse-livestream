@@ -114,3 +114,35 @@ For dependency installs or patch application, stop Metro first, allow the instal
 The user still saw the failure in Replit Preview. The workflow log at `.local/state/workflow-logs/i-rZGqth_3DzHYmN-ICW5/artifacts_mobile__expo.shell.exec.0` was last modified at 22:08:35 UTC and contained the original crash, with no newer workflow start recorded. Its full stack identifies `@expo/metro-file-map@57.0.2` `FallbackWatcher.#watchdir` calling `fs.watch` on the vanished pnpm staging directory. This confirms the watcher failure; the particular install invocation remains unidentified.
 
 The separately launched recovery server responded successfully both locally and through the Expo development hostname, but it did not reset Replit's failed workflow/Preview status. The assistant stopped only that manually launched process group to free port 18115 for the Replit-managed workflow. Restart the mobile workflow using Replit's Stop/Run controls; a Preview page reload alone does not start a new workflow. The assistant has no workflow-control tool in this session, so the managed restart and Preview recovery still require user confirmation. Do not report a standalone Metro health response as proof that Replit Preview has recovered.
+
+
+## October 8: Web preview native file cache crash and stale reload graph
+
+The web gift button showed `this.validatePath is not a function`, with `PostFooter.tsx:88` highlighted. A subsequent reload showed “Your LiveStream artifact encountered an error.” The captured browser stack traced the same exception through Expo `Directory`, the `Paths.cache` getter and `giftAssetCache.ts` into `ContextNavigator` during route loading. The highlighted button was the trigger; the failing operation was the shared cache's import-time native directory construction. The installed Expo web file-system stub does not implement `validatePath`.
+
+The first fix added a verified browser blob cache in `artifacts/mobile/utils/giftAssetCache.web.ts`. A fresh complete web bundle included that implementation, but the existing lazy/reload Metro graph continued resolving `giftAssetCache.ts`; the user's reload still crashed. Local Metro and API health, the exact reload bundle request, and external preview HTML all returned successfully during the failure. HTTP success did not mean the app could execute. This incident was a browser module-loading failure, not evidence of deleted data or an API/DNS outage.
+
+The completed fix preserves the native disk cache in `giftAssetCache.native.ts`, keeps the browser blob cache in `giftAssetCache.web.ts`, and makes the original `giftAssetCache.ts` path dispatch lazily by `Platform.OS`. Even a graph still resolving the original path now chooses the browser implementation without executing native constructors. Browser downloads retain size/SHA-256 verification, shared in-flight downloads, bounded thumbnail warming and lease-protected memory eviction. Native disk caching and gift payment behavior are preserved. No Metro restart, dependency reinstall, API restart or identity change was needed for this recovery.
+
+The actual running lazy/reload bundle was checked after the correction and contained the safe dispatch. Fourteen browser/native cache and platform-dispatch tests, mobile typechecking and required stream regressions passed; post-gift and gold-coin checks also passed during the initial fix. The user then reported **“fixed,” confirming web preview recovery after reload**. The report does not independently confirm every gift interaction or any new Android/iPhone device regression coverage.
+
+### Requirements to prevent recurrence
+
+- Keep native-only `File`, `Directory` and path access inside native implementations. `Paths.cache`, `Paths.document` and `Paths.bundle` are getters that can construct native objects; guarding only an explicit `new Directory(...)` is insufficient. Never evaluate these getters at import time in a web-reachable module.
+- Use browser-supported asset loading for web. Preserve size/checksum validation and mounted-asset lifetime protection when changing this gift cache. Retain the original-path platform dispatch unless its removal is explicitly justified and verified against the reload path.
+- When adding `.web.ts` or `.native.ts` during a running Metro session, verify the existing import path as well as a fresh graph. Platform files appearing in one successful bundle do not prove that the browser's lazy/reload graph has switched implementations.
+- Test web module import with a loader that rejects native dependencies, and test the original dispatch for web, iOS and Android. A top-level crash can occur before any component or effect renders.
+- For a generic artifact error, capture the first browser exception from current Expo workflow logs before changing code or restarting. Follow its stack to the failing module; do not assume a component's highlighted event-handler line identifies the root cause.
+- Check Metro, API and proxy connectivity separately, then request the **same bundle URL and query parameters used by the preview HTML**, including its `lazy` setting. Verify which cache module and dispatch that response contains. A typecheck, HTTP 200 or fresh `lazy=false` bundle is insufficient evidence of interactive recovery.
+- After fixing the served reload path, confirm preview recovery through a browser check or the user's explicit reload report. Report automated checks separately from browser and Android/iPhone device confirmation. If a Metro restart is necessary, follow this document's environment-preservation and managed-workflow guidance; avoid repeated blind restarts.
+
+Focused checks:
+
+```sh
+node --test artifacts/mobile/tests/web-gift-asset-cache.test.cjs artifacts/mobile/tests/remote-gift-catalog.test.cjs
+node artifacts/mobile/tests/post-gifts.test.cjs
+pnpm --filter @workspace/mobile run typecheck
+node artifacts/mobile/tests/stream-screen-regressions.cjs
+```
+
+Implementation and gifting context: [coins/Premium handoff](coins-premium-revenuecat.md#october-8-web-gift-drawer-crash). Temporary bundle files and workflow log paths are diagnostic evidence only and may disappear; use the current preview HTML and current workflow logs on recurrence.

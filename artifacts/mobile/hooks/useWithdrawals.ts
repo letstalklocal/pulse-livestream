@@ -169,7 +169,14 @@ export function useWithdrawals(id?: string) {
       void refreshWallet();
       void queryClient.invalidateQueries({ queryKey: ["withdrawals", userId] });
     }
-  }, [detail.data?.status, userId, refreshWallet, queryClient]);
+  }, [
+    detail.data?.status,
+    detail.data?.creatorStatus,
+    detail.data?.recipientCorrection?.hash,
+    userId,
+    refreshWallet,
+    queryClient,
+  ]);
   const refresh = useCallback(async () => {
     await Promise.all([
       overview.refetch(),

@@ -657,7 +657,7 @@ try {
   assert.equal(
     (await call("/api/payout-operator/identity", { token: maker.token })).body
       .workflowRevision,
-    "2026-10-08.2",
+    "2026-10-08.4",
   );
 
   assert.equal(
@@ -1056,6 +1056,12 @@ try {
       body: { phone: "+12025550123" },
     })
   ).body;
+  const correctedOperatorView = (await call(`/api/payout-operator/withdrawals/${uncertain.id}`, { token: reconciler.token })).body;
+  assert.equal(correctedOperatorView.status, "unknown");
+  assert.equal(correctedOperatorView.creatorStatus, "correction_saved");
+  assert.equal(correctedOperatorView.progress.stage, "correction_saved");
+  assert.equal(correctedOperatorView.progress.nextAction, "verify_saved_correction");
+  assert.equal(correctedOperatorView.progress.blocked, true);
   const recoveryAttempt = (
     await api.adminWithdrawalDetail(pool, uncertain.id, "operator-business")
   ).attempts[0];

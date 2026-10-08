@@ -24,6 +24,8 @@ import {
   recipientContactErrors,
   recipientIssueMessages,
   safeProviderLink,
+  withdrawalProgress,
+  withdrawalProgressSteps,
   withdrawalStatus,
 } from "@/utils/withdrawals";
 export default function WithdrawalScreen() {
@@ -47,11 +49,13 @@ export default function WithdrawalScreen() {
       "",
   }));
   const [correctionError, setCorrectionError] = useState("");
+  const [editingCorrection, setEditingCorrection] = useState(false);
   const owner = useRef(api.userId);
   owner.current = api.userId;
   useEffect(() => {
     setBusy(false);
     setError("");
+    setEditingCorrection(false);
   }, [api.userId, id]);
   useFocusEffect(
     useCallback(() => {
@@ -60,6 +64,8 @@ export default function WithdrawalScreen() {
   );
   const w = api.detail.data;
   const q = w?.quote;
+  const progress = w ? withdrawalProgress(w) : null;
+  const correctionSaved = progress?.correctionSaved ?? false;
   const recipientMessages = w
     ? recipientIssueMessages(w.status, w.recipientIssue)
     : [];
@@ -75,6 +81,7 @@ export default function WithdrawalScreen() {
       email: w?.recipientCorrection?.email ?? w?.recipient.email ?? "",
     });
     setCorrectionError("");
+    setEditingCorrection(false);
   }, [api.userId, id, w?.id, w?.recipientCorrection?.hash]);
   const saveCorrection = () => {
     if (!w || !canCorrect || busy) return;
@@ -248,13 +255,70 @@ export default function WithdrawalScreen() {
                   { backgroundColor: c.card, borderColor: c.border },
                 ]}
               >
-                {text(
-                  t(
-                    recipientMessages.length
-                      ? "Error"
-                      : withdrawalStatus(w.status),
-                  ),
-                )}
+                {text(t(progress!.statusLabel))}
+                {text(t("Transfer progress"), true)}
+                <View
+                  accessibilityRole="progressbar"
+                  accessibilityValue={{
+                    min: 1,
+                    max: withdrawalProgressSteps.length,
+                    now:
+                      withdrawalProgressSteps.findIndex(
+                        (step) => step.key === progress!.currentStep,
+                      ) + 1,
+                    text: t(progress!.statusLabel),
+                  }}
+                  style={styles.progressBar}
+                >
+                  {withdrawalProgressSteps.map((step, index) => {
+                    const currentIndex = withdrawalProgressSteps.findIndex(
+                      (item) => item.key === progress!.currentStep,
+                    );
+                    const current = index === currentIndex;
+                    const complete =
+                      index < currentIndex || w.status === "delivered";
+                    return (
+                      <View
+                        key={step.key}
+                        accessibilityState={{ selected: current }}
+                        style={[
+                          styles.progressStep,
+                          {
+                            backgroundColor: current ? c.primary : c.background,
+                            borderColor:
+                              current || complete ? c.primary : c.border,
+                          },
+                        ]}
+                      >
+                        {complete && (
+                          <Ionicons
+                            name="checkmark"
+                            size={14}
+                            color={current ? "#fff" : c.primary}
+                            accessible={false}
+                          />
+                        )}
+                        <Text
+                          style={[
+                            localizedTextStyle(),
+                            styles.progressLabel,
+                            { color: current ? "#fff" : c.foreground },
+                          ]}
+                        >
+                          {t(step.label)}
+                        </Text>
+                        {index < withdrawalProgressSteps.length - 1 && (
+                          <Ionicons
+                            name="chevron-forward"
+                            size={14}
+                            color={current ? "#fff" : c.mutedForeground}
+                            accessible={false}
+                          />
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
                 {text(
                   t(
                     ["delivered", "canceled", "failed", "returned"].includes(
@@ -279,15 +343,19 @@ export default function WithdrawalScreen() {
                     styles.card,
                     {
                       backgroundColor: c.card,
-                      borderColor: c.destructive,
+                      borderColor: correctionSaved ? c.primary : c.destructive,
                       borderWidth: 2,
                     },
                   ]}
                 >
                   <Ionicons
-                    name="alert-circle-outline"
+                    name={
+                      correctionSaved
+                        ? "checkmark-circle-outline"
+                        : "alert-circle-outline"
+                    }
                     size={28}
-                    color={c.destructive}
+                    color={correctionSaved ? c.primary : c.destructive}
                     accessible={false}
                   />
                   <Text
@@ -298,25 +366,41 @@ export default function WithdrawalScreen() {
                       { color: c.foreground },
                     ]}
                   >
-                    {t("Error")}
+                    {t(progress!.statusLabel)}
                   </Text>
-                  {recipientMessages.map((message) => (
-                    <Text
-                      key={message}
-                      style={[
-                        localizedTextStyle(),
-                        styles.text,
-                        { color: c.foreground },
-                      ]}
-                    >
-                      {t(message)}
-                    </Text>
-                  ))}
-                  {w.recipient.phone &&
-                    text(`${t("Phone number")}: ${w.recipient.phone}`)}
-                  {w.recipient.email &&
-                    text(`${t("Email")}: ${w.recipient.email}`)}
-                  {canCorrect ? (
+                  {correctionSaved
+                    ? text(
+                        t(
+                          "Details saved. We will check the existing transfer before continuing. Your coins remain reserved.",
+                        ),
+                      )
+                    : recipientMessages.map((message) => (
+                        <Text
+                          key={message}
+                          style={[
+                            localizedTextStyle(),
+                            styles.text,
+                            { color: c.foreground },
+                          ]}
+                        >
+                          {t(message)}
+                        </Text>
+                      ))}
+                  {(w.recipientCorrection?.phone ?? w.recipient.phone) &&
+                    text(
+                      `${t("Phone number")}: ${w.recipientCorrection?.phone ?? w.recipient.phone}`,
+                    )}
+                  {(w.recipientCorrection?.email ?? w.recipient.email) &&
+                    text(
+                      `${t("Email")}: ${w.recipientCorrection?.email ?? w.recipient.email}`,
+                    )}
+                  {correctionSaved && !editingCorrection ? (
+                    button(
+                      "Edit contact details",
+                      () => setEditingCorrection(true),
+                      busy,
+                    )
+                  ) : canCorrect ? (
                     <>
                       {text(
                         t(
@@ -543,6 +627,25 @@ const styles = StyleSheet.create({
   content: { padding: 20, gap: 14 },
   text: { fontSize: 15, lineHeight: 23 },
   card: { borderRadius: 16, borderWidth: 1, padding: 16, gap: 12 },
+  progressBar: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  progressStep: {
+    flexBasis: "30%",
+    flexGrow: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 3,
+  },
+  progressLabel: {
+    fontSize: 12,
+    lineHeight: 17,
+    flexShrink: 1,
+    textAlign: "center",
+  },
   button: {
     minHeight: 50,
     borderRadius: 12,

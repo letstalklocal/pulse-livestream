@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CreatorWithdrawalCreatorStatus } from './creatorWithdrawalCreatorStatus';
+import type { CreatorWithdrawalProgress } from './creatorWithdrawalProgress';
 import type { CreatorWithdrawalProviderOnboardingStatus } from './creatorWithdrawalProviderOnboardingStatus';
 import type { CreatorWithdrawalStatus } from './creatorWithdrawalStatus';
 import type { WithdrawalChecker } from './withdrawalChecker';
@@ -43,4 +44,6 @@ export interface CreatorWithdrawal {
   creatorStatus?: CreatorWithdrawalCreatorStatus;
   errorMessage?: string | null;
   recipientCorrection?: WithdrawalRecipientCorrection | null;
+  /** Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery. */
+  progress?: CreatorWithdrawalProgress;
 }

@@ -1,4 +1,13 @@
 {
+  "Error — awaiting identification": "Erreur — identification en attente",
+  "Error — identified": "Erreur — identifiée",
+  "Correction saved — awaiting processing": "Correction enregistrée — traitement en attente",
+  "Transfer progress": "Progression du transfert",
+  "Requested": "Demandé",
+  "Preparing": "Préparation",
+  "Review": "Vérification",
+  "Processing": "Traitement",
+  "Edit contact details": "Modifier les coordonnées",
   "Test": "Test",
   " · paid": " · payé",
   " · refunded": " · remboursé",

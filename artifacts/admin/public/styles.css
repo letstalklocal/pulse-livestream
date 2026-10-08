@@ -1462,16 +1462,60 @@ dd {
   display: block;
   margin-top: 5px;
 }
-.payout-pause-form {
+.payout-header-actions,
+.payout-preparation-controls {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  align-items: end;
-  padding-top: 12px;
+  align-items: center;
+  justify-content: flex-end;
 }
-.payout-pause-form > span:first-child {
-  flex-basis: 100%;
+.payout-header-actions {
+  margin-left: auto;
+}
+.payout-header-actions .page-button {
+  margin-left: 0;
+  white-space: nowrap;
+}
+.payout-preparation-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  white-space: nowrap;
+  color: #a6d8b9;
+}
+.payout-preparation-state::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.payout-preparation-state[data-paused="true"] {
   color: #d9b779;
+}
+.payout-pause-modal {
+  box-sizing: border-box;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+.payout-pause-modal .dialog-top h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.payout-pause-modal > p {
+  color: var(--muted);
+  line-height: 1.7;
+}
+.payout-pause-form {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+}
+.payout-pause-form .catalog-actions {
+  justify-content: flex-end;
+  margin-top: 0;
 }
 .payout-content label {
   display: grid;
@@ -1499,10 +1543,6 @@ dd {
   height: 16px;
   accent-color: var(--pink);
   flex-shrink: 0;
-}
-.payout-pause-form > label {
-  flex: 1;
-  min-width: 200px;
 }
 .payout-feedback {
   display: block;
@@ -1572,6 +1612,7 @@ dd {
   padding: 18px 0;
 }
 .payout-action > summary,
+.payout-advanced > summary,
 .payout-history > summary,
 .payout-enrollment > summary {
   cursor: pointer;
@@ -1581,6 +1622,61 @@ dd {
 }
 .payout-action-form {
   margin-top: 18px;
+}
+.payout-advanced {
+  border-top: 1px solid var(--border);
+  padding: 18px 0;
+}
+.payout-advanced-content {
+  padding-top: 18px;
+}
+.payout-progress {
+  display: flex;
+  list-style: none;
+  gap: 3px;
+  padding: 0;
+  margin: 0;
+  overflow-x: auto;
+}
+.payout-progress li {
+  flex: 1 0 100px;
+  padding: 12px 18px;
+  background: #252329;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+  clip-path: polygon(
+    0 0,
+    calc(100% - 12px) 0,
+    100% 50%,
+    calc(100% - 12px) 100%,
+    0 100%,
+    12px 50%
+  );
+}
+.payout-progress li:first-child {
+  clip-path: polygon(
+    0 0,
+    calc(100% - 12px) 0,
+    100% 50%,
+    calc(100% - 12px) 100%,
+    0 100%
+  );
+}
+.payout-progress li.complete {
+  background: #17362d;
+  color: #a4ddc7;
+}
+.payout-progress li.current {
+  background: #594729;
+  color: #ffe0a0;
+  font-weight: 700;
+}
+.payout-progress-status {
+  font-weight: 700;
+}
+#payout-detail-feedback:empty {
+  display: none;
 }
 .payout-fields {
   display: grid;
@@ -1670,6 +1766,10 @@ dd {
   }
 }
 @media (max-width: 720px) {
+  .payouts-panel > .panel-heading {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
   .payout-content {
     padding-inline: 16px;
   }
@@ -1690,8 +1790,12 @@ dd {
     overflow-wrap: anywhere;
     max-width: 100%;
   }
-  .payout-pause-form > label {
-    min-width: 100%;
+  .payout-header-actions {
+    gap: 8px;
+    max-width: 100%;
+  }
+  .payout-preparation-controls {
+    gap: 8px;
   }
   .payout-enrollment > summary {
     padding-inline: 16px;

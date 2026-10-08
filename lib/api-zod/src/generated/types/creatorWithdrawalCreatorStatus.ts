@@ -24,4 +24,5 @@ export const CreatorWithdrawalCreatorStatus = {
   returned: 'returned',
   unknown: 'unknown',
   error: 'error',
+  correction_saved: 'correction_saved',
 } as const;

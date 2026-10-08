@@ -1,4 +1,13 @@
 {
+  "Error — awaiting identification": "त्रुटि — पहचान की प्रतीक्षा",
+  "Error — identified": "त्रुटि — पहचानी गई",
+  "Correction saved — awaiting processing": "सुधार सहेजा गया — प्रक्रिया की प्रतीक्षा",
+  "Transfer progress": "ट्रांसफ़र की प्रगति",
+  "Requested": "अनुरोध किया गया",
+  "Preparing": "तैयारी",
+  "Review": "समीक्षा",
+  "Processing": "प्रक्रिया जारी",
+  "Edit contact details": "संपर्क विवरण बदलें",
   "Test": "परीक्षण",
   " · paid": " · चुकाया गया",
   " · refunded": " · धनवापसी",

@@ -30,8 +30,7 @@ const root = path.resolve(__dirname, "../../admin/public");
     browser = await chromium.launch({
       headless: true,
       executablePath:
-        process.env.PULSE_CHROMIUM_EXECUTABLE ||
-        "/repl/tools/bin/chromium",
+        process.env.PULSE_CHROMIUM_EXECUTABLE || "/repl/tools/bin/chromium",
       args: ["--no-sandbox"],
     });
     const page = await browser.newPage({
@@ -160,24 +159,55 @@ const root = path.resolve(__dirname, "../../admin/public");
       }
       if (endpoint === "/withdrawals/wd_unknown")
         return route.fulfill({ json: unknown });
-      if (["/withdrawals/wd_unknown/unknown", "/withdrawals/wd_unknown/recipient-error"].includes(endpoint) && req.method() === "POST") {
+      if (
+        [
+          "/withdrawals/wd_unknown/unknown",
+          "/withdrawals/wd_unknown/recipient-error",
+        ].includes(endpoint) &&
+        req.method() === "POST"
+      ) {
         const body = req.postDataJSON();
         actions.push({ action: "unknown", endpoint, body, id: unknown.id });
-        unknown.recipientIssue = body.recipientIssue ? { ...body.recipientIssue, message: "<img src=x onerror=alert(1)> raw provider text" } : null;
-        unknown.creatorStatus = unknown.recipientIssue ? "error" : unknown.status;
+        unknown.recipientIssue = body.recipientIssue
+          ? {
+              ...body.recipientIssue,
+              message: "<img src=x onerror=alert(1)> raw provider text",
+            }
+          : null;
+        unknown.creatorStatus = unknown.recipientIssue
+          ? "error"
+          : unknown.status;
         unknown.errorMessage = "<script>untrusted</script> arbitrary raw error";
         return route.fulfill({ json: unknown });
       }
-      if (endpoint === "/withdrawals/wd_unknown/recipient-correction" && req.method() === "POST") {
+      if (
+        endpoint === "/withdrawals/wd_unknown/recipient-correction" &&
+        req.method() === "POST"
+      ) {
         const body = req.postDataJSON();
         actions.push({ action: "recipient-correction", body, id: unknown.id });
-        unknown.recipientCorrection = { ...body, hash: "pending-correction-hash", requestedAt: now };
+        unknown.recipientCorrection = {
+          ...body,
+          hash: "pending-correction-hash",
+          requestedAt: now,
+        };
         return route.fulfill({ json: unknown });
       }
-      if (endpoint === "/withdrawals/wd_unknown/resolve-recipient-error" && req.method() === "POST") {
+      if (
+        endpoint === "/withdrawals/wd_unknown/resolve-recipient-error" &&
+        req.method() === "POST"
+      ) {
         const body = req.postDataJSON();
-        actions.push({ action: "resolve-recipient-error", body, id: unknown.id });
-        unknown.recipient = { ...unknown.recipient, phone: unknown.recipientCorrection.phone, email: unknown.recipientCorrection.email };
+        actions.push({
+          action: "resolve-recipient-error",
+          body,
+          id: unknown.id,
+        });
+        unknown.recipient = {
+          ...unknown.recipient,
+          phone: unknown.recipientCorrection.phone,
+          email: unknown.recipientCorrection.email,
+        };
         unknown.recipientCorrection = null;
         unknown.recipientIssue = null;
         unknown.creatorStatus = "awaiting_quote";
@@ -415,102 +445,361 @@ const root = path.resolve(__dirname, "../../admin/public");
     assert.equal(await page.locator("#payout-rows tr").count(), 1);
     assert.match(
       await page.locator("#payout-rows").textContent(),
-      /Unknown outcome/,
+      /Error — awaiting identification/,
     );
     await page.locator("#payout-filter").selectOption("all");
     await page.locator('[data-withdrawal="wd_unknown"]').first().click();
-    assert.equal(await page.locator('[data-payout-action="recipient-correction"]').count(), 0, "generic unknown cannot invent a phone rejection");
-    assert.equal(await page.locator('#payout-detail .payout-action summary').first().textContent(), "Identify the rejected recipient details");
+    assert.equal(
+      await page.locator('[data-payout-action="recipient-correction"]').count(),
+      0,
+      "generic unknown cannot invent a phone rejection",
+    );
+    assert.equal(
+      await page
+        .locator("#payout-detail .payout-action summary")
+        .first()
+        .textContent(),
+      "Identify the rejected recipient details",
+    );
     const issueForm = page.locator('[data-payout-action="unknown"]');
     await issueForm.locator("..").locator("summary").click();
-    await issueForm.locator("[name=reason]").fill("Observed recipient phone and email rejected; inspect persisted contacts before resuming");
+    await issueForm
+      .locator("[name=reason]")
+      .fill(
+        "Observed recipient phone and email rejected; inspect persisted contacts before resuming",
+      );
     await issueForm.locator("[name=recipientIssue_phone]").check();
     await issueForm.locator("[name=recipientIssue_email]").check();
     await issueForm.locator("button").click();
-    await page.locator('#payout-detail [role=alert]').waitFor();
-    assert.deepEqual(actions.findLast(a => a.action === "unknown").body.recipientIssue, {
-      code: "recipient_validation_failed", fields: ["phone", "email"],
-    });
-    assert.equal(actions.findLast(a => a.action === "unknown").endpoint, "/withdrawals/wd_unknown/recipient-error");
-    assert.equal(Object.hasOwn(actions.findLast(a => a.action === "unknown").body, "status"), false, "owner error classification cannot request a payout status change");
-    assert.match(await page.locator('#payout-detail [role=alert]').textContent(), /Recipient details need attention[\s\S]*phone number, email address[\s\S]*Coins remain reserved/);
-    assert.doesNotMatch(await page.locator('#payout-detail [role=alert]').textContent(), /raw provider text/);
-    assert.equal(await page.locator('#payout-detail img').count(), 0);
-    assert.equal(await page.locator('[data-payout-action="prepare"]').count(), 0);
-    assert.match(await page.locator('#payout-rows').textContent(), /Error Message:/);
-    await page.locator('#payout-filter').selectOption('error');
-    assert.equal(await page.locator('#payout-rows [data-withdrawal="wd_unknown"]').count(), 2);
-    assert.match(await page.locator('#payout-detail .payout-facts').textContent(), /Transfer statusError[\s\S]*Error Message[\s\S]*Operational statusUnknown outcome/);
-    assert.doesNotMatch(await page.locator('#payout-detail [role=alert]').textContent(), /arbitrary raw error/);
-    const contactForm = page.locator('[data-payout-action="recipient-correction"]');
-    await contactForm.locator('..').locator('summary').click();
-    await contactForm.locator('[name=phone]').fill('+57 (300) 111-2233');
-    await contactForm.locator('[name=email]').fill('corrected@example.test');
-    const beforeContact = JSON.stringify({ recipient: unknown.recipient, version: unknown.version, quote: unknown.quote, status: unknown.status });
-    await contactForm.locator('button').click();
-    await page.getByText('Correction pending admin review', { exact: true }).waitFor();
-    assert.deepEqual(actions.findLast(a => a.action === 'recipient-correction').body, { phone: '+573001112233', email: 'corrected@example.test' });
-    assert.equal(JSON.stringify({ recipient: unknown.recipient, version: unknown.version, quote: unknown.quote, status: unknown.status }), beforeContact);
-    assert.equal(await page.locator('[data-payout-action="resolve-recipient-error"]').count(), 0);
-    unknown.recipientIssue.fields = ['name', 'other'];
-    await page.locator('#refresh-payout-detail').click();
-    await page.getByText('Remitly could not accept the recipient legal name, other recipient details. Coins remain reserved.', { exact: true }).last().waitFor();
-    assert.equal(await page.locator('[data-payout-action="prepare"]').count(), 0);
-    assert.equal(await page.locator('[data-payout-action="recipient-correction"]').count(), 0, 'legal-name/other errors cannot edit phone/email');
-    await page.locator('#payout-filter').selectOption('all');
-    // Re-recording a generic unknown must not carry an old recipient warning.
+    await page.locator("#payout-detail [role=alert]").waitFor();
+    assert.deepEqual(
+      actions.findLast((a) => a.action === "unknown").body.recipientIssue,
+      {
+        code: "recipient_validation_failed",
+        fields: ["phone", "email"],
+      },
+    );
+    assert.equal(
+      actions.findLast((a) => a.action === "unknown").endpoint,
+      "/withdrawals/wd_unknown/recipient-error",
+    );
+    assert.equal(
+      Object.hasOwn(
+        actions.findLast((a) => a.action === "unknown").body,
+        "status",
+      ),
+      false,
+      "owner error classification cannot request a payout status change",
+    );
+    assert.match(
+      await page.locator("#payout-detail [role=alert]").textContent(),
+      /Error — identified[\s\S]*phone number, email address[\s\S]*Coins remain reserved/,
+    );
+    assert.doesNotMatch(
+      await page.locator("#payout-detail [role=alert]").textContent(),
+      /raw provider text/,
+    );
+    assert.equal(await page.locator("#payout-detail img").count(), 0);
+    assert.equal(
+      await page.locator('[data-payout-action="prepare"]').count(),
+      0,
+    );
+    assert.match(
+      await page.locator("#payout-rows").textContent(),
+      /Error Message:/,
+    );
+    await page.locator("#payout-filter").selectOption("error");
+    assert.equal(
+      await page.locator('#payout-rows [data-withdrawal="wd_unknown"]').count(),
+      2,
+    );
+    assert.match(
+      await page.locator("#payout-detail .payout-facts").textContent(),
+      /Transfer statusError — identified[\s\S]*Error Message[\s\S]*Operational statusError — awaiting identification/,
+    );
+    assert.doesNotMatch(
+      await page.locator("#payout-detail [role=alert]").textContent(),
+      /arbitrary raw error/,
+    );
+    const contactForm = page.locator(
+      '[data-payout-action="recipient-correction"]',
+    );
+    assert.equal(
+      await contactForm.isVisible(),
+      true,
+      "identified contact issue has one immediately usable editor",
+    );
+    assert.equal(
+      await page.locator("#payout-detail .payout-action-form:visible").count(),
+      1,
+    );
+    assert.equal(
+      await page.locator("#payout-detail .payout-quote").isVisible(),
+      false,
+    );
+    assert.equal(
+      await issueForm.locator("..").locator("summary").isVisible(),
+      false,
+    );
+    assert.equal(
+      await page.locator('[data-payout-action="reconcile"]').isVisible(),
+      false,
+    );
+    assert.equal(
+      await page.locator('[data-payout-action="decline"]').isVisible(),
+      false,
+    );
+    assert.equal(
+      await page.locator("#payout-detail .payout-progress li").count(),
+      6,
+    );
+    assert.equal(
+      await page
+        .locator('#payout-detail .payout-progress [aria-current="step"]')
+        .textContent(),
+      "Preparation",
+    );
+    await page.locator("#payout-detail .payout-advanced > summary").click();
     await issueForm.locator("..").locator("summary").click();
-    await issueForm.locator("[name=reason]").fill("Current investigation reports generic uncertainty only");
+    assert.equal(
+      await issueForm.locator("[name=recipientIssue_phone]").isChecked(),
+      true,
+      "saved rejected fields persist after rerender",
+    );
+    assert.equal(
+      await issueForm.locator("[name=recipientIssue_email]").isChecked(),
+      true,
+    );
+    await page.locator("#payout-detail .payout-advanced > summary").click();
+    await contactForm.locator("[name=phone]").fill("+57 (300) 111-2233");
+    await contactForm.locator("[name=email]").fill("corrected@example.test");
+    const beforeContact = JSON.stringify({
+      recipient: unknown.recipient,
+      version: unknown.version,
+      quote: unknown.quote,
+      status: unknown.status,
+    });
+    await contactForm.locator("button").click();
+    await page.getByText("Saved contact correction", { exact: true }).waitFor();
+    assert.deepEqual(
+      actions.findLast((a) => a.action === "recipient-correction").body,
+      { phone: "+573001112233", email: "corrected@example.test" },
+    );
+    assert.equal(
+      JSON.stringify({
+        recipient: unknown.recipient,
+        version: unknown.version,
+        quote: unknown.quote,
+        status: unknown.status,
+      }),
+      beforeContact,
+    );
+    assert.match(
+      await page.locator("#payout-detail .payout-facts").textContent(),
+      /Transfer statusCorrection saved/,
+    );
+    assert.match(
+      await page
+        .locator("#payout-detail .payout-progress-status")
+        .textContent(),
+      /Correction saved — awaiting processing/,
+    );
+    assert.equal(
+      await page.locator("#payout-detail .payout-action-form:visible").count(),
+      0,
+      "saved correction needs no further normal form",
+    );
+    assert.match(
+      await page.locator("#payout-detail-feedback").textContent(),
+      /Contact correction saved/,
+    );
+    assert.match(
+      await page.locator("#payout-detail [role=alert]").textContent(),
+      /Your edit is complete/,
+    );
+    assert.doesNotMatch(
+      await page.locator("#payout-detail [role=alert]").textContent(),
+      /Error Message:/,
+    );
+    assert.equal(
+      await page
+        .locator('[data-payout-action="resolve-recipient-error"]')
+        .count(),
+      0,
+    );
+    unknown.recipientIssue.fields = ["name", "other"];
+    await page.locator("#refresh-payout-detail").click();
+    await page
+      .getByText(
+        "Remitly could not accept the recipient legal name, other recipient details. Coins remain reserved.",
+        { exact: true },
+      )
+      .first()
+      .waitFor();
+    assert.equal(
+      await page.locator('[data-payout-action="prepare"]').count(),
+      0,
+    );
+    assert.equal(
+      await page.locator('[data-payout-action="recipient-correction"]').count(),
+      0,
+      "legal-name/other errors cannot edit phone/email",
+    );
+    await page.locator("#payout-filter").selectOption("all");
+    // Re-recording a generic unknown must not carry an old recipient warning.
+    await page.locator("#payout-detail .payout-advanced > summary").click();
+    await issueForm.locator("..").locator("summary").click();
+    await issueForm.locator("[name=recipientIssue_name]").uncheck();
+    await issueForm.locator("[name=recipientIssue_other]").uncheck();
+    await issueForm
+      .locator("[name=reason]")
+      .fill("Current investigation reports generic uncertainty only");
     await issueForm.locator("button").click();
-    await page.locator('#payout-detail [role=alert]').waitFor({ state: "detached" });
-    assert.equal(Object.hasOwn(actions.findLast(a => a.action === "unknown").body, "recipientIssue"), false);
+    await page
+      .locator("#payout-detail [role=alert]")
+      .waitFor({ state: "detached" });
+    assert.equal(
+      Object.hasOwn(
+        actions.findLast((a) => a.action === "unknown").body,
+        "recipientIssue",
+      ),
+      false,
+    );
     // Raw public error strings without a valid active structured issue cannot create an Error warning.
-    unknown.creatorStatus = 'error';
-    unknown.errorMessage = '<img src=x onerror=alert(1)> untrusted';
-    unknown.recipientIssue = { code: 'recipient_validation_failed', fields: ['phone', 'bogus'] };
-    await page.locator('#refresh-payout-detail').click();
-    await page.getByRole('heading', { name: 'Withdrawal wd_unknown' }).waitFor();
-    assert.equal(await page.locator('#payout-detail [role=alert]').count(), 0);
+    unknown.creatorStatus = "error";
+    unknown.errorMessage = "<img src=x onerror=alert(1)> untrusted";
+    unknown.recipientIssue = {
+      code: "recipient_validation_failed",
+      fields: ["phone", "bogus"],
+    };
+    await page.locator("#refresh-payout-detail").click();
+    await page
+      .getByRole("heading", { name: "Withdrawal wd_unknown" })
+      .waitFor();
+    assert.equal(await page.locator("#payout-detail [role=alert]").count(), 0);
     // A pending contact correction stays blocked unless the server exposes authenticated owner recovery capability.
-    unknown.recipientIssue = { code: 'recipient_validation_failed', fields: ['phone', 'email'] };
-    unknown.recipientCorrection = { hash: 'pending-correction-hash', phone: '+573001112233', email: 'corrected@example.test', requestedAt: now };
-    unknown.attempts = [{ id: 'attempt_unknown', state: 'unknown', maker: 'prior_maker', evidence: { kind: 'scheduled' } }];
-    unknown.balances = { availableCoins: '400', availableUsd: '1.00', reservedCoins: '6000', reservedUsd: '15.00' };
+    unknown.recipientIssue = {
+      code: "recipient_validation_failed",
+      fields: ["phone", "email"],
+    };
+    unknown.recipientCorrection = {
+      hash: "pending-correction-hash",
+      phone: "+573001112233",
+      email: "corrected@example.test",
+      requestedAt: now,
+    };
+    unknown.attempts = [
+      {
+        id: "attempt_unknown",
+        state: "unknown",
+        maker: "prior_maker",
+        evidence: { kind: "scheduled" },
+      },
+    ];
+    unknown.balances = {
+      availableCoins: "400",
+      availableUsd: "1.00",
+      reservedCoins: "6000",
+      reservedUsd: "15.00",
+    };
     unknown.canResolveRecipientError = false;
-    await page.locator('#refresh-payout-detail').click();
-    await page.getByText('Correction pending admin review', { exact: true }).waitFor();
-    assert.match(await page.locator('#payout-detail [role=alert]').textContent(), /corrected@example.test/);
-    assert.equal(await page.locator('[data-payout-action="resolve-recipient-error"]').count(), 0);
-    assert.equal(await page.locator('[data-payout-action="prepare"], [data-payout-action="quote"], [data-payout-action="check"], [data-payout-action="release"]').count(), 0);
+    await page.locator("#refresh-payout-detail").click();
+    await page.getByText("Saved contact correction", { exact: true }).waitFor();
+    assert.match(
+      await page.locator("#payout-detail [role=alert]").textContent(),
+      /corrected@example.test/,
+    );
+    assert.equal(
+      await page
+        .locator('[data-payout-action="resolve-recipient-error"]')
+        .count(),
+      0,
+    );
+    assert.equal(
+      await page
+        .locator(
+          '[data-payout-action="prepare"], [data-payout-action="quote"], [data-payout-action="check"], [data-payout-action="release"]',
+        )
+        .count(),
+      0,
+    );
     unknown.canResolveRecipientError = true;
-    unknown.recipientIssue.fields = ['phone', 'name'];
-    await page.locator('#refresh-payout-detail').click();
-    await page.getByRole('heading', { name: 'Withdrawal wd_unknown' }).waitFor();
-    assert.equal(await page.locator('[data-payout-action="recipient-correction"]').count(), 1);
-    assert.equal(await page.locator('[data-payout-action="resolve-recipient-error"]').count(), 0, 'contact correction cannot clear an unresolved legal-name rejection');
-    unknown.recipientIssue.fields = ['phone', 'email'];
-    await page.locator('#refresh-payout-detail').click();
-    const recovery = page.locator('[data-payout-action="resolve-recipient-error"]');
+    unknown.recipientIssue.fields = ["phone", "name"];
+    await page.locator("#refresh-payout-detail").click();
+    await page
+      .getByRole("heading", { name: "Withdrawal wd_unknown" })
+      .waitFor();
+    assert.equal(
+      await page.locator('[data-payout-action="recipient-correction"]').count(),
+      1,
+    );
+    assert.equal(
+      await page
+        .locator('[data-payout-action="resolve-recipient-error"]')
+        .count(),
+      0,
+      "contact correction cannot clear an unresolved legal-name rejection",
+    );
+    unknown.recipientIssue.fields = ["phone", "email"];
+    await page.locator("#refresh-payout-detail").click();
+    const recovery = page.locator(
+      '[data-payout-action="resolve-recipient-error"]',
+    );
     await recovery.waitFor({ state: "attached" });
-    await recovery.locator('..').locator('summary').click();
-    for (const [key, value] of Object.entries({ observationId: 'safe-recovery-1', sourceUrl: 'https://www.remitly.com/us/en/homepage', observedAt: now, historyCoverage: 'All drafts, recipient links and transfer history for the prior attempt', evidence: 'Saved recipient inspected and changed; prior draft canceled; no transfer or debit exists' }))
+    assert.equal(
+      await recovery.isVisible(),
+      false,
+      "manual recovery is advanced-only",
+    );
+    await page.locator("#payout-detail .payout-advanced > summary").click();
+    await recovery.locator("..").locator("summary").click();
+    for (const [key, value] of Object.entries({
+      observationId: "safe-recovery-1",
+      sourceUrl: "https://www.remitly.com/us/en/homepage",
+      observedAt: now,
+      historyCoverage:
+        "All drafts, recipient links and transfer history for the prior attempt",
+      evidence:
+        "Saved recipient inspected and changed; prior draft canceled; no transfer or debit exists",
+    }))
       await recovery.locator(`[name="${key}"]`).fill(value);
     // Missing checks cannot submit recovery.
-    await recovery.locator('button').click();
-    assert.equal(actions.filter(a => a.action === 'resolve-recipient-error').length, 0);
-    const checks = ['historyInspected', 'recipientRecordInspected', 'recipientCorrectionApplied', 'noRecipientLinkIssued', 'noFundsSent', 'noFundingDebit', 'noPendingTransfers', 'noUnknownTransfers', 'previousDraftClosed'];
-    for (const name of checks) await recovery.locator(`[name="${name}"]`).check();
-    await recovery.locator('button').click();
-    await page.locator('[data-payout-action="quote"]').waitFor({ state: "attached" });
-    const recovered = actions.findLast(a => a.action === 'resolve-recipient-error');
-    assert.equal(recovered.body.attemptId, 'attempt_unknown');
-    assert.equal(recovered.body.correctionHash, 'pending-correction-hash');
-    checks.forEach(name => assert.equal(recovered.body[name], true));
-    assert.equal(unknown.balances.reservedCoins, '6000');
-    assert.equal(unknown.attempts[0].state, 'canceled');
-    assert.equal(unknown.recipient.phone, '+573001112233');
-    assert.equal(await page.locator('#payout-detail [role=alert]').count(), 0);
-    assert.equal(await page.locator('[data-payout-action="prepare"]').count(), 0);
+    await recovery.locator("button").click();
+    assert.equal(
+      actions.filter((a) => a.action === "resolve-recipient-error").length,
+      0,
+    );
+    const checks = [
+      "historyInspected",
+      "recipientRecordInspected",
+      "recipientCorrectionApplied",
+      "noRecipientLinkIssued",
+      "noFundsSent",
+      "noFundingDebit",
+      "noPendingTransfers",
+      "noUnknownTransfers",
+      "previousDraftClosed",
+    ];
+    for (const name of checks)
+      await recovery.locator(`[name="${name}"]`).check();
+    await recovery.locator("button").click();
+    await page
+      .locator('[data-payout-action="quote"]')
+      .waitFor({ state: "attached" });
+    const recovered = actions.findLast(
+      (a) => a.action === "resolve-recipient-error",
+    );
+    assert.equal(recovered.body.attemptId, "attempt_unknown");
+    assert.equal(recovered.body.correctionHash, "pending-correction-hash");
+    checks.forEach((name) => assert.equal(recovered.body[name], true));
+    assert.equal(unknown.balances.reservedCoins, "6000");
+    assert.equal(unknown.attempts[0].state, "canceled");
+    assert.equal(unknown.recipient.phone, "+573001112233");
+    assert.equal(await page.locator("#payout-detail [role=alert]").count(), 0);
+    assert.equal(
+      await page.locator('[data-payout-action="prepare"]').count(),
+      0,
+    );
     await page.locator("#payout-search").fill("123");
     assert.equal(await page.locator("#payout-rows tr").count(), 1);
     await page.locator('[data-withdrawal="wd_fixture"]').first().click();
@@ -544,18 +833,32 @@ const root = path.resolve(__dirname, "../../admin/public");
     await form
       .getByRole("button", { name: "Save quote and continue preparation" })
       .click();
-    await page.locator('[data-payout-action="prepare"]').waitFor({ state: "attached" });
+    await page
+      .locator('[data-payout-action="prepare"]')
+      .waitFor({ state: "attached" });
     const quoteRecord = actions.find((action) => action.action === "quote");
     assert.equal(quoteRecord.body.sendAmountCents, 1401);
     assert.equal(quoteRecord.body.feeCents, 99);
     assert.equal(quoteRecord.body.providerMinimumSendCents, 1000);
-    assert.equal(w.approvedQuoteHash, null, "initial request needs no extra exact quote approval");
-    assert.doesNotMatch(await page.locator("#payout-detail").textContent(), /Waiting for the creator|confirmation required|approved this exact quote/);
+    assert.equal(
+      w.approvedQuoteHash,
+      null,
+      "initial request needs no extra exact quote approval",
+    );
+    assert.doesNotMatch(
+      await page.locator("#payout-detail").textContent(),
+      /Waiting for the creator|confirmation required|approved this exact quote/,
+    );
     // Old confirmation-state rows remain preparable without a creator action.
     w.status = "awaiting_confirmation";
     await page.locator("#refresh-payout-detail").click();
-    await page.locator('[data-payout-action="prepare"]').waitFor({ state: "attached" });
-    assert.doesNotMatch(await page.locator("#payout-detail").textContent(), /Waiting for the creator|confirmation required/);
+    await page
+      .locator('[data-payout-action="prepare"]')
+      .waitFor({ state: "attached" });
+    assert.doesNotMatch(
+      await page.locator("#payout-detail").textContent(),
+      /Waiting for the creator|confirmation required/,
+    );
     // Pause preparation without blocking reconciliation or discarding unsaved evidence.
     const prepare = page.locator('[data-payout-action="prepare"]');
     await prepare.locator("..").locator("summary").click();
@@ -563,6 +866,28 @@ const root = path.resolve(__dirname, "../../admin/public");
       .locator("[name=evidence]")
       .fill("Durable claim before provider action");
     const pauseReason = page.locator("#payout-pause-form [name=reason]");
+    assert.equal(
+      await pauseReason.isVisible(),
+      false,
+      "reason stays off screen until the header toggle is clicked",
+    );
+    const beforeCancel = actions.filter((a) => a.action === "pause").length;
+    await page.locator("#payout-pause-toggle").click();
+    await page.locator("#payout-pause-cancel").click();
+    assert.equal(await pauseReason.isVisible(), false);
+    assert.equal(
+      actions.filter((a) => a.action === "pause").length,
+      beforeCancel,
+      "cancel never changes preparation",
+    );
+    await page.locator("#payout-pause-toggle").click();
+    await page.keyboard.press("Escape");
+    assert.equal(await pauseReason.isVisible(), false);
+    assert.equal(
+      actions.filter((a) => a.action === "pause").length,
+      beforeCancel,
+    );
+    await page.locator("#payout-pause-toggle").click();
     assert.equal(await pauseReason.evaluate((el) => el.required), true);
     const pausesBeforeEmpty = actions.filter(
       (a) => a.action === "pause",
@@ -588,7 +913,7 @@ const root = path.resolve(__dirname, "../../admin/public");
         "Preparation paused",
     );
     assert.match(
-      await page.locator("#payout-queue-status").textContent(),
+      await page.locator("#payout-pause-state").textContent(),
       /preparation (is )?paused/i,
     );
     assert.equal(await prepare.locator("button").isDisabled(), true);
@@ -596,6 +921,12 @@ const root = path.resolve(__dirname, "../../admin/public");
       await prepare.locator("[name=evidence]").inputValue(),
       "Durable claim before provider action",
     );
+    assert.equal(
+      await pauseReason.isVisible(),
+      false,
+      "successful pause closes the reason dialog",
+    );
+    await page.locator("#payout-pause-toggle").click();
     await pauseReason.fill("");
     const pausesBeforeEmptyResume = actions.filter(
       (a) => a.action === "pause",
@@ -621,7 +952,7 @@ const root = path.resolve(__dirname, "../../admin/public");
         "Preparation active",
     );
     assert.match(
-      await page.locator("#payout-queue-status").textContent(),
+      await page.locator("#payout-pause-state").textContent(),
       /preparation (is )?active/i,
     );
     assert.doesNotMatch(
@@ -862,7 +1193,7 @@ const root = path.resolve(__dirname, "../../admin/public");
     await page.waitForFunction(() =>
       document
         .querySelector(".payout-facts")
-        ?.textContent.includes("Unknown outcome"),
+        ?.textContent.includes("Error — awaiting identification"),
     );
     assert.equal(declinePost.balances.reservedCoins, "6000");
     assert.equal(
@@ -893,7 +1224,7 @@ const root = path.resolve(__dirname, "../../admin/public");
       .first()
       .click();
     await page
-      .getByText("Expired withdrawal: reservation retained.", { exact: false })
+      .getByText("Reservation retained. Replacement preparation is blocked", { exact: false })
       .waitFor();
     assert.equal(expired.balances.reservedCoins, "6000");
     assert.equal(

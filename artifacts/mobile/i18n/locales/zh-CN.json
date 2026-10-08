@@ -1,4 +1,13 @@
 {
+  "Error — awaiting identification": "错误 — 等待确认原因",
+  "Error — identified": "错误 — 原因已确认",
+  "Correction saved — awaiting processing": "修改已保存 — 等待处理",
+  "Transfer progress": "转账进度",
+  "Requested": "已申请",
+  "Preparing": "准备中",
+  "Review": "审核",
+  "Processing": "处理中",
+  "Edit contact details": "编辑联系信息",
   "Test": "测试",
   " · paid": " · 有薪酬的",
   " · refunded": " ·已退款",

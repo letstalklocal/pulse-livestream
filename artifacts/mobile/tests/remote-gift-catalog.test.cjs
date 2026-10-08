@@ -87,7 +87,7 @@ function cacheHarness() {
     }
   }
   class Directory { create() {} list() { return []; } }
-  const service = moduleFrom('../utils/giftAssetCache.ts', {
+  const service = moduleFrom('../utils/giftAssetCache.native.ts', {
     'expo-file-system': { Directory, File, Paths: { cache: 'cache' } },
     'expo-crypto': { CryptoDigestAlgorithm: { SHA256: 'sha256' }, digest: async (_, bytes) => Uint8Array.from(crypto.createHash('sha256').update(bytes).digest()).buffer },
     './giftCatalog': { giftAssetUrl: url => url },

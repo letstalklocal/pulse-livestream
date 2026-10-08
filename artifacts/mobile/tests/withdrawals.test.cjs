@@ -94,6 +94,52 @@ assert.equal(
 assert.equal(utils.withdrawalStatus("delivered"), "Paid");
 assert.equal(utils.withdrawalStatus("error"), "Error");
 assert.equal(utils.withdrawalStatus("unknown"), "Payment outcome under review");
+assert.equal(
+  utils.withdrawalProgress({ status: "unknown" }).stage,
+  "error_unknown",
+);
+assert.equal(
+  utils.withdrawalProgress({
+    status: "unknown",
+    recipientIssue: { code: "recipient_validation_failed", fields: ["phone"] },
+  }).stage,
+  "error_identified",
+);
+assert.equal(
+  utils.withdrawalProgress({
+    status: "unknown",
+    recipientIssue: { code: "recipient_validation_failed", fields: ["phone"] },
+    recipientCorrection: { hash: "saved" },
+  }).stage,
+  "correction_saved",
+);
+for (const fields of [
+  ["phone", "name"],
+  ["phone", "other"],
+  ["phone", "bogus"],
+])
+  assert.notEqual(
+    utils.withdrawalProgress({
+      status: "unknown",
+      recipientIssue: {
+        code: "recipient_validation_failed",
+        fields,
+      },
+      recipientCorrection: { hash: "saved" },
+    }).stage,
+    "correction_saved",
+  );
+assert.equal(
+  utils.withdrawalProgress({
+    status: "delivered",
+    recipientIssue: {
+      code: "recipient_validation_failed",
+      fields: ["phone"],
+    },
+    recipientCorrection: { hash: "saved" },
+  }).stage,
+  "delivered",
+);
 assert.deepEqual(
   Array.from(
     utils.recipientIssueMessages("unknown", {
@@ -546,6 +592,19 @@ async function verifyQuoteScreen() {
   );
   assert.equal(state[2].email, "maria@example.com");
   let v = render();
+  assert.ok(v.texts.includes("Transfer progress"));
+  const progressBar = () =>
+    v.nodes.find((node) => node.props.accessibilityRole === "progressbar");
+  assert.equal(progressBar().props.accessibilityValue.now, 1);
+  for (const label of [
+    "Requested",
+    "Preparing",
+    "Review",
+    "Recipient",
+    "Processing",
+    "Paid",
+  ])
+    assert.ok(v.texts.includes(label), `visible progress stage ${label}`);
   assert.equal(
     sharingImports,
     0,
@@ -642,7 +701,7 @@ async function verifyQuoteScreen() {
     "uncertain or human-declined payment cannot continue recipient setup",
   );
   assert.ok(
-    v.texts.includes("Payment outcome under review"),
+    v.texts.includes("Error — awaiting identification"),
     "generic unknown has no recipient warning",
   );
   withdrawal.recipient.phone = "+573001234567";
@@ -653,7 +712,7 @@ async function verifyQuoteScreen() {
     message: "RAW PROVIDER REASON with sensitive evidence",
   };
   v = render();
-  assert.ok(v.texts.includes("Error"));
+  assert.ok(v.texts.includes("Error — identified"));
   assert.ok(
     v.texts.includes(
       "Remitly could not accept the recipient phone number. Verify the country code and phone number with support.",
@@ -735,10 +794,43 @@ async function verifyQuoteScreen() {
   );
   withdrawal.status = "expired";
   assert.ok(
-    render().texts.includes("Error"),
+    render().texts.includes("Error — identified"),
     "unresolved expired recipient error remains correctable",
   );
   withdrawal.status = "unknown";
+  withdrawal.recipientIssue.fields = ["phone", "email"];
+  v = render();
+  assert.ok(v.texts.includes("Correction saved — awaiting processing"));
+  assert.ok(v.texts.includes("Phone number: +999123456789"));
+  assert.ok(v.texts.includes("Email: corrected@example.com"));
+  assert.ok(
+    !v.button("Save corrected details"),
+    "a saved edit requires no repeated save",
+  );
+  assert.ok(
+    v.button("Edit contact details"),
+    "saved details remain editable when needed",
+  );
+  assert.ok(
+    !v.texts.some((value) => value.includes("Remitly could not accept")),
+    "corrected contact no longer appears rejected",
+  );
+  assert.equal(
+    withdrawal.status,
+    "unknown",
+    "display progress does not remove the recovery guard",
+  );
+  withdrawal.progress = { currentStep: "review", stage: "correction_saved" };
+  v = render();
+  assert.equal(
+    progressBar().props.accessibilityValue.now,
+    3,
+    "server workflow step overrides the older API fallback",
+  );
+  delete withdrawal.progress;
+  v.button("Edit contact details").props.onPress();
+  v = render();
+  assert.ok(v.button("Save corrected details"));
   withdrawal.recipientIssue.fields = ["other"];
   assert.ok(
     render().texts.includes(
@@ -1064,12 +1156,25 @@ async function verifyWalletRequestScreen() {
   assert.ok(v.texts.includes("Paid"));
   overview.withdrawals[0].status = "unknown";
   overview.withdrawals[0].creatorStatus = "error";
+  overview.withdrawals[0].recipientIssue = {
+    code: "recipient_validation_failed",
+    fields: ["phone"],
+  };
   v = render();
   assert.ok(
-    v.texts.includes("Error"),
-    "history shows projected creator error while operator state remains unknown",
+    v.texts.includes("Error — identified"),
+    "history identifies recipient errors while operator state remains unknown",
   );
+  overview.withdrawals[0].recipientCorrection = { hash: "saved" };
+  v = render();
+  assert.ok(
+    v.texts.includes("Correction saved — awaiting processing"),
+    "history advances after a contact edit without changing payout state",
+  );
+  assert.equal(overview.withdrawals[0].status, "unknown");
   delete overview.withdrawals[0].creatorStatus;
+  delete overview.withdrawals[0].recipientIssue;
+  delete overview.withdrawals[0].recipientCorrection;
   overview.withdrawals[0].status = "delivered";
   v = render();
   v.nodes
