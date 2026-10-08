@@ -15,6 +15,6 @@ export type AdminWithdrawalDetail = WithdrawalDetail & {
   attempts: WithdrawalAttempt[];
   events: WithdrawalAuditEvent[];
   balances: WithdrawalBalances;
-  /** Current enabled admin actor is configured as payout reconciler. */
+  /** Current authenticated enabled owner may recover recipient errors after all provider checks. */
   canResolveRecipientError?: boolean;
 };

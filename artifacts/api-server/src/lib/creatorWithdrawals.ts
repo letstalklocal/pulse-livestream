@@ -1224,6 +1224,45 @@ async function saveRecipientCorrection(
     return withdrawalDetail(c, id, scope.uid, scope.account);
   });
 }
+// Owner classification records only the provider's rejected fields on an already
+// uncertain attempt. It does not change payout status, contacts, quotes or funds.
+export async function reportRecipientError(
+  db: Database,
+  account: string,
+  id: string,
+  input: unknown,
+  actor: string,
+) {
+  const b = body(input, ["reason", "recipientIssue"]);
+  const reason = note(b.reason, "recipient rejection evidence", 5000);
+  const issue = recipientIssueInput(b.recipientIssue);
+  return tx(db, async (c) => {
+    const w = await lockedWithdrawal(c, id, account);
+    if (!["unknown", "expired"].includes(w.status))
+      fail(
+        "Recipient error classification requires an existing withdrawal under review.",
+        409,
+      );
+    if (
+      !(
+        await c.query(
+          "SELECT 1 FROM creator_payout_attempts WHERE withdrawal_id=$1 AND state IN('unknown','expired')",
+          [id],
+        )
+      ).rows.length
+    )
+      fail("No uncertain provider attempt exists for this withdrawal.", 409);
+    await event(
+      c,
+      w.user_id,
+      actor,
+      w.status,
+      { reason, recipientIssue: issue },
+      id,
+    );
+    return withdrawalDetail(c, id, undefined, account);
+  });
+}
 // Explicitly approved recovery: operator observations must establish that the
 // original attempt has no payment/link effects before retaining its reservation
 // for a fresh quote. This function never calls a provider or moves wallet funds.

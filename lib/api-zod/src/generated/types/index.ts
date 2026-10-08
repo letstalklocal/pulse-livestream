@@ -264,6 +264,7 @@ export * from './withdrawalQuoteSource';
 export * from './withdrawalRecipient';
 export * from './withdrawalRecipientCorrection';
 export * from './withdrawalRecipientCorrectionInput';
+export * from './withdrawalRecipientErrorInput';
 export * from './withdrawalRecipientInput';
 export * from './withdrawalRecipientIssue';
 export * from './withdrawalRecipientIssueCode';

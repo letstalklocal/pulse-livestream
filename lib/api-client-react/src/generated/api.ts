@@ -160,6 +160,7 @@ import type {
   WithdrawalQuoteInput,
   WithdrawalRecipient,
   WithdrawalRecipientCorrectionInput,
+  WithdrawalRecipientErrorInput,
   WithdrawalRecipientInput,
   WithdrawalRecipientRecoveryInput,
   WithdrawalReconcileInput,
@@ -3305,6 +3306,79 @@ export const useDeclineWithdrawal = <TError = ErrorType<void>,
       return useMutation(getDeclineWithdrawalMutationOptions(options));
     }
 
+export const getReportWithdrawalRecipientErrorUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin-data/withdrawals/${id}/recipient-error`
+}
+
+/**
+ * Authenticated enabled owner session required; no extra payout role. Records only structured recipient validation evidence on an existing unknown/expired attempt. Does not change contacts, payout status, quote, attempt or funds.
+ * @summary Owner records rejected recipient fields on an existing uncertain withdrawal; no payout state or fund changes
+ */
+export const reportWithdrawalRecipientError = async (id: string,
+    withdrawalRecipientErrorInput: WithdrawalRecipientErrorInput, options?: RequestInit): Promise<WithdrawalDetail> => {
+
+  return customFetch<WithdrawalDetail>(getReportWithdrawalRecipientErrorUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      withdrawalRecipientErrorInput,)
+  }
+);}
+
+
+
+
+export const getReportWithdrawalRecipientErrorMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportWithdrawalRecipientError>>, TError,{id: string;data: BodyType<WithdrawalRecipientErrorInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reportWithdrawalRecipientError>>, TError,{id: string;data: BodyType<WithdrawalRecipientErrorInput>}, TContext> => {
+
+const mutationKey = ['reportWithdrawalRecipientError'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reportWithdrawalRecipientError>>, {id: string;data: BodyType<WithdrawalRecipientErrorInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  reportWithdrawalRecipientError(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReportWithdrawalRecipientErrorMutationResult = NonNullable<Awaited<ReturnType<typeof reportWithdrawalRecipientError>>>
+    export type ReportWithdrawalRecipientErrorMutationBody = BodyType<WithdrawalRecipientErrorInput>
+    export type ReportWithdrawalRecipientErrorMutationError = ErrorType<void>
+
+    /**
+ * @summary Owner records rejected recipient fields on an existing uncertain withdrawal; no payout state or fund changes
+ */
+export const useReportWithdrawalRecipientError = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportWithdrawalRecipientError>>, TError,{id: string;data: BodyType<WithdrawalRecipientErrorInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reportWithdrawalRecipientError>>,
+        TError,
+        {id: string;data: BodyType<WithdrawalRecipientErrorInput>},
+        TContext
+      > => {
+      return useMutation(getReportWithdrawalRecipientErrorMutationOptions(options));
+    }
+
 export const getMarkWithdrawalInvestigationUrl = (id: string,) => {
 
 
@@ -3387,8 +3461,8 @@ export const getResolveWithdrawalRecipientErrorUrl = (id: string,) => {
 }
 
 /**
- * Authenticated owner bearer and enabled membership required. Additionally requires configured reconciler operator role. Final approve/decline and release decisions remain human-owned. No operation sends payments to Remitly.
- * @summary Reconciler applies latest pending recipient correction after verified no-transfer recovery; coins remain reserved
+ * Authenticated enabled owner session required; no extra payout role for this recipient-error recovery. All provider evidence and reservation checks remain required. No operation sends payments to Remitly.
+ * @summary Owner applies latest pending recipient correction after verified no-transfer recovery; coins remain reserved
  */
 export const resolveWithdrawalRecipientError = async (id: string,
     withdrawalRecipientRecoveryInput: WithdrawalRecipientRecoveryInput, options?: RequestInit): Promise<WithdrawalDetail> => {
@@ -3438,7 +3512,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ResolveWithdrawalRecipientErrorMutationError = ErrorType<void>
 
     /**
- * @summary Reconciler applies latest pending recipient correction after verified no-transfer recovery; coins remain reserved
+ * @summary Owner applies latest pending recipient correction after verified no-transfer recovery; coins remain reserved
  */
 export const useResolveWithdrawalRecipientError = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveWithdrawalRecipientError>>, TError,{id: string;data: BodyType<WithdrawalRecipientRecoveryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}

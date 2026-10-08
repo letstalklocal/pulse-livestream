@@ -181,12 +181,10 @@ const requireRole =
     }
     next();
   };
-const canResolveRecipientError = (actor: string) =>
-  !!actor &&
-  (process.env.PULSE_PAYOUT_RECONCILER_IDS ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .includes(actor);
+// This router is mounted only after the authenticated, enabled owner guard.
+// The explicitly approved recipient-error recovery needs no extra owner role.
+// MCP credentials remain on their independently role-scoped operator router.
+const canResolveRecipientError = (actor: string) => !!actor;
 export const adminWithdrawalsRouter = Router();
 adminWithdrawalsRouter.use(
   safe(async (req, res, next) => {
@@ -344,6 +342,21 @@ adminWithdrawalsRouter.post(
   }),
 );
 adminWithdrawalsRouter.post(
+  "/:id/recipient-error",
+  safe(async (req, res) => {
+    res.json({
+      ...(await w.reportRecipientError(
+        pool,
+        account(),
+        String(req.params.id),
+        req.body,
+        res.locals.adminId,
+      )),
+      canResolveRecipientError: canResolveRecipientError(res.locals.adminId),
+    });
+  }),
+);
+adminWithdrawalsRouter.post(
   "/:id/unknown",
   requireRole("reconciler"),
   safe(async (req, res) => {
@@ -361,7 +374,6 @@ adminWithdrawalsRouter.post(
 );
 adminWithdrawalsRouter.post(
   "/:id/resolve-recipient-error",
-  requireRole("reconciler"),
   safe(async (req, res) => {
     res.json({
       ...(await w.resolveRecipientError(

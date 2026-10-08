@@ -2818,7 +2818,7 @@ function renderWithdrawalDetail() {
         ).join(""),
       ["unknown", "expired"].includes(w.status) ? "Save error details" : "Record unknown outcome",
       {
-        note: "Select only recipient fields explicitly rejected by Remitly. The creator sees a safe field-specific error; investigation notes stay protected. Leave all fields unchecked for a generic unknown outcome. Reserved wallet coins stay unavailable to spend. Inspect provider history before correcting contact records or making a replacement attempt." + (w.canResolveRecipientError === false ? " Your admin account is not configured as a payout reconciler. A configured reconciler, or the Mac maker through MCP, must record the rejected fields." : ""),
+        note: "Select only recipient fields explicitly rejected by Remitly. An admin owner can record those fields on a withdrawal already under review. The creator sees a safe field-specific error; investigation notes stay protected. Reserved wallet coins stay unavailable to spend. Inspect provider history before correcting contact records or making a replacement attempt. A generic outcome report without rejected fields follows the separate payout investigation permissions.",
       },
     );
   if (payoutRecipientIssueFields(w).some(field => ["phone", "email"].includes(field)))
@@ -2833,7 +2833,7 @@ function renderWithdrawalDetail() {
   if (payoutRecipientIssueFields(w).length && payoutRecipientIssueFields(w).every(field => ["phone", "email"].includes(field)) && w.recipientCorrection?.hash && attempt && w.canResolveRecipientError === true)
     recipientActions += payoutForm(
       "resolve-recipient-error",
-      "Reconciler recovery after recipient correction",
+      "Admin recovery after recipient correction",
       payoutInput("observationId", "Stable recovery observation ID") +
         payoutInput("sourceUrl", "Signed-in Remitly evidence source URL", { type: "url", maxlength: 2000 }) +
         payoutTimestampInput("observedAt", "Provider history inspected") +
@@ -2849,7 +2849,7 @@ function renderWithdrawalDetail() {
          ["previousDraftClosed", "Every prior draft or recipient link for this attempt is definitively canceled or removed."]]
           .map(([name, label]) => payoutCheckbox(name, label, true)).join("") + payoutEvidence(),
       "Record verified correction recovery",
-      { note: "Configured reconcilers only. This preserves reserved coins, closes the prior attempt and returns to a fresh quote. It does not send a payment or make a replacement draft. Human release or provider transfer references block this recovery." },
+      { note: "Admin owners can recover this recipient error after verifying every provider check. This preserves reserved coins, closes the prior attempt and returns to a fresh quote. It does not send a payment or make a replacement draft. Human release or provider transfer references block this recovery." },
     );
   actions = recipientActions + actions;
   const events = w.events || w.history || [];
@@ -2875,7 +2875,7 @@ function renderWithdrawalDetail() {
     );
   const issueFields = payoutRecipientIssueFields(w);
   const recipientIssue = issueFields.length
-    ? `<section class="payout-callout" role="alert"><strong>Error · Recipient details need attention</strong><p><strong>Error Message:</strong> ${esc(payoutRecipientErrorMessage(w))}</p><p>Verify the saved details and inspect provider history before correction or resuming. Preparation stays blocked until reconciler recovery.</p>${w.recipientCorrection ? `<p><strong>Correction pending reconciler review</strong><br>${w.recipientCorrection.phone ? `Phone: ${esc(w.recipientCorrection.phone)}<br>` : ""}${w.recipientCorrection.email ? `Email: ${esc(w.recipientCorrection.email)}<br>` : ""}Submitted ${esc(payoutTime(w.recipientCorrection.requestedAt))}. The corrected contact has not been applied yet.</p>` : '<p>Use Correct recipient contact details below, or ask the creator to save a correction in the updated app. Legal-name or other recipient issues require operator review.</p>'}</section>` : "";
+    ? `<section class="payout-callout" role="alert"><strong>Error · Recipient details need attention</strong><p><strong>Error Message:</strong> ${esc(payoutRecipientErrorMessage(w))}</p><p>Verify the saved details and inspect provider history before correction or resuming. Preparation stays blocked until admin recovery.</p>${w.recipientCorrection ? `<p><strong>Correction pending admin review</strong><br>${w.recipientCorrection.phone ? `Phone: ${esc(w.recipientCorrection.phone)}<br>` : ""}${w.recipientCorrection.email ? `Email: ${esc(w.recipientCorrection.email)}<br>` : ""}Submitted ${esc(payoutTime(w.recipientCorrection.requestedAt))}. The corrected contact has not been applied yet.</p>` : '<p>Use Correct recipient contact details below, or ask the creator to save a correction in the updated app. Legal-name or other recipient issues require operator review.</p>'}</section>` : "";
   target.innerHTML = `<section class="panel payout-detail-panel"><div class="panel-heading"><div><h2>Withdrawal ${esc(w.id)}</h2><p>Version ${esc(w.version)} · Updated ${esc(payoutTime(w.updatedAt))}</p></div><div class="payout-detail-toolbar"><button class="page-button" id="refresh-payout-detail">Refresh details</button><button class="page-button" id="close-payout-detail">Close</button></div></div><div class="payout-content"><dl class="payout-facts">${facts.map(([label, value]) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join("")}</dl>${q ? `<section class="payout-quote"><h3>Current provider quote</h3><p>Send ${esc(catalogMoney(q.sendAmountCents))} + fee ${esc(catalogMoney(q.feeCents))} + tax ${esc(catalogMoney(q.taxCents))} = ${esc(catalogMoney(q.totalEarningsDeductedCents))} total wallet deduction.</p><p>Recipient estimate: ${esc(q.receiveAmount)} ${esc(q.receiveCurrency)} · ${esc(q.fundingMethod)}. Promotion: ${esc(catalogMoney(q.promotionalDiscountCents))}, separate from fees.</p><p>Observed ${esc(payoutTime(q.observedAt))} · Expires ${esc(payoutTime(q.expiresAt))}</p><p class="payout-hash">Quote reference: ${esc(q.hash)}</p></section>` : '<p class="payout-callout">No exact signed-in provider quote recorded. Do not prepare a transfer from catalog fee estimates.</p>'}<div class="payout-links">${attempt?.evidence?.reviewUrl ? payoutLink(attempt.evidence.reviewUrl, "Review in Remitly") : ""}${w.providerLink ? payoutLink(w.providerLink, "Recipient link") : ""}${events.findLast((e) => e.evidence?.activityUrl)?.evidence?.activityUrl ? payoutLink(events.findLast((e) => e.evidence?.activityUrl).evidence.activityUrl, "Provider activity") : ""}</div>${["unknown", "expired"].includes(w.status) ? `<p class="payout-callout">${w.status === "expired" ? "Expired withdrawal" : "Unknown outcome"}: reservation retained. Replacement preparation is blocked until provider history resolves the existing attempt.</p>` : ""}${recipientIssue}${actions}<details class="payout-history"><summary>Evidence and history (${events.length} events)</summary>${events.map((e) => `<article><strong>${esc(e.action?.replaceAll("_", " "))}</strong><small>${esc(payoutTime(e.createdAt || e.created_at))}${e.actor ? ` · ${esc(e.actor)}` : ""}</small>${e.evidence ? `<pre>${esc(typeof e.evidence === "string" ? e.evidence : JSON.stringify(e.evidence, null, 2))}</pre>` : ""}</article>`).join("") || "<p>No events recorded.</p>"}</details></div></section>`;
 }
 async function loadWithdrawalDetail(id) {
@@ -3085,7 +3085,9 @@ async function submitPayoutAction(form) {
   buttons.forEach(({ button }) => (button.disabled = true));
   feedback.textContent = "Saving verified record…";
   try {
-    await api(`/withdrawals/${encodeURIComponent(w.id)}/${action}`, {
+    const endpointAction = action === "unknown" && body.recipientIssue && ["unknown", "expired"].includes(w.status) ? "recipient-error" : action;
+    if (endpointAction === "recipient-error") delete body.status;
+    await api(`/withdrawals/${encodeURIComponent(w.id)}/${endpointAction}`, {
       method: "POST",
       body: JSON.stringify(body),
     });

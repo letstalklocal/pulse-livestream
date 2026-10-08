@@ -1442,17 +1442,124 @@ try {
     failed.id,
     {
       reason: "Provider rejects old phone before any transfer",
-      recipientIssue: {
-        code: "recipient_validation_failed",
-        fields: ["phone"],
-      },
     },
     "reconciler",
+  );
+  delete process.env.PULSE_PAYOUT_RECONCILER_IDS;
+  const recipientErrorBody = {
+    reason: "Owner inspected the explicit Remitly phone rejection",
+    recipientIssue: { code: "recipient_validation_failed", fields: ["phone"] },
+  };
+  const beforeOwnerClassification = {
+    withdrawal: (
+      await pool.query("SELECT * FROM creator_withdrawals WHERE id=$1", [
+        failed.id,
+      ])
+    ).rows,
+    attempts: (
+      await pool.query(
+        "SELECT * FROM creator_payout_attempts WHERE withdrawal_id=$1 ORDER BY id",
+        [failed.id],
+      )
+    ).rows,
+    balances: (await api.overview(pool, 2)).balances,
+  };
+  assert.equal(
+    (
+      await call(`/admin/${failed.id}/recipient-error`, {
+        user: null,
+        method: "POST",
+        body: recipientErrorBody,
+      })
+    ).status,
+    401,
+  );
+  assert.equal(
+    (
+      await call(`/admin/${failed.id}/recipient-error`, {
+        user: "creator",
+        method: "POST",
+        body: recipientErrorBody,
+      })
+    ).status,
+    403,
+  );
+  assert.equal(
+    (
+      await call(`/admin/${failed.id}/recipient-error`, {
+        user: "owner",
+        method: "POST",
+        body: { ...recipientErrorBody, status: "processing" },
+      })
+    ).status,
+    400,
+  );
+  await assert.rejects(
+    () =>
+      api.reportRecipientError(
+        pool,
+        "other-business",
+        failed.id,
+        recipientErrorBody,
+        "owner",
+      ),
+    (error) => error.status === 404,
+  );
+  const ownerClassification = await call(
+    `/admin/${failed.id}/recipient-error`,
+    { user: "owner", method: "POST", body: recipientErrorBody },
+  );
+  assert.equal(
+    ownerClassification.status,
+    200,
+    "owner can classify a recipient error without a payout role",
+  );
+  assert.equal(ownerClassification.body.creatorStatus, "error");
+  assert.deepEqual(ownerClassification.body.recipientIssue.fields, ["phone"]);
+  assert.deepEqual(
+    {
+      withdrawal: (
+        await pool.query("SELECT * FROM creator_withdrawals WHERE id=$1", [
+          failed.id,
+        ])
+      ).rows,
+      attempts: (
+        await pool.query(
+          "SELECT * FROM creator_payout_attempts WHERE withdrawal_id=$1 ORDER BY id",
+          [failed.id],
+        )
+      ).rows,
+      balances: (await api.overview(pool, 2)).balances,
+    },
+    beforeOwnerClassification,
+    "error classification cannot change the underlying attempt, withdrawal or funds",
+  );
+  assert.equal(
+    (
+      await call(`/admin/${failed.id}/unknown`, {
+        user: "owner",
+        method: "POST",
+        body: { reason: "Generic uncertainty" },
+      })
+    ).status,
+    403,
+    "broader investigation role guard remains",
+  );
+  assert.equal(
+    (
+      await call(`/admin/${failed.id}/reconcile`, {
+        user: "owner",
+        method: "POST",
+        body: {},
+      })
+    ).status,
+    403,
+    "broader reconciliation role guard remains",
   );
   assert.equal(
     (await call(`/admin/${failed.id}`, { user: "owner" })).body
       .canResolveRecipientError,
-    false,
+    true,
   );
   const beforeAdminCorrection = await api.withdrawalDetail(pool, failed.id, 2);
   assert.equal(
@@ -1549,14 +1656,24 @@ try {
   assert.equal(
     (
       await call(`/admin/${failed.id}/resolve-recipient-error`, {
-        user: "owner",
+        user: null,
+        method: "POST",
+        body: recipientRecovery,
+      })
+    ).status,
+    401,
+  );
+  assert.equal(
+    (
+      await call(`/admin/${failed.id}/resolve-recipient-error`, {
+        user: "creator",
         method: "POST",
         body: recipientRecovery,
       })
     ).status,
     403,
   );
-  process.env.PULSE_PAYOUT_RECONCILER_IDS = "owner";
+  assert.equal(process.env.PULSE_PAYOUT_RECONCILER_IDS, undefined);
   assert.equal(
     (await call(`/admin/${failed.id}`, { user: "owner" })).body
       .canResolveRecipientError,
@@ -1831,6 +1948,18 @@ try {
   assert.equal(recovered.recipientIssue, null);
   assert.equal(recovered.recipientCorrection, null);
   assert.equal(recovered.errorMessage, null);
+  await assert.rejects(
+    () =>
+      api.reportRecipientError(
+        pool,
+        "test-business",
+        failed.id,
+        recipientErrorBody,
+        "owner",
+      ),
+    (error) => error.status === 409,
+    "owner classification cannot change a withdrawal outside investigation",
+  );
   assert.deepEqual((await api.overview(pool, 2)).balances, recoveryBalances);
   assert.deepEqual(
     (

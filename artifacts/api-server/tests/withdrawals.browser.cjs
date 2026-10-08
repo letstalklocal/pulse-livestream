@@ -160,9 +160,9 @@ const root = path.resolve(__dirname, "../../admin/public");
       }
       if (endpoint === "/withdrawals/wd_unknown")
         return route.fulfill({ json: unknown });
-      if (endpoint === "/withdrawals/wd_unknown/unknown" && req.method() === "POST") {
+      if (["/withdrawals/wd_unknown/unknown", "/withdrawals/wd_unknown/recipient-error"].includes(endpoint) && req.method() === "POST") {
         const body = req.postDataJSON();
-        actions.push({ action: "unknown", body, id: unknown.id });
+        actions.push({ action: "unknown", endpoint, body, id: unknown.id });
         unknown.recipientIssue = body.recipientIssue ? { ...body.recipientIssue, message: "<img src=x onerror=alert(1)> raw provider text" } : null;
         unknown.creatorStatus = unknown.recipientIssue ? "error" : unknown.status;
         unknown.errorMessage = "<script>untrusted</script> arbitrary raw error";
@@ -431,7 +431,8 @@ const root = path.resolve(__dirname, "../../admin/public");
     assert.deepEqual(actions.findLast(a => a.action === "unknown").body.recipientIssue, {
       code: "recipient_validation_failed", fields: ["phone", "email"],
     });
-    assert.equal(actions.findLast(a => a.action === "unknown").body.status, "unknown");
+    assert.equal(actions.findLast(a => a.action === "unknown").endpoint, "/withdrawals/wd_unknown/recipient-error");
+    assert.equal(Object.hasOwn(actions.findLast(a => a.action === "unknown").body, "status"), false, "owner error classification cannot request a payout status change");
     assert.match(await page.locator('#payout-detail [role=alert]').textContent(), /Recipient details need attention[\s\S]*phone number, email address[\s\S]*Coins remain reserved/);
     assert.doesNotMatch(await page.locator('#payout-detail [role=alert]').textContent(), /raw provider text/);
     assert.equal(await page.locator('#payout-detail img').count(), 0);
@@ -447,7 +448,7 @@ const root = path.resolve(__dirname, "../../admin/public");
     await contactForm.locator('[name=email]').fill('corrected@example.test');
     const beforeContact = JSON.stringify({ recipient: unknown.recipient, version: unknown.version, quote: unknown.quote, status: unknown.status });
     await contactForm.locator('button').click();
-    await page.getByText('Correction pending reconciler review', { exact: true }).waitFor();
+    await page.getByText('Correction pending admin review', { exact: true }).waitFor();
     assert.deepEqual(actions.findLast(a => a.action === 'recipient-correction').body, { phone: '+573001112233', email: 'corrected@example.test' });
     assert.equal(JSON.stringify({ recipient: unknown.recipient, version: unknown.version, quote: unknown.quote, status: unknown.status }), beforeContact);
     assert.equal(await page.locator('[data-payout-action="resolve-recipient-error"]').count(), 0);
@@ -470,14 +471,14 @@ const root = path.resolve(__dirname, "../../admin/public");
     await page.locator('#refresh-payout-detail').click();
     await page.getByRole('heading', { name: 'Withdrawal wd_unknown' }).waitFor();
     assert.equal(await page.locator('#payout-detail [role=alert]').count(), 0);
-    // A pending contact correction remains blocked until the configured reconciler independently recovers it.
+    // A pending contact correction stays blocked unless the server exposes authenticated owner recovery capability.
     unknown.recipientIssue = { code: 'recipient_validation_failed', fields: ['phone', 'email'] };
     unknown.recipientCorrection = { hash: 'pending-correction-hash', phone: '+573001112233', email: 'corrected@example.test', requestedAt: now };
     unknown.attempts = [{ id: 'attempt_unknown', state: 'unknown', maker: 'prior_maker', evidence: { kind: 'scheduled' } }];
     unknown.balances = { availableCoins: '400', availableUsd: '1.00', reservedCoins: '6000', reservedUsd: '15.00' };
     unknown.canResolveRecipientError = false;
     await page.locator('#refresh-payout-detail').click();
-    await page.getByText('Correction pending reconciler review', { exact: true }).waitFor();
+    await page.getByText('Correction pending admin review', { exact: true }).waitFor();
     assert.match(await page.locator('#payout-detail [role=alert]').textContent(), /corrected@example.test/);
     assert.equal(await page.locator('[data-payout-action="resolve-recipient-error"]').count(), 0);
     assert.equal(await page.locator('[data-payout-action="prepare"], [data-payout-action="quote"], [data-payout-action="check"], [data-payout-action="release"]').count(), 0);
@@ -975,7 +976,7 @@ const root = path.resolve(__dirname, "../../admin/public");
     );
     assert.deepEqual(errors, []);
     console.log(
-      "Payout desk browser fixtures passed: all-wallet enrollment, queue/search/exceptions, safe recipient Error/messages, pending correction/reconciler-only recovery checks with retained reserve and fresh quote, maker/checker/human release, evidence-only delivery, conflicts, responsive layout and access-loss races.",
+      "Payout desk browser fixtures passed: all-wallet enrollment, queue/search/exceptions, safe recipient Error/messages, pending correction/owner recovery checks with retained reserve and fresh quote, maker/checker/human release, evidence-only delivery, conflicts, responsive layout and access-loss races.",
     );
   } finally {
     await browser?.close();
