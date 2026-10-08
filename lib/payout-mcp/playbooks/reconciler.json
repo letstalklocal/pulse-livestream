@@ -13,9 +13,10 @@
     "Failed/canceled outcomes release coins only after authoritative funding-return evidence. A returned delivered payment appends the provider-confirmed return adjustment; it never automatically resends.",
     "Reuse the same observation ID only for identical evidence. Newer provider observations may advance state; stale evidence must not regress delivered status or recreate a payment.",
     "Unknown, interrupted, expired or human-declined attempts require history investigation and verified provider cancellation/return before refund or retry. Do not assume a local timeout proves nothing was created.",
+    "Creator phone/email corrections are pending audit records only. They do not alter the active recipient snapshot, quote, attempt or reservation. Inspect existing contacts/drafts/pending/sent/activity history, but do not apply a pending correction or reopen preparation: the proposed resolve_recipient_error recovery tool is not implemented or exposed and awaits explicit user approval. Current ordinary reconciliation still requires authoritative outcomes and funding-return evidence. No guessed endpoint or local database changes may bypass the blocked recovery step.",
     "Finish with processed/needs-human counts, protected backend evidence and redacted heartbeat. Release the browser lease after browser work stops. No user/email/Slack notification is sent by this playbook."
   ],
   "humanFinalDecisionRequired": true,
   "autoSendAllowed": false,
-  "workflowRevision": "2026-10-07.1"
+  "workflowRevision": "2026-10-08.1"
 }

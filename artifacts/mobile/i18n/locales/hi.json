@@ -1165,5 +1165,16 @@
   "Your saved payment method will be used.": "आपका सहेजा हुआ भुगतान तरीका इस्तेमाल होगा।",
   "Estimated payout": "अनुमानित भुगतान",
   "Estimated total deduction: {v0}": "अनुमानित कुल कटौती: {v0}",
-  "Estimated amount received: {v0} {v1}": "प्राप्त होने वाली अनुमानित राशि: {v0} {v1}"
+  "Estimated amount received: {v0} {v1}": "प्राप्त होने वाली अनुमानित राशि: {v0} {v1}",
+  "Remitly could not accept the recipient phone number. Verify the country code and phone number with support.": "Remitly प्राप्तकर्ता का फ़ोन नंबर स्वीकार नहीं कर सका। सहायता टीम के साथ देश कोड और फ़ोन नंबर की जाँच करें।",
+  "Remitly could not accept the recipient email address. Verify the email address with support.": "Remitly प्राप्तकर्ता का ईमेल पता स्वीकार नहीं कर सका। सहायता टीम के साथ ईमेल पते की जाँच करें।",
+  "Remitly could not accept the recipient legal name. Verify the full legal name with support.": "Remitly प्राप्तकर्ता का कानूनी नाम स्वीकार नहीं कर सका। सहायता टीम के साथ पूरे कानूनी नाम की जाँच करें।",
+  "Remitly could not accept some recipient details. Contact support to verify them.": "Remitly प्राप्तकर्ता के कुछ विवरण स्वीकार नहीं कर सका। उनकी जाँच के लिए सहायता टीम से संपर्क करें।",
+  "Your coins remain reserved. Contact support to verify or correct your recipient details before this withdrawal can continue.": "आपके कॉइन आरक्षित हैं। यह निकासी आगे बढ़ाने से पहले प्राप्तकर्ता के विवरण की जाँच या सुधार के लिए सहायता टीम से संपर्क करें।",
+  "Correct your phone number or email below. Your coins remain reserved.": "नीचे अपना फ़ोन नंबर या ईमेल सुधारें। आपके कॉइन आरक्षित हैं।",
+  "Phone number including country code": "देश कोड सहित फ़ोन नंबर",
+  "Save corrected details": "सुधारे गए विवरण सहेजें",
+  "Details saved. We will check the existing transfer before continuing. Your coins remain reserved.": "विवरण सहेज लिए गए हैं। आगे बढ़ने से पहले हम मौजूदा ट्रांसफ़र की जाँच करेंगे। आपके कॉइन आरक्षित हैं।",
+  "Enter a valid recipient email address.": "प्राप्तकर्ता का मान्य ईमेल पता दर्ज करें।",
+  "Enter your phone number with country code.": "देश कोड सहित अपना फ़ोन नंबर दर्ज करें।"
 }

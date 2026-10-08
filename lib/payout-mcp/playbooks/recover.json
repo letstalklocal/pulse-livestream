@@ -13,9 +13,10 @@
     "A crashed local run keeps its local lock. Confirm its process is stopped, record provider investigation in the backend and note the expected run ID before using the explicit local recovery command. Local cleanup does not change backend state or authorize another provider action.",
     "If computer sleep/app closure interrupts an automation, treat possible provider actions as uncertain; no catch-up run may blindly replay draft creation. Obtain new identity/health checks and leases on resume.",
     "If browser capability or custom MCP access is unavailable in the actual Codex automation, report the blocked capability and leave the item unchanged. Manual installation/verification is separate from delivery of this package.",
+    "Creator phone/email corrections are pending audit records only. They do not alter the active recipient snapshot, quote, attempt or reservation. Inspect existing contacts/drafts/pending/sent/activity history, but do not apply a pending correction or reopen preparation: the proposed resolve_recipient_error recovery tool is not implemented or exposed and awaits explicit user approval. Current ordinary reconciliation still requires authoritative outcomes and funding-return evidence. No guessed endpoint or local database changes may bypass the blocked recovery step.",
     "Complete with only a redacted status/count summary. The human alone performs final sending or link issuance; recovery does not waive that boundary."
   ],
   "humanFinalDecisionRequired": true,
   "autoSendAllowed": false,
-  "workflowRevision": "2026-10-07.1"
+  "workflowRevision": "2026-10-08.1"
 }

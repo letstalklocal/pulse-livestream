@@ -153,6 +153,11 @@ try {
    // User-requested withdrawal country and history menus add only these decorative icons.
    // Its open/select/close handlers and existing financial guards are checked in withdrawals.test.cjs.
    if(file.endsWith('/app/withdraw-money.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.parent.parent.tagName?.getText(a)==='Ionicons'&&['chevron-down','close','ellipsis-horizontal'].includes(n.initializer?.text))return;
+   // Approved recipient correction editor introduces only its two controlled contact inputs.
+   if(file.endsWith('/app/withdrawal/[id].tsx')&&ts.isJsxSelfClosingElement(n)&&n.tagName.getText(a)==='TextInput'&&n.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(a)==='value'&&['{correction.phone}','{correction.email}'].includes(p.initializer?.getText(a))))return;
+   // Approved recipient-rejection warning adds only its decorative icon and keyed local messages.
+   // Withdrawal render tests cover its allowlisted copy, accessibility and financial guards.
+   if(file.endsWith('/app/withdrawal/[id].tsx')&&ts.isJsxAttribute(n)&&((n.name.getText(a)==='name'&&n.parent.parent.tagName?.getText(a)==='Ionicons'&&n.initializer?.text==='alert-circle-outline')||(n.name.getText(a)==='key'&&n.parent.parent.tagName?.getText(a)==='Text'&&n.initializer?.getText(a)==='{message}')))return;
    // Approved anonymous avatar uses a generic person icon instead of identifying initials.
    if(file.endsWith('/components/Avatar.tsx')&&ts.isJsxAttribute(n)&&n.name.getText(a)==='name'&&n.initializer?.text==='person')return;
    // Approved Premium entry checkbox is additive; retain all existing admission controls.

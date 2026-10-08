@@ -711,6 +711,245 @@ try {
     "owner",
   );
   assert.equal((await api.withdrawalDetail(pool, id, 1)).status, "unknown");
+  const issueBalances = (await api.overview(pool, 1)).balances;
+  const privateProviderReason =
+    "Provider internal validation code with private contact evidence: do not expose this marker";
+  const issueInput = {
+    code: "recipient_validation_failed",
+    fields: ["email", "phone"],
+  };
+  for (const recipientIssue of [
+    null,
+    { code: "arbitrary_error", fields: ["phone"] },
+    { code: "recipient_validation_failed", fields: [] },
+    { code: "recipient_validation_failed", fields: ["phone", "phone"] },
+    { code: "recipient_validation_failed", fields: ["bank_account"] },
+    { ...issueInput, message: privateProviderReason },
+  ])
+    await assert.rejects(
+      () =>
+        api.markUnknown(
+          pool,
+          "test-business",
+          id,
+          { reason: privateProviderReason, recipientIssue },
+          "reconciler",
+        ),
+      (error) => error.status === 400,
+    );
+  let issueDetail = await api.markUnknown(
+    pool,
+    "test-business",
+    id,
+    { reason: privateProviderReason, recipientIssue: issueInput },
+    "reconciler",
+  );
+  assert.deepEqual(issueDetail.recipientIssue.fields, ["phone", "email"]);
+  assert.equal(issueDetail.recipientIssue.code, "recipient_validation_failed");
+  assert.match(
+    issueDetail.recipientIssue.message,
+    /phone number, email address/,
+  );
+  assert(!JSON.stringify(issueDetail).includes(privateProviderReason));
+  assert.equal(issueDetail.creatorStatus, "error");
+  assert.equal(
+    issueDetail.status,
+    "unknown",
+    "financial state remains uncertain",
+  );
+  assert.equal(issueDetail.errorMessage, issueDetail.recipientIssue.message);
+  for (const badCorrection of [
+    {},
+    { phone: "3001234567" },
+    { email: "invalid-email" },
+    { phone: "+12" },
+    { phone: "+12025550123", countryCode: "US" },
+  ])
+    assert.equal(
+      (
+        await call(`/withdrawals/${id}/recipient-correction`, {
+          method: "POST",
+          body: badCorrection,
+        })
+      ).status,
+      400,
+    );
+  assert.equal(
+    (
+      await call(`/withdrawals/${id}/recipient-correction`, {
+        user: "other",
+        method: "POST",
+        body: { phone: "+12025550123" },
+      })
+    ).status,
+    404,
+  );
+  assert.equal(
+    (
+      await call(`/withdrawals/${id}/recipient-correction`, {
+        user: null,
+        method: "POST",
+        body: { phone: "+12025550123" },
+      })
+    ).status,
+    401,
+  );
+  const originalErrorRecipient = issueDetail.recipient;
+  const originalErrorVersion = issueDetail.version;
+  const correctionBody = {
+    phone: "+12025550123",
+    email: "corrected-recipient@example.com",
+  };
+  const pendingResponse = await call(
+    `/withdrawals/${id}/recipient-correction`,
+    { method: "POST", body: correctionBody },
+  );
+  assert.equal(
+    pendingResponse.status,
+    200,
+    "international syntax accepted without country restrictions",
+  );
+  const pending = pendingResponse.body;
+  assert.deepEqual(
+    pending.recipient,
+    originalErrorRecipient,
+    "pending edits never alter active recipient snapshot",
+  );
+  assert.equal(pending.status, "unknown");
+  assert.equal(pending.creatorStatus, "error");
+  assert.equal(pending.version, originalErrorVersion);
+  assert.equal(pending.recipientCorrection.phone, correctionBody.phone);
+  assert.equal(pending.recipientCorrection.email, correctionBody.email);
+  assert.equal(pending.recipientCorrection.hash.length, 64);
+  api.GetWithdrawalDetailResponse.parse(pending);
+  const correctionAuditCount = Number(
+    (
+      await pool.query(
+        "SELECT count(*) FROM creator_payout_events WHERE withdrawal_id=$1 AND action='recipient_correction_submitted'",
+        [id],
+      )
+    ).rows[0].count,
+  );
+  assert.deepEqual(
+    (
+      await call(`/withdrawals/${id}/recipient-correction`, {
+        method: "POST",
+        body: correctionBody,
+      })
+    ).body,
+    pending,
+  );
+  assert.equal(
+    Number(
+      (
+        await pool.query(
+          "SELECT count(*) FROM creator_payout_events WHERE withdrawal_id=$1 AND action='recipient_correction_submitted'",
+          [id],
+        )
+      ).rows[0].count,
+    ),
+    correctionAuditCount,
+  );
+  assert.deepEqual(
+    (await api.overview(pool, 1)).withdrawals.find((w) => w.id === id)
+      .recipientCorrection,
+    pending.recipientCorrection,
+  );
+  assert.deepEqual((await api.overview(pool, 1)).balances, issueBalances);
+  assert.equal(
+    (await api.overview(pool, 1)).recipient.phone,
+    originalErrorRecipient.phone,
+  );
+  await assert.rejects(
+    () =>
+      api.prepare(
+        pool,
+        "test-business",
+        id,
+        { quoteHash, evidence: "Correction cannot unlock attempt" },
+        "maker",
+      ),
+    (error) => error.status === 409,
+  );
+  api.GetWithdrawalDetailResponse.parse(issueDetail);
+  assert.deepEqual(
+    (await api.overview(pool, 1)).withdrawals.find((w) => w.id === id)
+      .recipientIssue,
+    issueDetail.recipientIssue,
+  );
+  assert.deepEqual(
+    (await api.listWithdrawals(pool, "test-business")).withdrawals.find(
+      (w) => w.id === id,
+    ).recipientIssue,
+    issueDetail.recipientIssue,
+  );
+  assert.deepEqual((await api.overview(pool, 1)).balances, issueBalances);
+  assert.equal(
+    (await call(`/withdrawals/${id}`, { user: "other" })).status,
+    404,
+  );
+  const adminIssueDetail = await api.adminWithdrawalDetail(
+    pool,
+    id,
+    "test-business",
+  );
+  assert(
+    adminIssueDetail.events.some(
+      (e) => e.evidence?.reason === privateProviderReason,
+    ),
+  );
+  issueDetail = await api.markUnknown(
+    pool,
+    "test-business",
+    id,
+    {
+      reason:
+        "Historical unstructured reason says phone rejected; must remain generic",
+    },
+    "reconciler",
+  );
+  assert.equal(
+    issueDetail.recipientIssue,
+    null,
+    "generic uncertainty supersedes earlier validation errors",
+  );
+  assert.equal(issueDetail.creatorStatus, "unknown");
+  assert.equal(issueDetail.errorMessage, null);
+  assert.equal(
+    issueDetail.recipientCorrection,
+    null,
+    "generic superseding error invalidates pending correction",
+  );
+  await assert.rejects(
+    () => api.submitRecipientCorrection(pool, 1, id, correctionBody),
+    (error) => error.status === 409,
+  );
+  assert.equal(
+    (await api.overview(pool, 1)).withdrawals.find((w) => w.id === id)
+      .recipientIssue,
+    null,
+  );
+  issueDetail = await api.markUnknown(
+    pool,
+    "test-business",
+    id,
+    {
+      reason: "Reviewed explicit rejection",
+      status: "expired",
+      recipientIssue: {
+        code: "recipient_validation_failed",
+        fields: ["name", "other"],
+      },
+    },
+    "reconciler",
+  );
+  assert.deepEqual(issueDetail.recipientIssue.fields, ["name", "other"]);
+  await assert.rejects(
+    () => api.submitRecipientCorrection(pool, 1, id, correctionBody),
+    (error) => error.status === 409,
+  );
+  assert.deepEqual((await api.overview(pool, 1)).balances, issueBalances);
+
   await assert.rejects(
     () =>
       api.humanRelease(
@@ -803,6 +1042,11 @@ try {
   );
   outcome.receiveAmount = "55000";
   await api.reconcile(pool, "test-business", id, outcome, "reconciler");
+  assert.equal(
+    (await api.withdrawalDetail(pool, id, 1)).recipientIssue,
+    null,
+    "resolved provider evidence clears creator validation alert",
+  );
   assert.equal(
     (
       await pool.query(

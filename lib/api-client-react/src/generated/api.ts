@@ -158,6 +158,7 @@ import type {
   WithdrawalQuoteApprovalInput,
   WithdrawalQuoteInput,
   WithdrawalRecipient,
+  WithdrawalRecipientCorrectionInput,
   WithdrawalRecipientInput,
   WithdrawalReconcileInput,
   WithdrawalReleaseInput,
@@ -2037,6 +2038,78 @@ export function useGetWithdrawalDetail<TData = Awaited<ReturnType<typeof getWith
 
 
 
+
+export const getSubmitWithdrawalRecipientCorrectionUrl = (id: string,) => {
+
+
+
+
+  return `/api/withdrawals/${id}/recipient-correction`
+}
+
+/**
+ * @summary Submit pending phone/email corrections for a recipient validation error; operator verification remains required
+ */
+export const submitWithdrawalRecipientCorrection = async (id: string,
+    withdrawalRecipientCorrectionInput: WithdrawalRecipientCorrectionInput, options?: RequestInit): Promise<WithdrawalDetail> => {
+
+  return customFetch<WithdrawalDetail>(getSubmitWithdrawalRecipientCorrectionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      withdrawalRecipientCorrectionInput,)
+  }
+);}
+
+
+
+
+export const getSubmitWithdrawalRecipientCorrectionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitWithdrawalRecipientCorrection>>, TError,{id: string;data: BodyType<WithdrawalRecipientCorrectionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitWithdrawalRecipientCorrection>>, TError,{id: string;data: BodyType<WithdrawalRecipientCorrectionInput>}, TContext> => {
+
+const mutationKey = ['submitWithdrawalRecipientCorrection'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitWithdrawalRecipientCorrection>>, {id: string;data: BodyType<WithdrawalRecipientCorrectionInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  submitWithdrawalRecipientCorrection(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitWithdrawalRecipientCorrectionMutationResult = NonNullable<Awaited<ReturnType<typeof submitWithdrawalRecipientCorrection>>>
+    export type SubmitWithdrawalRecipientCorrectionMutationBody = BodyType<WithdrawalRecipientCorrectionInput>
+    export type SubmitWithdrawalRecipientCorrectionMutationError = ErrorType<void>
+
+    /**
+ * @summary Submit pending phone/email corrections for a recipient validation error; operator verification remains required
+ */
+export const useSubmitWithdrawalRecipientCorrection = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitWithdrawalRecipientCorrection>>, TError,{id: string;data: BodyType<WithdrawalRecipientCorrectionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitWithdrawalRecipientCorrection>>,
+        TError,
+        {id: string;data: BodyType<WithdrawalRecipientCorrectionInput>},
+        TContext
+      > => {
+      return useMutation(getSubmitWithdrawalRecipientCorrectionMutationOptions(options));
+    }
 
 export const getApproveWithdrawalQuoteUrl = (id: string,) => {
 

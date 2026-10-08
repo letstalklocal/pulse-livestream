@@ -1165,5 +1165,16 @@
   "Your saved payment method will be used.",
   "Estimated payout",
   "Estimated total deduction: {v0}",
-  "Estimated amount received: {v0} {v1}"
+  "Estimated amount received: {v0} {v1}",
+  "Remitly could not accept the recipient phone number. Verify the country code and phone number with support.",
+  "Remitly could not accept the recipient email address. Verify the email address with support.",
+  "Remitly could not accept the recipient legal name. Verify the full legal name with support.",
+  "Remitly could not accept some recipient details. Contact support to verify them.",
+  "Your coins remain reserved. Contact support to verify or correct your recipient details before this withdrawal can continue.",
+  "Correct your phone number or email below. Your coins remain reserved.",
+  "Phone number including country code",
+  "Save corrected details",
+  "Details saved. We will check the existing transfer before continuing. Your coins remain reserved.",
+  "Enter a valid recipient email address.",
+  "Enter your phone number with country code."
 ]

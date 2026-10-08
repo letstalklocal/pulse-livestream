@@ -127,6 +127,19 @@ creator.post(
   }),
 );
 creator.post(
+  "/withdrawals/:id/recipient-correction",
+  safe(async (req, res) => {
+    res.json(
+      await w.submitRecipientCorrection(
+        pool,
+        res.locals.creatorUid,
+        String(req.params.id),
+        req.body,
+      ),
+    );
+  }),
+);
+creator.post(
   "/withdrawals/:id/cancel",
   safe(async (req, res) => {
     res.json(

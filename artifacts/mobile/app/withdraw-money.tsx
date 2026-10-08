@@ -1165,7 +1165,7 @@ export default function WithdrawMoneyScreen() {
                           >
                             <View style={{ flex: 1 }}>
                               {text(money(w.grossCents))}
-                              {text(t(withdrawalStatus(w.status)), true)}
+                              {text(t(withdrawalStatus(w.creatorStatus ?? w.status)), true)}
                               {text(
                                 new Date(w.createdAt).toLocaleDateString(
                                   appLocale(),

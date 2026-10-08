@@ -1165,5 +1165,16 @@
   "Your saved payment method will be used.": "保存された支払い方法が使用されます。",
   "Estimated payout": "送金見積もり",
   "Estimated total deduction: {v0}": "差し引かれる合計額の見積もり: {v0}",
-  "Estimated amount received: {v0} {v1}": "受取額の見積もり: {v0} {v1}"
+  "Estimated amount received: {v0} {v1}": "受取額の見積もり: {v0} {v1}",
+  "Remitly could not accept the recipient phone number. Verify the country code and phone number with support.": "Remitly は受取人の電話番号を受け付けられませんでした。サポートに連絡し、国番号と電話番号を確認してください。",
+  "Remitly could not accept the recipient email address. Verify the email address with support.": "Remitly は受取人のメールアドレスを受け付けられませんでした。サポートに連絡し、メールアドレスを確認してください。",
+  "Remitly could not accept the recipient legal name. Verify the full legal name with support.": "Remitly は受取人の正式な氏名を受け付けられませんでした。サポートに連絡し、正式な氏名の全体を確認してください。",
+  "Remitly could not accept some recipient details. Contact support to verify them.": "Remitly は受取人情報の一部を受け付けられませんでした。サポートに連絡して確認してください。",
+  "Your coins remain reserved. Contact support to verify or correct your recipient details before this withdrawal can continue.": "コインは引き続き確保されています。この出金を続行するには、サポートに連絡して受取人情報を確認または修正してください。",
+  "Correct your phone number or email below. Your coins remain reserved.": "下で電話番号またはメールアドレスを修正してください。コインは引き続き確保されています。",
+  "Phone number including country code": "国番号を含む電話番号",
+  "Save corrected details": "修正した情報を保存",
+  "Details saved. We will check the existing transfer before continuing. Your coins remain reserved.": "情報を保存しました。続行前に既存の送金を確認します。コインは引き続き確保されています。",
+  "Enter a valid recipient email address.": "有効な受取人のメールアドレスを入力してください。",
+  "Enter your phone number with country code.": "国番号を含む電話番号を入力してください。"
 }

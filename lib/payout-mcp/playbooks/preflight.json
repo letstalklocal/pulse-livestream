@@ -4,7 +4,7 @@
   "role": "all",
   "instructions": [
     "Run the role-scoped Pulse identity/health check. Require the configured HTTPS origin, environment, provider-account alias, operator ID, role and playbook version 2026-10-04.1 to match before continuing. A healthy API does not prove browser access.",
-    "Fetch the current preflight and role playbooks at the start of every run. Require workflowRevision 2026-10-07.1 for the initial-request consent flow; the compatible MCP/profile version remains 2026-10-04.1. Do not rely on cached prompts that wait for creator quote approval.",
+    "Fetch the current preflight and role playbooks at the start of every run. Require workflowRevision 2026-10-08.1 for initial-request consent and structured recipient validation errors; the compatible MCP/profile version remains 2026-10-04.1. Do not rely on cached prompts that wait for creator quote approval.",
     "Use one role credential in this job. Maker and checker must be different authorized operators; an agent must not check work that it prepared by switching credentials.",
     "Check whether preparation is paused. Maker/checker stop while paused; reconciliation may inspect existing outcomes. Never disable the pause yourself.",
     "Confirm an actually available authenticated browser capability in this local Codex session. If absent, report blocked browser access and stop. Do not pretend a browser or Remitly API exists.",
@@ -15,9 +15,10 @@
     "Inspect Remitly homepage, pending/scheduled drafts and activity history over the explicitly recorded coverage window. Match existing provider draft/activity/reference IDs to backend attempts before considering a new provider action.",
     "Never send or issue a recipient payment link. Never click Send, Review and send, release, confirm funding or any final action. If a first-time link flow cannot save a reviewable draft without issuance, record the limitation and stop for the human.",
     "Write browser evidence only to protected backend audit fields. Local logs and automation summaries contain counts/status/error codes only; no recipient data, payout URLs, screenshots, wallet amounts, session information or bearer tokens.",
+    "If Remitly explicitly rejects the saved recipient phone, email, legal name or other details after preparation starts, record unknown with protected reason and recipientIssue={code: recipient_validation_failed, fields: [phone|email|name|other]} including only the rejected fields. Pulse returns creatorStatus=error and safe field-specific errorMessage. Remitly handles country/phone validity; no new country-code validation is imposed. Keep coins reserved. The creator may save a pending phone/email correction, but the maker must not apply it, create another contact or restart preparation until reconciler recovery resolves the existing provider attempt. Do not expose raw provider text, contact values or session details as public messages.",
     "On uncertainty after a possible provider action, preserve the reservation, mark the attempt unknown with factual evidence and stop. Inspect provider history before any retry. End the run with a redacted heartbeat/summary and release the browser lease only after browser work is stopped."
   ],
   "humanFinalDecisionRequired": true,
   "autoSendAllowed": false,
-  "workflowRevision": "2026-10-07.1"
+  "workflowRevision": "2026-10-08.1"
 }

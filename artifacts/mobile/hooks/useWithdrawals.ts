@@ -254,6 +254,15 @@ export function useWithdrawals(id?: string) {
     await refresh();
     return result;
   };
+  const correctRecipient = async (data: { phone?: string; email?: string }) => {
+    const result = await request<WithdrawalDetail>(
+      `/withdrawals/${encodeURIComponent(id!)}/recipient-correction`,
+      "POST",
+      data,
+    );
+    await refresh();
+    return result;
+  };
   const statement = () =>
     request<string>(
       `/withdrawals/${encodeURIComponent(id!)}/statement`,
@@ -271,6 +280,7 @@ export function useWithdrawals(id?: string) {
     saveRecipient,
     submit,
     statement,
+    correctRecipient,
     cancel,
     pending,
     pendingReady,

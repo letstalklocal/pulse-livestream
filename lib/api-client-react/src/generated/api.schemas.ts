@@ -283,6 +283,66 @@ export const CreatorWithdrawalProviderOnboardingStatus = {
   ready: 'ready',
 } as const;
 
+export type WithdrawalRecipientIssueCode = typeof WithdrawalRecipientIssueCode[keyof typeof WithdrawalRecipientIssueCode];
+
+
+export const WithdrawalRecipientIssueCode = {
+  recipient_validation_failed: 'recipient_validation_failed',
+} as const;
+
+export type WithdrawalRecipientIssueFieldsItem = typeof WithdrawalRecipientIssueFieldsItem[keyof typeof WithdrawalRecipientIssueFieldsItem];
+
+
+export const WithdrawalRecipientIssueFieldsItem = {
+  phone: 'phone',
+  email: 'email',
+  name: 'name',
+  other: 'other',
+} as const;
+
+export interface WithdrawalRecipientIssue {
+  code: WithdrawalRecipientIssueCode;
+  /**
+     * @minItems 1
+     * @maxItems 4
+     */
+  fields: WithdrawalRecipientIssueFieldsItem[];
+  /** Server-generated safe explanation; never raw provider evidence. */
+  message: string;
+}
+
+export type CreatorWithdrawalCreatorStatus = typeof CreatorWithdrawalCreatorStatus[keyof typeof CreatorWithdrawalCreatorStatus];
+
+
+export const CreatorWithdrawalCreatorStatus = {
+  awaiting_quote: 'awaiting_quote',
+  awaiting_confirmation: 'awaiting_confirmation',
+  requested: 'requested',
+  preparing: 'preparing',
+  awaiting_human_review: 'awaiting_human_review',
+  awaiting_recipient: 'awaiting_recipient',
+  processing: 'processing',
+  delivered: 'delivered',
+  failed: 'failed',
+  canceled: 'canceled',
+  expired: 'expired',
+  returned: 'returned',
+  unknown: 'unknown',
+  error: 'error',
+} as const;
+
+export interface WithdrawalRecipientCorrection {
+  /**
+     * @maxLength 20
+     * @pattern ^\+\d{8,15}$
+     */
+  phone: string;
+  /** @maxLength 254 */
+  email: string;
+  hash: string;
+  requestedAt: string;
+}
+
 export interface CreatorWithdrawal {
   id: string;
   userId: number;
@@ -307,6 +367,10 @@ export interface CreatorWithdrawal {
   version: number;
   createdAt: string;
   updatedAt: string;
+  recipientIssue?: WithdrawalRecipientIssue | null;
+  creatorStatus?: CreatorWithdrawalCreatorStatus;
+  errorMessage?: string | null;
+  recipientCorrection?: WithdrawalRecipientCorrection | null;
 }
 
 export type AdminWithdrawalSummary = CreatorWithdrawal & ({
@@ -423,6 +487,32 @@ export const WithdrawalInvestigationInputStatus = {
   expired: 'expired',
 } as const;
 
+export type WithdrawalRecipientIssueInputCode = typeof WithdrawalRecipientIssueInputCode[keyof typeof WithdrawalRecipientIssueInputCode];
+
+
+export const WithdrawalRecipientIssueInputCode = {
+  recipient_validation_failed: 'recipient_validation_failed',
+} as const;
+
+export type WithdrawalRecipientIssueInputFieldsItem = typeof WithdrawalRecipientIssueInputFieldsItem[keyof typeof WithdrawalRecipientIssueInputFieldsItem];
+
+
+export const WithdrawalRecipientIssueInputFieldsItem = {
+  phone: 'phone',
+  email: 'email',
+  name: 'name',
+  other: 'other',
+} as const;
+
+export interface WithdrawalRecipientIssueInput {
+  code: WithdrawalRecipientIssueInputCode;
+  /**
+     * @minItems 1
+     * @maxItems 4
+     */
+  fields: WithdrawalRecipientIssueInputFieldsItem[];
+}
+
 export interface WithdrawalInvestigationInput {
   /**
      * @minLength 1
@@ -430,6 +520,7 @@ export interface WithdrawalInvestigationInput {
      */
   reason: string;
   status?: WithdrawalInvestigationInputStatus;
+  recipientIssue?: WithdrawalRecipientIssueInput;
 }
 
 export interface PayoutOperatorUnknownInput {
@@ -2073,6 +2164,19 @@ export interface PayoutFeeObservationInput {
 export interface PayoutFeeObservationResult {
   id: string;
   inserted: boolean;
+}
+
+/**
+ * At least one phone/email correction required. Does not change the active recipient snapshot or release reserved coins.
+ */
+export interface WithdrawalRecipientCorrectionInput {
+  /**
+     * @maxLength 20
+     * @pattern ^\+\d{8,15}$
+     */
+  phone?: string;
+  /** @maxLength 254 */
+  email?: string;
 }
 
 export type ListPayoutOperatorWithdrawalsParams = {

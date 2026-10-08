@@ -123,6 +123,14 @@ export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneQuoteOneProv
 
 export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneCheckerOneEvidenceMax = 5000;
 
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneRecipientIssueOneFieldsMax = 4;
+
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneRecipientCorrectionOneEmailMax = 254;
+
 
 
 export const ListPayoutOperatorWithdrawalsResponse = zod.object({
@@ -185,7 +193,20 @@ export const ListPayoutOperatorWithdrawalsResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneRecipientCorrectionOnePhoneMax).regex(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "creatorName": zod.string(),
   "reviewDeadline": zod.string().nullable(),
@@ -229,6 +250,14 @@ export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneProviderMinimumSen
 export const getPayoutOperatorWithdrawalResponseOneOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const getPayoutOperatorWithdrawalResponseOneOneCheckerOneEvidenceMax = 5000;
+
+export const getPayoutOperatorWithdrawalResponseOneOneRecipientIssueOneFieldsMax = 4;
+
+export const getPayoutOperatorWithdrawalResponseOneOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const getPayoutOperatorWithdrawalResponseOneOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const getPayoutOperatorWithdrawalResponseOneOneRecipientCorrectionOneEmailMax = 254;
 
 export const getPayoutOperatorWithdrawalResponseTwoBalancesAvailableTicksRegExp = new RegExp('^\\d+$');
 export const getPayoutOperatorWithdrawalResponseTwoBalancesHeldTicksRegExp = new RegExp('^\\d+$');
@@ -300,7 +329,20 @@ export const GetPayoutOperatorWithdrawalResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(getPayoutOperatorWithdrawalResponseOneOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(getPayoutOperatorWithdrawalResponseOneOneRecipientCorrectionOnePhoneMax).regex(getPayoutOperatorWithdrawalResponseOneOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(getPayoutOperatorWithdrawalResponseOneOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -525,6 +567,14 @@ export const recordPayoutOperatorQuoteResponseOneQuoteOneProviderMinimumSendCent
 
 export const recordPayoutOperatorQuoteResponseOneCheckerOneEvidenceMax = 5000;
 
+export const recordPayoutOperatorQuoteResponseOneRecipientIssueOneFieldsMax = 4;
+
+export const recordPayoutOperatorQuoteResponseOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const recordPayoutOperatorQuoteResponseOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const recordPayoutOperatorQuoteResponseOneRecipientCorrectionOneEmailMax = 254;
+
 
 
 export const RecordPayoutOperatorQuoteResponse = zod.object({
@@ -586,7 +636,20 @@ export const RecordPayoutOperatorQuoteResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(recordPayoutOperatorQuoteResponseOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(recordPayoutOperatorQuoteResponseOneRecipientCorrectionOnePhoneMax).regex(recordPayoutOperatorQuoteResponseOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(recordPayoutOperatorQuoteResponseOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -639,6 +702,14 @@ export const beginPayoutOperatorPreparationResponseOneOneQuoteOneProviderMinimum
 export const beginPayoutOperatorPreparationResponseOneOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const beginPayoutOperatorPreparationResponseOneOneCheckerOneEvidenceMax = 5000;
+
+export const beginPayoutOperatorPreparationResponseOneOneRecipientIssueOneFieldsMax = 4;
+
+export const beginPayoutOperatorPreparationResponseOneOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const beginPayoutOperatorPreparationResponseOneOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const beginPayoutOperatorPreparationResponseOneOneRecipientCorrectionOneEmailMax = 254;
 
 
 
@@ -701,7 +772,20 @@ export const BeginPayoutOperatorPreparationResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(beginPayoutOperatorPreparationResponseOneOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(beginPayoutOperatorPreparationResponseOneOneRecipientCorrectionOnePhoneMax).regex(beginPayoutOperatorPreparationResponseOneOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(beginPayoutOperatorPreparationResponseOneOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -768,6 +852,14 @@ export const recordPayoutOperatorPreparationResponseOneQuoteOneProviderMinimumSe
 
 export const recordPayoutOperatorPreparationResponseOneCheckerOneEvidenceMax = 5000;
 
+export const recordPayoutOperatorPreparationResponseOneRecipientIssueOneFieldsMax = 4;
+
+export const recordPayoutOperatorPreparationResponseOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const recordPayoutOperatorPreparationResponseOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const recordPayoutOperatorPreparationResponseOneRecipientCorrectionOneEmailMax = 254;
+
 
 
 export const RecordPayoutOperatorPreparationResponse = zod.object({
@@ -829,7 +921,20 @@ export const RecordPayoutOperatorPreparationResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(recordPayoutOperatorPreparationResponseOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(recordPayoutOperatorPreparationResponseOneRecipientCorrectionOnePhoneMax).regex(recordPayoutOperatorPreparationResponseOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(recordPayoutOperatorPreparationResponseOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -890,6 +995,14 @@ export const checkPayoutOperatorPreparationResponseOneQuoteOneProviderMinimumSen
 export const checkPayoutOperatorPreparationResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const checkPayoutOperatorPreparationResponseOneCheckerOneEvidenceMax = 5000;
+
+export const checkPayoutOperatorPreparationResponseOneRecipientIssueOneFieldsMax = 4;
+
+export const checkPayoutOperatorPreparationResponseOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const checkPayoutOperatorPreparationResponseOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const checkPayoutOperatorPreparationResponseOneRecipientCorrectionOneEmailMax = 254;
 
 
 
@@ -952,7 +1065,20 @@ export const CheckPayoutOperatorPreparationResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(checkPayoutOperatorPreparationResponseOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(checkPayoutOperatorPreparationResponseOneRecipientCorrectionOnePhoneMax).regex(checkPayoutOperatorPreparationResponseOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(checkPayoutOperatorPreparationResponseOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -1031,6 +1157,14 @@ export const reconcilePayoutOperatorWithdrawalResponseOneQuoteOneProviderMinimum
 
 export const reconcilePayoutOperatorWithdrawalResponseOneCheckerOneEvidenceMax = 5000;
 
+export const reconcilePayoutOperatorWithdrawalResponseOneRecipientIssueOneFieldsMax = 4;
+
+export const reconcilePayoutOperatorWithdrawalResponseOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const reconcilePayoutOperatorWithdrawalResponseOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const reconcilePayoutOperatorWithdrawalResponseOneRecipientCorrectionOneEmailMax = 254;
+
 
 
 export const ReconcilePayoutOperatorWithdrawalResponse = zod.object({
@@ -1092,7 +1226,20 @@ export const ReconcilePayoutOperatorWithdrawalResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(reconcilePayoutOperatorWithdrawalResponseOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(reconcilePayoutOperatorWithdrawalResponseOneRecipientCorrectionOnePhoneMax).regex(reconcilePayoutOperatorWithdrawalResponseOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(reconcilePayoutOperatorWithdrawalResponseOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -1146,6 +1293,14 @@ export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneProviderMi
 export const renewPayoutOperatorPreparationLeaseResponseOneOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const renewPayoutOperatorPreparationLeaseResponseOneOneCheckerOneEvidenceMax = 5000;
+
+export const renewPayoutOperatorPreparationLeaseResponseOneOneRecipientIssueOneFieldsMax = 4;
+
+export const renewPayoutOperatorPreparationLeaseResponseOneOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const renewPayoutOperatorPreparationLeaseResponseOneOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const renewPayoutOperatorPreparationLeaseResponseOneOneRecipientCorrectionOneEmailMax = 254;
 
 export const renewPayoutOperatorPreparationLeaseResponseTwoBalancesAvailableTicksRegExp = new RegExp('^\\d+$');
 export const renewPayoutOperatorPreparationLeaseResponseTwoBalancesHeldTicksRegExp = new RegExp('^\\d+$');
@@ -1217,7 +1372,20 @@ export const RenewPayoutOperatorPreparationLeaseResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(renewPayoutOperatorPreparationLeaseResponseOneOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(renewPayoutOperatorPreparationLeaseResponseOneOneRecipientCorrectionOnePhoneMax).regex(renewPayoutOperatorPreparationLeaseResponseOneOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(renewPayoutOperatorPreparationLeaseResponseOneOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -1303,6 +1471,14 @@ export const releasePayoutOperatorPreparationLeaseResponseOneOneQuoteOneProvider
 
 export const releasePayoutOperatorPreparationLeaseResponseOneOneCheckerOneEvidenceMax = 5000;
 
+export const releasePayoutOperatorPreparationLeaseResponseOneOneRecipientIssueOneFieldsMax = 4;
+
+export const releasePayoutOperatorPreparationLeaseResponseOneOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const releasePayoutOperatorPreparationLeaseResponseOneOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const releasePayoutOperatorPreparationLeaseResponseOneOneRecipientCorrectionOneEmailMax = 254;
+
 export const releasePayoutOperatorPreparationLeaseResponseTwoBalancesAvailableTicksRegExp = new RegExp('^\\d+$');
 export const releasePayoutOperatorPreparationLeaseResponseTwoBalancesHeldTicksRegExp = new RegExp('^\\d+$');
 export const releasePayoutOperatorPreparationLeaseResponseTwoBalancesReservedTicksRegExp = new RegExp('^\\d+$');
@@ -1373,7 +1549,20 @@ export const ReleasePayoutOperatorPreparationLeaseResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(releasePayoutOperatorPreparationLeaseResponseOneOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(releasePayoutOperatorPreparationLeaseResponseOneOneRecipientCorrectionOnePhoneMax).regex(releasePayoutOperatorPreparationLeaseResponseOneOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(releasePayoutOperatorPreparationLeaseResponseOneOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -1423,12 +1612,18 @@ export const MarkPayoutOperatorUnknownParams = zod.object({
 
 export const markPayoutOperatorUnknownBodyDataReasonMax = 5000;
 
+export const markPayoutOperatorUnknownBodyDataRecipientIssueFieldsMax = 4;
+
 
 
 export const MarkPayoutOperatorUnknownBody = zod.object({
   "data": zod.object({
   "reason": zod.string().min(1).max(markPayoutOperatorUnknownBodyDataReasonMax),
-  "status": zod.enum(['unknown', 'expired']).optional()
+  "status": zod.enum(['unknown', 'expired']).optional(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(markPayoutOperatorUnknownBodyDataRecipientIssueFieldsMax)
+}).optional()
 })
 })
 
@@ -1456,6 +1651,14 @@ export const markPayoutOperatorUnknownResponseOneQuoteOneProviderMinimumSendCent
 export const markPayoutOperatorUnknownResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const markPayoutOperatorUnknownResponseOneCheckerOneEvidenceMax = 5000;
+
+export const markPayoutOperatorUnknownResponseOneRecipientIssueOneFieldsMax = 4;
+
+export const markPayoutOperatorUnknownResponseOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const markPayoutOperatorUnknownResponseOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const markPayoutOperatorUnknownResponseOneRecipientCorrectionOneEmailMax = 254;
 
 
 
@@ -1518,7 +1721,20 @@ export const MarkPayoutOperatorUnknownResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(markPayoutOperatorUnknownResponseOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(markPayoutOperatorUnknownResponseOneRecipientCorrectionOnePhoneMax).regex(markPayoutOperatorUnknownResponseOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(markPayoutOperatorUnknownResponseOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -1579,6 +1795,14 @@ export const getWithdrawalOverviewResponseWithdrawalsItemQuoteOneProviderMinimum
 export const getWithdrawalOverviewResponseWithdrawalsItemQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const getWithdrawalOverviewResponseWithdrawalsItemCheckerOneEvidenceMax = 5000;
+
+export const getWithdrawalOverviewResponseWithdrawalsItemRecipientIssueOneFieldsMax = 4;
+
+export const getWithdrawalOverviewResponseWithdrawalsItemRecipientCorrectionOnePhoneMax = 20;
+
+
+export const getWithdrawalOverviewResponseWithdrawalsItemRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const getWithdrawalOverviewResponseWithdrawalsItemRecipientCorrectionOneEmailMax = 254;
 
 
 
@@ -1674,7 +1898,20 @@ export const GetWithdrawalOverviewResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(getWithdrawalOverviewResponseWithdrawalsItemRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(getWithdrawalOverviewResponseWithdrawalsItemRecipientCorrectionOnePhoneMax).regex(getWithdrawalOverviewResponseWithdrawalsItemRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(getWithdrawalOverviewResponseWithdrawalsItemRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }))
 })
 
@@ -1791,6 +2028,14 @@ export const getWithdrawalDetailResponseOneQuoteOneProviderMinimumSendCentsMax =
 
 export const getWithdrawalDetailResponseOneCheckerOneEvidenceMax = 5000;
 
+export const getWithdrawalDetailResponseOneRecipientIssueOneFieldsMax = 4;
+
+export const getWithdrawalDetailResponseOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const getWithdrawalDetailResponseOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const getWithdrawalDetailResponseOneRecipientCorrectionOneEmailMax = 254;
+
 
 
 export const GetWithdrawalDetailResponse = zod.object({
@@ -1852,7 +2097,156 @@ export const GetWithdrawalDetailResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(getWithdrawalDetailResponseOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(getWithdrawalDetailResponseOneRecipientCorrectionOnePhoneMax).regex(getWithdrawalDetailResponseOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(getWithdrawalDetailResponseOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
+}).and(zod.object({
+  "history": zod.array(zod.object({
+  "action": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Submit pending phone/email corrections for a recipient validation error; operator verification remains required
+ */
+export const SubmitWithdrawalRecipientCorrectionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const submitWithdrawalRecipientCorrectionBodyPhoneMax = 20;
+
+
+export const submitWithdrawalRecipientCorrectionBodyPhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const submitWithdrawalRecipientCorrectionBodyEmailMax = 254;
+
+
+
+export const SubmitWithdrawalRecipientCorrectionBody = zod.object({
+  "phone": zod.string().max(submitWithdrawalRecipientCorrectionBodyPhoneMax).regex(submitWithdrawalRecipientCorrectionBodyPhoneRegExp).optional(),
+  "email": zod.string().max(submitWithdrawalRecipientCorrectionBodyEmailMax).optional()
+}).describe('At least one phone\/email correction required. Does not change the active recipient snapshot or release reserved coins.')
+
+export const submitWithdrawalRecipientCorrectionResponseOneGrossCentsMin = 1500;
+export const submitWithdrawalRecipientCorrectionResponseOneGrossCentsMax = 50000;
+
+export const submitWithdrawalRecipientCorrectionResponseOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+export const submitWithdrawalRecipientCorrectionResponseOneQuoteOneSendAmountCentsMin = 0;
+export const submitWithdrawalRecipientCorrectionResponseOneQuoteOneSendAmountCentsMax = 50000;
+
+export const submitWithdrawalRecipientCorrectionResponseOneQuoteOneFeeCentsMin = 0;
+export const submitWithdrawalRecipientCorrectionResponseOneQuoteOneFeeCentsMax = 50000;
+
+export const submitWithdrawalRecipientCorrectionResponseOneQuoteOneTaxCentsMin = 0;
+export const submitWithdrawalRecipientCorrectionResponseOneQuoteOneTaxCentsMax = 50000;
+
+export const submitWithdrawalRecipientCorrectionResponseOneQuoteOnePromotionalDiscountCentsMin = 0;
+export const submitWithdrawalRecipientCorrectionResponseOneQuoteOnePromotionalDiscountCentsMax = 50000;
+
+export const submitWithdrawalRecipientCorrectionResponseOneQuoteOneTotalEarningsDeductedCentsMin = 0;
+export const submitWithdrawalRecipientCorrectionResponseOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
+
+export const submitWithdrawalRecipientCorrectionResponseOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
+export const submitWithdrawalRecipientCorrectionResponseOneQuoteOneProviderMinimumSendCentsMin = 0;
+export const submitWithdrawalRecipientCorrectionResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
+
+export const submitWithdrawalRecipientCorrectionResponseOneCheckerOneEvidenceMax = 5000;
+
+export const submitWithdrawalRecipientCorrectionResponseOneRecipientIssueOneFieldsMax = 4;
+
+export const submitWithdrawalRecipientCorrectionResponseOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const submitWithdrawalRecipientCorrectionResponseOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const submitWithdrawalRecipientCorrectionResponseOneRecipientCorrectionOneEmailMax = 254;
+
+
+
+export const SubmitWithdrawalRecipientCorrectionResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.number(),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "grossCents": zod.number().min(submitWithdrawalRecipientCorrectionResponseOneGrossCentsMin).max(submitWithdrawalRecipientCorrectionResponseOneGrossCentsMax),
+  "methodId": zod.string(),
+  "recipient": zod.object({
+  "legalFirstName": zod.string(),
+  "legalLastName": zod.string(),
+  "secondSurname": zod.string().nullish(),
+  "countryCode": zod.string().regex(submitWithdrawalRecipientCorrectionResponseOneRecipientCountryCodeRegExp),
+  "email": zod.string(),
+  "phone": zod.string(),
+  "revision": zod.number().optional(),
+  "status": zod.enum(['contact_saved']).optional()
+}),
+  "route": zod.object({
+  "providerId": zod.string(),
+  "provider": zod.string(),
+  "countryCode": zod.string(),
+  "country": zod.string(),
+  "method": zod.string(),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string()
+}),
+  "quote": zod.object({
+  "hash": zod.string(),
+  "methodId": zod.string(),
+  "sendAmountCents": zod.number().min(submitWithdrawalRecipientCorrectionResponseOneQuoteOneSendAmountCentsMin).max(submitWithdrawalRecipientCorrectionResponseOneQuoteOneSendAmountCentsMax),
+  "feeCents": zod.number().min(submitWithdrawalRecipientCorrectionResponseOneQuoteOneFeeCentsMin).max(submitWithdrawalRecipientCorrectionResponseOneQuoteOneFeeCentsMax),
+  "taxCents": zod.number().min(submitWithdrawalRecipientCorrectionResponseOneQuoteOneTaxCentsMin).max(submitWithdrawalRecipientCorrectionResponseOneQuoteOneTaxCentsMax),
+  "promotionalDiscountCents": zod.number().min(submitWithdrawalRecipientCorrectionResponseOneQuoteOnePromotionalDiscountCentsMin).max(submitWithdrawalRecipientCorrectionResponseOneQuoteOnePromotionalDiscountCentsMax),
+  "totalEarningsDeductedCents": zod.number().min(submitWithdrawalRecipientCorrectionResponseOneQuoteOneTotalEarningsDeductedCentsMin).max(submitWithdrawalRecipientCorrectionResponseOneQuoteOneTotalEarningsDeductedCentsMax),
+  "receiveAmount": zod.string().regex(submitWithdrawalRecipientCorrectionResponseOneQuoteOneReceiveAmountRegExp),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string(),
+  "providerMinimumSendCents": zod.number().min(submitWithdrawalRecipientCorrectionResponseOneQuoteOneProviderMinimumSendCentsMin).max(submitWithdrawalRecipientCorrectionResponseOneQuoteOneProviderMinimumSendCentsMax),
+  "source": zod.enum(['signed_in_remitly_business']),
+  "sourceUrl": zod.string(),
+  "observedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "recipientHash": zod.string(),
+  "evidenceHash": zod.string()
+}).nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
+  "checker": zod.object({
+  "status": zod.enum(['passed', 'needs_attention']),
+  "checkedAt": zod.coerce.date(),
+  "actor": zod.string().optional(),
+  "bindingHash": zod.string().optional(),
+  "attemptId": zod.string().optional(),
+  "quoteHash": zod.string().optional(),
+  "evidence": zod.string().min(1).max(submitWithdrawalRecipientCorrectionResponseOneCheckerOneEvidenceMax).optional(),
+  "historyCoverage": zod.string().optional()
+}).nullable(),
+  "providerLink": zod.string().nullable(),
+  "providerOnboardingStatus": zod.enum(['pending', 'ready']),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(submitWithdrawalRecipientCorrectionResponseOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(submitWithdrawalRecipientCorrectionResponseOneRecipientCorrectionOnePhoneMax).regex(submitWithdrawalRecipientCorrectionResponseOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(submitWithdrawalRecipientCorrectionResponseOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -1898,6 +2292,14 @@ export const approveWithdrawalQuoteResponseOneQuoteOneProviderMinimumSendCentsMi
 export const approveWithdrawalQuoteResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const approveWithdrawalQuoteResponseOneCheckerOneEvidenceMax = 5000;
+
+export const approveWithdrawalQuoteResponseOneRecipientIssueOneFieldsMax = 4;
+
+export const approveWithdrawalQuoteResponseOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const approveWithdrawalQuoteResponseOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const approveWithdrawalQuoteResponseOneRecipientCorrectionOneEmailMax = 254;
 
 
 
@@ -1960,7 +2362,20 @@ export const ApproveWithdrawalQuoteResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(approveWithdrawalQuoteResponseOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(approveWithdrawalQuoteResponseOneRecipientCorrectionOnePhoneMax).regex(approveWithdrawalQuoteResponseOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(approveWithdrawalQuoteResponseOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -2001,6 +2416,14 @@ export const cancelUnpreparedWithdrawalResponseOneQuoteOneProviderMinimumSendCen
 export const cancelUnpreparedWithdrawalResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const cancelUnpreparedWithdrawalResponseOneCheckerOneEvidenceMax = 5000;
+
+export const cancelUnpreparedWithdrawalResponseOneRecipientIssueOneFieldsMax = 4;
+
+export const cancelUnpreparedWithdrawalResponseOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const cancelUnpreparedWithdrawalResponseOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const cancelUnpreparedWithdrawalResponseOneRecipientCorrectionOneEmailMax = 254;
 
 
 
@@ -2063,7 +2486,20 @@ export const CancelUnpreparedWithdrawalResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(cancelUnpreparedWithdrawalResponseOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(cancelUnpreparedWithdrawalResponseOneRecipientCorrectionOnePhoneMax).regex(cancelUnpreparedWithdrawalResponseOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(cancelUnpreparedWithdrawalResponseOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -2109,6 +2545,14 @@ export const listAdminWithdrawalsResponseWithdrawalsItemOneQuoteOneProviderMinim
 export const listAdminWithdrawalsResponseWithdrawalsItemOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const listAdminWithdrawalsResponseWithdrawalsItemOneCheckerOneEvidenceMax = 5000;
+
+export const listAdminWithdrawalsResponseWithdrawalsItemOneRecipientIssueOneFieldsMax = 4;
+
+export const listAdminWithdrawalsResponseWithdrawalsItemOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const listAdminWithdrawalsResponseWithdrawalsItemOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const listAdminWithdrawalsResponseWithdrawalsItemOneRecipientCorrectionOneEmailMax = 254;
 
 
 
@@ -2173,7 +2617,20 @@ export const ListAdminWithdrawalsResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(listAdminWithdrawalsResponseWithdrawalsItemOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(listAdminWithdrawalsResponseWithdrawalsItemOneRecipientCorrectionOnePhoneMax).regex(listAdminWithdrawalsResponseWithdrawalsItemOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(listAdminWithdrawalsResponseWithdrawalsItemOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "creatorName": zod.string(),
   "reviewDeadline": zod.string().nullable(),
@@ -2314,6 +2771,14 @@ export const getAdminWithdrawalDetailResponseOneOneQuoteOneProviderMinimumSendCe
 
 export const getAdminWithdrawalDetailResponseOneOneCheckerOneEvidenceMax = 5000;
 
+export const getAdminWithdrawalDetailResponseOneOneRecipientIssueOneFieldsMax = 4;
+
+export const getAdminWithdrawalDetailResponseOneOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const getAdminWithdrawalDetailResponseOneOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const getAdminWithdrawalDetailResponseOneOneRecipientCorrectionOneEmailMax = 254;
+
 export const getAdminWithdrawalDetailResponseTwoBalancesAvailableTicksRegExp = new RegExp('^\\d+$');
 export const getAdminWithdrawalDetailResponseTwoBalancesHeldTicksRegExp = new RegExp('^\\d+$');
 export const getAdminWithdrawalDetailResponseTwoBalancesReservedTicksRegExp = new RegExp('^\\d+$');
@@ -2384,7 +2849,20 @@ export const GetAdminWithdrawalDetailResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(getAdminWithdrawalDetailResponseOneOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(getAdminWithdrawalDetailResponseOneOneRecipientCorrectionOnePhoneMax).regex(getAdminWithdrawalDetailResponseOneOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(getAdminWithdrawalDetailResponseOneOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -2494,6 +2972,14 @@ export const recordWithdrawalQuoteResponseOneQuoteOneProviderMinimumSendCentsMax
 
 export const recordWithdrawalQuoteResponseOneCheckerOneEvidenceMax = 5000;
 
+export const recordWithdrawalQuoteResponseOneRecipientIssueOneFieldsMax = 4;
+
+export const recordWithdrawalQuoteResponseOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const recordWithdrawalQuoteResponseOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const recordWithdrawalQuoteResponseOneRecipientCorrectionOneEmailMax = 254;
+
 
 
 export const RecordWithdrawalQuoteResponse = zod.object({
@@ -2555,7 +3041,20 @@ export const RecordWithdrawalQuoteResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(recordWithdrawalQuoteResponseOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(recordWithdrawalQuoteResponseOneRecipientCorrectionOnePhoneMax).regex(recordWithdrawalQuoteResponseOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(recordWithdrawalQuoteResponseOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -2605,6 +3104,14 @@ export const beginWithdrawalPreparationResponseOneOneQuoteOneProviderMinimumSend
 export const beginWithdrawalPreparationResponseOneOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const beginWithdrawalPreparationResponseOneOneCheckerOneEvidenceMax = 5000;
+
+export const beginWithdrawalPreparationResponseOneOneRecipientIssueOneFieldsMax = 4;
+
+export const beginWithdrawalPreparationResponseOneOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const beginWithdrawalPreparationResponseOneOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const beginWithdrawalPreparationResponseOneOneRecipientCorrectionOneEmailMax = 254;
 
 
 
@@ -2667,7 +3174,20 @@ export const BeginWithdrawalPreparationResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(beginWithdrawalPreparationResponseOneOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(beginWithdrawalPreparationResponseOneOneRecipientCorrectionOnePhoneMax).regex(beginWithdrawalPreparationResponseOneOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(beginWithdrawalPreparationResponseOneOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -2731,6 +3251,14 @@ export const recordWithdrawalPreparationResponseOneQuoteOneProviderMinimumSendCe
 
 export const recordWithdrawalPreparationResponseOneCheckerOneEvidenceMax = 5000;
 
+export const recordWithdrawalPreparationResponseOneRecipientIssueOneFieldsMax = 4;
+
+export const recordWithdrawalPreparationResponseOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const recordWithdrawalPreparationResponseOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const recordWithdrawalPreparationResponseOneRecipientCorrectionOneEmailMax = 254;
+
 
 
 export const RecordWithdrawalPreparationResponse = zod.object({
@@ -2792,7 +3320,20 @@ export const RecordWithdrawalPreparationResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(recordWithdrawalPreparationResponseOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(recordWithdrawalPreparationResponseOneRecipientCorrectionOnePhoneMax).regex(recordWithdrawalPreparationResponseOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(recordWithdrawalPreparationResponseOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -2850,6 +3391,14 @@ export const checkWithdrawalPreparationResponseOneQuoteOneProviderMinimumSendCen
 export const checkWithdrawalPreparationResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const checkWithdrawalPreparationResponseOneCheckerOneEvidenceMax = 5000;
+
+export const checkWithdrawalPreparationResponseOneRecipientIssueOneFieldsMax = 4;
+
+export const checkWithdrawalPreparationResponseOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const checkWithdrawalPreparationResponseOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const checkWithdrawalPreparationResponseOneRecipientCorrectionOneEmailMax = 254;
 
 
 
@@ -2912,7 +3461,20 @@ export const CheckWithdrawalPreparationResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(checkWithdrawalPreparationResponseOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(checkWithdrawalPreparationResponseOneRecipientCorrectionOnePhoneMax).regex(checkWithdrawalPreparationResponseOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(checkWithdrawalPreparationResponseOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -2966,6 +3528,14 @@ export const recordHumanWithdrawalReleaseResponseOneQuoteOneProviderMinimumSendC
 export const recordHumanWithdrawalReleaseResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const recordHumanWithdrawalReleaseResponseOneCheckerOneEvidenceMax = 5000;
+
+export const recordHumanWithdrawalReleaseResponseOneRecipientIssueOneFieldsMax = 4;
+
+export const recordHumanWithdrawalReleaseResponseOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const recordHumanWithdrawalReleaseResponseOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const recordHumanWithdrawalReleaseResponseOneRecipientCorrectionOneEmailMax = 254;
 
 
 
@@ -3028,7 +3598,20 @@ export const RecordHumanWithdrawalReleaseResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(recordHumanWithdrawalReleaseResponseOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(recordHumanWithdrawalReleaseResponseOneRecipientCorrectionOnePhoneMax).regex(recordHumanWithdrawalReleaseResponseOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(recordHumanWithdrawalReleaseResponseOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -3077,6 +3660,14 @@ export const declineWithdrawalResponseOneQuoteOneProviderMinimumSendCentsMin = 0
 export const declineWithdrawalResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const declineWithdrawalResponseOneCheckerOneEvidenceMax = 5000;
+
+export const declineWithdrawalResponseOneRecipientIssueOneFieldsMax = 4;
+
+export const declineWithdrawalResponseOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const declineWithdrawalResponseOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const declineWithdrawalResponseOneRecipientCorrectionOneEmailMax = 254;
 
 
 
@@ -3139,7 +3730,20 @@ export const DeclineWithdrawalResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(declineWithdrawalResponseOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(declineWithdrawalResponseOneRecipientCorrectionOnePhoneMax).regex(declineWithdrawalResponseOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(declineWithdrawalResponseOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -3158,11 +3762,17 @@ export const MarkWithdrawalInvestigationParams = zod.object({
 
 export const markWithdrawalInvestigationBodyReasonMax = 5000;
 
+export const markWithdrawalInvestigationBodyRecipientIssueFieldsMax = 4;
+
 
 
 export const MarkWithdrawalInvestigationBody = zod.object({
   "reason": zod.string().min(1).max(markWithdrawalInvestigationBodyReasonMax),
-  "status": zod.enum(['unknown', 'expired']).optional()
+  "status": zod.enum(['unknown', 'expired']).optional(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(markWithdrawalInvestigationBodyRecipientIssueFieldsMax)
+}).optional()
 })
 
 export const markWithdrawalInvestigationResponseOneGrossCentsMin = 1500;
@@ -3189,6 +3799,14 @@ export const markWithdrawalInvestigationResponseOneQuoteOneProviderMinimumSendCe
 export const markWithdrawalInvestigationResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
 
 export const markWithdrawalInvestigationResponseOneCheckerOneEvidenceMax = 5000;
+
+export const markWithdrawalInvestigationResponseOneRecipientIssueOneFieldsMax = 4;
+
+export const markWithdrawalInvestigationResponseOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const markWithdrawalInvestigationResponseOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const markWithdrawalInvestigationResponseOneRecipientCorrectionOneEmailMax = 254;
 
 
 
@@ -3251,7 +3869,20 @@ export const MarkWithdrawalInvestigationResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(markWithdrawalInvestigationResponseOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(markWithdrawalInvestigationResponseOneRecipientCorrectionOnePhoneMax).regex(markWithdrawalInvestigationResponseOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(markWithdrawalInvestigationResponseOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -3327,6 +3958,14 @@ export const reconcileWithdrawalResponseOneQuoteOneProviderMinimumSendCentsMax =
 
 export const reconcileWithdrawalResponseOneCheckerOneEvidenceMax = 5000;
 
+export const reconcileWithdrawalResponseOneRecipientIssueOneFieldsMax = 4;
+
+export const reconcileWithdrawalResponseOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const reconcileWithdrawalResponseOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const reconcileWithdrawalResponseOneRecipientCorrectionOneEmailMax = 254;
+
 
 
 export const ReconcileWithdrawalResponse = zod.object({
@@ -3388,7 +4027,20 @@ export const ReconcileWithdrawalResponse = zod.object({
   "providerOnboardingStatus": zod.enum(['pending', 'ready']),
   "version": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(reconcileWithdrawalResponseOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(reconcileWithdrawalResponseOneRecipientCorrectionOnePhoneMax).regex(reconcileWithdrawalResponseOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(reconcileWithdrawalResponseOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),

@@ -1165,5 +1165,16 @@
   "Your saved payment method will be used.": "Seu método de pagamento salvo será usado.",
   "Estimated payout": "Pagamento estimado",
   "Estimated total deduction: {v0}": "Dedução total estimada: {v0}",
-  "Estimated amount received: {v0} {v1}": "Valor estimado a receber: {v0} {v1}"
+  "Estimated amount received: {v0} {v1}": "Valor estimado a receber: {v0} {v1}",
+  "Remitly could not accept the recipient phone number. Verify the country code and phone number with support.": "A Remitly não aceitou o telefone do destinatário. Verifique o código do país e o número com o suporte.",
+  "Remitly could not accept the recipient email address. Verify the email address with support.": "A Remitly não aceitou o e-mail do destinatário. Verifique o endereço com o suporte.",
+  "Remitly could not accept the recipient legal name. Verify the full legal name with support.": "A Remitly não aceitou o nome legal do destinatário. Verifique o nome legal completo com o suporte.",
+  "Remitly could not accept some recipient details. Contact support to verify them.": "A Remitly não aceitou alguns dados do destinatário. Entre em contato com o suporte para verificá-los.",
+  "Your coins remain reserved. Contact support to verify or correct your recipient details before this withdrawal can continue.": "Suas moedas continuam reservadas. Entre em contato com o suporte para verificar ou corrigir os dados do destinatário antes que este saque possa continuar.",
+  "Correct your phone number or email below. Your coins remain reserved.": "Corrija seu telefone ou e-mail abaixo. Suas moedas continuam reservadas.",
+  "Phone number including country code": "Telefone com código do país",
+  "Save corrected details": "Salvar dados corrigidos",
+  "Details saved. We will check the existing transfer before continuing. Your coins remain reserved.": "Dados salvos. Verificaremos a transferência existente antes de continuar. Suas moedas continuam reservadas.",
+  "Enter a valid recipient email address.": "Informe um e-mail válido do destinatário.",
+  "Enter your phone number with country code.": "Informe seu telefone com o código do país."
 }

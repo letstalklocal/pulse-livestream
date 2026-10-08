@@ -607,6 +607,59 @@ try {
     4000,
   );
   assert.equal((await api.overview(pool, 1)).balances.reservedCoins, "6000");
+  const recipientIssue = {
+    code: "recipient_validation_failed",
+    fields: ["phone"],
+  };
+  const issueReport = await call(
+    `/api/payout-operator/withdrawals/${wd.id}/unknown`,
+    {
+      token: maker.token,
+      method: "POST",
+      body: {
+        data: { reason: "Private provider phone rejection", recipientIssue },
+      },
+    },
+  );
+  assert.equal(issueReport.status, 200);
+  assert.deepEqual(issueReport.body.recipientIssue.fields, ["phone"]);
+  assert(
+    !JSON.stringify(issueReport.body).includes(
+      "Private provider phone rejection",
+    ),
+  );
+  assert.equal(
+    (
+      await call(`/api/payout-operator/withdrawals/${wd.id}/unknown`, {
+        token: checker.token,
+        method: "POST",
+        body: { data: { reason: "Not authorized", recipientIssue } },
+      })
+    ).status,
+    403,
+  );
+  assert.equal(
+    (
+      await call(`/api/payout-operator/withdrawals/${wd.id}/unknown`, {
+        token: maker.token,
+        method: "POST",
+        body: {
+          data: {
+            reason: "Bad field",
+            recipientIssue: { ...recipientIssue, fields: ["raw_contact"] },
+          },
+        },
+      })
+    ).status,
+    400,
+  );
+  assert.equal((await api.overview(pool, 1)).balances.reservedCoins, "6000");
+  assert.equal(
+    (await call("/api/payout-operator/identity", { token: maker.token })).body
+      .workflowRevision,
+    "2026-10-08.1",
+  );
+
   assert.equal(
     (
       await action(maker.token, wd.id, "prepare", {

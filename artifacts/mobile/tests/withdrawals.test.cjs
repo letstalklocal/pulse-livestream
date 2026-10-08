@@ -92,7 +92,52 @@ assert.equal(
   "Preparing withdrawal",
 );
 assert.equal(utils.withdrawalStatus("delivered"), "Paid");
+assert.equal(utils.withdrawalStatus("error"), "Error");
 assert.equal(utils.withdrawalStatus("unknown"), "Payment outcome under review");
+assert.deepEqual(
+  Array.from(
+    utils.recipientIssueMessages("unknown", {
+      code: "recipient_validation_failed",
+      fields: ["phone", "phone", "email", "name", "other", "constructor"],
+      message: "RAW PROVIDER REASON",
+    }),
+  ),
+  [
+    "Remitly could not accept the recipient phone number. Verify the country code and phone number with support.",
+    "Remitly could not accept the recipient email address. Verify the email address with support.",
+    "Remitly could not accept the recipient legal name. Verify the full legal name with support.",
+    "Remitly could not accept some recipient details. Contact support to verify them.",
+  ],
+);
+for (const status of [
+  "delivered",
+  "failed",
+  "returned",
+  "canceled",
+  "preparing",
+  "processing",
+  "awaiting_recipient",
+])
+  assert.equal(
+    utils.recipientIssueMessages(status, {
+      code: "recipient_validation_failed",
+      fields: ["phone"],
+    }).length,
+    0,
+  );
+for (const issue of [
+  null,
+  "provider reason",
+  { code: "other_error", fields: ["phone"] },
+])
+  assert.equal(utils.recipientIssueMessages("unknown", issue).length, 0);
+assert.equal(
+  utils.recipientIssueMessages("unknown", {
+    code: "recipient_validation_failed",
+    fields: ["untrusted field"],
+  })[0],
+  "Remitly could not accept some recipient details. Contact support to verify them.",
+);
 const hook = fs.readFileSync(
   require.resolve("../hooks/useWithdrawals.ts"),
   "utf8",
@@ -183,7 +228,11 @@ function render() {
 }
 (async () => {
   let api = render();
-  assert.equal(api.approve, undefined, "mobile exposes no second quote approval operation");
+  assert.equal(
+    api.approve,
+    undefined,
+    "mobile exposes no second quote approval operation",
+  );
   await assert.rejects(api.submit("co-wallet", 1500));
   assert.equal(uuid, 1);
   assert.equal(
@@ -269,7 +318,10 @@ async function verifyQuoteScreen() {
     shares = [],
     files = new Map();
   let si = 0,
-    ri = 0;
+    ri = 0,
+    ei = 0;
+  const effectDeps = [];
+  let scheduledEffects = [];
   const react = {
     createElement: (type, props, ...children) => ({
       type,
@@ -277,12 +329,26 @@ async function verifyQuoteScreen() {
     }),
     useState: (initial) => {
       const i = si++;
-      if (!(i in state)) state[i] = initial;
-      return [state[i], (next) => (state[i] = next)];
+      if (!(i in state))
+        state[i] = typeof initial === "function" ? initial() : initial;
+      return [
+        state[i],
+        (next) =>
+          (state[i] = typeof next === "function" ? next(state[i]) : next),
+      ];
     },
     useRef: (initial) => (refs[ri++] ??= { current: initial }),
     useCallback: (fn) => fn,
-    useEffect: () => {},
+    useEffect: (effect, deps) => {
+      const i = ei++;
+      if (
+        !effectDeps[i] ||
+        deps.some((value, index) => value !== effectDeps[i][index])
+      ) {
+        effectDeps[i] = deps;
+        scheduledEffects.push(effect);
+      }
+    },
   };
   const withdrawal = {
     id: "wd-current",
@@ -293,6 +359,8 @@ async function verifyQuoteScreen() {
       legalFirstName: "Maria",
       legalLastName: "Gomez",
       countryCode: "CO",
+      phone: "+573001234567",
+      email: "maria@example.com",
     },
     quote: {
       hash: "actual-backend-quote-hash",
@@ -313,6 +381,13 @@ async function verifyQuoteScreen() {
     detail: { data: withdrawal },
     refresh: async () => {},
     approve: async (hash) => approvals.push(hash),
+    correctRecipient: async (data) => {
+      withdrawal.recipientCorrection = {
+        hash: "pending-correction",
+        ...data,
+        requestedAt: new Date().toISOString(),
+      };
+    },
     cancel: async () => {
       withdrawal.status = "canceled";
     },
@@ -342,6 +417,10 @@ async function verifyQuoteScreen() {
       setTimeout,
       require: (id) => {
         if (id === "react") return react;
+        if (id === "@/components/KeyboardAwareScrollViewCompat")
+          return {
+            KeyboardAwareScrollViewCompat: "KeyboardAwareScrollViewCompat",
+          };
         if (id === "expo-file-system")
           return {
             Paths: { cache: "cache" },
@@ -384,6 +463,7 @@ async function verifyQuoteScreen() {
                 "RefreshControl",
                 "ScrollView",
                 "Text",
+                "TextInput",
                 "TouchableOpacity",
                 "View",
               ].map((key) => [key, key]),
@@ -423,7 +503,8 @@ async function verifyQuoteScreen() {
     },
   );
   function render() {
-    si = ri = 0;
+    si = ri = ei = 0;
+    scheduledEffects = [];
     const nodes = [];
     function walk(n) {
       if (Array.isArray(n)) return n.forEach(walk);
@@ -432,6 +513,7 @@ async function verifyQuoteScreen() {
       walk(n.props?.children);
     }
     walk(module.exports.default());
+    scheduledEffects.forEach((effect) => effect());
     const texts = nodes
       .filter((n) => n.type === "Text")
       .flatMap((n) => n.props.children)
@@ -450,6 +532,19 @@ async function verifyQuoteScreen() {
         ),
     };
   }
+  api.detail.data = undefined;
+  api.detail.isPending = true;
+  render();
+  assert.equal(state[2].phone, "");
+  api.detail.data = withdrawal;
+  api.detail.isPending = false;
+  render();
+  assert.equal(
+    state[2].phone,
+    "+573001234567",
+    "asynchronous detail load prefills contact even without a correction hash",
+  );
+  assert.equal(state[2].email, "maria@example.com");
   let v = render();
   assert.equal(
     sharingImports,
@@ -477,19 +572,35 @@ async function verifyQuoteScreen() {
   assert.ok(v.texts.includes("Estimated payout"));
   assert.ok(v.texts.includes("Estimated total deduction: $15.00"));
   assert.ok(v.texts.includes("Preparing withdrawal"));
-  assert.ok(!v.button("Confirm this quote"), "initial submission is consent; no second creator approval");
-  assert.ok(!v.texts.some((text) => text.startsWith("Quote expires:")), "creator has no quote deadline");
+  assert.ok(
+    !v.button("Confirm this quote"),
+    "initial submission is consent; no second creator approval",
+  );
+  assert.ok(
+    !v.texts.some((text) => text.startsWith("Quote expires:")),
+    "creator has no quote deadline",
+  );
   assert.equal(approvals.length, 0);
   const observedQuote = withdrawal.quote;
   withdrawal.quote = null;
   const pendingView = render();
-  assert.ok(pendingView.texts.includes("We are checking the current fee and amount received. Your earnings remain reserved."));
-  assert.ok(!pendingView.texts.some((text) => text.includes("COP")), "no recipient amount is fabricated before a provider quote");
+  assert.ok(
+    pendingView.texts.includes(
+      "We are checking the current fee and amount received. Your earnings remain reserved.",
+    ),
+  );
+  assert.ok(
+    !pendingView.texts.some((text) => text.includes("COP")),
+    "no recipient amount is fabricated before a provider quote",
+  );
   withdrawal.quote = observedQuote;
   withdrawal.quote.expiresAt = new Date(Date.now() - 1).toISOString();
   v = render();
   assert.ok(!v.button("Confirm this quote"));
-  assert.ok(v.texts.includes("Preparing withdrawal"), "legacy confirmation stays informational after quote expiry");
+  assert.ok(
+    v.texts.includes("Preparing withdrawal"),
+    "legacy confirmation stays informational after quote expiry",
+  );
   assert.ok(!v.texts.some((text) => text.startsWith("Quote expires:")));
   v.button("Cancel withdrawal").props.onPress();
   assert.equal(cancelAlerts.length, 1);
@@ -530,6 +641,110 @@ async function verifyQuoteScreen() {
     !v.button("Open Remitly recipient link"),
     "uncertain or human-declined payment cannot continue recipient setup",
   );
+  assert.ok(
+    v.texts.includes("Payment outcome under review"),
+    "generic unknown has no recipient warning",
+  );
+  withdrawal.recipient.phone = "+573001234567";
+  withdrawal.recipient.email = "maria@example.com";
+  withdrawal.recipientIssue = {
+    code: "recipient_validation_failed",
+    fields: ["phone", "email", "name"],
+    message: "RAW PROVIDER REASON with sensitive evidence",
+  };
+  v = render();
+  assert.ok(v.texts.includes("Error"));
+  assert.ok(
+    v.texts.includes(
+      "Remitly could not accept the recipient phone number. Verify the country code and phone number with support.",
+    ),
+  );
+  assert.ok(
+    v.texts.includes(
+      "Remitly could not accept the recipient email address. Verify the email address with support.",
+    ),
+  );
+  assert.ok(
+    v.texts.includes(
+      "Remitly could not accept the recipient legal name. Verify the full legal name with support.",
+    ),
+  );
+  assert.ok(v.texts.includes("Phone number: +573001234567"));
+  assert.ok(v.texts.includes("Email: maria@example.com"));
+  assert.ok(
+    v.texts.includes(
+      "Correct your phone number or email below. Your coins remain reserved.",
+    ),
+  );
+  assert.ok(
+    v.nodes.some(
+      (n) =>
+        n.props.accessibilityRole === "alert" &&
+        n.props.accessibilityLiveRegion === "polite",
+    ),
+  );
+  assert.ok(!v.texts.some((text) => text.includes("RAW PROVIDER REASON")));
+  assert.ok(
+    !v.button("Cancel withdrawal") && !v.button("Open Remitly recipient link"),
+    "rejected persisted contact stays reserved without unsafe resume/cancel",
+  );
+  const phoneEdit = v.nodes.find(
+    (node) =>
+      node.type === "TextInput" &&
+      node.props.accessibilityLabel === "Phone number including country code",
+  );
+  const emailEdit = v.nodes.find(
+    (node) =>
+      node.type === "TextInput" &&
+      node.props.accessibilityLabel === "Email address",
+  );
+  emailEdit.props.onChangeText("invalid-email");
+  v = render();
+  v.button("Save corrected details").props.onPress();
+  assert.equal(
+    withdrawal.recipientCorrection,
+    undefined,
+    "invalid syntax never sends a correction",
+  );
+  assert.ok(render().texts.includes("Enter a valid recipient email address."));
+  phoneEdit.props.onChangeText("+999123456789");
+  emailEdit.props.onChangeText("corrected@example.com");
+  v = render();
+  v.button("Save corrected details").props.onPress();
+  await new Promise((r) => setImmediate(r));
+  assert.equal(
+    withdrawal.recipientCorrection.phone,
+    "+999123456789",
+    "provider handles numbering/country acceptance; app only keeps prior syntax check",
+  );
+  assert.equal(withdrawal.recipientCorrection.email, "corrected@example.com");
+  assert.equal(
+    withdrawal.recipient.phone,
+    "+573001234567",
+    "pending correction preserves original snapshot",
+  );
+  assert.equal(
+    withdrawal.status,
+    "unknown",
+    "saving details does not retry the payment",
+  );
+  assert.ok(
+    render().texts.includes(
+      "Details saved. We will check the existing transfer before continuing. Your coins remain reserved.",
+    ),
+  );
+  withdrawal.status = "expired";
+  assert.ok(
+    render().texts.includes("Error"),
+    "unresolved expired recipient error remains correctable",
+  );
+  withdrawal.status = "unknown";
+  withdrawal.recipientIssue.fields = ["other"];
+  assert.ok(
+    render().texts.includes(
+      "Remitly could not accept some recipient details. Contact support to verify them.",
+    ),
+  );
   withdrawal.status = "awaiting_recipient";
   withdrawal.quote.expiresAt = new Date(Date.now() - 1).toISOString();
   v = render();
@@ -537,12 +752,17 @@ async function verifyQuoteScreen() {
     !!v.button("Open Remitly recipient link"),
     "an issued active recipient link remains usable after the original quote expires",
   );
+  assert.ok(
+    !v.texts.includes("Error"),
+    "stale issue disappears when the transfer progresses",
+  );
   withdrawal.status = "delivered";
   v = render();
   assert.ok(
     !v.button("Open Remitly recipient link"),
     "resolved transfers cannot restart recipient setup",
   );
+  assert.ok(!v.texts.includes("Error"), "terminal transfer hides stale issue");
   sharingAvailable = false;
   v = render();
   v.button("Download statement").props.onPress();
@@ -842,6 +1062,16 @@ async function verifyWalletRequestScreen() {
   v.button("Withdrawal history").props.onPress();
   v = render();
   assert.ok(v.texts.includes("Paid"));
+  overview.withdrawals[0].status = "unknown";
+  overview.withdrawals[0].creatorStatus = "error";
+  v = render();
+  assert.ok(
+    v.texts.includes("Error"),
+    "history shows projected creator error while operator state remains unknown",
+  );
+  delete overview.withdrawals[0].creatorStatus;
+  overview.withdrawals[0].status = "delivered";
+  v = render();
   v.nodes
     .find(
       (n) =>

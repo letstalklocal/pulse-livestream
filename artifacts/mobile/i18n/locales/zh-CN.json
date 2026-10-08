@@ -1165,5 +1165,16 @@
   "Your saved payment method will be used.": "将使用您保存的付款方式。",
   "Estimated payout": "预计付款",
   "Estimated total deduction: {v0}": "预计扣款总额：{v0}",
-  "Estimated amount received: {v0} {v1}": "预计到账金额：{v0} {v1}"
+  "Estimated amount received: {v0} {v1}": "预计到账金额：{v0} {v1}",
+  "Remitly could not accept the recipient phone number. Verify the country code and phone number with support.": "Remitly 无法接受收款人的电话号码。请联系支持团队核实国家区号和电话号码。",
+  "Remitly could not accept the recipient email address. Verify the email address with support.": "Remitly 无法接受收款人的电子邮件地址。请联系支持团队核实该地址。",
+  "Remitly could not accept the recipient legal name. Verify the full legal name with support.": "Remitly 无法接受收款人的法定姓名。请联系支持团队核实完整的法定姓名。",
+  "Remitly could not accept some recipient details. Contact support to verify them.": "Remitly 无法接受部分收款人信息。请联系支持团队核实。",
+  "Your coins remain reserved. Contact support to verify or correct your recipient details before this withdrawal can continue.": "您的金币仍被预留。请联系支持团队核实或更正收款人信息，然后才能继续本次提现。",
+  "Correct your phone number or email below. Your coins remain reserved.": "请在下方更正电话号码或电子邮件地址。您的金币仍被预留。",
+  "Phone number including country code": "包含国家区号的电话号码",
+  "Save corrected details": "保存更正后的信息",
+  "Details saved. We will check the existing transfer before continuing. Your coins remain reserved.": "信息已保存。我们会先核实现有转账，再继续处理。您的金币仍被预留。",
+  "Enter a valid recipient email address.": "请输入有效的收款人电子邮件地址。",
+  "Enter your phone number with country code.": "请输入包含国家区号的电话号码。"
 }

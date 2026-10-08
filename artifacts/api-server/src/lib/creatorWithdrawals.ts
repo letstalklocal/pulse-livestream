@@ -283,6 +283,71 @@ export async function saveRecipient(db: Database, uid: number, input: unknown) {
     return { ...data, revision: r.rows[0].revision, status: "contact_saved" };
   });
 }
+const recipientIssueFields = ["phone", "email", "name", "other"] as const;
+function recipientIssueInput(value: unknown) {
+  const issue = body(value, ["code", "fields"]);
+  if (
+    issue.code !== "recipient_validation_failed" ||
+    !Array.isArray(issue.fields) ||
+    !issue.fields.length ||
+    issue.fields.length > recipientIssueFields.length ||
+    new Set(issue.fields).size !== issue.fields.length ||
+    issue.fields.some((field) => !recipientIssueFields.includes(field))
+  )
+    fail("Invalid recipient validation issue.");
+  return {
+    code: "recipient_validation_failed" as const,
+    fields: recipientIssueFields.filter((field) =>
+      issue.fields.includes(field),
+    ),
+  };
+}
+const recipientIssueEvidence = (alias: string) =>
+  `(SELECT jsonb_build_object('eventId',id::text,'details',evidence) FROM creator_payout_events WHERE withdrawal_id=${alias}.id AND action IN ('unknown','expired','human_declined','reconciled','preparation_lease_released_unknown','operator_browser_interrupted','recipient_error_resolved') ORDER BY id DESC LIMIT 1) recipient_issue_evidence`;
+function publicRecipientIssue(r: Row) {
+  if (!["unknown", "expired"].includes(r.status)) return null;
+  const issue = r.recipient_issue_evidence?.details?.recipientIssue;
+  if (
+    issue?.code !== "recipient_validation_failed" ||
+    !Array.isArray(issue.fields) ||
+    !issue.fields.length ||
+    issue.fields.length > recipientIssueFields.length ||
+    new Set(issue.fields).size !== issue.fields.length ||
+    issue.fields.some((field: any) => !recipientIssueFields.includes(field))
+  )
+    return null;
+  const labels: Record<string, string> = {
+    phone: "phone number",
+    email: "email address",
+    name: "legal name",
+    other: "other recipient details",
+  };
+  return {
+    code: "recipient_validation_failed" as const,
+    fields: recipientIssueFields.filter((field) =>
+      issue.fields.includes(field),
+    ),
+    message: `Remitly could not accept your saved recipient details: ${issue.fields.map((field: string) => labels[field]).join(", ")}. Your withdrawal is under review. Your coins remain reserved.`,
+  };
+}
+const recipientCorrectionEvidence = (alias: string) =>
+  `(SELECT evidence FROM creator_payout_events WHERE withdrawal_id=${alias}.id AND action='recipient_correction_submitted' ORDER BY id DESC LIMIT 1) recipient_correction_evidence`;
+function publicRecipientCorrection(r: Row) {
+  const correction = r.recipient_correction_evidence;
+  if (
+    !publicRecipientIssue(r) ||
+    !correction ||
+    correction.issueEventId !== r.recipient_issue_evidence.eventId ||
+    correction.recipientVersion !== r.version
+  )
+    return null;
+  return {
+    hash: correction.hash,
+    phone: correction.phone,
+    email: correction.email,
+    requestedAt: correction.requestedAt,
+  };
+}
 const summary = (r: Row) => ({
   id: r.id,
   userId: r.user_id,
@@ -298,6 +363,10 @@ const summary = (r: Row) => ({
     : null,
   providerLink: r.provider_link,
   providerOnboardingStatus: r.provider_onboarding_status,
+  recipientIssue: publicRecipientIssue(r),
+  creatorStatus: publicRecipientIssue(r) ? "error" : r.status,
+  errorMessage: publicRecipientIssue(r)?.message ?? null,
+  recipientCorrection: publicRecipientCorrection(r),
   version: r.version,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
@@ -318,7 +387,7 @@ export async function overview(db: Database, uid: number) {
     ).rows[0];
     const ws = (
       await c.query(
-        "SELECT * FROM creator_withdrawals WHERE user_id=$1 ORDER BY created_at DESC",
+        `SELECT w.*,${recipientIssueEvidence("w")},${recipientCorrectionEvidence("w")} FROM creator_withdrawals w WHERE user_id=$1 ORDER BY created_at DESC`,
         [uid],
       )
     ).rows;
@@ -361,7 +430,7 @@ export async function requestWithdrawal(
     await lock(c, uid);
     const old = (
       await c.query(
-        "SELECT * FROM creator_withdrawals WHERE user_id=$1 AND idempotency_key=$2",
+        `SELECT w.*,${recipientIssueEvidence("w")},${recipientCorrectionEvidence("w")} FROM creator_withdrawals w WHERE user_id=$1 AND idempotency_key=$2`,
         [uid, key],
       )
     ).rows[0];
@@ -472,7 +541,7 @@ export async function withdrawalDetail(
 ) {
   const r = (
     await db.query(
-      "SELECT * FROM creator_withdrawals WHERE id=$1 AND ($2::integer IS NULL OR user_id=$2) AND ($3::text IS NULL OR account_key=$3)",
+      `SELECT w.*,${recipientIssueEvidence("w")},${recipientCorrectionEvidence("w")} FROM creator_withdrawals w WHERE id=$1 AND ($2::integer IS NULL OR user_id=$2) AND ($3::text IS NULL OR account_key=$3)`,
       [id, uid ?? null, account ?? null],
     )
   ).rows[0];
@@ -552,7 +621,7 @@ export async function listWithdrawals(
     : "w.created_at DESC,w.id DESC";
   const rows = (
     await db.query(
-      `SELECT w.*,u.name creator_name,a.state attempt_state,a.maker,a.provider_reference,a.evidence->>'deadline' review_deadline FROM creator_withdrawals w JOIN users u ON u.uid=w.user_id LEFT JOIN LATERAL (SELECT state,maker,provider_reference,evidence FROM creator_payout_attempts WHERE withdrawal_id=w.id ORDER BY created_at DESC LIMIT 1) a ON true WHERE w.account_key=$1${filter} ORDER BY ${order} LIMIT ${limit + 1}`,
+      `SELECT w.*,${recipientIssueEvidence("w")},${recipientCorrectionEvidence("w")},u.name creator_name,a.state attempt_state,a.maker,a.provider_reference,a.evidence->>'deadline' review_deadline FROM creator_withdrawals w JOIN users u ON u.uid=w.user_id LEFT JOIN LATERAL (SELECT state,maker,provider_reference,evidence FROM creator_payout_attempts WHERE withdrawal_id=w.id ORDER BY created_at DESC LIMIT 1) a ON true WHERE w.account_key=$1${filter} ORDER BY ${order} LIMIT ${limit + 1}`,
       options?.statuses ? [account, options.statuses] : [account],
     )
   ).rows;
@@ -1069,6 +1138,70 @@ export async function humanRelease(
     return withdrawalDetail(c, id, undefined, account);
   });
 }
+export async function submitRecipientCorrection(
+  db: Database,
+  uid: number,
+  id: string,
+  input: unknown,
+) {
+  const b = body(input, ["phone", "email"]);
+  if (b.phone === undefined && b.email === undefined)
+    fail("Enter a corrected phone number or email address.");
+  return tx(db, async (c) => {
+    const w = await lockedWithdrawal(c, id, undefined, uid);
+    const current = await withdrawalDetail(c, id, uid);
+    if (
+      !current.recipientIssue ||
+      !current.recipientIssue.fields.some(
+        (field) => field === "phone" || field === "email",
+      )
+    )
+      fail("No correctable phone or email rejection is active.", 409);
+    const phone =
+      b.phone === undefined
+        ? (current.recipientCorrection?.phone ?? w.recipient.phone)
+        : str(b.phone, "international phone", 20);
+    const email =
+      b.email === undefined
+        ? (current.recipientCorrection?.email ?? w.recipient.email)
+        : str(b.email, "email", 254);
+    if (!/^\+\d{8,15}$/.test(phone))
+      fail(
+        "Use an international phone number starting with + and 8 to 15 digits.",
+      );
+    if (!/^\S+@\S+\.\S+$/.test(email)) fail("Enter a valid email address.");
+    const issue = (
+      await c.query(
+        `SELECT ${recipientIssueEvidence("w")} FROM creator_withdrawals w WHERE id=$1`,
+        [id],
+      )
+    ).rows[0].recipient_issue_evidence;
+    const correctionHash = hash({
+      id,
+      version: w.version,
+      issueEventId: issue.eventId,
+      phone,
+      email,
+    });
+    if (current.recipientCorrection?.hash === correctionHash) return current;
+    await event(
+      c,
+      uid,
+      `creator:${uid}`,
+      "recipient_correction_submitted",
+      {
+        hash: correctionHash,
+        phone,
+        email,
+        requestedAt: new Date().toISOString(),
+        issueEventId: issue.eventId,
+        recipientVersion: w.version,
+      },
+      id,
+    );
+    return withdrawalDetail(c, id, uid);
+  });
+}
 export async function markUnknown(
   db: Database,
   account: string,
@@ -1076,7 +1209,11 @@ export async function markUnknown(
   input: unknown,
   actor: string,
 ) {
-  const b = body(input, ["reason", "status"]);
+  const b = body(input, ["reason", "status", "recipientIssue"]);
+  const issue =
+    b.recipientIssue === undefined
+      ? undefined
+      : recipientIssueInput(b.recipientIssue);
   const reason = note(b.reason, "uncertain outcome reason", 5000);
   const target = b.status === "expired" ? "expired" : "unknown";
   if (b.status !== undefined && !["expired", "unknown"].includes(b.status))
@@ -1105,7 +1242,14 @@ export async function markUnknown(
       "UPDATE creator_withdrawals SET status=$2,checker=NULL,updated_at=now() WHERE id=$1",
       [id, target],
     );
-    await event(c, w.user_id, actor, target, { reason }, id);
+    await event(
+      c,
+      w.user_id,
+      actor,
+      target,
+      { reason, ...(issue ? { recipientIssue: issue } : {}) },
+      id,
+    );
     return withdrawalDetail(c, id, undefined, account);
   });
 }

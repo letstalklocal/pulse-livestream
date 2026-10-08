@@ -7,9 +7,9 @@ import {
   Linking,
   Platform,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -17,9 +17,15 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppLanguage } from "@/i18n";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useColors } from "@/hooks/useColors";
 import { useWithdrawals } from "@/hooks/useWithdrawals";
-import { safeProviderLink, withdrawalStatus } from "@/utils/withdrawals";
+import {
+  recipientContactErrors,
+  recipientIssueMessages,
+  safeProviderLink,
+  withdrawalStatus,
+} from "@/utils/withdrawals";
 export default function WithdrawalScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -30,6 +36,17 @@ export default function WithdrawalScreen() {
   const { t, appLocale, localizedTextStyle } = useAppLanguage();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [correction, setCorrection] = useState(() => ({
+    phone:
+      api.detail.data?.recipientCorrection?.phone ??
+      api.detail.data?.recipient.phone ??
+      "",
+    email:
+      api.detail.data?.recipientCorrection?.email ??
+      api.detail.data?.recipient.email ??
+      "",
+  }));
+  const [correctionError, setCorrectionError] = useState("");
   const owner = useRef(api.userId);
   owner.current = api.userId;
   useEffect(() => {
@@ -43,6 +60,38 @@ export default function WithdrawalScreen() {
   );
   const w = api.detail.data;
   const q = w?.quote;
+  const recipientMessages = w
+    ? recipientIssueMessages(w.status, w.recipientIssue)
+    : [];
+  const canCorrect =
+    recipientMessages.length > 0 &&
+    Array.isArray(w?.recipientIssue?.fields) &&
+    w.recipientIssue.fields.some(
+      (field) => field === "phone" || field === "email",
+    );
+  useEffect(() => {
+    setCorrection({
+      phone: w?.recipientCorrection?.phone ?? w?.recipient.phone ?? "",
+      email: w?.recipientCorrection?.email ?? w?.recipient.email ?? "",
+    });
+    setCorrectionError("");
+  }, [api.userId, id, w?.id, w?.recipientCorrection?.hash]);
+  const saveCorrection = () => {
+    if (!w || !canCorrect || busy) return;
+    const errors = recipientContactErrors(correction);
+    const invalid = errors.phone ?? errors.email;
+    if (invalid) {
+      setCorrectionError(invalid);
+      return;
+    }
+    setCorrectionError("");
+    void run(() =>
+      api.correctRecipient({
+        phone: correction.phone.trim().replace(/[\s().-]/g, ""),
+        email: correction.email.trim(),
+      }),
+    );
+  };
   const link =
     w && ["awaiting_recipient", "processing"].includes(w.status)
       ? safeProviderLink(w.providerLink)
@@ -166,7 +215,9 @@ export default function WithdrawalScreen() {
           {t("Withdrawal details")}
         </Text>
       </View>
-      <ScrollView
+      <KeyboardAwareScrollViewCompat
+        keyboardShouldPersistTaps="handled"
+        bottomOffset={20}
         contentContainerStyle={[
           styles.content,
           { paddingBottom: insets.bottom + 28 },
@@ -197,7 +248,13 @@ export default function WithdrawalScreen() {
                   { backgroundColor: c.card, borderColor: c.border },
                 ]}
               >
-                {text(t(withdrawalStatus(w.status)))}
+                {text(
+                  t(
+                    recipientMessages.length
+                      ? "Error"
+                      : withdrawalStatus(w.status),
+                  ),
+                )}
                 {text(
                   t(
                     ["delivered", "canceled", "failed", "returned"].includes(
@@ -214,6 +271,111 @@ export default function WithdrawalScreen() {
                 )}
                 {text(w.recipient.countryCode, true)}
               </View>
+              {recipientMessages.length > 0 && (
+                <View
+                  accessibilityRole="alert"
+                  accessibilityLiveRegion="polite"
+                  style={[
+                    styles.card,
+                    {
+                      backgroundColor: c.card,
+                      borderColor: c.destructive,
+                      borderWidth: 2,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="alert-circle-outline"
+                    size={28}
+                    color={c.destructive}
+                    accessible={false}
+                  />
+                  <Text
+                    accessibilityRole="header"
+                    style={[
+                      localizedTextStyle(),
+                      styles.issueTitle,
+                      { color: c.foreground },
+                    ]}
+                  >
+                    {t("Error")}
+                  </Text>
+                  {recipientMessages.map((message) => (
+                    <Text
+                      key={message}
+                      style={[
+                        localizedTextStyle(),
+                        styles.text,
+                        { color: c.foreground },
+                      ]}
+                    >
+                      {t(message)}
+                    </Text>
+                  ))}
+                  {w.recipient.phone &&
+                    text(`${t("Phone number")}: ${w.recipient.phone}`)}
+                  {w.recipient.email &&
+                    text(`${t("Email")}: ${w.recipient.email}`)}
+                  {canCorrect ? (
+                    <>
+                      {text(
+                        t(
+                          "Correct your phone number or email below. Your coins remain reserved.",
+                        ),
+                      )}
+                      {text(t("Phone number including country code"), true)}
+                      <TextInput
+                        accessibilityLabel={t(
+                          "Phone number including country code",
+                        )}
+                        keyboardType="phone-pad"
+                        value={correction.phone}
+                        editable={!busy}
+                        onChangeText={(phone) =>
+                          setCorrection((previous) => ({ ...previous, phone }))
+                        }
+                        autoCorrect={false}
+                        style={[
+                          localizedTextStyle(),
+                          styles.input,
+                          { color: c.foreground, borderColor: c.border },
+                        ]}
+                      />
+                      {text(t("Email address"), true)}
+                      <TextInput
+                        accessibilityLabel={t("Email address")}
+                        keyboardType="email-address"
+                        value={correction.email}
+                        editable={!busy}
+                        onChangeText={(email) =>
+                          setCorrection((previous) => ({ ...previous, email }))
+                        }
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        style={[
+                          localizedTextStyle(),
+                          styles.input,
+                          { color: c.foreground, borderColor: c.border },
+                        ]}
+                      />
+                      {correctionError ? text(t(correctionError)) : null}
+                      {button("Save corrected details", saveCorrection, busy)}
+                      {w.recipientCorrection &&
+                        text(
+                          t(
+                            "Details saved. We will check the existing transfer before continuing. Your coins remain reserved.",
+                          ),
+                        )}
+                    </>
+                  ) : (
+                    text(
+                      t(
+                        "Your coins remain reserved. Contact support to verify or correct your recipient details before this withdrawal can continue.",
+                      ),
+                    )
+                  )}
+                </View>
+              )}
               {q ? (
                 <View
                   style={[
@@ -239,7 +401,7 @@ export default function WithdrawalScreen() {
                     }),
                   )}
                 </View>
-              ) : (
+              ) : recipientMessages.length === 0 ? (
                 <View
                   style={[
                     styles.card,
@@ -253,7 +415,7 @@ export default function WithdrawalScreen() {
                     true,
                   )}
                 </View>
-              )}
+              ) : null}
               {link ? (
                 <View
                   style={[
@@ -350,7 +512,7 @@ export default function WithdrawalScreen() {
             </>
           )
         )}
-      </ScrollView>
+      </KeyboardAwareScrollViewCompat>
     </View>
   );
 }
@@ -369,6 +531,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  input: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 16,
+  },
+  issueTitle: { fontSize: 18, lineHeight: 26, fontFamily: "Inter_700Bold" },
   title: { fontSize: 21, fontFamily: "Inter_700Bold", flex: 1 },
   content: { padding: 20, gap: 14 },
   text: { fontSize: 15, lineHeight: 23 },

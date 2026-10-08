@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { WithdrawalInvestigationInputStatus } from './withdrawalInvestigationInputStatus';
+import type { WithdrawalRecipientIssueInput } from './withdrawalRecipientIssueInput';
 
 export interface WithdrawalInvestigationInput {
   /**
@@ -14,4 +15,5 @@ export interface WithdrawalInvestigationInput {
      */
   reason: string;
   status?: WithdrawalInvestigationInputStatus;
+  recipientIssue?: WithdrawalRecipientIssueInput;
 }

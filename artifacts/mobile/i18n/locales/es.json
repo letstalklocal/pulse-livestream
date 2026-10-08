@@ -1165,5 +1165,16 @@
   "Your saved payment method will be used.": "Se utilizará tu método de pago guardado.",
   "Estimated payout": "Pago estimado",
   "Estimated total deduction: {v0}": "Deducción total estimada: {v0}",
-  "Estimated amount received: {v0} {v1}": "Importe estimado a recibir: {v0} {v1}"
+  "Estimated amount received: {v0} {v1}": "Importe estimado a recibir: {v0} {v1}",
+  "Remitly could not accept the recipient phone number. Verify the country code and phone number with support.": "Remitly no pudo aceptar el número de teléfono del destinatario. Verifica el código de país y el número con soporte.",
+  "Remitly could not accept the recipient email address. Verify the email address with support.": "Remitly no pudo aceptar el correo electrónico del destinatario. Verifica la dirección con soporte.",
+  "Remitly could not accept the recipient legal name. Verify the full legal name with support.": "Remitly no pudo aceptar el nombre legal del destinatario. Verifica el nombre legal completo con soporte.",
+  "Remitly could not accept some recipient details. Contact support to verify them.": "Remitly no pudo aceptar algunos datos del destinatario. Contacta con soporte para verificarlos.",
+  "Your coins remain reserved. Contact support to verify or correct your recipient details before this withdrawal can continue.": "Tus monedas siguen reservadas. Contacta con soporte para verificar o corregir los datos del destinatario antes de continuar con este retiro.",
+  "Correct your phone number or email below. Your coins remain reserved.": "Corrige tu teléfono o correo electrónico a continuación. Tus monedas siguen reservadas.",
+  "Phone number including country code": "Número de teléfono con código de país",
+  "Save corrected details": "Guardar datos corregidos",
+  "Details saved. We will check the existing transfer before continuing. Your coins remain reserved.": "Datos guardados. Revisaremos la transferencia existente antes de continuar. Tus monedas siguen reservadas.",
+  "Enter a valid recipient email address.": "Introduce un correo electrónico válido del destinatario.",
+  "Enter your phone number with country code.": "Introduce tu teléfono con código de país."
 }

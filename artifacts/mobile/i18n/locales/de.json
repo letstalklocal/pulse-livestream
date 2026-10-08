@@ -1165,5 +1165,16 @@
   "Your saved payment method will be used.": "Ihre gespeicherte Zahlungsmethode wird verwendet.",
   "Estimated payout": "Geschätzte Auszahlung",
   "Estimated total deduction: {v0}": "Geschätzter Gesamtabzug: {v0}",
-  "Estimated amount received: {v0} {v1}": "Geschätzter Empfangsbetrag: {v0} {v1}"
+  "Estimated amount received: {v0} {v1}": "Geschätzter Empfangsbetrag: {v0} {v1}",
+  "Remitly could not accept the recipient phone number. Verify the country code and phone number with support.": "Remitly konnte die Telefonnummer des Empfängers nicht akzeptieren. Prüfe die Landesvorwahl und Telefonnummer mit dem Support.",
+  "Remitly could not accept the recipient email address. Verify the email address with support.": "Remitly konnte die E-Mail-Adresse des Empfängers nicht akzeptieren. Prüfe die E-Mail-Adresse mit dem Support.",
+  "Remitly could not accept the recipient legal name. Verify the full legal name with support.": "Remitly konnte den amtlichen Namen des Empfängers nicht akzeptieren. Prüfe den vollständigen amtlichen Namen mit dem Support.",
+  "Remitly could not accept some recipient details. Contact support to verify them.": "Remitly konnte einige Empfängerdaten nicht akzeptieren. Kontaktiere den Support, um sie zu überprüfen.",
+  "Your coins remain reserved. Contact support to verify or correct your recipient details before this withdrawal can continue.": "Deine Coins bleiben reserviert. Kontaktiere den Support, um die Empfängerdaten zu überprüfen oder zu korrigieren, bevor diese Auszahlung fortgesetzt werden kann.",
+  "Correct your phone number or email below. Your coins remain reserved.": "Korrigiere unten deine Telefonnummer oder E-Mail-Adresse. Deine Coins bleiben reserviert.",
+  "Phone number including country code": "Telefonnummer mit Landesvorwahl",
+  "Save corrected details": "Korrigierte Daten speichern",
+  "Details saved. We will check the existing transfer before continuing. Your coins remain reserved.": "Daten gespeichert. Wir prüfen die bestehende Überweisung, bevor es weitergeht. Deine Coins bleiben reserviert.",
+  "Enter a valid recipient email address.": "Gib eine gültige E-Mail-Adresse des Empfängers ein.",
+  "Enter your phone number with country code.": "Gib deine Telefonnummer mit Landesvorwahl ein."
 }

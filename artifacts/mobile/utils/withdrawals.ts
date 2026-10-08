@@ -1,4 +1,5 @@
 export const withdrawalStatusKeys: Record<string, string> = {
+  error: "Error",
   awaiting_quote: "Awaiting a current quote",
   awaiting_confirmation: "Preparing withdrawal",
   requested: "Preparing withdrawal",
@@ -28,6 +29,56 @@ export const withdrawalStatusKeys: Record<string, string> = {
 };
 export function withdrawalStatus(status: string) {
   return withdrawalStatusKeys[status] ?? "Withdrawal under review";
+}
+const recipientIssueCopy: Record<string, string> = {
+  phone:
+    "Remitly could not accept the recipient phone number. Verify the country code and phone number with support.",
+  email:
+    "Remitly could not accept the recipient email address. Verify the email address with support.",
+  name: "Remitly could not accept the recipient legal name. Verify the full legal name with support.",
+  other:
+    "Remitly could not accept some recipient details. Contact support to verify them.",
+};
+/** Provider evidence and free-text messages never become creator-facing copy. */
+export function recipientIssueMessages(
+  status: string,
+  issue: unknown,
+): string[] {
+  if (
+    !["unknown", "expired"].includes(status) ||
+    !issue ||
+    typeof issue !== "object"
+  )
+    return [];
+  const safeIssue = issue as { code?: unknown; fields?: unknown };
+  if (safeIssue.code !== "recipient_validation_failed") return [];
+  const fields = Array.isArray(safeIssue.fields)
+    ? [
+        ...new Set(
+          safeIssue.fields.filter(
+            (field): field is string =>
+              typeof field === "string" &&
+              Object.hasOwn(recipientIssueCopy, field),
+          ),
+        ),
+      ]
+    : [];
+  return (fields.length ? fields : ["other"]).map(
+    (field) => recipientIssueCopy[field],
+  );
+}
+export function recipientContactErrors(contact: {
+  email?: string;
+  phone?: string;
+}): Record<string, string> {
+  const errors: Record<string, string> = {};
+  if (!/^\S+@\S+\.\S+$/.test(contact.email?.trim() ?? ""))
+    errors.email = "Enter a valid recipient email address.";
+  if (
+    !/^\+\d{8,15}$/.test((contact.phone ?? "").trim().replace(/[\s().-]/g, ""))
+  )
+    errors.phone = "Enter your phone number with country code.";
+  return errors;
 }
 export function usdCents(value: string): number | null {
   if (!/^\d+(?:\.\d{1,2})?$/.test(value.trim())) return null;

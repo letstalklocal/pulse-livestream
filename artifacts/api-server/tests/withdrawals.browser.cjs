@@ -31,7 +31,7 @@ const root = path.resolve(__dirname, "../../admin/public");
       headless: true,
       executablePath:
         process.env.PULSE_CHROMIUM_EXECUTABLE ||
-        "/nix/store/43y6k6fj85l4kcd1yan43hpdld6nmjmp-ungoogled-chromium-131.0.6778.204/bin/chromium",
+        "/repl/tools/bin/chromium",
       args: ["--no-sandbox"],
     });
     const page = await browser.newPage({
@@ -160,6 +160,29 @@ const root = path.resolve(__dirname, "../../admin/public");
       }
       if (endpoint === "/withdrawals/wd_unknown")
         return route.fulfill({ json: unknown });
+      if (endpoint === "/withdrawals/wd_unknown/unknown" && req.method() === "POST") {
+        const body = req.postDataJSON();
+        actions.push({ action: "unknown", body, id: unknown.id });
+        unknown.recipientIssue = body.recipientIssue ? { ...body.recipientIssue, message: "<img src=x onerror=alert(1)> raw provider text" } : null;
+        unknown.creatorStatus = unknown.recipientIssue ? "error" : unknown.status;
+        unknown.errorMessage = "<script>untrusted</script> arbitrary raw error";
+        return route.fulfill({ json: unknown });
+      }
+      if (endpoint === "/withdrawals/wd_unknown/resolve-recipient-error" && req.method() === "POST") {
+        const body = req.postDataJSON();
+        actions.push({ action: "resolve-recipient-error", body, id: unknown.id });
+        unknown.recipient = { ...unknown.recipient, phone: unknown.recipientCorrection.phone, email: unknown.recipientCorrection.email };
+        unknown.recipientCorrection = null;
+        unknown.recipientIssue = null;
+        unknown.creatorStatus = "awaiting_quote";
+        unknown.errorMessage = null;
+        unknown.status = "awaiting_quote";
+        unknown.quote = null;
+        unknown.checker = null;
+        unknown.attempts[0].state = "canceled";
+        unknown.version++;
+        return route.fulfill({ json: unknown });
+      }
       if (endpoint === "/withdrawals/enrollment-preview")
         return route.fulfill({
           json: {
@@ -389,6 +412,78 @@ const root = path.resolve(__dirname, "../../admin/public");
       /Unknown outcome/,
     );
     await page.locator("#payout-filter").selectOption("all");
+    await page.locator('[data-withdrawal="wd_unknown"]').first().click();
+    const issueForm = page.locator('[data-payout-action="unknown"]');
+    await issueForm.locator("..").locator("summary").click();
+    await issueForm.locator("[name=reason]").fill("Observed recipient phone and email rejected; inspect persisted contacts before resuming");
+    await issueForm.locator("[name=recipientIssue_phone]").check();
+    await issueForm.locator("[name=recipientIssue_email]").check();
+    await issueForm.locator("button").click();
+    await page.locator('#payout-detail [role=alert]').waitFor();
+    assert.deepEqual(actions.findLast(a => a.action === "unknown").body.recipientIssue, {
+      code: "recipient_validation_failed", fields: ["phone", "email"],
+    });
+    assert.match(await page.locator('#payout-detail [role=alert]').textContent(), /Recipient details need attention[\s\S]*phone number, email address[\s\S]*Coins remain reserved/);
+    assert.doesNotMatch(await page.locator('#payout-detail [role=alert]').textContent(), /raw provider text/);
+    assert.equal(await page.locator('#payout-detail img').count(), 0);
+    assert.equal(await page.locator('[data-payout-action="prepare"]').count(), 0);
+    assert.match(await page.locator('#payout-rows').textContent(), /Error Message:/);
+    await page.locator('#payout-filter').selectOption('error');
+    assert.equal(await page.locator('#payout-rows [data-withdrawal="wd_unknown"]').count(), 2);
+    assert.match(await page.locator('#payout-detail .payout-facts').textContent(), /Transfer statusError[\s\S]*Error Message[\s\S]*Operational statusUnknown outcome/);
+    assert.doesNotMatch(await page.locator('#payout-detail [role=alert]').textContent(), /arbitrary raw error/);
+    unknown.recipientIssue.fields = ['name', 'other'];
+    await page.locator('#refresh-payout-detail').click();
+    await page.getByText('Remitly could not accept the recipient legal name, other recipient details. Coins remain reserved.', { exact: true }).last().waitFor();
+    assert.equal(await page.locator('[data-payout-action="prepare"]').count(), 0);
+    await page.locator('#payout-filter').selectOption('all');
+    // Re-recording a generic unknown must not carry an old recipient warning.
+    await issueForm.locator("..").locator("summary").click();
+    await issueForm.locator("[name=reason]").fill("Current investigation reports generic uncertainty only");
+    await issueForm.locator("button").click();
+    await page.locator('#payout-detail [role=alert]').waitFor({ state: "detached" });
+    assert.equal(Object.hasOwn(actions.findLast(a => a.action === "unknown").body, "recipientIssue"), false);
+    // Raw public error strings without a valid active structured issue cannot create an Error warning.
+    unknown.creatorStatus = 'error';
+    unknown.errorMessage = '<img src=x onerror=alert(1)> untrusted';
+    unknown.recipientIssue = { code: 'recipient_validation_failed', fields: ['phone', 'bogus'] };
+    await page.locator('#refresh-payout-detail').click();
+    await page.getByRole('heading', { name: 'Withdrawal wd_unknown' }).waitFor();
+    assert.equal(await page.locator('#payout-detail [role=alert]').count(), 0);
+    // A pending contact correction remains blocked until the configured reconciler independently recovers it.
+    unknown.recipientIssue = { code: 'recipient_validation_failed', fields: ['phone', 'email'] };
+    unknown.recipientCorrection = { hash: 'pending-correction-hash', phone: '+573001112233', email: 'corrected@example.test', requestedAt: now };
+    unknown.attempts = [{ id: 'attempt_unknown', state: 'unknown', maker: 'prior_maker', evidence: { kind: 'scheduled' } }];
+    unknown.balances = { availableCoins: '400', availableUsd: '1.00', reservedCoins: '6000', reservedUsd: '15.00' };
+    unknown.canResolveRecipientError = false;
+    await page.locator('#refresh-payout-detail').click();
+    await page.getByText('Correction pending reconciler review', { exact: true }).waitFor();
+    assert.match(await page.locator('#payout-detail [role=alert]').textContent(), /corrected@example.test/);
+    assert.equal(await page.locator('[data-payout-action="resolve-recipient-error"]').count(), 0);
+    assert.equal(await page.locator('[data-payout-action="prepare"], [data-payout-action="quote"], [data-payout-action="check"], [data-payout-action="release"]').count(), 0);
+    unknown.canResolveRecipientError = true;
+    await page.locator('#refresh-payout-detail').click();
+    const recovery = page.locator('[data-payout-action="resolve-recipient-error"]');
+    await recovery.waitFor({ state: "attached" });
+    await recovery.locator('..').locator('summary').click();
+    for (const [key, value] of Object.entries({ observationId: 'safe-recovery-1', sourceUrl: 'https://www.remitly.com/us/en/homepage', observedAt: now, historyCoverage: 'All drafts, recipient links and transfer history for the prior attempt', evidence: 'Saved recipient inspected and changed; prior draft canceled; no transfer or debit exists' }))
+      await recovery.locator(`[name="${key}"]`).fill(value);
+    // Missing checks cannot submit recovery.
+    await recovery.locator('button').click();
+    assert.equal(actions.filter(a => a.action === 'resolve-recipient-error').length, 0);
+    const checks = ['historyInspected', 'recipientRecordInspected', 'recipientCorrectionApplied', 'noRecipientLinkIssued', 'noFundsSent', 'noFundingDebit', 'noPendingTransfers', 'noUnknownTransfers', 'previousDraftClosed'];
+    for (const name of checks) await recovery.locator(`[name="${name}"]`).check();
+    await recovery.locator('button').click();
+    await page.locator('[data-payout-action="quote"]').waitFor({ state: "attached" });
+    const recovered = actions.findLast(a => a.action === 'resolve-recipient-error');
+    assert.equal(recovered.body.attemptId, 'attempt_unknown');
+    assert.equal(recovered.body.correctionHash, 'pending-correction-hash');
+    checks.forEach(name => assert.equal(recovered.body[name], true));
+    assert.equal(unknown.balances.reservedCoins, '6000');
+    assert.equal(unknown.attempts[0].state, 'canceled');
+    assert.equal(unknown.recipient.phone, '+573001112233');
+    assert.equal(await page.locator('#payout-detail [role=alert]').count(), 0);
+    assert.equal(await page.locator('[data-payout-action="prepare"]').count(), 0);
     await page.locator("#payout-search").fill("123");
     assert.equal(await page.locator("#payout-rows tr").count(), 1);
     await page.locator('[data-withdrawal="wd_fixture"]').first().click();
@@ -854,7 +949,7 @@ const root = path.resolve(__dirname, "../../admin/public");
     );
     assert.deepEqual(errors, []);
     console.log(
-      "Payout desk browser fixtures passed: all-wallet enrollment snapshots, queue/search/exceptions, quote confirmation, pause, durable maker, independent checker, final human approve/decline before and after provider attempts, evidence-only delivery, conflicts, responsive layout and access-loss races.",
+      "Payout desk browser fixtures passed: all-wallet enrollment, queue/search/exceptions, safe recipient Error/messages, pending correction/reconciler-only recovery checks with retained reserve and fresh quote, maker/checker/human release, evidence-only delivery, conflicts, responsive layout and access-loss races.",
     );
   } finally {
     await browser?.close();

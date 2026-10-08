@@ -1165,5 +1165,16 @@
   "Your saved payment method will be used.": "سيتم استخدام طريقة الدفع المحفوظة.",
   "Estimated payout": "المبلغ التقديري للدفع",
   "Estimated total deduction: {v0}": "إجمالي الخصم التقديري: {v0}",
-  "Estimated amount received: {v0} {v1}": "المبلغ التقديري المستلم: {v0} {v1}"
+  "Estimated amount received: {v0} {v1}": "المبلغ التقديري المستلم: {v0} {v1}",
+  "Remitly could not accept the recipient phone number. Verify the country code and phone number with support.": "لم تتمكن Remitly من قبول رقم هاتف المستلم. تحقق من رمز البلد ورقم الهاتف مع الدعم.",
+  "Remitly could not accept the recipient email address. Verify the email address with support.": "لم تتمكن Remitly من قبول البريد الإلكتروني للمستلم. تحقق من عنوان البريد الإلكتروني مع الدعم.",
+  "Remitly could not accept the recipient legal name. Verify the full legal name with support.": "لم تتمكن Remitly من قبول الاسم القانوني للمستلم. تحقق من الاسم القانوني الكامل مع الدعم.",
+  "Remitly could not accept some recipient details. Contact support to verify them.": "لم تتمكن Remitly من قبول بعض تفاصيل المستلم. تواصل مع الدعم للتحقق منها.",
+  "Your coins remain reserved. Contact support to verify or correct your recipient details before this withdrawal can continue.": "تظل عملاتك محجوزة. تواصل مع الدعم للتحقق من تفاصيل المستلم أو تصحيحها قبل متابعة عملية السحب.",
+  "Correct your phone number or email below. Your coins remain reserved.": "صحح رقم هاتفك أو بريدك الإلكتروني أدناه. تظل عملاتك محجوزة.",
+  "Phone number including country code": "رقم الهاتف مع رمز البلد",
+  "Save corrected details": "حفظ التفاصيل المصححة",
+  "Details saved. We will check the existing transfer before continuing. Your coins remain reserved.": "تم حفظ التفاصيل. سنراجع التحويل الحالي قبل المتابعة. تظل عملاتك محجوزة.",
+  "Enter a valid recipient email address.": "أدخل عنوان بريد إلكتروني صالحًا للمستلم.",
+  "Enter your phone number with country code.": "أدخل رقم هاتفك مع رمز البلد."
 }

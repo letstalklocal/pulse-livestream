@@ -1165,5 +1165,16 @@
   "Your saved payment method will be used.": "Metode pembayaran tersimpan Anda akan digunakan.",
   "Estimated payout": "Perkiraan pembayaran",
   "Estimated total deduction: {v0}": "Perkiraan total potongan: {v0}",
-  "Estimated amount received: {v0} {v1}": "Perkiraan jumlah yang diterima: {v0} {v1}"
+  "Estimated amount received: {v0} {v1}": "Perkiraan jumlah yang diterima: {v0} {v1}",
+  "Remitly could not accept the recipient phone number. Verify the country code and phone number with support.": "Remitly tidak dapat menerima nomor telepon penerima. Periksa kode negara dan nomor telepon bersama tim dukungan.",
+  "Remitly could not accept the recipient email address. Verify the email address with support.": "Remitly tidak dapat menerima alamat email penerima. Periksa alamat email bersama tim dukungan.",
+  "Remitly could not accept the recipient legal name. Verify the full legal name with support.": "Remitly tidak dapat menerima nama resmi penerima. Periksa nama resmi lengkap bersama tim dukungan.",
+  "Remitly could not accept some recipient details. Contact support to verify them.": "Remitly tidak dapat menerima beberapa detail penerima. Hubungi tim dukungan untuk memeriksanya.",
+  "Your coins remain reserved. Contact support to verify or correct your recipient details before this withdrawal can continue.": "Koin Anda tetap dicadangkan. Hubungi tim dukungan untuk memeriksa atau memperbaiki detail penerima sebelum penarikan ini dapat dilanjutkan.",
+  "Correct your phone number or email below. Your coins remain reserved.": "Perbaiki nomor telepon atau email Anda di bawah. Koin Anda tetap dicadangkan.",
+  "Phone number including country code": "Nomor telepon dengan kode negara",
+  "Save corrected details": "Simpan detail yang diperbaiki",
+  "Details saved. We will check the existing transfer before continuing. Your coins remain reserved.": "Detail disimpan. Kami akan memeriksa transfer yang ada sebelum melanjutkan. Koin Anda tetap dicadangkan.",
+  "Enter a valid recipient email address.": "Masukkan alamat email penerima yang valid.",
+  "Enter your phone number with country code.": "Masukkan nomor telepon Anda dengan kode negara."
 }

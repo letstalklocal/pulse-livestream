@@ -5,11 +5,14 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CreatorWithdrawalCreatorStatus } from './creatorWithdrawalCreatorStatus';
 import type { CreatorWithdrawalProviderOnboardingStatus } from './creatorWithdrawalProviderOnboardingStatus';
 import type { CreatorWithdrawalStatus } from './creatorWithdrawalStatus';
 import type { WithdrawalChecker } from './withdrawalChecker';
 import type { WithdrawalQuote } from './withdrawalQuote';
 import type { WithdrawalRecipient } from './withdrawalRecipient';
+import type { WithdrawalRecipientCorrection } from './withdrawalRecipientCorrection';
+import type { WithdrawalRecipientIssue } from './withdrawalRecipientIssue';
 import type { WithdrawalRoute } from './withdrawalRoute';
 
 export interface CreatorWithdrawal {
@@ -36,4 +39,8 @@ export interface CreatorWithdrawal {
   version: number;
   createdAt: Date;
   updatedAt: Date;
+  recipientIssue?: WithdrawalRecipientIssue | null;
+  creatorStatus?: CreatorWithdrawalCreatorStatus;
+  errorMessage?: string | null;
+  recipientCorrection?: WithdrawalRecipientCorrection | null;
 }

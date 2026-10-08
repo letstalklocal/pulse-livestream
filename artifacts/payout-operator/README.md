@@ -30,7 +30,7 @@ Profiles, heartbeat/deduplicated-summary files, count-only logs and local run lo
 
 ## Current withdrawal flow
 
-Fetch the current preflight and role playbooks at the start of every job. Workflow revision `2026-10-07.1` treats the initial withdrawal submission as consent: record a current provider quote within the requested gross amount and selected method, then continue to preparation and save a supported one-time draft in the same run. No second creator approval is required. Estimated recipient currency amounts may vary at send time. Independent checking and human final sending remain required. The compatible MCP/profile version is still `2026-10-04.1`; no credential or connection reconfiguration is needed.
+Fetch the current preflight and role playbooks at the start of every job. Workflow revision `2026-10-08.1` treats the initial withdrawal submission as consent: record a current provider quote within the requested gross amount and selected method, then continue to preparation and save a supported one-time draft in the same run. No second creator approval is required. Estimated recipient currency amounts may vary at send time. Independent checking and human final sending remain required. Recipient validation failures return an Error display and safe field-specific message. Creators can save pending phone/email corrections; applying them and reopening quoting through guarded reconciler recovery awaits explicit user approval and is not implemented or exposed. Remitly handles phone/country validity. The compatible MCP/profile version is still `2026-10-04.1`; no credential or connection reconfiguration is needed.
 
 ## Automations
 

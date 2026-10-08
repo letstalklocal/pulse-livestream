@@ -96,7 +96,7 @@ test("updated workflow instructions remain compatible with an existing pinned Ma
   const home = await fixture(t);
   const preflight = JSON.parse(await fs.readFile(new URL("../../../lib/payout-mcp/playbooks/preflight.json", import.meta.url), "utf8"));
   assert.equal(preflight.version, profile.playbookVersion);
-  assert.equal(preflight.workflowRevision, "2026-10-07.1");
+  assert.equal(preflight.workflowRevision, "2026-10-08.1");
   assert.notEqual(preflight.workflowRevision, preflight.version);
   await saveProfile(home, profile);
   const existing = await loadProfile(home, profile.name);
