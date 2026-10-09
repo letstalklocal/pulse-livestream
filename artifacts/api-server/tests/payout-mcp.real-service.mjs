@@ -130,7 +130,14 @@ export async function runMcpIntegration({
 }
 
 /** Runs the real Maker tool against the real handler and isolated test DB. */
-export async function runMakerRetryMcp({ base, maker, id, leaseId, data }) {
+export async function runMakerRetryMcp({
+  base,
+  maker,
+  id,
+  leaseId,
+  data,
+  expectedRejection,
+}) {
   const client = new Client(
     { name: "pulse-maker-retry-fixture", version: "1" },
     { capabilities: {} },
@@ -145,11 +152,18 @@ export async function runMakerRetryMcp({ base, maker, id, leaseId, data }) {
       name: "pulse_payout_identity",
       arguments: {},
     });
-    assert.equal(identity.structuredContent.workflowRevision, "2026-10-08.5");
+    assert.equal(identity.structuredContent.workflowRevision, "2026-10-09.1");
     const result = await client.callTool({
       name: "pulse_payout_retry_recipient_creation",
       arguments: { id, leaseId, data },
     });
+    if (expectedRejection) {
+      assert(result.isError);
+      assert.equal(result.structuredContent.code, expectedRejection);
+      assert.equal(result.structuredContent.httpStatus, 409);
+      assert(!JSON.stringify(result).includes(maker.token));
+      return { status: 409, body: result.structuredContent };
+    }
     assert(!result.isError, JSON.stringify(result));
     return {
       status: 200,

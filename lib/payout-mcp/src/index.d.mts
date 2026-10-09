@@ -17,6 +17,13 @@ export class AdapterError extends Error {
 }
 export function validCredential(value: unknown): boolean;
 export function redact(value: unknown): unknown;
+export function safePayoutRejection(
+  code: unknown,
+): { code: string; message: string } | null;
+export function payoutHttpRejection(status: number): {
+  code: string;
+  message: string;
+};
 export class PayoutBackendClient {
   constructor(options: {
     origin: string;

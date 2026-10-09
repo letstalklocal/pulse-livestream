@@ -660,7 +660,7 @@ try {
   assert.equal(
     (await call("/api/payout-operator/identity", { token: maker.token })).body
       .workflowRevision,
-    "2026-10-08.5",
+    "2026-10-09.1",
   );
 
   assert.equal(
@@ -1252,6 +1252,94 @@ try {
     token = otherMaker.token,
     leaseId = retryLease.leaseId,
   ) => action(token, uncertain.id, "retry-recipient-creation", data, leaseId);
+  const readRetry = async () =>
+    (
+      await call(`/api/payout-operator/withdrawals/${uncertain.id}`, {
+        token: otherMaker.token,
+      })
+    ).body;
+  const consistentRetry = await readRetry();
+  assert.deepEqual(consistentRetry.recipientRecoveryDiagnostics, {
+    savedRecipientExists: true,
+    savedRevisionMatchesSnapshot: true,
+    savedDataMatchesSnapshot: true,
+    pendingCorrectionExists: true,
+    correctionIssueMatches: true,
+    correctionVersionMatches: true,
+    correctionHashMatches: true,
+  });
+  const safeProductionQuery = readFileSync(new URL('../scripts/diagnose-recipient-retry.sql', import.meta.url), 'utf8').replace('wd_9d50689c-81cb-4ba2-8ccf-02a2e722e7e3', uncertain.id);
+  const safeSqlResult = (await pool.query(safeProductionQuery)).rows[0];
+  assert.equal(safeSqlResult.status, 'unknown');
+  assert.equal(safeSqlResult.saved_revision_matches_snapshot, true);
+  assert.equal(safeSqlResult.saved_data_matches_snapshot, true);
+  assert.equal(safeSqlResult.correction_issue_matches, true);
+  assert.equal(safeSqlResult.correction_version_matches, true);
+  assert.equal(safeSqlResult.reserved_coins, '6000');
+  const beforeRejectedRetry = (
+    await pool.query("SELECT * FROM creator_withdrawals WHERE id=$1", [
+      uncertain.id,
+    ])
+  ).rows[0];
+  await pool.query(
+    "UPDATE creator_payout_recipients SET revision=revision+1 WHERE user_id=2",
+  );
+  assert.equal(
+    (await readRetry()).recipientRecoveryDiagnostics
+      .savedRevisionMatchesSnapshot,
+    false,
+  );
+  await runMakerRetryMcp({
+    base,
+    maker: otherMaker,
+    id: uncertain.id,
+    leaseId: retryLease.leaseId,
+    data: retryData,
+    expectedRejection: "recipient_revision_mismatch",
+  });
+  assert.deepEqual(
+    (
+      await pool.query("SELECT * FROM creator_withdrawals WHERE id=$1", [
+        uncertain.id,
+      ])
+    ).rows[0],
+    beforeRejectedRetry,
+  );
+  await pool.query(
+    "UPDATE creator_payout_recipients SET revision=revision-1 WHERE user_id=2",
+  );
+  const savedData = (
+    await pool.query(
+      "SELECT data FROM creator_payout_recipients WHERE user_id=2",
+    )
+  ).rows[0].data;
+  await pool.query(
+    "UPDATE creator_payout_recipients SET data=jsonb_set(data,'{phone}','\"+12025550999\"') WHERE user_id=2",
+  );
+  assert.equal(
+    (await readRetry()).recipientRecoveryDiagnostics.savedDataMatchesSnapshot,
+    false,
+  );
+  await runMakerRetryMcp({
+    base,
+    maker: otherMaker,
+    id: uncertain.id,
+    leaseId: retryLease.leaseId,
+    data: retryData,
+    expectedRejection: "recipient_snapshot_mismatch",
+  });
+  assert.deepEqual(
+    (
+      await pool.query("SELECT * FROM creator_withdrawals WHERE id=$1", [
+        uncertain.id,
+      ])
+    ).rows[0],
+    beforeRejectedRetry,
+  );
+  await pool.query(
+    "UPDATE creator_payout_recipients SET data=$1 WHERE user_id=2",
+    [JSON.stringify(savedData)],
+  );
   const retryLedger = (
     await pool.query(
       "SELECT * FROM creator_cash_ledger WHERE user_id=2 ORDER BY id",
@@ -1274,11 +1362,18 @@ try {
       })
     ).body.withdrawals.some((w) => w.id === uncertain.id),
   );
-  for (const token of [checker.token, reconciler.token])
-    assert.equal((await retryAction(retryData, token)).status, 403);
+  for (const token of [checker.token, reconciler.token]) {
+    const denied = await retryAction(retryData, token);
+    assert.equal(denied.status, 403);
+    assert.equal(denied.body.code, "forbidden");
+  }
   assert.equal(
     (await retryAction(retryData, otherMaker.token, "wrong-lease")).status,
     409,
+  );
+  assert.equal(
+    (await retryAction(retryData, otherMaker.token, "wrong-lease")).body.code,
+    "browser_lease_required",
   );
   for (const flag of [
     "noRecipientSaved",
@@ -1306,6 +1401,10 @@ try {
     409,
   );
   assert.equal(
+    (await retryAction({ ...retryData, correctionHash: "stale" })).body.code,
+    "correction_hash_mismatch",
+  );
+  assert.equal(
     (
       await retryAction({
         ...retryData,
@@ -1318,6 +1417,7 @@ try {
     "UPDATE creator_payout_settings SET preparation_paused=true WHERE id=1",
   );
   assert.equal((await retryAction()).status, 409);
+  assert.equal((await retryAction()).body.code, "preparation_paused");
   await pool.query(
     "UPDATE creator_payout_settings SET preparation_paused=false WHERE id=1",
   );

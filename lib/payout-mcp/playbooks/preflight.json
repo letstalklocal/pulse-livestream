@@ -3,9 +3,10 @@
   "version": "2026-10-04.1",
   "role": "all",
   "instructions": [
+    "Workflow revision 2026-10-09.1 returns safe guard codes and the actual httpStatus for backend rejections. A 409 is a rejected operation, not a service outage. Read recipientRecoveryDiagnostics on the scoped withdrawal get for boolean revision/snapshot/correction consistency. Never print contact values, hashes, credentials or raw notes in diagnostics; never bypass a failed guard or automatically retry a mutation. A 5xx/network timeout remains uncertain and requires inspection. Older Mac stdio clients must update their payout-MCP source and reconnect to display these diagnostics.",
     "For a phone/email validation failure before anything was saved in Remitly, Maker owns the retry. With a current owned browser lease, inspect the current provider contact/draft/history state and call pulse_payout_retry_recipient_creation with the latest recipientCorrection.hash, current unknown/expired attempt, fresh observedAt, sourceUrl, stable observationId, protected evidence and historyCoverage. Confirm noRecipientSaved and noDraftSaved plus historyInspected, recipientRecordInspected, recipientCorrectionApplied, noRecipientLinkIssued, noFundsSent, noFundingDebit, noPendingTransfers, noUnknownTransfers and previousDraftClosed. Absence of a recipient/draft satisfies inspection and closure only when actually verified; recipientCorrectionApplied means the corrected saved details will be used by the fresh attempt. Never invent a record or claim an edit to an absent contact. Saved draft/contact markers, recorded payment/link/activity, human decline/release, mixed name/other errors, stale corrections or paused preparation block this retry. Success keeps the SAME withdrawal and coins reserved, closes the failed internal attempt, applies the saved correction and clears the old quote/check. Continue with a fresh quote and durable preparation attempt in the same Maker run; checker review and human final sending remain required.",
     "Run the role-scoped Pulse identity/health check. Require the configured HTTPS origin, environment, provider-account alias, operator ID, role and playbook version 2026-10-04.1 to match before continuing. A healthy API does not prove browser access.",
-    "Fetch the current preflight and role playbooks at the start of every run. Require workflowRevision 2026-10-08.5 for initial-request consent, structured recipient validation errors and Maker retry of verified unsaved failures; the compatible MCP/profile version remains 2026-10-04.1. Do not rely on cached prompts that wait for creator quote approval.",
+    "Fetch the current preflight and role playbooks at the start of every run. Require workflowRevision 2026-10-09.1 for initial-request consent, structured recipient validation errors and Maker retry of verified unsaved failures; the compatible MCP/profile version remains 2026-10-04.1. Do not rely on cached prompts that wait for creator quote approval.",
     "Use one role credential in this job. Maker and checker must be different authorized operators; an agent must not check work that it prepared by switching credentials.",
     "Check whether preparation is paused. Maker/checker stop while paused; reconciliation may inspect existing outcomes. Never disable the pause yourself.",
     "Confirm an actually available authenticated browser capability in this local Codex session. If absent, report blocked browser access and stop. Do not pretend a browser or Remitly API exists.",
@@ -22,5 +23,5 @@
   ],
   "humanFinalDecisionRequired": true,
   "autoSendAllowed": false,
-  "workflowRevision": "2026-10-08.5"
+  "workflowRevision": "2026-10-09.1"
 }

@@ -49,3 +49,6 @@ packages = ["ffmpeg-full"]
 
 [userenv.development]
 CODEX_HOME = "/home/runner/workspace/.config/codex"
+
+[objectStorage]
+defaultBucketID = "replit-objstore-848a54d7-2696-4eb5-99d3-067ced6c60f6"

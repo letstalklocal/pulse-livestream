@@ -8,6 +8,10 @@ import maker from "@workspace/payout-mcp/playbooks/maker.json";
 import checker from "@workspace/payout-mcp/playbooks/checker.json";
 import reconciler from "@workspace/payout-mcp/playbooks/reconciler.json";
 import recover from "@workspace/payout-mcp/playbooks/recover.json";
+import {
+  safePayoutRejection,
+  payoutHttpRejection,
+} from "@workspace/payout-mcp";
 const account = () => {
   const a = catalogAccountKey();
   if (!a) throw new p.OperatorError("Payout account is not configured.", 503);
@@ -25,18 +29,38 @@ const safe =
         error instanceof p.OperatorError ||
         error instanceof w.WithdrawalError
       ) {
-        res.status(error.status).json({ error: error.message });
+        const rejection =
+          safePayoutRejection(error.code) ?? payoutHttpRejection(error.status);
+        req.log?.warn(
+          {
+            category: "payout_operator_rejection",
+            httpStatus: error.status,
+            guard: rejection.code,
+            operation: req.route?.path ?? "authentication",
+            operatorRole: res.locals.payoutOperator?.role,
+            withdrawalId: /^wd_[a-f0-9-]{36}$/.test(String(req.params.id)) ? req.params.id : undefined,
+          },
+          "Payout operator request rejected",
+        );
+        res
+          .status(error.status)
+          .json({
+            error: error.code ? rejection.message : error.message,
+            code: rejection.code,
+          });
         return;
       }
-      const code =
+      const rawCode =
         typeof error === "object" && error && "code" in error
           ? String(error.code)
           : undefined;
+      const code = rawCode && /^[A-Z0-9]{5}$/.test(rawCode) ? rawCode : undefined;
       req.log?.error(
         { category: "payout_operator", code },
         "Payout operator operation failed",
       );
       res.status(code === "23505" ? 409 : 503).json({
+        code: code === "23505" ? "request_conflict" : "service_unavailable",
         error:
           code === "23505"
             ? "Conflicting payout or lease identifier; reload and investigate."

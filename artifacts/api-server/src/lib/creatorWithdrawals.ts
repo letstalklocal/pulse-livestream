@@ -13,12 +13,13 @@ export class WithdrawalError extends Error {
   constructor(
     message: string,
     public status = 400,
+    public code?: string,
   ) {
     super(message);
   }
 }
-const fail = (message: string, status = 400): never => {
-  throw new WithdrawalError(message, status);
+const fail = (message: string, status = 400, code?: string): never => {
+  throw new WithdrawalError(message, status, code);
 };
 function canonical(v: unknown): string {
   if (Array.isArray(v)) return `[${v.map(canonical).join(",")}]`;
@@ -1343,13 +1344,19 @@ async function recoverRecipientError(
       fail(
         "Recovery requires confirmed correction, closed prior drafts and no recipient link, sent/debited funds, pending or uncertain transfer.",
         409,
+        "recovery_checks_missing",
       );
   if (Date.parse(observedAt) < Date.now() - 86400000)
-    fail("Recovery provider observation must be recent.", 409);
+    fail(
+      "Recovery provider observation must be recent.",
+      409,
+      "recovery_observation_stale",
+    );
   if (makerRetry && (b.noRecipientSaved !== true || b.noDraftSaved !== true))
     fail(
       "Maker retry requires confirmation that no provider recipient or draft was saved.",
       409,
+      "unsaved_provider_checks_missing",
     );
   const observationHash = hash(b);
   return tx(db, async (c) => {
@@ -1363,7 +1370,7 @@ async function recoverRecipientError(
       ).rows[0]?.preparation_paused ??
         true)
     )
-      fail("Preparation is paused.", 409);
+      fail("Preparation is paused.", 409, "preparation_paused");
     const old = (
       await c.query(
         "SELECT evidence FROM creator_payout_events WHERE withdrawal_id=$1 AND action='recipient_error_resolved' AND evidence->>'observationId'=$2",
@@ -1372,7 +1379,11 @@ async function recoverRecipientError(
     ).rows[0];
     if (old) {
       if (old.evidence.observationHash !== observationHash)
-        fail("Recovery observation ID reused with different evidence.", 409);
+        fail(
+          "Recovery observation ID reused with different evidence.",
+          409,
+          "recovery_observation_conflict",
+        );
       return withdrawalDetail(c, id, undefined, account);
     }
     const current = await withdrawalDetail(c, id, undefined, account);
@@ -1381,23 +1392,31 @@ async function recoverRecipientError(
       throw new WithdrawalError(
         "Latest pending recipient correction required.",
         409,
+        "pending_correction_missing",
       );
     if (
       !current.recipientIssue ||
       !current.recipientIssue.fields.every(
         (field) => field === "phone" || field === "email",
       ) ||
-      !current.recipientCorrection ||
-      current.recipientCorrection.hash !== correctionHash
+      !current.recipientCorrection
     )
       fail(
         "Current recipient error and latest pending correction required.",
         409,
+        "recipient_issue_not_correctable",
+      );
+    if (correction.hash !== correctionHash)
+      fail(
+        "Current recipient error and latest pending correction required.",
+        409,
+        "correction_hash_mismatch",
       );
     if (Date.parse(observedAt) < Date.parse(correction.requestedAt))
       fail(
         "Provider recovery inspection must cover the latest correction.",
         409,
+        "recovery_observation_stale",
       );
     const attempts = (
       await c.query(
@@ -1418,6 +1437,7 @@ async function recoverRecipientError(
       fail(
         "The current uncertain recipient attempt must be inspected before recovery.",
         409,
+        "recovery_attempt_conflict",
       );
     if (
       makerRetry &&
@@ -1437,6 +1457,7 @@ async function recoverRecipientError(
       fail(
         "Recorded provider recipient or preparation blocks Maker retry; inspect the existing record instead.",
         409,
+        "provider_record_exists",
       );
     const released = (
       await c.query(
@@ -1466,6 +1487,7 @@ async function recoverRecipientError(
       fail(
         "Recorded human decision or provider activity blocks recipient recovery; reconcile the existing transfer instead.",
         409,
+        "provider_effects_recorded",
       );
     const reserved = (
       await c.query(
@@ -1474,28 +1496,43 @@ async function recoverRecipientError(
       )
     ).rows[0].reserved;
     if (BigInt(reserved) !== BigInt(w.gross_cents) * 4n)
-      fail("Exact withdrawal reservation is missing or inconsistent.", 409);
+      fail(
+        "Exact withdrawal reservation is missing or inconsistent.",
+        409,
+        "reservation_mismatch",
+      );
     const contact = (
       await c.query(
         "SELECT * FROM creator_payout_recipients WHERE user_id=$1 FOR UPDATE",
         [w.user_id],
       )
     ).rows[0];
+    if (!contact)
+      fail(
+        "Saved recipient changed; investigate before applying correction.",
+        409,
+        "saved_recipient_missing",
+      );
+    if (contact.revision !== w.recipient.revision)
+      fail(
+        "Saved recipient changed; investigate before applying correction.",
+        409,
+        "recipient_revision_mismatch",
+      );
     if (
-      !contact ||
-      contact.revision !== w.recipient.revision ||
       hash(contact.data) !==
-        hash(
-          Object.fromEntries(
-            Object.entries(w.recipient).filter(
-              ([key]) => !["revision", "status"].includes(key),
-            ),
+      hash(
+        Object.fromEntries(
+          Object.entries(w.recipient).filter(
+            ([key]) => !["revision", "status"].includes(key),
           ),
-        )
+        ),
+      )
     )
       fail(
         "Saved recipient changed; investigate before applying correction.",
         409,
+        "recipient_snapshot_mismatch",
       );
     const recipientRecord = (
       await c.query(
@@ -1952,13 +1989,55 @@ export async function adminWithdrawalDetail(
   const raw = (
     await db.query("SELECT checker FROM creator_withdrawals WHERE id=$1", [id])
   ).rows[0];
+  const diagnosticRow = (
+    await db.query(
+      `SELECT w.id,w.version,w.recipient,${recipientIssueEvidence("w")},${recipientCorrectionEvidence("w")},r.revision saved_revision,r.data saved_data FROM creator_withdrawals w LEFT JOIN creator_payout_recipients r ON r.user_id=w.user_id WHERE w.id=$1 AND w.account_key=$2`,
+      [id, account],
+    )
+  ).rows[0];
+  const recipientRecoveryDiagnostics = diagnosticRow
+    ? recipientConsistency(diagnosticRow)
+    : null;
   return {
     ...w,
     checker: raw?.checker,
     creatorName: creator?.name,
     attempts,
     events,
+    recipientRecoveryDiagnostics,
     balances: await balances(db, w.userId),
+  };
+}
+
+// Read-only, scoped operator/admin diagnostics: no contacts, hashes or raw notes.
+function recipientConsistency(r: Row) {
+  const correction = r.recipient_correction_evidence;
+  const issue = r.recipient_issue_evidence;
+  const snapshotData = Object.fromEntries(
+    Object.entries(r.recipient).filter(
+      ([key]) => !["revision", "status"].includes(key),
+    ),
+  );
+  return {
+    savedRecipientExists: r.saved_data != null,
+    savedRevisionMatchesSnapshot: r.saved_revision === r.recipient.revision,
+    savedDataMatchesSnapshot:
+      r.saved_data != null && hash(r.saved_data) === hash(snapshotData),
+    pendingCorrectionExists: !!correction,
+    correctionIssueMatches:
+      !!correction && !!issue && correction.issueEventId === issue.eventId,
+    correctionVersionMatches:
+      !!correction && correction.recipientVersion === r.version,
+    correctionHashMatches:
+      !!correction &&
+      correction.hash ===
+        hash({
+          id: r.id,
+          version: r.version,
+          issueEventId: issue?.eventId,
+          phone: correction.phone,
+          email: correction.email,
+        }),
   };
 }
 export async function cancelUnprepared(db: Database, uid: number, id: string) {

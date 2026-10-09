@@ -3,6 +3,7 @@
   "version": "2026-10-04.1",
   "role": "maker",
   "instructions": [
+    "When guarded retry is rejected, report only its safe code, httpStatus and fixed message. Read recipientRecoveryDiagnostics to distinguish saved recipient revision/data mismatches from pending correction issue/version/hash mismatches. Keep the correction, reservation and audit intact. Do not reset, reclassify unchanged evidence, resubmit contact data or retry creation to repair an unexplained mismatch. No guard is waived by a no-record provider inspection. 5xx/timeouts still require investigation before retry.",
     "For a phone/email validation failure before anything was saved in Remitly, Maker owns the retry. With a current owned browser lease, inspect the current provider contact/draft/history state and call pulse_payout_retry_recipient_creation with the latest recipientCorrection.hash, current unknown/expired attempt, fresh observedAt, sourceUrl, stable observationId, protected evidence and historyCoverage. Confirm noRecipientSaved and noDraftSaved plus historyInspected, recipientRecordInspected, recipientCorrectionApplied, noRecipientLinkIssued, noFundsSent, noFundingDebit, noPendingTransfers, noUnknownTransfers and previousDraftClosed. Absence of a recipient/draft satisfies inspection and closure only when actually verified; recipientCorrectionApplied means the corrected saved details will be used by the fresh attempt. Never invent a record or claim an edit to an absent contact. Saved draft/contact markers, recorded payment/link/activity, human decline/release, mixed name/other errors, stale corrections or paused preparation block this retry. Success keeps the SAME withdrawal and coins reserved, closes the failed internal attempt, applies the saved correction and clears the old quote/check. Continue with a fresh quote and durable preparation attempt in the same Maker run; checker review and human final sending remain required.",
     "Read progress.stage and progress.nextAction alongside the operational status. error_unknown needs investigation, error_identified needs the rejected details corrected, and correction_saved with verify_saved_correction means the edit is already saved and awaits verified Maker retry when no provider record was saved; saved/uncertain objects require inspection. progress.blocked=true is not permission to retry. After guarded recovery, awaiting_quote/continue returns the same withdrawal to fresh quoting; never request a repeated edit or treat the old rejection as an unsaved correction.",
     "Complete the preflight playbook and use only the maker credential. Retrieve the current role-eligible queue; if the response is truncated, do not claim to have processed the full queue.",
@@ -22,5 +23,5 @@
   ],
   "humanFinalDecisionRequired": true,
   "autoSendAllowed": false,
-  "workflowRevision": "2026-10-08.5"
+  "workflowRevision": "2026-10-09.1"
 }

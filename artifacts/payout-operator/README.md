@@ -1,5 +1,15 @@
 # Pulse payout operator for the Mac
 
+## October 9 safe retry rejection diagnostics
+
+Workflow revision `2026-10-09.1` preserves actual HTTP rejection status and returns fixed safe guard codes/messages. Publish the updated backend, then update the existing Mac checkout's payout-MCP source (including new `src/rejections.mjs`) and reconnect its stdio server. No compiler, credential change or new profile is required. An old Mac bridge still discards backend rejection details even after publication.
+
+Read `pulse_payout_get` for the same withdrawal. Its `recipientRecoveryDiagnostics` contains only booleans for saved record/snapshot revision and data equality and pending correction issue/version/hash integrity. Report those booleans plus any rejection code/httpStatus; never print contacts, credentials or hash values. A failed guard is not a reason to reset the withdrawal or erase/resubmit its saved correction. Keep reservations and audit history. Retain existing provider-absence, browser-lease and human-send requirements, and never retry a mutation automatically. Network/5xx outcomes remain uncertain.
+
+After backend publication and the Mac source update, use this diagnostic prompt:
+
+> Diagnose only; do not call recovery or any mutation. Fetch `pulse_payout_identity` and the current preflight/maker/recover playbooks; verify workflow revision `2026-10-09.1`. Read `pulse_payout_get` for `wd_9d50689c-81cb-4ba2-8ccf-02a2e722e7e3`. Report only workflow revision, status, progress stage, version, reservation amount and all `recipientRecoveryDiagnostics` booleans. If a read is rejected, report only its safe code, message and HTTP status. Do not print recipient values, credentials or hash values. Do not change the correction, withdrawal, lease, schedule or provider records, and do not send money.
+
 This package prepares and checks reviewable Remitly work and reconciles recorded outcomes. Pulse remains authoritative for wallet reservations, approvals, attempts and audit evidence. The human makes the final payout decision and performs the final send or recipient-link issuance in Remitly. No helper or scheduled prompt sends money.
 
 The JavaScript runtime helpers are portable and require Node 22 or newer. Credential setup currently uses **macOS Keychain** and fails closed on other operating systems. The JavaScript CLI and MCP runner need no compiler or project build. Create the credential manually in Apple's built-in Keychain Access; the helper uses macOS's built-in `security` command only to retrieve/delete it. The user reported a working production maker bridge and direct chat MCP identity call on their Mac on October 7; signed-in Remitly browser access and other operator roles remain separate checks. See [the confirmed connection checkpoint](../../docs/remitly-launch-handoff.md#october-7-mac-maker-mcp-connection-confirmed).

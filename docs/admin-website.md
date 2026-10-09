@@ -1,5 +1,9 @@
 # Admin website
 
+## October 9 retry rejection diagnostics
+
+Workflow revision `2026-10-09.1` fixes the MCP's loss of HTTP rejection status and guard code. The operator read includes boolean-only saved recipient/snapshot/correction consistency diagnostics; typed guard failures return fixed safe codes and are logged without recipient details. Maker authorization, recovery conditions, reservations and audit are preserved. Production logs/data and publication are not accessible from this workspace; the actual October 8 failed guard remains unconfirmed. See the [diagnosis handoff](remitly-launch-handoff.md#october-9-guarded-retry-diagnostics) and [single read-only production query](../artifacts/api-server/scripts/diagnose-recipient-retry.sql). Backend publication and a refreshed Mac stdio source are required for the full diagnostics; no native build is needed.
+
 ## October 8 Maker retry after unsaved recipient validation failure
 
 **Latest user decision:** when recipient creation fails at phone validation before anything is saved in Remitly, Maker may attempt creation again using the saved correction. This is preparation retry, not reconciliation of a sent transfer. This supersedes earlier Reconciler-only instructions for that no-record case; sent-transfer reconciliation remains separate and existing saved/uncertain records retain their investigation guards.

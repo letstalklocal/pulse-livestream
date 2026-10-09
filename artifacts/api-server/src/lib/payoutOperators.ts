@@ -25,18 +25,19 @@ export class OperatorError extends Error {
   constructor(
     message: string,
     public status = 400,
+    public code?: string,
   ) {
     super(message);
   }
 }
 export const PLAYBOOK_VERSION = "2026-10-04.1";
 // Compatible MCP/profile version stays fixed; workflow instructions have their own revision.
-export const WORKFLOW_REVISION = "2026-10-08.5";
+export const WORKFLOW_REVISION = "2026-10-09.1";
 export const operatorEnvironment = (): Operator["environment"] =>
   process.env.NODE_ENV === "production" ? "production" : "development";
 const hash = (v: string) => createHash("sha256").update(v).digest("hex");
-const fail = (m: string, s = 400): never => {
-  throw new OperatorError(m, s);
+const fail = (m: string, s = 400, code?: string): never => {
+  throw new OperatorError(m, s, code);
 };
 const text = (v: unknown, label: string, max = 200): string =>
   typeof v === "string" &&
@@ -224,7 +225,7 @@ export async function authenticateOperator(
 }
 export function requireOperatorRole(op: Operator, roles: Operator["role"][]) {
   if (!roles.includes(op.role))
-    fail("This operator role cannot perform that action.", 403);
+    fail("This operator role cannot perform that action.", 403, "forbidden");
 }
 const capabilities = {
   maker: [
@@ -485,6 +486,7 @@ async function ownedLease(
     fail(
       "An active owned browser lease is required; expired leases cannot be renewed or reused.",
       409,
+      "browser_lease_required",
     );
   return row;
 }
@@ -596,6 +598,7 @@ export async function withBrowserLease<T>(
       fail(
         "Browser lease expired during operation; mutation rolled back.",
         409,
+        "browser_lease_expired",
       );
     await operatorAudit(c, op, action, target, {
       leaseId: lease.id,
