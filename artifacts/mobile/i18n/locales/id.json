@@ -1185,5 +1185,10 @@
   "Save corrected details": "Simpan detail yang diperbaiki",
   "Details saved. We will check the existing transfer before continuing. Your coins remain reserved.": "Detail disimpan. Kami akan memeriksa transfer yang ada sebelum melanjutkan. Koin Anda tetap dicadangkan.",
   "Enter a valid recipient email address.": "Masukkan alamat email penerima yang valid.",
-  "Enter your phone number with country code.": "Masukkan nomor telepon Anda dengan kode negara."
+  "Enter your phone number with country code.": "Masukkan nomor telepon Anda dengan kode negara.",
+  "Estimate": "Perkiraan",
+  "Estimated amount sent: {v0}": "Perkiraan jumlah dikirim: {v0}",
+  "Estimated provider fee: {v0}": "Perkiraan biaya penyedia: {v0}",
+  "Estimated tax: {v0}": "Perkiraan pajak: {v0}",
+  "The final amount received may change with the exchange rate.": "Jumlah akhir yang diterima dapat berubah sesuai nilai tukar."
 }

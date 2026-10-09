@@ -1185,5 +1185,10 @@
   "Save corrected details": "保存更正后的信息",
   "Details saved. We will check the existing transfer before continuing. Your coins remain reserved.": "信息已保存。我们会先核实现有转账，再继续处理。您的金币仍被预留。",
   "Enter a valid recipient email address.": "请输入有效的收款人电子邮件地址。",
-  "Enter your phone number with country code.": "请输入包含国家区号的电话号码。"
+  "Enter your phone number with country code.": "请输入包含国家区号的电话号码。",
+  "Estimate": "估算",
+  "Estimated amount sent: {v0}": "预计汇出金额：{v0}",
+  "Estimated provider fee: {v0}": "预计服务商费用：{v0}",
+  "Estimated tax: {v0}": "预计税费：{v0}",
+  "The final amount received may change with the exchange rate.": "最终到账金额可能随汇率变化。"
 }

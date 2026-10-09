@@ -745,13 +745,7 @@ export function safeProviderLink(v: unknown): string {
     );
   return value;
 }
-export async function recordQuote(
-  db: Database,
-  account: string,
-  id: string,
-  input: unknown,
-  actor: string,
-) {
+function providerQuoteForWithdrawal(w: Row, input: unknown) {
   const b = body(input, [
     "methodId",
     "sendAmountCents",
@@ -806,12 +800,46 @@ export async function recordQuote(
   const receiveAmount = str(b.receiveAmount, "receive amount", 40);
   if (!/^\d+(\.\d{1,8})?$/.test(receiveAmount) || !/[1-9]/.test(receiveAmount))
     fail("Receive amount must be an exact positive decimal.");
+  if (send + fee + tax > w.gross_cents)
+    fail(
+      "Send, fee and taxes must fit the requested gross amount. Promotions cannot fund the withdrawal.",
+    );
+  if (
+    b.methodId !== w.method_id ||
+    b.receiveCurrency !== w.route.receiveCurrency ||
+    b.fundingMethod !== w.route.fundingMethod
+  )
+    fail("Quote route/currency/funding method does not match request.");
+  const q = {
+    methodId: w.method_id,
+    sendAmountCents: send,
+    feeCents: fee,
+    taxCents: tax,
+    promotionalDiscountCents: promo,
+    totalEarningsDeductedCents: send + fee + tax,
+    receiveAmount,
+    receiveCurrency: b.receiveCurrency,
+    fundingMethod: b.fundingMethod,
+    providerMinimumSendCents: minimum,
+    source: b.source,
+    sourceUrl,
+    observedAt,
+    expiresAt,
+    recipientHash: hash(w.recipient),
+    evidenceHash: hash(evidence),
+  };
+  const quote = { ...q, hash: hash(q) };
+  return quote;
+}
+export async function recordQuote(
+  db: Database,
+  account: string,
+  id: string,
+  input: unknown,
+  actor: string,
+) {
   return tx(db, async (c) => {
     const w = await lockedWithdrawal(c, id, account);
-    if (send + fee + tax > w.gross_cents)
-      fail(
-        "Send, fee and taxes must fit the requested gross amount. Promotions cannot fund the withdrawal.",
-      );
     if (
       !["awaiting_quote", "awaiting_confirmation", "requested"].includes(
         w.status,
@@ -821,31 +849,8 @@ export async function recordQuote(
         "Cannot change quote after preparation; resolve the attempt first.",
         409,
       );
-    if (
-      b.methodId !== w.method_id ||
-      b.receiveCurrency !== w.route.receiveCurrency ||
-      b.fundingMethod !== w.route.fundingMethod
-    )
-      fail("Quote route/currency/funding method does not match request.");
-    const q = {
-      methodId: w.method_id,
-      sendAmountCents: send,
-      feeCents: fee,
-      taxCents: tax,
-      promotionalDiscountCents: promo,
-      totalEarningsDeductedCents: send + fee + tax,
-      receiveAmount,
-      receiveCurrency: b.receiveCurrency,
-      fundingMethod: b.fundingMethod,
-      providerMinimumSendCents: minimum,
-      source: b.source,
-      sourceUrl,
-      observedAt,
-      expiresAt,
-      recipientHash: hash(w.recipient),
-      evidenceHash: hash(evidence),
-    };
-    const quote = { ...q, hash: hash(q) };
+    const quote = providerQuoteForWithdrawal(w, input);
+    const evidence = note((input as Row).evidence, "quote evidence", 5000);
     await c.query(
       "UPDATE creator_withdrawals SET quote=$2,status='requested',approved_quote_hash=NULL,checker=NULL,version=version+1,updated_at=now() WHERE id=$1",
       [id, JSON.stringify(quote)],
@@ -871,6 +876,7 @@ export async function prepare(
   actor: string,
 ) {
   const b = body(input, ["quoteHash", "evidence"]);
+  const continuous = b.quoteHash === undefined;
   const evidence = note(b.evidence, "preparation reason", 5000);
   return tx(db, async (c) => {
     const w = await lockedWithdrawal(c, id, account);
@@ -884,17 +890,28 @@ export async function prepare(
     )
       fail("Preparation is paused.", 409);
     if (
-      !["requested", "awaiting_confirmation"].includes(w.status) ||
-      !w.quote ||
-      b.quoteHash !== w.quote.hash ||
-      w.quote.methodId !== w.method_id ||
-      w.quote.receiveCurrency !== w.route.receiveCurrency ||
-      w.quote.fundingMethod !== w.route.fundingMethod ||
-      w.quote.recipientHash !== hash(w.recipient) ||
-      w.quote.sendAmountCents + w.quote.feeCents + w.quote.taxCents >
-        w.gross_cents ||
-      !Number.isFinite(Date.parse(w.quote.expiresAt)) ||
-      Date.parse(w.quote.expiresAt) <= Date.now()
+      continuous &&
+      !["awaiting_quote", "requested", "awaiting_confirmation"].includes(
+        w.status,
+      )
+    )
+      fail(
+        "Withdrawal is not available for preparation; inspect the existing attempt.",
+        409,
+      );
+    if (
+      !continuous &&
+      (!["requested", "awaiting_confirmation"].includes(w.status) ||
+        !w.quote ||
+        b.quoteHash !== w.quote.hash ||
+        w.quote.methodId !== w.method_id ||
+        w.quote.receiveCurrency !== w.route.receiveCurrency ||
+        w.quote.fundingMethod !== w.route.fundingMethod ||
+        w.quote.recipientHash !== hash(w.recipient) ||
+        w.quote.sendAmountCents + w.quote.feeCents + w.quote.taxCents >
+          w.gross_cents ||
+        !Number.isFinite(Date.parse(w.quote.expiresAt)) ||
+        Date.parse(w.quote.expiresAt) <= Date.now())
     )
       fail(
         "Current matching provider quote required before preparation; refresh stale quotes.",
@@ -903,10 +920,41 @@ export async function prepare(
     const bal = await balances(c, w.user_id);
     if (BigInt(bal.reservedTicks) < BigInt(w.gross_cents) * 4n)
       fail("Reservation is missing.", 409);
+    if (continuous) {
+      const reserved = (
+        await c.query(
+          "SELECT COALESCE(sum(reserved_ticks),0)::text reserved FROM creator_cash_ledger WHERE user_id=$1 AND withdrawal_id=$2",
+          [w.user_id, id],
+        )
+      ).rows[0].reserved;
+      if (BigInt(reserved) !== BigInt(w.gross_cents) * 4n)
+        fail(
+          "Exact withdrawal reservation is missing or inconsistent.",
+          409,
+          "reservation_mismatch",
+        );
+      const updated = (
+        await c.query(
+          "UPDATE creator_withdrawals SET quote=NULL,approved_quote_hash=NULL,checker=NULL,version=version+1,updated_at=now() WHERE id=$1 RETURNING *",
+          [id],
+        )
+      ).rows[0];
+      Object.assign(w, updated);
+    }
     const attemptId = `attempt_${randomUUID()}`;
     await c.query(
       "INSERT INTO creator_payout_attempts(id,withdrawal_id,account_key,maker,binding_hash,lease_until,evidence) VALUES($1,$2,$3,$4,$5,now()+interval '15 minutes',$6)",
-      [attemptId, id, account, actor, binding(w), JSON.stringify({ evidence })],
+      [
+        attemptId,
+        id,
+        account,
+        actor,
+        binding(w),
+        JSON.stringify({
+          evidence,
+          ...(continuous ? { workflowMode: "continuous" } : {}),
+        }),
+      ],
     );
     await c.query(
       "UPDATE creator_withdrawals SET status='preparing',checker=NULL,updated_at=now() WHERE id=$1",
@@ -916,6 +964,7 @@ export async function prepare(
     return {
       ...(await withdrawalDetail(c, id, undefined, account)),
       attemptId,
+      ...(continuous ? { preparationHash: binding(w) } : {}),
     };
   });
 }
@@ -929,6 +978,8 @@ export async function completePreparation(
   const b = body(input, [
     "attemptId",
     "quoteHash",
+    "preparationHash",
+    "quote",
     "draftId",
     "reviewUrl",
     "deadline",
@@ -972,7 +1023,52 @@ export async function completePreparation(
         "Preparation lease expired or actor/attempt changed. Record unknown and reconcile.",
         409,
       );
-    if (b.quoteHash !== w.quote?.hash || a.binding_hash !== binding(w))
+    const continuous = a.evidence?.workflowMode === "continuous";
+    if (continuous) {
+      if (
+        b.preparationHash !== a.binding_hash ||
+        a.binding_hash !== binding(w) ||
+        b.quoteHash !== undefined
+      )
+        fail("Preparation changed; check current request.", 409);
+      if (b.kind !== "scheduled" || !b.draftId || !b.reviewUrl || !b.quote)
+        fail(
+          "Completed preparation requires an actual saved draft and its final quote.",
+          409,
+          "saved_draft_required",
+        );
+      const quote = providerQuoteForWithdrawal(w, b.quote);
+      const updated = (
+        await c.query(
+          "UPDATE creator_withdrawals SET quote=$2,approved_quote_hash=NULL,checker=NULL,version=version+1,updated_at=now() WHERE id=$1 RETURNING *",
+          [id, JSON.stringify(quote)],
+        )
+      ).rows[0];
+      Object.assign(w, updated);
+      await c.query(
+        "UPDATE creator_payout_attempts SET binding_hash=$2 WHERE id=$1",
+        [a.id, binding(w)],
+      );
+      a.binding_hash = binding(w);
+      await event(
+        c,
+        w.user_id,
+        actor,
+        "quote_recorded",
+        {
+          quote,
+          evidence: note(b.quote.evidence, "quote evidence", 5000),
+          attemptId: a.id,
+        },
+        id,
+      );
+    } else if (b.quote !== undefined || b.preparationHash !== undefined) {
+      fail("Legacy preparation must use its existing quote binding.", 409);
+    }
+    if (
+      (!continuous && b.quoteHash !== w.quote?.hash) ||
+      a.binding_hash !== binding(w)
+    )
       fail("Preparation changed; check current request.", 409);
     const deadline = str(b.deadline, "review deadline");
     if (
@@ -991,7 +1087,8 @@ export async function completePreparation(
       fail("Review URL scheduledDraftId must match the recorded draft ID.");
     const details = {
       kind: b.kind,
-      quoteHash: b.quoteHash,
+      quoteHash: w.quote.hash,
+      ...(continuous ? { workflowMode: "continuous" } : {}),
       deadline,
       reviewUrl,
       oneTime: true,
@@ -2179,7 +2276,12 @@ export async function renewPreparationLease(
   input: unknown,
   actor: string,
 ) {
-  const b = body(input, ["attemptId", "quoteHash", "evidence"]);
+  const b = body(input, [
+    "attemptId",
+    "quoteHash",
+    "preparationHash",
+    "evidence",
+  ]);
   const evidence = note(b.evidence, "lease renewal evidence");
   return tx(db, async (c) => {
     const w = await lockedWithdrawal(c, id, account);
@@ -2195,9 +2297,12 @@ export async function renewPreparationLease(
       a.state !== "preparing" ||
       w.status !== "preparing" ||
       a.binding_hash !== binding(w) ||
-      b.quoteHash !== w.quote?.hash ||
-      Date.parse(a.lease_until) <= Date.now() ||
-      Date.parse(w.quote.expiresAt) <= Date.now()
+      (a.evidence?.workflowMode === "continuous"
+        ? b.preparationHash !== a.binding_hash || b.quoteHash !== undefined
+        : b.quoteHash !== w.quote?.hash ||
+          b.preparationHash !== undefined ||
+          Date.parse(w.quote.expiresAt) <= Date.now()) ||
+      Date.parse(a.lease_until) <= Date.now()
     )
       fail(
         "Preparation lease expired or attempt/quote changed; record unknown and investigate.",
@@ -2205,7 +2310,12 @@ export async function renewPreparationLease(
       );
     await c.query(
       "UPDATE creator_payout_attempts SET lease_until=LEAST(now()+interval '15 minutes',$2::timestamptz),updated_at=now() WHERE id=$1",
-      [a.id, w.quote.expiresAt],
+      [
+        a.id,
+        a.evidence?.workflowMode === "continuous"
+          ? new Date(Date.now() + 15 * 60000).toISOString()
+          : w.quote.expiresAt,
+      ],
     );
     await event(
       c,
@@ -2225,7 +2335,12 @@ export async function releasePreparationLease(
   input: unknown,
   actor: string,
 ) {
-  const b = body(input, ["attemptId", "quoteHash", "evidence"]);
+  const b = body(input, [
+    "attemptId",
+    "quoteHash",
+    "preparationHash",
+    "evidence",
+  ]);
   const evidence = note(b.evidence, "lease release evidence");
   return tx(db, async (c) => {
     const w = await lockedWithdrawal(c, id, account);
@@ -2239,7 +2354,9 @@ export async function releasePreparationLease(
       !a ||
       a.maker !== actor ||
       a.binding_hash !== binding(w) ||
-      b.quoteHash !== w.quote?.hash ||
+      (a.evidence?.workflowMode === "continuous"
+        ? b.preparationHash !== a.binding_hash || b.quoteHash !== undefined
+        : b.quoteHash !== w.quote?.hash || b.preparationHash !== undefined) ||
       !["preparing", "unknown"].includes(a.state)
     )
       fail("Preparation attempt does not match this operator and quote.", 409);

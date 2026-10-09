@@ -1185,5 +1185,10 @@
   "Save corrected details": "Save corrected details",
   "Details saved. We will check the existing transfer before continuing. Your coins remain reserved.": "Details saved. We will check the existing transfer before continuing. Your coins remain reserved.",
   "Enter a valid recipient email address.": "Enter a valid recipient email address.",
-  "Enter your phone number with country code.": "Enter your phone number with country code."
+  "Enter your phone number with country code.": "Enter your phone number with country code.",
+  "Estimate": "Estimate",
+  "Estimated amount sent: {v0}": "Estimated amount sent: {v0}",
+  "Estimated provider fee: {v0}": "Estimated provider fee: {v0}",
+  "Estimated tax: {v0}": "Estimated tax: {v0}",
+  "The final amount received may change with the exchange rate.": "The final amount received may change with the exchange rate."
 }

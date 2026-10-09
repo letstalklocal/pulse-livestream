@@ -10,6 +10,7 @@ import { build } from "esbuild";
 import {
   runMcpIntegration,
   runMakerRetryMcp,
+  callMakerPreparationMcp,
 } from "./payout-mcp.real-service.mjs";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const temporary = mkdtempSync(join(tmpdir(), "pulse-operators-"));
@@ -660,7 +661,7 @@ try {
   assert.equal(
     (await call("/api/payout-operator/identity", { token: maker.token })).body
       .workflowRevision,
-    "2026-10-09.1",
+    "2026-10-09.2",
   );
 
   assert.equal(
@@ -1268,14 +1269,17 @@ try {
     correctionVersionMatches: true,
     correctionHashMatches: true,
   });
-  const safeProductionQuery = readFileSync(new URL('../scripts/diagnose-recipient-retry.sql', import.meta.url), 'utf8').replace('wd_9d50689c-81cb-4ba2-8ccf-02a2e722e7e3', uncertain.id);
+  const safeProductionQuery = readFileSync(
+    new URL("../scripts/diagnose-recipient-retry.sql", import.meta.url),
+    "utf8",
+  ).replace("wd_9d50689c-81cb-4ba2-8ccf-02a2e722e7e3", uncertain.id);
   const safeSqlResult = (await pool.query(safeProductionQuery)).rows[0];
-  assert.equal(safeSqlResult.status, 'unknown');
+  assert.equal(safeSqlResult.status, "unknown");
   assert.equal(safeSqlResult.saved_revision_matches_snapshot, true);
   assert.equal(safeSqlResult.saved_data_matches_snapshot, true);
   assert.equal(safeSqlResult.correction_issue_matches, true);
   assert.equal(safeSqlResult.correction_version_matches, true);
-  assert.equal(safeSqlResult.reserved_coins, '6000');
+  assert.equal(safeSqlResult.reserved_coins, "6000");
   const beforeRejectedRetry = (
     await pool.query("SELECT * FROM creator_withdrawals WHERE id=$1", [
       uncertain.id,
@@ -1544,6 +1548,337 @@ try {
   });
   console.log(
     "PASS Maker retries unsaved validation failures with saved correction; roles, lease, pause, stale data, saved objects/effects and generic/mixed errors guarded; ledger untouched and fresh attempt required",
+  );
+  process.env.PULSE_PAYOUT_LINK_PREFIXES =
+    "https://www.remitly.com/us/en/transfer/review";
+  // New preparation flow: no persisted quote or extra wait between browser quote
+  // entry and draft saving; final details are committed atomically through MCP.
+  await pool.query(
+    "UPDATE payout_operator_credentials SET request_count=0,rate_window=NULL",
+  );
+  await pool.query(
+    "INSERT INTO users VALUES(3,'Continuous fixture','continuous');INSERT INTO coin_balances(user_id,balance) VALUES(3,10000)",
+  );
+  await api.enroll(
+    pool,
+    {
+      userId: 3,
+      expectedWalletCoins: "10000",
+      reason: "Continuous preparation fixture",
+    },
+    "owner",
+  );
+  await api.saveRecipient(pool, 3, {
+    legalFirstName: "Test",
+    legalLastName: "Continuous",
+    countryCode: "CO",
+    email: "continuous@example.com",
+    phone: "+573001234568",
+  });
+  const continuousWd = await api.requestWithdrawal(
+    pool,
+    3,
+    "operator-business",
+    {
+      methodId: method,
+      withdrawalCents: 1500,
+      idempotencyKey: "continuous-preparation",
+    },
+  );
+  const continuousLease = (
+    await leaseCall(otherMaker.token, "acquire", {
+      idempotencyKey: "continuous-preparation",
+    })
+  ).body;
+  const continuousCall = (tool, data) =>
+    callMakerPreparationMcp({
+      base,
+      maker: otherMaker,
+      id: continuousWd.id,
+      leaseId: continuousLease.leaseId,
+      tool,
+      data,
+    });
+  const continuousBalance = (
+    await pool.query("SELECT balance FROM coin_balances WHERE user_id=3")
+  ).rows[0].balance;
+  const continuousLedger = (
+    await pool.query(
+      "SELECT * FROM creator_cash_ledger WHERE user_id=3 ORDER BY id",
+    )
+  ).rows;
+  const begun = await continuousCall("prepare", {
+    evidence:
+      "Claim before entering Remitly; no external provider action in fixture",
+  });
+  assert.equal(begun.status, 200, JSON.stringify(begun.body));
+  assert.equal(begun.body.status, "preparing");
+  assert.equal(begun.body.quote, null);
+  assert.match(begun.body.preparationHash, /^[a-f0-9]{64}$/);
+  assert.equal(
+    (await continuousCall("prepare", { evidence: "Duplicate claim must fail" }))
+      .status,
+    409,
+  );
+  const preparationBinding = {
+    attemptId: begun.body.attemptId,
+    preparationHash: begun.body.preparationHash,
+  };
+  assert.equal(
+    (
+      await continuousCall("preparation_lease_renew", {
+        ...preparationBinding,
+        evidence: "Keep continuous browser run active",
+      })
+    ).status,
+    200,
+  );
+  assert.equal(
+    (
+      await continuousCall("preparation_lease_renew", {
+        ...preparationBinding,
+        preparationHash: "0".repeat(64),
+        evidence: "Wrong snapshot must fail",
+      })
+    ).status,
+    409,
+  );
+  const finalQuote = {
+    ...quote,
+    observedAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 3600000).toISOString(),
+  };
+  const continuousDraft = {
+    ...preparationBinding,
+    quote: finalQuote,
+    kind: "scheduled",
+    draftId: "continuous-draft",
+    reviewUrl:
+      "https://www.remitly.com/us/en/transfer/review?scheduledDraftId=continuous-draft",
+    deadline: new Date(Date.now() + 3600000).toISOString(),
+    oneTime: true,
+    autoSend: false,
+    recipientMatches: true,
+    amountsMatch: true,
+    historyInspected: true,
+    historyCoverage: "Full fixture contact/draft/activity coverage",
+    evidence: "Actual saved draft fixture; no Remitly action performed",
+  };
+  const beforeFinal = async () => ({
+    withdrawal: (
+      await pool.query("SELECT * FROM creator_withdrawals WHERE id=$1", [
+        continuousWd.id,
+      ])
+    ).rows,
+    attempt: (
+      await pool.query(
+        "SELECT * FROM creator_payout_attempts WHERE withdrawal_id=$1",
+        [continuousWd.id],
+      )
+    ).rows,
+    audit: (
+      await pool.query(
+        "SELECT * FROM creator_payout_events WHERE withdrawal_id=$1 ORDER BY id",
+        [continuousWd.id],
+      )
+    ).rows,
+  });
+  const uncompleted = await beforeFinal();
+  for (const invalid of [
+    { ...continuousDraft, quote: { ...finalQuote, sendAmountCents: 1500 } },
+    { ...continuousDraft, quote: { ...finalQuote, receiveCurrency: "USD" } },
+    {
+      ...continuousDraft,
+      quote: {
+        ...finalQuote,
+        expiresAt: new Date(Date.now() - 1000).toISOString(),
+      },
+    },
+    { ...continuousDraft, preparationHash: "0".repeat(64) },
+    {
+      ...continuousDraft,
+      kind: "first_time_link",
+      draftId: undefined,
+      reviewUrl: undefined,
+    },
+    {
+      ...continuousDraft,
+      reviewUrl:
+        "https://www.remitly.com/us/en/transfer/review?scheduledDraftId=another-draft",
+    },
+    {
+      ...continuousDraft,
+      deadline: new Date(Date.now() + 60000).toISOString(),
+    },
+  ]) {
+    const rejected = await continuousCall("record_preparation", invalid);
+    assert(rejected.status >= 400, JSON.stringify(rejected));
+    assert.deepEqual(
+      await beforeFinal(),
+      uncompleted,
+      "Invalid completion cannot publish quote, draft, audit or partial ready state",
+    );
+  }
+  assert.equal(
+    (
+      await action(
+        otherMaker.token,
+        continuousWd.id,
+        "quote",
+        finalQuote,
+        continuousLease.leaseId,
+      )
+    ).status,
+    409,
+  );
+  const completed = await continuousCall("record_preparation", continuousDraft);
+  assert.equal(completed.status, 200, JSON.stringify(completed.body));
+  assert.equal(completed.body.status, "awaiting_human_review");
+  assert.equal(completed.body.quote.sendAmountCents, 1401);
+  assert.equal(completed.body.quote.feeCents, 99);
+  assert.equal(completed.body.quote.totalEarningsDeductedCents, 1500);
+  assert.equal(completed.body.approvedQuoteHash, null);
+  const completedAttempt = (
+    await pool.query("SELECT * FROM creator_payout_attempts WHERE id=$1", [
+      begun.body.attemptId,
+    ])
+  ).rows[0];
+  assert.equal(completedAttempt.draft_id, "continuous-draft");
+  assert.equal(completedAttempt.state, "awaiting_human_review");
+  assert.equal(completedAttempt.evidence.quoteHash, completed.body.quote.hash);
+  assert.equal(
+    (await continuousCall("record_preparation", continuousDraft)).status,
+    409,
+    "Never blindly replay saved-draft completion",
+  );
+  assert.deepEqual(
+    (
+      await pool.query(
+        "SELECT * FROM creator_cash_ledger WHERE user_id=3 ORDER BY id",
+      )
+    ).rows,
+    continuousLedger,
+  );
+  assert.equal(
+    (await pool.query("SELECT balance FROM coin_balances WHERE user_id=3"))
+      .rows[0].balance,
+    continuousBalance,
+  );
+  await pool.query(
+    "INSERT INTO users VALUES(4,'Error fixture','continuous-error');INSERT INTO coin_balances(user_id,balance) VALUES(4,10000)",
+  );
+  await api.enroll(
+    pool,
+    {
+      userId: 4,
+      expectedWalletCoins: "10000",
+      reason: "Continuous error fixture",
+    },
+    "owner",
+  );
+  await api.saveRecipient(pool, 4, {
+    legalFirstName: "Test",
+    legalLastName: "Error",
+    countryCode: "CO",
+    email: "error@example.com",
+    phone: "+573001234569",
+  });
+  const errorWd = await api.requestWithdrawal(pool, 4, "operator-business", {
+    methodId: method,
+    withdrawalCents: 1500,
+    idempotencyKey: "continuous-error",
+  });
+  const errorCall = (tool, data) =>
+    callMakerPreparationMcp({
+      base,
+      maker: otherMaker,
+      id: errorWd.id,
+      leaseId: continuousLease.leaseId,
+      tool,
+      data,
+    });
+  const errorStart = await errorCall("prepare", {
+    evidence: "Claim the combined job before provider contact creation",
+  });
+  assert.equal(errorStart.status, 200);
+  assert.equal(
+    (
+      await errorCall("preparation_lease_release", {
+        attemptId: errorStart.body.attemptId,
+        preparationHash: errorStart.body.preparationHash,
+        evidence: "Keep uncertain preparation reserved; no blind replacement",
+      })
+    ).status,
+    200,
+  );
+  const reportedError = await errorCall("unknown", {
+    reason:
+      "Fixture Remitly phone validation failed; no draft saved. No external provider action.",
+    recipientIssue: { code: "recipient_validation_failed", fields: ["phone"] },
+  });
+  assert.equal(reportedError.status, 200);
+  assert.equal(reportedError.body.status, "unknown");
+  assert.equal(reportedError.body.creatorStatus, "error");
+  assert(reportedError.body.errorMessage.includes("phone number"));
+  assert.equal(reportedError.body.quote, null);
+  assert.equal(
+    (await errorCall("prepare", { evidence: "Blind retry must fail" })).status,
+    409,
+  );
+
+  assert.equal(
+    (await pool.query("SELECT balance FROM coin_balances WHERE user_id=4"))
+      .rows[0].balance,
+    4000,
+  );
+  assert.equal(
+    (
+      await pool.query(
+        "SELECT sum(reserved_ticks)::text value FROM creator_cash_ledger WHERE withdrawal_id=$1",
+        [errorWd.id],
+      )
+    ).rows[0].value,
+    "6000",
+  );
+  await leaseCall(otherMaker.token, "release", {
+    leaseId: continuousLease.leaseId,
+    reason: "Saved fixture ready for independent check",
+  });
+  const continuousCheckLease = (
+    await leaseCall(checker.token, "acquire", {
+      idempotencyKey: "continuous-check",
+    })
+  ).body;
+  const checkContinuous = await action(
+    checker.token,
+    continuousWd.id,
+    "check",
+    {
+      attemptId: begun.body.attemptId,
+      quoteHash: completed.body.quote.hash,
+      evidence: "Independent saved draft check",
+      recipientMatches: true,
+      amountsMatch: true,
+      reservationMatches: true,
+      historyInspected: true,
+      historyCoverage: "Full fixture contact/draft/activity coverage",
+      oneTime: true,
+      autoSend: false,
+    },
+    continuousCheckLease.leaseId,
+  );
+  assert.equal(
+    checkContinuous.status,
+    200,
+    JSON.stringify(checkContinuous.body),
+  );
+  assert.equal(checkContinuous.body.checker.status, "passed");
+  await leaseCall(checker.token, "release", {
+    leaseId: continuousCheckLease.leaseId,
+    reason: "Fixture independent check complete; human remains required",
+  });
+  console.log(
+    "PASS continuous preparation via actual Maker MCP: pre-quote claim, owned renewal, duplicate protection, atomic final quote+draft, rollback on bad/expired quote or draft, independent checker binding, unchanged reservation and no extra approval",
   );
   const rate = await issue("maker", "rate");
   await pool.query(

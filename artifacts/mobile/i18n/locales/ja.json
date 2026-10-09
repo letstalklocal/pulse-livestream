@@ -1185,5 +1185,10 @@
   "Save corrected details": "修正した情報を保存",
   "Details saved. We will check the existing transfer before continuing. Your coins remain reserved.": "情報を保存しました。続行前に既存の送金を確認します。コインは引き続き確保されています。",
   "Enter a valid recipient email address.": "有効な受取人のメールアドレスを入力してください。",
-  "Enter your phone number with country code.": "国番号を含む電話番号を入力してください。"
+  "Enter your phone number with country code.": "国番号を含む電話番号を入力してください。",
+  "Estimate": "概算",
+  "Estimated amount sent: {v0}": "送金額の概算：{v0}",
+  "Estimated provider fee: {v0}": "送金サービス手数料の概算：{v0}",
+  "Estimated tax: {v0}": "税額の概算：{v0}",
+  "The final amount received may change with the exchange rate.": "最終的な受取額は為替レートにより変わる場合があります。"
 }

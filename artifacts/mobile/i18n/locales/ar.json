@@ -1185,5 +1185,10 @@
   "Save corrected details": "حفظ التفاصيل المصححة",
   "Details saved. We will check the existing transfer before continuing. Your coins remain reserved.": "تم حفظ التفاصيل. سنراجع التحويل الحالي قبل المتابعة. تظل عملاتك محجوزة.",
   "Enter a valid recipient email address.": "أدخل عنوان بريد إلكتروني صالحًا للمستلم.",
-  "Enter your phone number with country code.": "أدخل رقم هاتفك مع رمز البلد."
+  "Enter your phone number with country code.": "أدخل رقم هاتفك مع رمز البلد.",
+  "Estimate": "تقدير",
+  "Estimated amount sent: {v0}": "المبلغ المرسل التقديري: {v0}",
+  "Estimated provider fee: {v0}": "رسوم مزود الخدمة التقديرية: {v0}",
+  "Estimated tax: {v0}": "الضريبة التقديرية: {v0}",
+  "The final amount received may change with the exchange rate.": "قد يتغير المبلغ النهائي المستلم حسب سعر الصرف."
 }

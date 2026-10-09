@@ -467,12 +467,16 @@ export default function WithdrawalScreen() {
                     { backgroundColor: c.card, borderColor: c.border },
                   ]}
                 >
-                  {text(t("Estimated payout"))}
+                  {text(t("Estimate"))}
                   {text(
-                    t("Amount sent: {v0}", { v0: money(q.sendAmountCents) }),
+                    t("Estimated amount sent: {v0}", {
+                      v0: money(q.sendAmountCents),
+                    }),
                   )}
-                  {text(t("Provider fee: {v0}", { v0: money(q.feeCents) }))}
-                  {text(t("Tax: {v0}", { v0: money(q.taxCents) }))}
+                  {text(
+                    t("Estimated provider fee: {v0}", { v0: money(q.feeCents) }),
+                  )}
+                  {text(t("Estimated tax: {v0}", { v0: money(q.taxCents) }))}
                   {text(
                     t("Estimated total deduction: {v0}", {
                       v0: money(q.totalEarningsDeductedCents),
@@ -483,6 +487,12 @@ export default function WithdrawalScreen() {
                       v0: q.receiveAmount,
                       v1: q.receiveCurrency,
                     }),
+                  )}
+                  {text(
+                    t(
+                      "The final amount received may change with the exchange rate.",
+                    ),
+                    true,
                   )}
                 </View>
               ) : recipientMessages.length === 0 ? (

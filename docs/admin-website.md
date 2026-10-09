@@ -1,5 +1,9 @@
 # Admin website
 
+## October 9 preparation completion and estimates
+
+Workflow `2026-10-09.2` keeps Preparation as one progress stage. The maker claims the request internally, obtains the quote and saves the supported unsent scheduled draft in one run, then reports both together. Pulse advances to Payment review only after the combined result passes validation. A quote/save-only/recipient error is reported instead of a quote-only result or an unsaved successful plan. Creator quote approval remains removed. See the [current handoff](remitly-launch-handoff.md#october-9-continuous-preparation-and-visible-estimates). Publish the backend and update/reconnect the Mac bridge for the new tool schemas; the mobile **Estimate** labels need the next TestFlight build. No migration or app identity change is required.
+
 ## October 9 retry rejection diagnostics
 
 Workflow revision `2026-10-09.1` fixes the MCP's loss of HTTP rejection status and guard code. The operator read includes boolean-only saved recipient/snapshot/correction consistency diagnostics; typed guard failures return fixed safe codes and are logged without recipient details. Maker authorization, recovery conditions, reservations and audit are preserved. Production logs/data and publication are not accessible from this workspace; the actual October 8 failed guard remains unconfirmed. See the [diagnosis handoff](remitly-launch-handoff.md#october-9-guarded-retry-diagnostics) and [single read-only production query](../artifacts/api-server/scripts/diagnose-recipient-retry.sql). Backend publication and a refreshed Mac stdio source are required for the full diagnostics; no native build is needed.

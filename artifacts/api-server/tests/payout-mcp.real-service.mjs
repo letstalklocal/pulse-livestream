@@ -152,7 +152,7 @@ export async function runMakerRetryMcp({
       name: "pulse_payout_identity",
       arguments: {},
     });
-    assert.equal(identity.structuredContent.workflowRevision, "2026-10-09.1");
+    assert.equal(identity.structuredContent.workflowRevision, "2026-10-09.2");
     const result = await client.callTool({
       name: "pulse_payout_retry_recipient_creation",
       arguments: { id, leaseId, data },
@@ -168,6 +168,41 @@ export async function runMakerRetryMcp({
     return {
       status: 200,
       body: result.structuredContent ?? JSON.parse(result.content[0].text),
+    };
+  } finally {
+    await client.close();
+  }
+}
+
+// Exercise the actual public Maker tool schema and bridge, not a mocked domain call.
+export async function callMakerPreparationMcp({
+  base,
+  maker,
+  id,
+  leaseId,
+  tool,
+  data,
+}) {
+  const client = new Client(
+    { name: "pulse-continuous-preparation-fixture", version: "1" },
+    { capabilities: {} },
+  );
+  try {
+    await client.connect(
+      new StreamableHTTPClientTransport(new URL(base + "/api/payout-mcp"), {
+        requestInit: { headers: { Authorization: "Bearer " + maker.token } },
+      }),
+    );
+    const result = await client.callTool({
+      name: "pulse_payout_" + tool,
+      arguments: tool === "unknown" ? { id, data } : { id, leaseId, data },
+    });
+    const payload =
+      result.structuredContent ?? JSON.parse(result.content[0].text);
+    assert(!JSON.stringify(result).includes(maker.token));
+    return {
+      status: result.isError ? (payload.httpStatus ?? 400) : 200,
+      body: payload,
     };
   } finally {
     await client.close();

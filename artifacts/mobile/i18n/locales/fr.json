@@ -1185,5 +1185,10 @@
   "Save corrected details": "Enregistrer les coordonnées corrigées",
   "Details saved. We will check the existing transfer before continuing. Your coins remain reserved.": "Coordonnées enregistrées. Nous vérifierons le transfert existant avant de continuer. Vos pièces restent réservées.",
   "Enter a valid recipient email address.": "Saisissez une adresse e-mail valide pour le destinataire.",
-  "Enter your phone number with country code.": "Saisissez votre numéro de téléphone avec l’indicatif du pays."
+  "Enter your phone number with country code.": "Saisissez votre numéro de téléphone avec l’indicatif du pays.",
+  "Estimate": "Estimation",
+  "Estimated amount sent: {v0}": "Montant envoyé estimé : {v0}",
+  "Estimated provider fee: {v0}": "Frais estimés du prestataire : {v0}",
+  "Estimated tax: {v0}": "Taxe estimée : {v0}",
+  "The final amount received may change with the exchange rate.": "Le montant final reçu peut varier selon le taux de change."
 }

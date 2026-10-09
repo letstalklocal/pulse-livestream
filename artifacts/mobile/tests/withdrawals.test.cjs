@@ -621,14 +621,20 @@ async function verifyQuoteScreen() {
   assert.ok(render().texts.includes("Sharing is unavailable on this device."));
   sharingMissing = false;
   assert.ok(v.texts.includes("Reserved withdrawal: $15.00"));
-  assert.ok(v.texts.includes("Amount sent: $14.01"));
-  assert.ok(v.texts.includes("Provider fee: $0.99"));
+  assert.ok(v.texts.includes("Estimated amount sent: $14.01"));
+  assert.ok(v.texts.includes("Estimated provider fee: $0.99"));
+  assert.ok(v.texts.includes("Estimated tax: $0.00"));
   assert.ok(v.texts.includes("Estimated amount received: 60000 COP"));
   assert.ok(
     !v.button("Open Remitly recipient link"),
     "link stays hidden before human release",
   );
-  assert.ok(v.texts.includes("Estimated payout"));
+  assert.ok(v.texts.includes("Estimate"));
+  assert.ok(
+    v.texts.includes(
+      "The final amount received may change with the exchange rate.",
+    ),
+  );
   assert.ok(v.texts.includes("Estimated total deduction: $15.00"));
   assert.ok(v.texts.includes("Preparing withdrawal"));
   assert.ok(

@@ -1185,5 +1185,10 @@
   "Save corrected details": "सुधारे गए विवरण सहेजें",
   "Details saved. We will check the existing transfer before continuing. Your coins remain reserved.": "विवरण सहेज लिए गए हैं। आगे बढ़ने से पहले हम मौजूदा ट्रांसफ़र की जाँच करेंगे। आपके कॉइन आरक्षित हैं।",
   "Enter a valid recipient email address.": "प्राप्तकर्ता का मान्य ईमेल पता दर्ज करें।",
-  "Enter your phone number with country code.": "देश कोड सहित अपना फ़ोन नंबर दर्ज करें।"
+  "Enter your phone number with country code.": "देश कोड सहित अपना फ़ोन नंबर दर्ज करें।",
+  "Estimate": "अनुमान",
+  "Estimated amount sent: {v0}": "भेजी जाने वाली अनुमानित राशि: {v0}",
+  "Estimated provider fee: {v0}": "प्रदाता का अनुमानित शुल्क: {v0}",
+  "Estimated tax: {v0}": "अनुमानित कर: {v0}",
+  "The final amount received may change with the exchange rate.": "विनिमय दर के अनुसार प्राप्त होने वाली अंतिम राशि बदल सकती है।"
 }
