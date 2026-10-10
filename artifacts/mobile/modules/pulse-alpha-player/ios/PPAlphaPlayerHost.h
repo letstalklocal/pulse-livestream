@@ -6,6 +6,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy, nullable) void (^onFinish)(void);
 @property (nonatomic, copy, nullable) void (^onError)(NSString *message);
 @property (nonatomic, assign, getter=isMuted) BOOL muted;
+@property (nonatomic, assign) NSTimeInterval fadeOutDuration;
+@property (nonatomic, copy, nullable) void (^onStart)(void);
+@property (nonatomic, copy, nullable) void (^onProgress)(double gain);
 - (void)playFileURL:(NSURL *)url NS_SWIFT_NAME(play(fileURL:));
 - (void)stop;
 @end

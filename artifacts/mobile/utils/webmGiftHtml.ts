@@ -8,5 +8,9 @@ export function webmGiftHtml(base64: string, muted = false): string {
 <script>const video=document.getElementById('gift');const send=event=>window.ReactNativeWebView.postMessage(event);
 video.addEventListener('ended',()=>send('ended'));video.addEventListener('error',()=>send('error'));
 video.addEventListener('playing',()=>send('ready'));video.muted=${muted};video.volume=1;video.play().catch(()=>send('error'));
+let previousGain=1;
+function fade(){const d=video.duration;const gain=Number.isFinite(d)&&d>0?Math.max(0,Math.min(1,(d-video.currentTime)/Math.min(1,d))):1;
+video.style.opacity=String(gain);video.volume=gain;if(Math.abs(previousGain-gain)>=0.025||gain===0&&previousGain!==0){previousGain=gain;send('gain:'+gain)}
+if(!video.ended)requestAnimationFrame(fade)}requestAnimationFrame(fade);
 document.addEventListener('visibilitychange',()=>{if(document.hidden){video.pause();send('ended')}});</script></body></html>`;
 }

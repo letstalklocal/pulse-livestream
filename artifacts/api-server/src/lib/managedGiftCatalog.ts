@@ -63,6 +63,7 @@ export function validateGiftFraming(v: any = {}) {
     scale: v.scale ?? 1,
     x: v.x ?? 0,
     y: v.y ?? 0,
+    ...(v.artworkScale !== undefined ? { artworkScale: v.artworkScale } : {}),
   };
   if (
     !["contained", "fullscreen"].includes(f.preset) ||
@@ -72,7 +73,8 @@ export function validateGiftFraming(v: any = {}) {
     !Number.isFinite(f.x) ||
     !Number.isFinite(f.y) ||
     Math.abs(f.x) > 1 ||
-    Math.abs(f.y) > 1
+    Math.abs(f.y) > 1 ||
+    (f.artworkScale !== undefined && (!Number.isFinite(f.artworkScale) || f.artworkScale < 0.25 || f.artworkScale > 3))
   )
     throw new GiftCatalogError("Invalid framing preset, scale or position.");
   return f;

@@ -1,6 +1,7 @@
 import { acquireGiftAsset } from "./giftAssetCache";
 import type { GiftSnapshot } from "./giftCatalog";
 import { playLiveGiftSound } from "./liveGiftSound";
+import { giftEndGain } from "./giftPlaybackFade";
 
 let voice = 0;
 const active = new Map<number, { engine: any; stop: () => void }>();
@@ -23,12 +24,14 @@ export async function playPublishedCatalogGiftSound(engine: any, snapshot: GiftS
   const id = 7850 + (voice++ % 3);
   active.get(id)?.stop();
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let fadeTimer: ReturnType<typeof setInterval> | undefined;
   let subscription: { remove: () => void } | undefined;
   let stopped = false;
   const stop = () => {
     if (stopped) return;
     stopped = true;
     if (timer) clearTimeout(timer);
+    if (fadeTimer) clearInterval(fadeTimer);
     subscription?.remove();
     try { engine.stopEffect(id); } catch {}
     lease.release();
@@ -41,6 +44,19 @@ export async function playPublishedCatalogGiftSound(engine: any, snapshot: GiftS
     engine.stopEffect(id);
     const result = engine.playEffect(id, lease.uri.replace(/^file:\/\//, ""), 0, 1, 0, 65, true, 0);
     if (result < 0) { stop(); if (current()) playLiveGiftSound(engine, snapshot.name); return; }
+    // Change only this gift's effect, never the microphone or the whole stream.
+    const measuredDuration = engine.getEffectDuration(lease.uri.replace(/^file:\/\//, ""));
+    const soundDuration = measuredDuration > 0 ? measuredDuration : snapshot.sound.durationMs ?? 0;
+    const animation = snapshot.animation ?? (require("react-native").Platform.OS === "android" ? snapshot.androidAnimation : snapshot.iosAnimation);
+    const animationDuration = animation?.durationMs ?? 0;
+    const fadeDuration = soundDuration > 0 && animationDuration > 0 ? Math.min(soundDuration, animationDuration) : soundDuration || animationDuration;
+    if (animation && fadeDuration > 0) fadeTimer = setInterval(() => {
+      if (!current()) { stop(); return; }
+      try {
+        const position = engine.getEffectCurrentPosition(id);
+        if (position >= 0) engine.setVolumeOfEffect(id, 65 * giftEndGain(position, fadeDuration));
+      } catch { /* Unsupported position reporting must not interrupt playback. */ }
+    }, 50);
     // Audio-only lease guard; video removal is always player-completion driven.
     timer = setTimeout(stop, (snapshot.sound.durationMs ?? 60_000) + 1000);
   } catch { stop(); if (current()) playLiveGiftSound(engine, snapshot.name); }

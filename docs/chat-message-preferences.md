@@ -2,6 +2,8 @@
 
 October 7 gift artwork decision: uploaded/catalog gifts with attached artwork must never display an unrelated emoji or bundled gift while that file is loading/unavailable. Leave their artwork blank instead. Original asset-free emoji-only gifts and historical saved message text/coin values remain unchanged. The admin's configurable fallback-symbol field is removed.
 
+October 9 gift admin/artwork requirements: retain the loaded admin catalog and selected collection when navigating away and back; clear private cached data on sign-out/access loss. Successful Save closes the editor without reopening it or blanking/re-downloading the gift grid. Uploads use drag/drop or a file picker, then Replace for attached assets; PNG/JPEG/WebP artwork remains supported. The separate Artwork size (%) control edits revision `framing.artworkScale`, not animation `scale`. Mobile still artwork uses that purchase snapshot value inside its existing layout bounds; missing values default to 100%. Old receipts, prices, animation framing and drawer animation previews remain unchanged. Browser, API and type tests are distinct from pending phone size/layout verification.
+
 Recorded: 2026-09-10
 
 This document records the user's decisions from the chat-settings conversation and the current implementation that must be preserved. Later explicit user instructions take precedence. Do not treat a request to adjust one detail as permission to redesign or remove another feature. Implementation details below describe the current baseline; they are not additional product requests.

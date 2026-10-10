@@ -11,7 +11,7 @@ assert.throws(() => htmlModule.exports.webmGiftHtml('<script>'), /Invalid WebM/)
 const listeners = {}, posted = [], documentListeners = {};
 let played = 0, paused = 0, completed = 0, background, removed = 0, available = true, platform = 'android';
 const video = { addEventListener(name, fn) { listeners[name] = fn; }, play() { played++; return Promise.resolve(); }, pause() { paused++; } };
-vm.runInNewContext(html.match(/<script>([\s\S]*?)<\/script>/)[1], { document: { hidden: true, getElementById: () => video, addEventListener(name, fn) { documentListeners[name] = fn; } }, window: { ReactNativeWebView: { postMessage: value => posted.push(value) } } });
+vm.runInNewContext(html.match(/<script>([\s\S]*?)<\/script>/)[1], { requestAnimationFrame() {}, document: { hidden: true, getElementById: () => video, addEventListener(name, fn) { documentListeners[name] = fn; } }, window: { ReactNativeWebView: { postMessage: value => posted.push(value) } } });
 assert.equal(played, 1); assert.equal(video.muted, false); assert.equal(video.volume, 1);
 listeners.playing(); listeners.ended(); listeners.error(); documentListeners.visibilitychange();
 assert.equal(posted.join(','), 'ready,ended,error,ended'); assert.equal(paused, 1);

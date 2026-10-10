@@ -8,7 +8,7 @@ export type GiftSnapshot = {
   thumbnail: CatalogAsset | null; animation?: CatalogAsset | null;
   androidAnimation?: CatalogAsset | null; iosAnimation?: CatalogAsset | null;
   sound: CatalogAsset | null; legacy: boolean;
-  framing: { preset: "contained" | "fullscreen"; scale: number; x: number; y: number };
+  framing: { preset: "contained" | "fullscreen"; scale: number; x: number; y: number; artworkScale?: number };
 };
 export type CatalogGift = { id: string; name: string; emoji: string; coins: number; size: number; revisionId?: string; snapshot?: GiftSnapshot };
 export type GiftCollection = { id: string; name: string; sortOrder: number; locked: boolean; gifts: CatalogGift[] };
@@ -30,6 +30,7 @@ export function validateGiftSnapshot(value: unknown): value is GiftSnapshot {
     typeof gift.emoji === "string" && Number.isSafeInteger(gift.coinCost) && gift.coinCost > 0 &&
     !!gift.framing && ["contained", "fullscreen"].includes(gift.framing.preset) &&
     [gift.framing.scale, gift.framing.x, gift.framing.y].every(Number.isFinite) && gift.framing.scale > 0 && gift.framing.scale <= 3 &&
+    (gift.framing.artworkScale === undefined || (Number.isFinite(gift.framing.artworkScale) && gift.framing.artworkScale >= 0.25 && gift.framing.artworkScale <= 3)) &&
     [gift.thumbnail, gift.animation, gift.androidAnimation, gift.iosAnimation, gift.sound].every(validAsset);
 }
 export function parseGiftCatalog(value: unknown): GiftCatalog {

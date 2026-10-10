@@ -5,7 +5,7 @@ const ts = require('typescript');
 const test = require('node:test');
 const tick = () => new Promise(setImmediate);
 function fixture(platform, format, supportsMutedPlayback = true) {
-  const slots = [], effects = []; let cursor = 0, releases = 0, completed = 0, unavailable = 0, appState;
+  const slots = [], effects = [], fades = []; let cursor = 0, releases = 0, completed = 0, unavailable = 0, appState;
   const react = {
     createElement: (type, props, ...children) => ({ type, props, children }),
     useRef: value => { const index = cursor++; return slots[index] ??= { current: value }; },
@@ -24,12 +24,13 @@ function fixture(platform, format, supportsMutedPlayback = true) {
     '@dasimems/react-native-svga': { SvgaPlayer: 'Svga' },
     '@/utils/giftAssetCache': { acquireGiftAsset: async () => ({ uri: 'file:///verified', release: () => releases++ }) },
     '@/utils/webmGiftHtml': { webmGiftHtml: (_, muted) => `muted=${muted}` },
-    '@/utils/localCatalogGiftSound': { prepareLocalCatalogGiftSound: async () => ({ play() {}, stop() {} }) },
+    '@/utils/localCatalogGiftSound': { prepareLocalCatalogGiftSound: async () => ({ play() {}, stop() {}, setVolume() {} }) },
+    '@/utils/giftPlaybackFade': { scheduleGiftEndFade: (duration, update) => { const fade = { duration, update, cancelled: false }; fades.push(fade); return () => { fade.cancelled = true; }; } },
   })[id] });
   const snapshot = { id: 'gift', revisionId: 'r1', name: 'Gift', thumbnail: null, sound: null, framing: { preset: 'contained', scale: 1, x: 0, y: 0 }, animation: { id: 'animation', sha256: 'hash', format, width: format === 'packed-alpha-mp4' ? 400 : 200, height: 400 } };
   const render = () => { cursor = 0; return exports.RemoteGiftPlayer({ snapshot, width: 300, height: 600, muted: true, onFinish: () => completed++, onUnavailable: () => unavailable++ }); };
   const initial = render(); const cleanup = effects.shift()();
-  return { snapshot, initial, render, cleanup, background: () => appState('background'), get completed() { return completed; }, get unavailable() { return unavailable; }, get releases() { return releases; } };
+  return { snapshot, initial, render, cleanup, fades, background: () => appState('background'), get completed() { return completed; }, get unavailable() { return unavailable; }, get releases() { return releases; } };
 }
 for (const [platform, format, player] of [['android', 'webm-alpha', 'WebView'], ['ios', 'packed-alpha-mp4', 'Alpha'], ['android', 'svga', 'Svga']]) {
   test(`${platform} ${format} waits invisibly, mutes paid playback, finishes once and releases verified asset`, async () => {
@@ -55,4 +56,19 @@ test('older AlphaPlayer binaries without mute support use static fallback and ne
   const f = fixture('ios', 'packed-alpha-mp4', false);
   await tick();
   assert.equal(f.unavailable, 1); assert.ok(!f.render().children.some(child => child));
+});
+test('SVGA waits for native start before scheduling its fade and keeps player completion in control', async () => {
+  const f = fixture('android', 'svga');
+  f.snapshot.animation.durationMs = 6000;
+  await tick();
+  let node = f.render().children.find(child => child?.type === 'Svga');
+  assert.equal(f.fades.length, 0, 'download time is not playback time');
+  node.props.onStart(); node.props.onStart();
+  assert.equal(f.fades.length, 1); assert.equal(f.fades[0].duration, 6000);
+  f.fades[0].update(.5);
+  node = f.render().children.find(child => child?.type === 'Svga');
+  assert.equal(node.props.style.opacity, .5); assert.equal(node.props.builtInAudioVolume, .5);
+  f.fades[0].update(0); assert.equal(f.completed, 0, 'zero opacity never removes the player early');
+  node.props.onFinish(); assert.equal(f.completed, 1); assert.equal(f.fades[0].cancelled, true);
+  f.cleanup();
 });

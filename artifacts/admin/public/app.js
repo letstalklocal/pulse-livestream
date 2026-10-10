@@ -37,6 +37,8 @@ const giftState = {
   cardUrls: [],
   artworkUrl: null,
   animationPreviews: {},
+  cardCache: new Map(),
+  imported: false,
 };
 let giftSvgaPromise;
 function loadGiftSvga() {
@@ -105,14 +107,17 @@ function stopGiftPreview(preserveArtwork = false) {
   }
   document.getElementById("gift-sound-preview")?.replaceChildren();
 }
-function resetGifts() {
+function resetGifts(preserveCatalog = false) {
   stopGiftPreview();
   closeGiftEditor();
   closeGiftCollectionEditor();
-  clearGiftCardArtwork();
+  clearGiftCardArtwork(preserveCatalog);
   giftState.version++;
-  giftState.data = null;
-  giftState.collection = "popular";
+  if (!preserveCatalog) {
+    giftState.data = null;
+    giftState.collection = "popular";
+    giftState.imported = false;
+  }
   giftState.selected = null;
   giftState.busy = false;
 }
@@ -121,10 +126,31 @@ function giftsPage() {
 }
 function bindGiftEvents() {
   bindCollectionDragEvents();
+  for (const name of ["dragover", "dragleave", "drop"]) main.addEventListener(name, event => {
+    const zone = event.target.closest("[data-gift-drop]");
+    if (!zone || section !== "Gifts" || !authorized) return;
+    event.preventDefault();
+    zone.classList.toggle("drag-over", name === "dragover");
+    if (name !== "drop") return;
+    const input = zone.querySelector("[data-gift-upload]");
+    if (input.disabled || giftState.busy) return;
+    if (event.dataTransfer.files.length !== 1) {
+      zone.querySelector("[data-upload-feedback]").textContent = "Drop one file at a time.";
+      return;
+    }
+    void uploadGiftFile(input, event.dataTransfer.files[0]);
+  });
+  main.addEventListener("input", event => {
+    if (event.target.name === "artworkScale") {
+      const image = document.querySelector("#gift-preview-screen img");
+      if (image) image.style.transform = `scale(${Number(event.target.value) / 100})`;
+    }
+  });
   main.addEventListener("click", async (event) => {
     if (section !== "Gifts" || !authorized) return;
     const b = event.target.closest("button");
     if (!b || giftState.busy) return;
+    if (b.dataset.giftChoose) return main.querySelector(`[data-gift-upload="${b.dataset.giftChoose}"]`)?.click();
     if (b.id === "gift-new-collection") return renderGiftCollectionEditor(true);
     if (b.id === "gift-manage-collection")
       return renderGiftCollectionEditor(false);
@@ -223,7 +249,10 @@ function bindGiftEvents() {
       return;
     }
     if (!input.dataset.giftUpload || section !== "Gifts" || !authorized) return;
-    const file = input.files?.[0];
+    return uploadGiftFile(input, input.files?.[0]);
+  });
+}
+async function uploadGiftFile(input, file) {
     if (!file) return;
     const field = input.dataset.giftUpload,
       extension = file.name.split(".").pop().toLowerCase(),
@@ -307,6 +336,7 @@ function bindGiftEvents() {
       main.querySelector(`[name="${field}"]`).value = result.id;
       main.querySelector(`[data-current-file="${field}"]`).textContent =
         file.name;
+      updateGiftAssetControl(field, result);
       if (field === "soundAssetId")
         main.querySelector('[name="soundAssetId"]').dataset.customSoundId =
           result.id;
@@ -324,7 +354,6 @@ function bindGiftEvents() {
       input.disabled = false;
       input.value = "";
     }
-  });
 }
 async function previewGiftAsset(field) {
   const select = main.querySelector(`[name="${field}"]`),
@@ -425,11 +454,12 @@ async function previewGiftAsset(field) {
     };
     if (asset.kind === "thumbnail") {
       const img = new Image();
+      img.style.transform = `scale(${Number(document.querySelector('[name="artworkScale"]')?.value || 100) / 100})`;
       img.src = url;
       img.alt = "Gift artwork preview";
-      position(img);
+      img.className = "gift-preview-art contained";
       screen.append(img);
-      feedback.textContent = "Artwork preview with current framing.";
+      feedback.textContent = "Still artwork preview.";
       return;
     }
     if (asset.format === "svga") {
@@ -612,7 +642,10 @@ async function loadGifts() {
   const status = document.getElementById("gift-status");
   if (status) status.textContent = "Loading gifts…";
   try {
-    await api("/gifts/assets/import-existing", { method: "POST" });
+    if (!giftState.imported) {
+      await api("/gifts/assets/import-existing", { method: "POST" });
+      giftState.imported = true;
+    }
     if (version !== giftState.version || !authorized || section !== "Gifts")
       return;
     const data = await api("/gifts");
@@ -636,7 +669,7 @@ const giftRevision = (g) =>
 const giftAsset = (id) => giftState.data.assets.find((a) => a.id === id);
 function renderGifts() {
   stopGiftPreview();
-  clearGiftCardArtwork();
+  clearGiftCardArtwork(true);
   document.getElementById("gift-editor-modal")?.close();
   closeGiftCollectionEditor();
   const d = giftState.data;
@@ -699,7 +732,9 @@ function renderGifts() {
             : "") +
           ">" +
           (revision?.thumbnailAssetId
-            ? "<small>Loading artwork…</small>"
+            ? giftState.cardCache.has(revision.thumbnailAssetId)
+              ? '<img src="' + esc(giftState.cardCache.get(revision.thumbnailAssetId)) + '" alt="' + esc(revision.name) + ' artwork">'
+              : "<small>Loading artwork…</small>"
             : g.legacy
               ? esc(revision?.emoji || "")
               : "<small>No artwork</small>") +
@@ -790,10 +825,12 @@ function renderGiftCollectionEditor(create) {
   }
   modal.showModal();
 }
-function clearGiftCardArtwork() {
+function clearGiftCardArtwork(preserve = false) {
   giftState.cardVersion = (giftState.cardVersion || 0) + 1;
+  if (preserve) return;
   giftState.cardUrls.forEach((url) => URL.revokeObjectURL(url));
   giftState.cardUrls = [];
+  giftState.cardCache.clear();
 }
 function bindCollectionDragEvents() {
   let dragged = null,
@@ -962,7 +999,7 @@ function bindCollectionDragEvents() {
 }
 async function loadGiftCardArtwork() {
   const version = giftState.cardVersion;
-  const cards = Array.from(main.querySelectorAll("[data-card-artwork]"));
+  const cards = Array.from(main.querySelectorAll("[data-card-artwork]")).filter(card => !card.querySelector("img"));
   if (!cards.length) return;
   try {
     const token = await window.Clerk.session?.getToken();
@@ -1012,6 +1049,7 @@ async function loadGiftCardArtwork() {
               continue;
             const url = URL.createObjectURL(blob);
             giftState.cardUrls.push(url);
+            giftState.cardCache.set(asset.id, url);
             const image = new Image();
             image.src = url;
             image.alt =
@@ -1064,7 +1102,7 @@ function giftAssetControl(label, field, kind, formats, selected) {
             format
           ] || format),
       )
-      .join(",") + (formats.includes("jpeg") ? ",.jpeg" : "");
+      .join(",") + (formats.includes("jpeg") ? ",.jpeg" : "") + (kind === "thumbnail" ? ",image/png,image/jpeg,image/webp" : "");
   const current = asset
     ? asset.fileName ||
       asset.label ||
@@ -1073,7 +1111,7 @@ function giftAssetControl(label, field, kind, formats, selected) {
       ? "No custom sound attached"
       : "No file attached";
   return (
-    '<fieldset class="gift-asset-field"><legend>' +
+    '<fieldset class="gift-asset-field" data-gift-drop="' + field + '"><legend>' +
     esc(label) +
     '</legend><input type="hidden" name="' +
     field +
@@ -1083,9 +1121,7 @@ function giftAssetControl(label, field, kind, formats, selected) {
     field +
     '">' +
     esc(current) +
-    "</span><label>" +
-    (selected ? "Replace file" : "Choose file") +
-    '<input type="file" data-gift-upload="' +
+    '</span><input type="file" hidden aria-label="Upload ' + esc(label.toLowerCase()) + '" data-gift-upload="' +
     field +
     '" data-kind="' +
     kind +
@@ -1093,7 +1129,7 @@ function giftAssetControl(label, field, kind, formats, selected) {
     formats.join(",") +
     '" accept="' +
     accept +
-    '"></label><small>' +
+    '"><button type="button" class="gift-upload-zone" data-gift-choose="' + field + '" ' + (selected ? 'hidden' : '') + '>↥<strong>Drag a file here</strong><span>or click to upload</span></button><small data-file-metadata="' + field + '">' + giftFileMetadata(asset) + '</small><div class="gift-file-actions"><button type="button" class="page-button" data-gift-choose="' + field + '" data-gift-replace="' + field + '" ' + (selected ? '' : 'hidden') + '>Replace</button><small>' +
     (kind === "thumbnail"
       ? "PNG, JPG or WebP"
       : kind === "sound"
@@ -1105,11 +1141,21 @@ function giftAssetControl(label, field, kind, formats, selected) {
     field +
     '">Preview ' +
     esc(label.toLowerCase()) +
-    "</button>" +
+    "</button></div>" +
     '<small data-upload-feedback="' +
     field +
     '" role="status"></small></fieldset>'
   );
+}
+function giftFileMetadata(asset) {
+  if (!asset) return "";
+  return esc([asset.width && asset.height ? `${asset.width} × ${asset.height} px` : "", asset.byteSize ? `${(asset.byteSize / 1024 / 1024).toFixed(2)} MB` : ""].filter(Boolean).join(" · "));
+}
+function updateGiftAssetControl(field, asset) {
+  const zone = main.querySelector(`[data-gift-drop="${field}"]`);
+  zone.querySelector(".gift-upload-zone").hidden = !!asset;
+  zone.querySelector("[data-gift-replace]").hidden = !asset;
+  zone.querySelector("[data-file-metadata]").textContent = [asset?.width && asset?.height ? `${asset.width} × ${asset.height} px` : "", asset?.byteSize ? `${(asset.byteSize / 1024 / 1024).toFixed(2)} MB` : ""].filter(Boolean).join(" · ");
 }
 function giftAnimationControl(label, field, formats, selected) {
   return (
@@ -1165,7 +1211,7 @@ function renderGiftEditor() {
     ) +
     '<div class="gift-artwork-preview"><div class="gift-preview-screen" id="gift-preview-screen"><span>' +
     (r?.thumbnailAssetId ? "Loading artwork…" : "No artwork attached") +
-    '</span></div><p id="gift-preview-feedback" role="status"></p></div></div>' +
+    '</span></div><p id="gift-preview-feedback" role="status"></p><label>Artwork size (%)<input name="artworkScale" type="number" min="25" max="300" step="5" required value="' + Math.round((f.artworkScale ?? 1) * 100) + '"></label><small>Still image only. Animation size is separate.</small></div></div>' +
     '<div id="gift-animation-controls" class="gift-animation-controls">' +
     giftAnimationControl(
       "Android animation",
@@ -1311,7 +1357,19 @@ async function giftMutation(path, body, method = "POST") {
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
     if (version !== giftState.version || !authorized) return;
-    await loadGifts();
+    closeGiftEditor();
+    closeGiftCollectionEditor();
+    giftState.busy = true;
+    const refreshVersion = giftState.version;
+    try {
+      const data = await api("/gifts");
+      if (refreshVersion !== giftState.version || !authorized || section !== "Gifts") return result;
+      giftState.data = data;
+      renderGifts();
+      document.getElementById("gift-status").textContent = "Saved.";
+    } catch (error) {
+      if (refreshVersion === giftState.version && !accessError(error)) document.getElementById("gift-status").textContent = "Saved, but the updated list could not be loaded. Use Refresh gifts to retry.";
+    }
     return result;
   } catch (error) {
     if (version === giftState.version && !accessError(error))
@@ -1387,6 +1445,7 @@ function bindGiftSubmit() {
         values.type === "animation" ? values.iosAssetId || null : null,
       soundAssetId: values.soundAssetId || null,
       framing: {
+        artworkScale: Number(values.artworkScale) / 100,
         preset: values.preset,
         scale: Number(values.scale),
         x: Number(values.x),
@@ -1400,8 +1459,7 @@ function bindGiftSubmit() {
       g ? "PATCH" : "POST",
     );
     if (result && section === "Gifts" && authorized) {
-      giftState.selected = g?.id || result.id || body.id;
-      renderGifts();
+      giftState.selected = null;
     }
   });
 }
@@ -2458,7 +2516,7 @@ document.addEventListener("click", (event) => {
 
 function render() {
   if (!authorized) return;
-  resetGifts();
+  resetGifts(true);
   resetPayoutDesk();
   resetOperatorCredentials();
   catalogVersion++;
@@ -2487,7 +2545,10 @@ function render() {
     main.querySelector(".date-label").textContent = "Catalog management";
     main.insertAdjacentHTML("beforeend", giftsPage());
     main.querySelector(".coming-soon")?.remove();
-    loadGifts();
+    if (giftState.data) {
+      document.getElementById("gift-status").textContent = "";
+      renderGifts();
+    } else loadGifts();
   }
   if (section === "Overview") loadOverview();
   if (section === "Account removals") loadRemovals();

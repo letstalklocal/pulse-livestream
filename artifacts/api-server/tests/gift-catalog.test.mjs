@@ -3,6 +3,7 @@ import { build } from "esbuild";
 import { createRequire } from "node:module";
 import { readFile, unlink } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
+import { spawnSync } from "node:child_process";
 const output = new URL(`./.gift-catalog-${randomUUID()}.cjs`, import.meta.url)
   .pathname;
 try {
@@ -44,6 +45,8 @@ try {
     GiftCatalogError,
   );
   assert.throws(() => validateGiftFraming({ scale: 4 }), GiftCatalogError);
+  for (const artworkScale of [0, 3.1, NaN, "1"]) assert.throws(() => validateGiftFraming({ artworkScale }), GiftCatalogError);
+  assert.deepEqual(validateGiftFraming({ scale: 1.2, artworkScale: .75 }), { preset: "contained", scale: 1.2, x: 0, y: 0, artworkScale: .75 });
   for (const fileName of ["../bad.png", "folder/bad.png", "bad\u0000.png", " ", "a".repeat(256)]) await assert.rejects(uploadManagedGiftAsset({},"owner",Buffer.from("not used"),"thumbnail","png",fileName),/filename/);
   assert.deepEqual(
     validateGiftFraming({ preset: "fullscreen", scale: 1.12, y: -0.1 }),
@@ -70,6 +73,9 @@ try {
     import.meta.url,
   );
   const originalPath = process.env.PATH;
+  const webp = spawnSync('ffmpeg', ['-v', 'error', '-i', 'pipe:0', '-frames:v', '1', '-c:v', 'libwebp', '-f', 'webp', 'pipe:1'], { input: await readFile(new URL('rose.png', supplied)) });
+  assert.equal(webp.status, 0, webp.stderr.toString());
+  await validateGiftAsset(webp.stdout, 'thumbnail', 'webp');
   try {
     process.env.PATH = '/nonexistent-gift-validator-test-path';
     await assert.rejects(validateGiftAsset(await readFile(new URL('rose.png', supplied)), 'thumbnail', 'png'),

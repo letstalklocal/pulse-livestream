@@ -27,6 +27,11 @@ test('catalog rejects corrupt publication and keeps immutable snapshot price/art
   invalid.collections[1].gifts[0] = snapshot(); invalid.collections[1].gifts[0].thumbnail = { id: 'evil', url: 'https://untrusted.test/art.png', sha256: '0'.repeat(64), byteSize: 1, format: 'png' };
   assert.throws(() => catalog.parseGiftCatalog(invalid));
   assert.equal(catalog.validateGiftSnapshot({ ...snapshot(), framing: { preset: 'fullscreen', scale: Infinity, x: 0, y: 0 } }), false);
+  const sized = snapshot(); sized.framing.artworkScale = .75;
+  assert.equal(catalog.validateGiftSnapshot(sized), true);
+  assert.equal(sized.framing.scale, 1, 'artwork sizing does not alter animation scale');
+  sized.framing.artworkScale = 4;
+  assert.equal(catalog.validateGiftSnapshot(sized), false);
 });
 test('every collection sorts gifts by coin price automatically with stable equal-price order', () => {
   const parsed = catalog.parseGiftCatalog({ version: 'price-order', collections: [{ id: 'popular', name: 'Popular', sortOrder: 0, locked: true,

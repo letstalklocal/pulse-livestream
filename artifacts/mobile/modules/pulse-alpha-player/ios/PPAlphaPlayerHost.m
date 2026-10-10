@@ -2,6 +2,7 @@
 #import <BDAlphaPlayer/BDAlphaPlayerMetalView.h>
 #import <AVFoundation/AVFoundation.h>
 #import <MetalKit/MetalKit.h>
+#import <math.h>
 
 @interface PPAlphaPlayerHost () <BDAlphaPlayerMetalViewDelegate>
 @property (nonatomic, strong) BDAlphaPlayerMetalView *alphaView;
@@ -10,12 +11,15 @@
 @property (nonatomic, assign) BOOL audioStarted;
 @property (nonatomic, assign) BOOL observingAudio;
 @property (nonatomic, assign) BOOL started;
+@property (nonatomic, assign) BOOL reportedStart;
+@property (nonatomic, assign) NSTimeInterval movieDuration;
+@property (nonatomic, assign) double endGain;
 @end
 
 @implementation PPAlphaPlayerHost
 - (void)setMuted:(BOOL)muted {
   _muted = muted;
-  self.audioPlayer.volume = muted ? 0.0 : 1.0;
+  self.audioPlayer.volume = muted ? 0.0 : self.endGain;
 }
 - (instancetype)initWithFrame:(CGRect)frame {
   if ((self = [super initWithFrame:frame])) {
@@ -41,6 +45,8 @@
 }
 - (void)playFileURL:(NSURL *)url {
   [self stop];
+  self.endGain = 1;
+  self.alpha = 1;
   if (!url.isFileURL || ![NSFileManager.defaultManager fileExistsAtPath:url.path]) {
     [self fail:@"AlphaPlayer: local MP4 unavailable"]; return;
   }
@@ -79,6 +85,7 @@
   // Upstream AlphaPlayer only reads video. Use an audio-only composition so we
   // do not decode the movie twice or change Agora's shared AVAudioSession.
   AVURLAsset *asset = [AVURLAsset URLAssetWithURL:movie options:nil];
+  self.movieDuration = CMTimeGetSeconds(asset.duration);
   AVAssetTrack *audioTrack = [asset tracksWithMediaType:AVMediaTypeAudio].firstObject;
   if (audioTrack) {
     AVMutableComposition *composition = [AVMutableComposition composition];
@@ -117,6 +124,22 @@
   [self.alphaView playWithMetalConfiguration:config];
 }
 - (void)frameCallBack:(NSTimeInterval)duration {
+  if (!self.started) return;
+  if (!self.reportedStart) {
+    self.reportedStart = YES;
+    if (self.onStart) self.onStart();
+  }
+  // Upstream reports played video seconds, so decode/startup delays do not consume the fade.
+  double gain = 1;
+  if (self.fadeOutDuration > 0 && isfinite(self.movieDuration) && self.movieDuration > 0) {
+    gain = MAX(0, MIN(1, (self.movieDuration - duration) / MIN(self.fadeOutDuration, self.movieDuration)));
+  }
+  self.alpha = gain;
+  self.audioPlayer.volume = self.isMuted ? 0 : gain;
+  if (fabs(gain - self.endGain) >= 0.025 || (gain == 0 && self.endGain != 0)) {
+    self.endGain = gain;
+    if (self.onProgress) self.onProgress(gain);
+  }
   if (self.started && !self.audioStarted && self.audioPlayer) {
     self.audioStarted = YES;
     [self.audioPlayer play];
@@ -146,6 +169,7 @@
   self.alphaView = nil;
   self.started = NO;
   self.audioStarted = NO;
+  self.reportedStart = NO;
   if (self.resourceDirectory) [NSFileManager.defaultManager removeItemAtURL:self.resourceDirectory error:nil];
   self.resourceDirectory = nil;
 }

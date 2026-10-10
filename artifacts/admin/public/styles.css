@@ -155,6 +155,17 @@ dialog.gift-modal {
 .gift-modal-header h2 { margin: 0; font-size: 20px; }
 .gift-modal .gift-draft { border: 0; border-radius: 0; }
 .gift-current-file { overflow-wrap: anywhere; color: #efeff4; }
+.gift-asset-field [hidden] { display: none !important; }
+.gift-asset-field { min-width: 0; transition: border-color .15s, background .15s; }
+.gift-asset-field.drag-over { border-color: var(--pink); background: #351226; }
+.gift-upload-zone { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 130px; padding: 20px; border: 2px dashed #57586b; border-radius: 12px; background: #191a27; color: #efeff4; cursor: pointer; font: inherit; }
+.gift-upload-zone:hover, .gift-upload-zone:focus-visible { border-color: var(--pink); background: #27192a; }
+.gift-upload-zone span { color: var(--muted); font-size: 12px; }
+.gift-file-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.gift-file-actions small { flex: 1; }
+.gift-file-actions .page-button { min-height: 44px; padding: 10px 14px; font-size: 13px; }
+.gift-artwork-preview { display: grid; gap: 10px; min-width: 0; }
+#gift-preview-screen .gift-preview-art { width: 100%; height: 100%; }
 .gift-artwork-section {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 160px;

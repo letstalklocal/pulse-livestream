@@ -3,9 +3,12 @@ import ExpoModulesCore
 public class PulseAlphaPlayerModule: Module {
   public func definition() -> ModuleDefinition {
     Name("PulseAlphaPlayer")
-    Constants(["supportsMutedPlayback": true])
+    Constants(["supportsMutedPlayback": true, "supportsEndFade": true])
     View(PulseAlphaPlayerView.self) {
-      Events("onFinish", "onError")
+      Events("onFinish", "onError", "onStart", "onProgress")
+      Prop("fadeOutDuration") { (view: PulseAlphaPlayerView, seconds: Double) in
+        view.setFadeOutDuration(seconds)
+      }
       Prop("source") { (view: PulseAlphaPlayerView, source: String) in
         view.setSource(source)
       }
@@ -19,6 +22,8 @@ public class PulseAlphaPlayerModule: Module {
 final class PulseAlphaPlayerView: ExpoView {
   let onFinish = EventDispatcher()
   let onError = EventDispatcher()
+  let onStart = EventDispatcher()
+  let onProgress = EventDispatcher()
   private let host = PPAlphaPlayerHost(frame: .zero)
   private var source: String?
 
@@ -29,6 +34,8 @@ final class PulseAlphaPlayerView: ExpoView {
     isUserInteractionEnabled = false
     host.onFinish = { [weak self] in self?.onFinish([:]) }
     host.onError = { [weak self] message in self?.onError(["message": message]) }
+    host.onStart = { [weak self] in self?.onStart([:]) }
+    host.onProgress = { [weak self] gain in self?.onProgress(["gain": gain]) }
     addSubview(host)
   }
 
@@ -50,5 +57,8 @@ final class PulseAlphaPlayerView: ExpoView {
 
   func setMuted(_ value: Bool) {
     host.isMuted = value
+  }
+  func setFadeOutDuration(_ seconds: Double) {
+    host.fadeOutDuration = seconds.isFinite ? max(0, seconds) : 0
   }
 }

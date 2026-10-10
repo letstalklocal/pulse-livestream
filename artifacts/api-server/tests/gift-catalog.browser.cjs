@@ -101,6 +101,7 @@ const root = path.resolve(__dirname, "../../admin/public");
     data.gifts.push({id:"animated",collectionId:"luxury",status:"published",currentRevisionId:"animated-r1"});
     data.revisions.push({id:"animated-r1",giftId:"animated",name:"Animated gift",coinCost:1999,type:"animation",thumbnailAssetId:"original_rose",androidAssetId:"fixture_svga",iosAssetId:"fixture_svga",framing:{preset:"contained",scale:1,x:0,y:0}});
     data.assets.push({id:"fixture_svga",kind:"animation",format:"svga",width:720,height:1280,url:"/api/gift-catalog/assets/fixture_svga"});
+    let catalogReads = 0, imports = 0;
     let denied = false,
       uploadReject = false,
       mutations = [],
@@ -137,14 +138,15 @@ const root = path.resolve(__dirname, "../../admin/public");
         return route.fulfill({
           json: { role: "owner", environment: "development" },
         });
-      if (p === "/api/admin-data/gifts" && req.method() === "GET")
-        return route.fulfill({ json: data });
-      if (p.endsWith("/assets/import-existing")) return route.fulfill({json:{imported:12}});
+      if (p === "/api/admin-data/gifts" && req.method() === "GET") {
+        catalogReads++; return route.fulfill({ json: data });
+      }
+      if (p.endsWith("/assets/import-existing")) { imports++; return route.fulfill({json:{imported:12}}); }
       if (p.endsWith("/assets")) {
         assert.equal(req.headers()["content-type"], "application/octet-stream");
         const params = new URL(req.url()).searchParams;
         const sound = params.get("kind") === "sound";
-        assert.equal(params.get("format"),sound ? "mp3" : "png");
+        assert.ok(sound ? params.get("format") === "mp3" : ["png", "webp"].includes(params.get("format")));
         assert.ok(params.get("filename"));
         if (uploadReject)
           return route.fulfill({
@@ -154,7 +156,7 @@ const root = path.resolve(__dirname, "../../admin/public");
         const asset = {
           id: sound ? "asset_sound_fixture" : "asset_fixture",
           kind: sound ? "sound" : "thumbnail",
-          format: sound ? "mp3" : "png",
+          format: params.get("format"),
           fileName: params.get("filename"),
           byteSize: 8,
           width: 1,
@@ -280,8 +282,8 @@ const root = path.resolve(__dirname, "../../admin/public");
     assert.equal(await page.locator('#gift-original-sound-choice').isVisible(),true);
     await page.locator('[name="soundChoice"][value="original"]').check();
     assert.equal(await page.locator('[name="soundAssetId"]').inputValue(),"");
-    assert.equal(await page.locator('[data-gift-upload="androidAssetId"]').isVisible(), true);
-    assert.equal(await page.locator('[data-gift-upload="iosAssetId"]').isVisible(), true);
+    assert.equal(await page.locator('[data-gift-drop="androidAssetId"] .gift-upload-zone').isVisible(), true);
+    assert.equal(await page.locator('[data-gift-drop="iosAssetId"] .gift-upload-zone').isVisible(), true);
     await page.locator('[name="type"][value="image"]').check();
     assert.equal(await page.locator('[name="androidAssetId"]').isDisabled(), true);
     assert.equal(await page.locator("#gift-publish").count(), 0);
@@ -294,6 +296,7 @@ const root = path.resolve(__dirname, "../../admin/public");
       .last()
       .fill("<img src=x onerror=alert(1)>");
     await page.locator('[name="coinCost"]').fill("7");
+    await page.locator('[name="artworkScale"]').fill("75");
     await page.locator('#gift-advanced-options summary').click();
     await page.locator('[name="preset"]').selectOption("fullscreen");
     await page.locator('[name="scale"]').fill("1.12");
@@ -302,7 +305,7 @@ const root = path.resolve(__dirname, "../../admin/public");
     await page
       .waitForFunction(
         () =>
-          document.querySelector('#gift-draft-form [name="status"]:checked')?.value === 'draft' &&
+          !document.querySelector('#gift-editor-modal') &&
           document.querySelector('[data-gift-open="rose"] strong')?.textContent === '<img src=x onerror=alert(1)>',
       )
       .catch(async (e) => {
@@ -327,9 +330,13 @@ const root = path.resolve(__dirname, "../../admin/public");
     assert.equal(saved.body.type, "image");
     assert.equal(saved.body.androidAssetId, null);
     assert.equal(saved.body.iosAssetId, null);
+    assert.equal(imports, 1, 'saving never reruns bundled asset import');
+    await page.locator('[data-gift-open="rose"]').click();
+    assert.equal(await page.locator('[name="artworkScale"]').inputValue(), '75');
     assert.equal(await page.locator('[name="type"]:checked').inputValue(), "image");
     assert.equal(await page.locator("#gift-animation-controls").isVisible(), false);
     assert.deepEqual(saved.body.framing, {
+      artworkScale: .75,
       preset: "fullscreen",
       scale: 1.12,
       x: 0,
@@ -345,6 +352,8 @@ const root = path.resolve(__dirname, "../../admin/public");
     );
     assert.equal(mutations.at(-1).body.status, "published");
     assert.equal(mutations.some(m=>m.p.endsWith('/publish')),false,'One status save, not a separate publication request');
+    assert.equal(await page.locator('#gift-editor-modal').count(), 0);
+    await page.locator('[data-gift-open="rose"]').click();
     await page.getByText("Manage gift", {exact:true}).click();
     await page.locator("#gift-history").click();
     await page.locator(".gift-history").first().waitFor();
@@ -362,8 +371,21 @@ const root = path.resolve(__dirname, "../../admin/public");
     assert.equal(await page.locator('[name="thumbnailAssetId"]').inputValue(),"asset_fixture");
     assert.equal(await page.locator('[data-current-file="thumbnailAssetId"]').textContent(),"replacement.PNG");
     await page.getByRole('button',{name:'Save',exact:true}).click();
-    await page.waitForFunction(()=>document.querySelector('[name="thumbnailAssetId"]')?.value==='asset_fixture' && document.querySelector('[data-gift-open="rose"] small:last-child')?.textContent==='published');
+    await page.waitForFunction(()=>!document.querySelector('#gift-editor-modal') && document.querySelector('[data-gift-open="rose"] small:last-child')?.textContent==='published');
     assert.equal(mutations.filter(m=>m.method==='PATCH').at(-1).body.thumbnailAssetId,'asset_fixture');
+    await page.locator('[data-gift-open="rose"]').click();
+    assert.equal(await page.locator('[name="thumbnailAssetId"]').inputValue(), 'asset_fixture');
+    assert.match(await page.locator('[data-gift-upload="thumbnailAssetId"]').getAttribute('accept'), /image\/webp/);
+    assert.equal(await page.locator('[data-gift-replace="thumbnailAssetId"]').isVisible(), true);
+    const chooser = page.waitForEvent('filechooser');
+    await page.locator('[data-gift-replace="thumbnailAssetId"]').click();
+    await (await chooser).setFiles({ name: 'artwork.webp', mimeType: 'image/webp', buffer: Buffer.from('fixture') });
+    await page.waitForFunction(()=>document.querySelector('[data-current-file="thumbnailAssetId"]')?.textContent === 'artwork.webp');
+    await page.locator('[data-gift-drop="thumbnailAssetId"]').evaluate(zone => {
+      const transfer = new DataTransfer(); transfer.items.add(new File(['fixture'], 'dropped.WEBP', { type: 'image/webp' }));
+      zone.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer }));
+    });
+    await page.waitForFunction(()=>document.querySelector('[data-current-file="thumbnailAssetId"]')?.textContent === 'dropped.WEBP');
     await page.locator('[name="type"][value="animation"]').check();
     const formats = await page.locator('[data-gift-upload="iosAssetId"]').getAttribute("data-formats");
     assert.equal(formats, "svga,packed-alpha-mp4");
@@ -394,6 +416,13 @@ const root = path.resolve(__dirname, "../../admin/public");
     assert.equal(await page.getByRole("button", {name:"Seasonal",exact:true}).getAttribute("aria-pressed"), "true");
     assert.equal(await page.locator('#gift-collection-summary').textContent(),'Gifts: 0 · Status: Draft');
     await page.getByRole("button", { name: "Seasonal", exact: true }).click();
+    const beforeReturn = catalogReads;
+    await page.evaluate(() => { location.hash = '#users'; });
+    await page.waitForFunction(()=>document.querySelector('#breadcrumb')?.textContent === 'Users');
+    await page.evaluate(() => { location.hash = '#gifts'; });
+    await page.getByRole('button', { name: 'Seasonal', exact: true }).waitFor();
+    assert.equal(catalogReads, beforeReturn, 'returning to Gifts keeps the loaded catalog');
+    assert.equal(await page.locator('[data-gift-collection="seasonal"]').getAttribute('aria-pressed'), 'true');
     await page.locator('#gift-manage-collection').click();
     await page
       .locator('#gift-collection-editor [name="status"]')

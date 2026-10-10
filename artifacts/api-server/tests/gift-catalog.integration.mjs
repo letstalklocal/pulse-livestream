@@ -75,6 +75,7 @@ try {
       name: "Original",
       coinCost: 7,
       thumbnailAssetId: thumb,
+      framing: { artworkScale: .75, scale: 1.2 },
     },
     true,
   );
@@ -90,6 +91,8 @@ try {
   assert.equal(queries, 2, 'one existing transaction lock plus one complete gift/asset lookup');
   assert.equal(receipt.name, "Original");
   assert.equal(receipt.thumbnail.id, thumb);
+  assert.equal(receipt.framing.artworkScale, .75);
+  assert.equal(receipt.framing.scale, 1.2);
   await assert.rejects(
     m.resolvePublishedGift(db, gift),
     (e) => e.status === 409,

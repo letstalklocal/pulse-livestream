@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, AppState, Image, Platform, Text, type ImageStyle, type StyleProp } from "react-native";
+import { AccessibilityInfo, AppState, Image, Platform, Text, View, type ImageStyle, type StyleProp } from "react-native";
 import { acquireGiftAsset, getCachedGiftAssetUri } from "@/utils/giftAssetCache";
 import type { GiftSnapshot } from "@/utils/giftCatalog";
 import { GiftImageArtwork, hasGiftImage } from "./GiftImageArtwork";
@@ -59,7 +59,9 @@ export function RemoteGiftArtwork({ snapshot, size, style, enabled = true, anima
   if (animated && enabled && foreground && !reduceMotion && Player && preview && preview.id === animation?.id)
     return <Player source={preview.uri} loops={0} muteBuiltInAudio style={[{ width: size, height: size }, style]} onError={() => { setPreview(null); previewRelease.current?.(); previewRelease.current = undefined; }} />;
   const uri = enabled ? (artwork?.id === snapshot.thumbnail?.id && artwork?.sha256 === snapshot.thumbnail?.sha256 ? artwork?.uri : null) ?? cachedUri : null;
-  if (uri) return <Image source={{ uri }} resizeMode="contain" accessibilityLabel={snapshot.name} style={[{ width: size, height: size }, style]} />;
+  if (uri) return <View style={[{ width: size, height: size }, style, { overflow: "hidden" }]}>
+    <Image source={{ uri }} resizeMode="contain" accessibilityLabel={snapshot.name} style={{ width: "100%", height: "100%", transform: [{ scale: snapshot.framing.artworkScale ?? 1 }] }} />
+  </View>;
   // Attached artwork must not turn into an unrelated emoji/bundled image
   // while loading or unavailable. Original asset-free legacy gifts stay intact.
   if (snapshot.thumbnail || snapshot.animation || snapshot.androidAnimation || snapshot.iosAnimation) return null;

@@ -10,6 +10,7 @@ test('local catalog sounds mix without a video surface, bound voices and release
     exports, require: id => ({
       'react-native': { Platform: { OS: 'ios' } },
       './giftAssetCache': { acquireGiftAsset: async () => ({ uri: 'file:///verified.mp3', release: () => releases++ }) },
+      './giftPlaybackFade': { giftEndGain: (p, d) => d > 0 ? Math.max(0, Math.min(1, (d - p) / Math.min(1000, d))) : 1 },
       'expo-video': { createVideoPlayer: source => {
         const callbacks = {};
         const player = { source, callbacks, stopped: 0, started: 0,
@@ -20,11 +21,15 @@ test('local catalog sounds mix without a video surface, bound voices and release
       './momentGiftAssets.native': { prepareMomentGiftSound: () => '/default.wav' },
     })[id],
   });
-  const sounds = await Promise.all(Array.from({ length: 4 }, () => exports.prepareLocalCatalogGiftSound({ id: 'audio' })));
+  const sounds = await Promise.all(Array.from({ length: 4 }, () => exports.prepareLocalCatalogGiftSound({ id: 'audio' }, true)));
   sounds.forEach(sound => sound.play());
   assert.equal(players[0].stopped, 1, 'oldest voice ends when fourth starts');
   assert.equal(players.every(player => player.audioMixingMode === 'mixWithOthers' && player.loop === false && player.muted === false), true);
   assert.equal(players[1].source.uri, 'file:///verified.mp3');
+  players[1].duration = 6; players[1].currentTime = 5.5;
+  players[1].callbacks.timeUpdate(); assert.equal(players[1].volume, .5, 'local audio fades using playback position');
+  sounds[1].setVolume(.25); assert.equal(players[1].volume, .25, 'video end can also fade a longer custom sound');
+  players[1].currentTime = 0; sounds[1].setVolume(1); assert.equal(players[1].volume, 1);
   sounds[1].play(); assert.equal(players[1].started, 1, 'ready callbacks cannot duplicate the sound');
   players[1].callbacks.playToEnd(); players[2].callbacks.statusChange({ status: 'error' });
   assert.equal(players[2].source.uri, 'file:///default.wav', 'decoder failure falls back once to the existing default chime');

@@ -1,11 +1,12 @@
 import { Platform } from "react-native";
 import type { CatalogAsset } from "./giftCatalog";
 import { acquireGiftAsset } from "./giftAssetCache";
+import { giftEndGain } from "./giftPlaybackFade";
 
 const voices = new Set<() => void>();
 /** Local sender/DM audio only. Live viewers hear the recipient host's published effect. */
-export async function prepareLocalCatalogGiftSound(asset: CatalogAsset): Promise<{ play: () => void; stop: () => void }> {
-  if (Platform.OS === "web") return { play() {}, stop() {} };
+export async function prepareLocalCatalogGiftSound(asset: CatalogAsset, fadeOut = false): Promise<{ play: () => void; stop: () => void; setVolume: (gain: number) => void }> {
+  if (Platform.OS === "web") return { play() {}, stop() {}, setVolume() {} };
   let usedFallback = false;
   const defaultUri = () => {
     usedFallback = true;
@@ -24,6 +25,13 @@ export async function prepareLocalCatalogGiftSound(asset: CatalogAsset): Promise
   } catch (error) { lease.release(); throw error; }
   let stopped = false;
   let started = false;
+  let animationGain = 1;
+  const updateVolume = () => {
+    if (stopped) return;
+    const duration = player.duration > 0 ? player.duration * 1000 : usedFallback ? 0 : asset.durationMs ?? 0;
+    player.volume = Math.min(animationGain, fadeOut ? giftEndGain(player.currentTime * 1000, duration) : 1);
+  };
+  player.timeUpdateEventInterval = 0.05;
   const subscriptions: Array<{ remove: () => void }> = [];
   const stop = () => {
     if (stopped) return;
@@ -34,6 +42,7 @@ export async function prepareLocalCatalogGiftSound(asset: CatalogAsset): Promise
     lease.release();
   };
   subscriptions.push(player.addListener("playToEnd", stop));
+  subscriptions.push(player.addListener("timeUpdate", updateVolume));
   subscriptions.push(player.addListener("statusChange", event => {
     if (event.status !== "error") return;
     if (!usedFallback && !stopped) {
@@ -41,7 +50,7 @@ export async function prepareLocalCatalogGiftSound(asset: CatalogAsset): Promise
     }
     stop();
   }));
-  return { stop, play: () => {
+  return { stop, setVolume: gain => { animationGain = Math.max(0, Math.min(1, gain)); updateVolume(); }, play: () => {
     if (stopped || started) return;
     started = true;
     while (voices.size >= 3) voices.values().next().value?.();
