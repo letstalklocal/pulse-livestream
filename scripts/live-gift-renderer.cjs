@@ -33,7 +33,9 @@ process.once('message', async cfg => {
       res.writeHead(200, { 'Content-Type': entry[0], 'Cache-Control': 'no-store' }).end(entry[1]);
     });
     await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
-    browser = await chromium.launch({ executablePath: process.env.PULSE_CHROMIUM_EXECUTABLE || '/repl/tools/bin/chromium', headless: true,
+    const executablePath = cfg.chromiumExecutable || process.env.PULSE_CHROMIUM_EXECUTABLE;
+    if (!executablePath) throw Error('Chromium executable was not configured by the delivery service');
+    browser = await chromium.launch({ executablePath, headless: true,
       args: ['--no-sandbox', '--autoplay-policy=no-user-gesture-required', '--disable-background-timer-throttling', '--disable-renderer-backgrounding'] });
     page = await browser.newPage();
     await page.exposeFunction('sourceEnded', () => { send({ type: 'ended' }); void stop(); });

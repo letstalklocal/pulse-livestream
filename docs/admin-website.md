@@ -2,6 +2,8 @@
 
 ## Gift toolbar design — October 10, 2026
 
+Live renderer Chromium is a declared Nix system dependency alongside ffmpeg-full. Resolve `PULSE_CHROMIUM_EXECUTABLE` when explicitly set, otherwise find Chromium on PATH and send the resolved executable to the worker. `/repl/tools/bin/chromium` is only a development fallback, never a production assumption. Builds check browser availability; a changed system-package declaration needs a production redeploy. Do not silently replace an invalid explicit override.
+
 Production live-delivery assets resolve relative to the built API module (`import.meta.url`), never the process working directory. Renderer, SVGA script, legacy media and delivery migration all ship beside `dist/index.mjs`; production can launch from the workspace root. A path-fix rollout requires API redeployment, not a mobile build. Keep the explicit test-renderer override.
 
 SVGA admin previews use the existing SVGAPlayer-Web inside `gift-svga-preview.html`, an opaque-origin `sandbox allow-scripts` iframe. The library's protobuf parser needs runtime code generation and blob XHR. Those permissions apply only to the isolated preview document; never add `unsafe-eval` to the main admin CSP. Fetch assets with staff authorization in the parent and send only the downloaded Blob to the frame. Check message sources; stop previews on tab switches/close. Browser fixtures must enforce CSP and verify rendered canvas pixels, not merely player initialization. WebM/native players are unchanged.

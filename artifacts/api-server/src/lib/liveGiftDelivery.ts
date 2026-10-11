@@ -9,6 +9,7 @@ import { giftAssetDelivery, readPublishedGiftCatalog } from "./managedGiftCatalo
 import { installLiveGiftDelivery, type LiveGiftEvent } from "./liveGiftDeliveryBus";
 import { GIFT_CATALOG } from "./giftCatalog";
 import legacyAssets from "./legacyGiftAssets.json";
+import { giftBrowserExecutable } from './giftBrowser';
 
 // Global policy, per-recipient media workers. Payments and receipts never call
 // this module. Only committed, privacy-masked live events reach the delivery bus.
@@ -19,6 +20,7 @@ type Session = { id: string; source: Source; output: string; sourceUid: number; 
 const sessions = new Map<string, Session>();
 let requested = false, revision = "0", fault: string | null = null, refreshing = false;
 let catalog: any[] = [], catalogAt = 0;
+let browserExecutable: string | undefined;
 const maxWorkers = () => Math.max(1, Math.min(16, Number(process.env.PULSE_GIFT_MAX_WORKERS) || 4));
 // esbuild places this module in dist/index.mjs; deployment cwd is not stable.
 const deliveryAssets = path.dirname(fileURLToPath(import.meta.url));
@@ -73,7 +75,7 @@ export async function setLiveGiftDelivery(enabled: boolean, actor: string) {
     if (!configured()) throw Error("Configure the server renderer before enabling live gift delivery.");
     await access(workerPath());
     if (process.env.PULSE_PLAYWRIGHT_MODULE) await access(process.env.PULSE_PLAYWRIGHT_MODULE);
-    await access(process.env.PULSE_CHROMIUM_EXECUTABLE || "/repl/tools/bin/chromium");
+    browserExecutable = await giftBrowserExecutable();
     const { rows } = await pool.query("SELECT count(*)::int AS n FROM live_stream_sessions WHERE ended_at IS NULL AND last_heartbeat_at > now()-interval '60 seconds'");
     if (rows[0].n > maxWorkers()) throw Error("Not enough renderer capacity for all active lives.");
   }
@@ -144,7 +146,7 @@ function start(source: Source) {
   child.on("exit", () => { if (sessions.get(source.channel_id) === s) trip("Renderer stopped; existing delivery is active."); });
   const rtc = source.rtc_channel_name || source.channel_id;
   child.send({ appId: process.env.AGORA_APP_ID, sourceChannel: rtc, sourceUid: s.sourceUid, sourceToken: token(rtc, s.sourceUid),
-    hostUid: source.host_user_id, outputChannel: s.output, outputToken: token(s.output, source.host_user_id, true), svgaScript: path.join(deliveryAssets, "admin/gift-svga.js") });
+    hostUid: source.host_user_id, outputChannel: s.output, outputToken: token(s.output, source.host_user_id, true), chromiumExecutable: browserExecutable, svgaScript: path.join(deliveryAssets, "admin/gift-svga.js") });
 }
 export async function refreshLiveGiftDelivery() {
   if (refreshing) return; refreshing = true;
@@ -154,6 +156,10 @@ export async function refreshLiveGiftDelivery() {
     requested = row?.enabled === true;
     if (!requested || fault) { for (const channel of [...sessions.keys()]) stopGiftDelivery(channel); return; }
     if (!configured()) { trip("Renderer configuration is missing; existing delivery is active."); return; }
+    if (!browserExecutable) {
+      try { browserExecutable = await giftBrowserExecutable(); }
+      catch (error) { trip(error instanceof Error ? error.message : 'Chromium unavailable'); return; }
+    }
     // No Premium/private/party exclusions. Existing token routes remain the ACL.
     const sources: Source[] = (await pool.query("SELECT channel_id,host_user_id,rtc_channel_name,paused FROM live_stream_sessions WHERE ended_at IS NULL AND last_heartbeat_at > now()-interval '60 seconds'")).rows;
     if (sources.length > maxWorkers()) { trip("Renderer capacity exceeded; existing delivery is active globally."); return; }
