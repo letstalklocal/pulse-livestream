@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { RecipientPaymentHistory } from './recipientPaymentHistory';
 import type { WithdrawalAttempt } from './withdrawalAttempt';
 import type { WithdrawalAuditEvent } from './withdrawalAuditEvent';
 import type { WithdrawalBalances } from './withdrawalBalances';
@@ -17,4 +18,7 @@ export type AdminWithdrawalDetail = WithdrawalDetail & {
   balances: WithdrawalBalances;
   /** Current authenticated enabled owner may recover recipient errors after all provider checks. */
   canResolveRecipientError?: boolean;
+  recipientPaymentHistory?: RecipientPaymentHistory;
+  /** True only while a verified saved/reopened first-time provider draft awaits independent review or human action. Contacts, open forms, unsaved plans, errors and released transfers are not pending drafts. */
+  readonly pendingFirstTimeRecipient?: boolean;
 };

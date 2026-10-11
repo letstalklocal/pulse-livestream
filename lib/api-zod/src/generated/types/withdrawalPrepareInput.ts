@@ -7,7 +7,7 @@
  */
 
 export interface WithdrawalPrepareInput {
-  quoteHash: string;
+  quoteHash?: string;
   /**
      * @minLength 1
      * @maxLength 5000

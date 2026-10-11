@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CreatorWithdrawal } from './creatorWithdrawal';
+import type { RecipientPaymentHistory } from './recipientPaymentHistory';
 
 export type AdminWithdrawalSummary = CreatorWithdrawal & ({
   creatorName: string;
@@ -13,4 +14,7 @@ export type AdminWithdrawalSummary = CreatorWithdrawal & ({
   attemptState: string | null;
   maker: string | null;
   providerReference: string | null;
+  recipientPaymentHistory?: RecipientPaymentHistory;
+  /** True only while a verified saved/reopened first-time provider draft awaits independent review or human action. Contacts, open forms, unsaved plans, errors and released transfers are not pending drafts. */
+  readonly pendingFirstTimeRecipient?: boolean;
 });

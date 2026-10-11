@@ -12,4 +12,5 @@ export type WithdrawalPreparationInputKind = typeof WithdrawalPreparationInputKi
 export const WithdrawalPreparationInputKind = {
   first_time_link: 'first_time_link',
   scheduled: 'scheduled',
+  first_time_draft: 'first_time_draft',
 } as const;

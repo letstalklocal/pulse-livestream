@@ -17,6 +17,7 @@ export async function runMcpIntegration({
   withdrawalId,
   leaseId,
   quote,
+  expectedPendingFirstTimeRecipient,
 }) {
   const clients = [];
   const connect = async (credential) => {
@@ -77,12 +78,37 @@ export async function runMcpIntegration({
       assert(!JSON.stringify(identity).includes(credential.token));
       const list = await call(client, "list", { limit: 10 });
       assert(Array.isArray(list.withdrawals));
+      for (const withdrawal of list.withdrawals) {
+        assert(
+          ["first_payout_in_pulse", "previously_paid"].includes(
+            withdrawal.recipientPaymentHistory.classification,
+          ),
+        );
+        assert.equal(
+          withdrawal.recipientPaymentHistory.requiresProviderVerification,
+          true,
+        );
+      }
       const playbook = await call(client, "playbook", { name: role });
       assert.equal(playbook.autoSendAllowed, false);
       assert.equal(playbook.humanFinalDecisionRequired, true);
       if (withdrawalId) {
         const detail = await call(client, "get", { id: withdrawalId });
         assert.equal(detail.id, withdrawalId);
+        if (expectedPendingFirstTimeRecipient !== undefined)
+          assert.equal(
+            detail.pendingFirstTimeRecipient,
+            expectedPendingFirstTimeRecipient,
+          );
+        assert(
+          ["first_payout_in_pulse", "previously_paid"].includes(
+            detail.recipientPaymentHistory.classification,
+          ),
+        );
+        assert.equal(
+          detail.recipientPaymentHistory.requiresProviderVerification,
+          true,
+        );
       }
       const forbidden = await client.callTool({
         name: "pulse_payout_release",
@@ -152,7 +178,7 @@ export async function runMakerRetryMcp({
       name: "pulse_payout_identity",
       arguments: {},
     });
-    assert.equal(identity.structuredContent.workflowRevision, "2026-10-09.2");
+    assert.equal(identity.structuredContent.workflowRevision, "2026-10-11.3");
     const result = await client.callTool({
       name: "pulse_payout_retry_recipient_creation",
       arguments: { id, leaseId, data },

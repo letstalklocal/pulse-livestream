@@ -438,12 +438,39 @@ export interface CreatorWithdrawal {
   progress?: CreatorWithdrawalProgress;
 }
 
+export type RecipientPaymentHistoryClassification = typeof RecipientPaymentHistoryClassification[keyof typeof RecipientPaymentHistoryClassification];
+
+
+export const RecipientPaymentHistoryClassification = {
+  first_payout_in_pulse: 'first_payout_in_pulse',
+  previously_paid: 'previously_paid',
+} as const;
+
+export type RecipientPaymentHistorySource = typeof RecipientPaymentHistorySource[keyof typeof RecipientPaymentHistorySource];
+
+
+export const RecipientPaymentHistorySource = {
+  pulse_verified_delivery: 'pulse_verified_delivery',
+} as const;
+
+/**
+ * Verified Pulse delivery history for this exact recipient, provider and account. Absence is not proof that no payment exists in Remitly; always verify provider history before scheduling. This field grants no preparation or sending permission.
+ */
+export interface RecipientPaymentHistory {
+  classification: RecipientPaymentHistoryClassification;
+  source: RecipientPaymentHistorySource;
+  requiresProviderVerification: true;
+}
+
 export type AdminWithdrawalSummary = CreatorWithdrawal & ({
   creatorName: string;
   reviewDeadline: string | null;
   attemptState: string | null;
   maker: string | null;
   providerReference: string | null;
+  recipientPaymentHistory?: RecipientPaymentHistory;
+  /** True only while a verified saved/reopened first-time provider draft awaits independent review or human action. Contacts, open forms, unsaved plans, errors and released transfers are not pending drafts. */
+  readonly pendingFirstTimeRecipient?: boolean;
 });
 
 export interface PayoutOperatorQueue {
@@ -668,7 +695,7 @@ export interface PayoutOperatorQuoteInput {
 }
 
 export interface WithdrawalPrepareInput {
-  quoteHash: string;
+  quoteHash?: string;
   /**
      * @minLength 1
      * @maxLength 5000
@@ -687,11 +714,15 @@ export type WithdrawalPreparationInputKind = typeof WithdrawalPreparationInputKi
 export const WithdrawalPreparationInputKind = {
   first_time_link: 'first_time_link',
   scheduled: 'scheduled',
+  first_time_draft: 'first_time_draft',
 } as const;
 
+/**
+ * Continuous preparation requires preparationHash plus final quote and verified saved draft together. first_time_draft also requires actual saved/reopened draft evidence, noPriorTransfer, stable draft ID and approved URL identifying that ID. quoteHash is legacy-only.
+ */
 export interface WithdrawalPreparationInput {
   attemptId: string;
-  quoteHash: string;
+  quoteHash?: string;
   draftId?: string;
   reviewUrl?: string;
   deadline: string;
@@ -707,6 +738,11 @@ export interface WithdrawalPreparationInput {
      */
   evidence: string;
   kind: WithdrawalPreparationInputKind;
+  preparationHash?: string;
+  quote?: WithdrawalQuoteInput;
+  draftSaved?: true;
+  draftReopened?: true;
+  noPriorTransfer?: true;
 }
 
 export interface PayoutOperatorPreparationInput {
@@ -729,6 +765,8 @@ export interface WithdrawalCheckInput {
      * @maxLength 5000
      */
   evidence: string;
+  /** Independent reopening verification required to pass a first_time_draft check. */
+  draftReopened?: boolean;
 }
 
 export interface PayoutOperatorCheckInput {
@@ -960,10 +998,14 @@ export type AdminWithdrawalDetail = WithdrawalDetail & {
   balances: WithdrawalBalances;
   /** Current authenticated enabled owner may recover recipient errors after all provider checks. */
   canResolveRecipientError?: boolean;
+  recipientPaymentHistory?: RecipientPaymentHistory;
+  /** True only while a verified saved/reopened first-time provider draft awaits independent review or human action. Contacts, open forms, unsaved plans, errors and released transfers are not pending drafts. */
+  readonly pendingFirstTimeRecipient?: boolean;
 };
 
 export type WithdrawalPrepareResult = WithdrawalDetail & {
   attemptId: string;
+  preparationHash?: string;
 };
 
 export interface WithdrawalReleaseInput {

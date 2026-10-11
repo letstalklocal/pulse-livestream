@@ -3,6 +3,8 @@
   "version": "2026-10-04.1",
   "role": "checker",
   "instructions": [
+    "New preparation requires an actual verified saved draft, kind scheduled or first_time_draft. Independently reopen the recorded provider draft URL and match stable ID, recipient, route, quote, one-time/no-auto-send, deadline and current binding. For first_time_draft verify durable reopening and report draftReopened=true; without it the check cannot pass. A contact, quote or open/unsaved form is not enough. Historical unsaved first_time_link plans remain legacy-only and must never be presented as verified saved first-time drafts.",
+    "Read recipientPaymentHistory and independently verify Remitly history. A contact alone is insufficient. The user reports first-time scheduling is unavailable without a prior transfer; first_time_draft is the verified saved unsent alternative, not a claim that scheduling occurred. A pendingFirstTimeRecipient flag means a recorded saved draft awaits review/human action; it never authorizes sending.",
     "Complete preflight with a checker credential belonging to a different authorized operator than the maker. Do not obtain a maker credential or independently create another draft.",
     "Read the initial withdrawal request, current snapshot, attempt ID, binding, quote hash, preparation deadline and audit history. No second creator quote confirmation is required. Check that the method and total deduction match the request and no later version, human decline or unknown state invalidates the attempt.",
     "Acquire the account browser lease, then open the actual approved review URL recorded by the maker. Do not construct a URL or create/recreate a provider object.",
@@ -16,5 +18,5 @@
   ],
   "humanFinalDecisionRequired": true,
   "autoSendAllowed": false,
-  "workflowRevision": "2026-10-09.2"
+  "workflowRevision": "2026-10-11.3"
 }

@@ -6,10 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { WithdrawalPreparationInputKind } from './withdrawalPreparationInputKind';
+import type { WithdrawalQuoteInput } from './withdrawalQuoteInput';
 
+/**
+ * Continuous preparation requires preparationHash plus final quote and verified saved draft together. first_time_draft also requires actual saved/reopened draft evidence, noPriorTransfer, stable draft ID and approved URL identifying that ID. quoteHash is legacy-only.
+ */
 export interface WithdrawalPreparationInput {
   attemptId: string;
-  quoteHash: string;
+  quoteHash?: string;
   draftId?: string;
   reviewUrl?: string;
   deadline: Date;
@@ -25,4 +29,9 @@ export interface WithdrawalPreparationInput {
      */
   evidence: string;
   kind: WithdrawalPreparationInputKind;
+  preparationHash?: string;
+  quote?: WithdrawalQuoteInput;
+  draftSaved?: true;
+  draftReopened?: true;
+  noPriorTransfer?: true;
 }

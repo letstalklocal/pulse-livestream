@@ -64,6 +64,11 @@ const root = path.resolve(__dirname, "../../admin/public");
       quote: null,
       approvedQuoteHash: null,
       checker: null,
+      recipientPaymentHistory: {
+        classification: "first_payout_in_pulse",
+        source: "pulse_verified_delivery",
+        requiresProviderVerification: true,
+      },
       providerOnboardingStatus: "pending",
       providerLink: null,
       version: 1,
@@ -84,6 +89,11 @@ const root = path.resolve(__dirname, "../../admin/public");
       id: "wd_unknown",
       userId: 456,
       creatorName: "Second creator",
+      recipientPaymentHistory: {
+        classification: "previously_paid",
+        source: "pulse_verified_delivery",
+        requiresProviderVerification: true,
+      },
       status: "unknown",
       recipient: { legalFirstName: "Second", legalLastName: "Tester" },
       events: [],
@@ -134,7 +144,10 @@ const root = path.resolve(__dirname, "../../admin/public");
           });
         return route.fulfill({
           json: {
-            withdrawals: [w, unknown, ...extraWithdrawals],
+            withdrawals: [w, unknown, ...extraWithdrawals].map(({ attempts, events, ...row }) => ({
+              ...row,
+              attemptState: attempts?.at(-1)?.state || null,
+            })),
             preparationPaused: paused,
             policy: {
               repeatAllowed: false,
@@ -383,10 +396,83 @@ const root = path.resolve(__dirname, "../../admin/public");
         ?.textContent.includes("2 loaded"),
     );
     assert.equal(await page.locator("#payout-rows img").count(), 0);
+    assert.match(
+      await page.locator("#payout-rows").textContent(),
+      /First payout in Pulse/,
+    );
+    assert.match(
+      await page.locator("#payout-rows").textContent(),
+      /Previously paid/,
+    );
     assert.equal(
       await page.locator("#payout-enrollment-preview button").isDisabled(),
       false,
     );
+    await page.locator("#payout-filter").selectOption("first_payout_in_pulse");
+    assert.equal(await page.locator("#payout-rows tr").count(), 1);
+    assert.match(await page.locator("#payout-rows").textContent(), /First payout in Pulse/);
+    await page.locator("#payout-filter").selectOption("previously_paid");
+    assert.equal(await page.locator("#payout-rows tr").count(), 1);
+    assert.match(await page.locator("#payout-rows").textContent(), /Previously paid/);
+    await page.locator("#payout-filter").selectOption("all");
+    const savedFirstTime = {
+      ...w,
+      id: "wd_saved_first_time",
+      creatorName: "Saved first-time draft",
+      status: "awaiting_human_review",
+      pendingFirstTimeRecipient: true,
+      quote: { hash: "first-time-quote", feeCents: 100, sendAmountCents: 1400 },
+      checker: { status: "passed", actor: "independent_checker" },
+      attempts: [{
+        id: "attempt_old_failed",
+        maker: "older_maker",
+        state: "failed",
+        evidence: { kind: "scheduled", deadline: future },
+      }, {
+        id: "attempt_saved_first_time",
+        maker: "maker_fixture",
+        state: "awaiting_human_review",
+        draftId: "actual-draft-123",
+        evidence: {
+          kind: "first_time_draft",
+          reviewUrl: "https://www.remitly.com/review/actual-draft-123",
+          draftSaved: true,
+          draftReopened: true,
+          noPriorTransfer: true,
+          deadline: future,
+        },
+      }],
+      events: [],
+    };
+    extraWithdrawals.push(
+      savedFirstTime,
+      { ...savedFirstTime, id: "wd_unsaved_plan", creatorName: "Unsent plan", pendingFirstTimeRecipient: false,
+        attempts: [{ ...savedFirstTime.attempts.at(-1), evidence: { kind: "first_time_link", deadline: future } }] },
+      { ...savedFirstTime, id: "wd_incomplete_draft", creatorName: "Incomplete draft", pendingFirstTimeRecipient: undefined,
+        attempts: [{ ...savedFirstTime.attempts.at(-1), evidence: { ...savedFirstTime.attempts.at(-1).evidence, draftReopened: false } }] },
+      { ...savedFirstTime, id: "wd_released_draft", creatorName: "Released draft", status: "awaiting_recipient" },
+    );
+    await page.locator("#refresh-withdrawals").click();
+    await page.waitForFunction(() => document.querySelector("#payout-result-count")?.textContent.includes("6 loaded"));
+    assert.match(await page.locator("#payout-summary").textContent(), /1 first-time recipients awaiting your action/);
+    assert.equal(await page.locator("#payout-rows").getByText("First-time recipient — awaiting your action").count(), 1);
+    await page.locator("#payout-filter").selectOption("pending_first_time");
+    assert.equal(await page.locator("#payout-rows tr").count(), 1);
+    assert.match(await page.locator("#payout-rows").textContent(), /Saved first-time draft/);
+    await page.locator('[data-withdrawal="wd_saved_first_time"]').first().click();
+    const pendingDraft = page.locator("#payout-detail [data-pending-first-time]");
+    await pendingDraft.waitFor();
+    assert.match(await pendingDraft.textContent(), /independent checker must pass/i);
+    assert.match(await pendingDraft.textContent(), /actual-draft-123/);
+    assert.equal(await pendingDraft.getByRole("link", { name: /Review in Remitly/ }).getAttribute("href"),
+      "https://www.remitly.com/review/actual-draft-123");
+    assert.equal(await page.locator('[data-payout-action="release"] [name=providerReference]').evaluate((el) => el.required), true);
+    assert.equal(await page.locator('[data-payout-action="check"] [name=draftReopened]').evaluate((el) => el.required), true);
+    await page.locator("#close-payout-detail").click();
+    extraWithdrawals.length = 0;
+    await page.locator("#payout-filter").selectOption("all");
+    await page.locator("#refresh-withdrawals").click();
+    await page.waitForFunction(() => document.querySelector("#payout-result-count")?.textContent.includes("2 loaded"));
     await page.locator(".payout-enrollment > summary").click();
     const preview = page.locator("#payout-enrollment-preview");
     await preview.locator("[name=userId]").fill("123");
@@ -472,6 +558,12 @@ const root = path.resolve(__dirname, "../../admin/public");
     await issueForm.locator("[name=recipientIssue_email]").check();
     await issueForm.locator("button").click();
     await page.locator("#payout-detail [role=alert]").waitFor();
+    assert.match(
+      await page
+        .locator("#payout-detail [data-recipient-payment-history]")
+        .textContent(),
+      /Previously paid[\s\S]*Verify Remitly/,
+    );
     assert.deepEqual(
       actions.findLast((a) => a.action === "unknown").body.recipientIssue,
       {
@@ -965,6 +1057,7 @@ const root = path.resolve(__dirname, "../../admin/public");
       .waitFor({ state: "attached" });
     const preparation = page.locator('[data-payout-action="preparation"]');
     await preparation.locator("..").locator("summary").click();
+    assert.equal(await preparation.locator('[name=kind] option[value=first_time_draft]').count(), 0);
     await fill(preparation, {
       deadline: future,
       historyCoverage:
@@ -1224,7 +1317,9 @@ const root = path.resolve(__dirname, "../../admin/public");
       .first()
       .click();
     await page
-      .getByText("Reservation retained. Replacement preparation is blocked", { exact: false })
+      .getByText("Reservation retained. Replacement preparation is blocked", {
+        exact: false,
+      })
       .waitFor();
     assert.equal(expired.balances.reservedCoins, "6000");
     assert.equal(

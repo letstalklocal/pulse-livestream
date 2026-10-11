@@ -632,6 +632,37 @@ async function lockedWithdrawal(
   await lock(c, w.user_id);
   return w;
 }
+// Pulse history is a conservative hint, never proof of Remitly scheduling eligibility.
+// A saved contact, prepared schedule, issued link or processing transfer is not delivery.
+const recipientPaymentHistoryEvidence = (alias: string) =>
+  `EXISTS(SELECT 1 FROM creator_withdrawals paid
+    JOIN creator_payout_events delivered ON delivered.withdrawal_id=paid.id
+    WHERE paid.user_id=${alias}.user_id AND paid.account_key=${alias}.account_key
+      AND paid.route->>'providerId'=${alias}.route->>'providerId'
+      AND paid.route->>'countryCode'=${alias}.route->>'countryCode'
+      AND (paid.recipient - 'revision' - 'status')=(${alias}.recipient - 'revision' - 'status')
+      AND paid.status IN ('delivered','returned') AND delivered.action='reconciled'
+      AND delivered.evidence->>'status'='delivered'
+      AND length(trim(delivered.evidence->>'providerReference'))>0
+  ) recipient_previously_paid`;
+const recipientPaymentHistory = (r: Row) => ({
+  classification:
+    r.recipient_previously_paid === true
+      ? ("previously_paid" as const)
+      : ("first_payout_in_pulse" as const),
+  source: "pulse_verified_delivery" as const,
+  requiresProviderVerification: true as const,
+});
+// Pending first-time work requires a verified provider draft, never just a contact or quote.
+const pendingFirstTimeRecipient = (status: string, attempt: Row | undefined) =>
+  status === "awaiting_human_review" &&
+  attempt?.state === "awaiting_human_review" &&
+  attempt?.evidence?.kind === "first_time_draft" &&
+  attempt.evidence.draftSaved === true &&
+  attempt.evidence.draftReopened === true &&
+  attempt.evidence.noPriorTransfer === true &&
+  !!attempt.draftId &&
+  !!attempt.evidence.reviewUrl;
 export async function listWithdrawals(
   db: Sql,
   account: string,
@@ -646,7 +677,7 @@ export async function listWithdrawals(
     : "w.created_at DESC,w.id DESC";
   const rows = (
     await db.query(
-      `SELECT w.*,${recipientIssueEvidence("w")},${recipientCorrectionEvidence("w")},u.name creator_name,a.state attempt_state,a.maker,a.provider_reference,a.evidence->>'deadline' review_deadline FROM creator_withdrawals w JOIN users u ON u.uid=w.user_id LEFT JOIN LATERAL (SELECT state,maker,provider_reference,evidence FROM creator_payout_attempts WHERE withdrawal_id=w.id ORDER BY created_at DESC LIMIT 1) a ON true WHERE w.account_key=$1${filter} ORDER BY ${order} LIMIT ${limit + 1}`,
+      `SELECT w.*,${recipientIssueEvidence("w")},${recipientCorrectionEvidence("w")},${recipientPaymentHistoryEvidence("w")},u.name creator_name,a.state attempt_state,a.maker,a.provider_reference,a.draft_id,a.evidence attempt_evidence,a.evidence->>'deadline' review_deadline FROM creator_withdrawals w JOIN users u ON u.uid=w.user_id LEFT JOIN LATERAL (SELECT state,maker,provider_reference,draft_id,evidence FROM creator_payout_attempts WHERE withdrawal_id=w.id ORDER BY created_at DESC LIMIT 1) a ON true WHERE w.account_key=$1${filter} ORDER BY ${order} LIMIT ${limit + 1}`,
       options?.statuses ? [account, options.statuses] : [account],
     )
   ).rows;
@@ -654,6 +685,12 @@ export async function listWithdrawals(
     truncated: rows.length > limit,
     withdrawals: rows.slice(0, limit).map((r) => ({
       ...summary(r),
+      recipientPaymentHistory: recipientPaymentHistory(r),
+      pendingFirstTimeRecipient: pendingFirstTimeRecipient(r.status, {
+        state: r.attempt_state,
+        evidence: r.attempt_evidence,
+        draftId: r.draft_id,
+      }),
       creatorName: r.creator_name,
       reviewDeadline: r.review_deadline,
       attemptState: r.attempt_state,
@@ -991,11 +1028,14 @@ export async function completePreparation(
     "historyCoverage",
     "evidence",
     "kind",
+    "draftSaved",
+    "draftReopened",
+    "noPriorTransfer",
   ]);
   const evidence = note(b.evidence, "preparation evidence", 5000);
   const coverage = note(b.historyCoverage, "provider history coverage", 2000);
-  if (!["first_time_link", "scheduled"].includes(b.kind))
-    fail("Specify first-time link or one-time scheduled preparation.");
+  if (!["first_time_link", "scheduled", "first_time_draft"].includes(b.kind))
+    fail("Specify a saved first-time draft or one-time scheduled preparation.");
   if (
     b.recipientMatches !== true ||
     b.amountsMatch !== true ||
@@ -1024,6 +1064,42 @@ export async function completePreparation(
         409,
       );
     const continuous = a.evidence?.workflowMode === "continuous";
+    const firstTimeDraft = b.kind === "first_time_draft";
+    if (firstTimeDraft) {
+      if (
+        !continuous ||
+        b.draftSaved !== true ||
+        b.draftReopened !== true ||
+        b.noPriorTransfer !== true ||
+        !b.draftId ||
+        !b.reviewUrl
+      )
+        fail(
+          "A saved, reopened first-time draft and inspected prior-transfer history are required.",
+          409,
+          "first_time_draft_unverified",
+        );
+      const history = (
+        await c.query(
+          `SELECT ${recipientPaymentHistoryEvidence("w")} FROM creator_withdrawals w WHERE w.id=$1`,
+          [id],
+        )
+      ).rows[0];
+      if (history?.recipient_previously_paid === true)
+        fail(
+          "Verified prior payment exists for this recipient; inspect the eligible scheduling path.",
+          409,
+          "first_time_draft_ineligible",
+        );
+    } else if (
+      b.draftSaved !== undefined ||
+      b.draftReopened !== undefined ||
+      b.noPriorTransfer !== undefined
+    ) {
+      fail(
+        "First-time draft evidence is only valid for first-time saved drafts.",
+      );
+    }
     if (continuous) {
       if (
         b.preparationHash !== a.binding_hash ||
@@ -1031,7 +1107,12 @@ export async function completePreparation(
         b.quoteHash !== undefined
       )
         fail("Preparation changed; check current request.", 409);
-      if (b.kind !== "scheduled" || !b.draftId || !b.reviewUrl || !b.quote)
+      if (
+        !["scheduled", "first_time_draft"].includes(b.kind) ||
+        !b.draftId ||
+        !b.reviewUrl ||
+        !b.quote
+      )
         fail(
           "Completed preparation requires an actual saved draft and its final quote.",
           409,
@@ -1085,10 +1166,26 @@ export async function completePreparation(
       new URL(reviewUrl!).searchParams.get("scheduledDraftId") !== draftId
     )
       fail("Review URL scheduledDraftId must match the recorded draft ID.");
+    if (firstTimeDraft) {
+      const url = new URL(reviewUrl!);
+      const identifiers = [
+        ...url.pathname.split("/"),
+        ...url.searchParams.values(),
+      ];
+      if (!identifiers.includes(draftId!))
+        fail(
+          "The first-time draft URL must identify the recorded saved draft.",
+          409,
+          "first_time_draft_unverified",
+        );
+    }
     const details = {
       kind: b.kind,
       quoteHash: w.quote.hash,
       ...(continuous ? { workflowMode: "continuous" } : {}),
+      ...(firstTimeDraft
+        ? { draftSaved: true, draftReopened: true, noPriorTransfer: true }
+        : {}),
       deadline,
       reviewUrl,
       oneTime: true,
@@ -1136,6 +1233,7 @@ export async function check(
     "oneTime",
     "autoSend",
     "evidence",
+    "draftReopened",
   ]);
   const evidence = note(b.evidence, "independent check evidence", 5000),
     coverage = note(
@@ -1165,6 +1263,7 @@ export async function check(
     )
       fail("Attempt/quote changed or deadline expired.", 409);
     const passed =
+      (a.evidence?.kind !== "first_time_draft" || b.draftReopened === true) &&
       b.recipientMatches === true &&
       b.amountsMatch === true &&
       b.reservationMatches === true &&
@@ -1180,6 +1279,9 @@ export async function check(
       attemptId: a.id,
       quoteHash: w.quote.hash,
       evidence,
+      ...(a.evidence?.kind === "first_time_draft"
+        ? { draftReopened: b.draftReopened === true }
+        : {}),
       historyCoverage: coverage,
       checkedAt: new Date().toISOString(),
     };
@@ -1234,12 +1336,14 @@ export async function humanRelease(
       Date.parse(w.quote.expiresAt) <= Date.now()
     )
       fail("Current independent check and valid deadline required.", 409);
-    const first = a.evidence?.kind === "first_time_link";
+    const first = ["first_time_link", "first_time_draft"].includes(
+      a.evidence?.kind,
+    );
     // Remitly emails the first-time recipient link directly. Recording the
     // human's completed provider action does not require copying that link here.
     // Optional supplied links still pass the provider URL checks above.
-    if (!first && !reference)
-      fail("Released scheduled transfer requires provider reference.");
+    if (a.evidence?.kind !== "first_time_link" && !reference)
+      fail("Released saved transfer requires provider reference.");
     const status = first ? "awaiting_recipient" : "processing";
     await c.query(
       "UPDATE creator_payout_attempts SET state=$2,provider_reference=$3,updated_at=now() WHERE id=$1",
@@ -2088,7 +2192,7 @@ export async function adminWithdrawalDetail(
   ).rows[0];
   const diagnosticRow = (
     await db.query(
-      `SELECT w.id,w.version,w.recipient,${recipientIssueEvidence("w")},${recipientCorrectionEvidence("w")},r.revision saved_revision,r.data saved_data FROM creator_withdrawals w LEFT JOIN creator_payout_recipients r ON r.user_id=w.user_id WHERE w.id=$1 AND w.account_key=$2`,
+      `SELECT w.id,w.version,w.recipient,${recipientIssueEvidence("w")},${recipientCorrectionEvidence("w")},${recipientPaymentHistoryEvidence("w")},r.revision saved_revision,r.data saved_data FROM creator_withdrawals w LEFT JOIN creator_payout_recipients r ON r.user_id=w.user_id WHERE w.id=$1 AND w.account_key=$2`,
       [id, account],
     )
   ).rows[0];
@@ -2102,6 +2206,11 @@ export async function adminWithdrawalDetail(
     attempts,
     events,
     recipientRecoveryDiagnostics,
+    recipientPaymentHistory: recipientPaymentHistory(diagnosticRow ?? {}),
+    pendingFirstTimeRecipient: pendingFirstTimeRecipient(
+      w.status,
+      attempts.at(-1),
+    ),
     balances: await balances(db, w.userId),
   };
 }

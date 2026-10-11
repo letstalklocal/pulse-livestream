@@ -9,4 +9,5 @@ import type { WithdrawalDetail } from './withdrawalDetail';
 
 export type WithdrawalPrepareResult = WithdrawalDetail & {
   attemptId: string;
+  preparationHash?: string;
 };

@@ -342,6 +342,20 @@ try {
     404,
   );
 
+  const firstHistory = (
+    await api.adminWithdrawalDetail(pool, id, "test-business")
+  ).recipientPaymentHistory;
+  assert.deepEqual(firstHistory, {
+    classification: "first_payout_in_pulse",
+    source: "pulse_verified_delivery",
+    requiresProviderVerification: true,
+  });
+  assert.equal(
+    (await api.listWithdrawals(pool, "test-business")).withdrawals.find(
+      (w) => w.id === id,
+    ).recipientPaymentHistory.classification,
+    "first_payout_in_pulse",
+  );
   await assert.rejects(() => make("other"), /unresolved/);
   assert.equal((await api.overview(pool, 1)).balances.reservedTicks, "6000");
   await assert.rejects(() => api.withdrawalDetail(pool, id, 3), /not found/);
@@ -1099,6 +1113,49 @@ try {
     Object.fromEntries(Object.entries(outcome).reverse()),
     "reconciler",
   );
+  assert.equal(
+    (await api.adminWithdrawalDetail(pool, id, "test-business"))
+      .recipientPaymentHistory.classification,
+    "previously_paid",
+  );
+  // A history hint must match this provider account and exact recipient, ignoring revision metadata.
+  const historyFixtureId = "wd_history_fixture";
+  await pool.query(
+    `INSERT INTO creator_withdrawals(id,user_id,account_key,method_id,gross_cents,idempotency_key,request_hash,recipient,route,status)
+    SELECT $2,user_id,account_key,method_id,gross_cents,$2,request_hash,jsonb_set(recipient,'{revision}','999'),route,'canceled' FROM creator_withdrawals WHERE id=$1`,
+    [id, historyFixtureId],
+  );
+  const historyFor = async (account = "test-business") =>
+    (await api.adminWithdrawalDetail(pool, historyFixtureId, account))
+      .recipientPaymentHistory;
+  assert.equal((await historyFor()).classification, "previously_paid");
+  assert.equal(
+    (await api.listWithdrawals(pool, "test-business")).withdrawals.find(
+      (w) => w.id === historyFixtureId,
+    ).recipientPaymentHistory.classification,
+    "previously_paid",
+  );
+  await pool.query(
+    "UPDATE creator_withdrawals SET recipient=jsonb_set(recipient,'{phone}',to_jsonb('+573009999999'::text)) WHERE id=$1",
+    [historyFixtureId],
+  );
+  assert.equal((await historyFor()).classification, "first_payout_in_pulse");
+  await pool.query(
+    "UPDATE creator_withdrawals SET recipient=(SELECT recipient FROM creator_withdrawals WHERE id=$2),account_key='other-business' WHERE id=$1",
+    [historyFixtureId, id],
+  );
+  assert.equal(
+    (await historyFor("other-business")).classification,
+    "first_payout_in_pulse",
+  );
+  await pool.query(
+    "UPDATE creator_withdrawals SET account_key='test-business',route=jsonb_set(route,'{providerId}',to_jsonb('other-provider'::text)) WHERE id=$1",
+    [historyFixtureId],
+  );
+  assert.equal((await historyFor()).classification, "first_payout_in_pulse");
+  await pool.query("DELETE FROM creator_withdrawals WHERE id=$1", [
+    historyFixtureId,
+  ]);
   const overview = await api.overview(pool, 1);
   api.GetWithdrawalOverviewResponse.parse(overview);
   assert.throws(() =>
@@ -1187,6 +1244,7 @@ try {
     );
   }
   await pool.query("UPDATE coin_balances SET balance=210000 WHERE user_id=1");
+  assert.equal((await api.adminWithdrawalDetail(pool, id, "test-business")).recipientPaymentHistory.classification, "previously_paid", "a verified delivery remains prior payment history after a later return");
   for (const amount of [2500, 50000]) {
     const input = {
       methodId: method,

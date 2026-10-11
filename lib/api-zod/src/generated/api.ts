@@ -224,7 +224,13 @@ export const ListPayoutOperatorWithdrawalsResponse = zod.object({
   "reviewDeadline": zod.string().nullable(),
   "attemptState": zod.string().nullable(),
   "maker": zod.string().nullable(),
-  "providerReference": zod.string().nullable()
+  "providerReference": zod.string().nullable(),
+  "recipientPaymentHistory": zod.object({
+  "classification": zod.enum(['first_payout_in_pulse', 'previously_paid']),
+  "source": zod.enum(['pulse_verified_delivery']),
+  "requiresProviderVerification": zod.literal(true)
+}).optional().describe('Verified Pulse delivery history for this exact recipient, provider and account. Absence is not proof that no payment exists in Remitly; always verify provider history before scheduling. This field grants no preparation or sending permission.'),
+  "pendingFirstTimeRecipient": zod.boolean().optional().describe('True only while a verified saved\/reopened first-time provider draft awaits independent review or human action. Contacts, open forms, unsaved plans, errors and released transfers are not pending drafts.')
 }))),
   "truncated": zod.boolean()
 })
@@ -403,7 +409,13 @@ export const GetPayoutOperatorWithdrawalResponse = zod.object({
   "heldUsd": zod.string().regex(getPayoutOperatorWithdrawalResponseTwoBalancesHeldUsdRegExp),
   "reservedUsd": zod.string().regex(getPayoutOperatorWithdrawalResponseTwoBalancesReservedUsdRegExp)
 }),
-  "canResolveRecipientError": zod.boolean().optional().describe('Current authenticated enabled owner may recover recipient errors after all provider checks.')
+  "canResolveRecipientError": zod.boolean().optional().describe('Current authenticated enabled owner may recover recipient errors after all provider checks.'),
+  "recipientPaymentHistory": zod.object({
+  "classification": zod.enum(['first_payout_in_pulse', 'previously_paid']),
+  "source": zod.enum(['pulse_verified_delivery']),
+  "requiresProviderVerification": zod.literal(true)
+}).optional().describe('Verified Pulse delivery history for this exact recipient, provider and account. Absence is not proof that no payment exists in Remitly; always verify provider history before scheduling. This field grants no preparation or sending permission.'),
+  "pendingFirstTimeRecipient": zod.boolean().optional().describe('True only while a verified saved\/reopened first-time provider draft awaits independent review or human action. Contacts, open forms, unsaved plans, errors and released transfers are not pending drafts.')
 }))
 
 
@@ -710,7 +722,7 @@ export const beginPayoutOperatorPreparationBodyDataEvidenceMax = 5000;
 export const BeginPayoutOperatorPreparationBody = zod.object({
   "leaseId": zod.string(),
   "data": zod.object({
-  "quoteHash": zod.string(),
+  "quoteHash": zod.string().optional(),
   "evidence": zod.string().min(1).max(beginPayoutOperatorPreparationBodyDataEvidenceMax)
 })
 })
@@ -841,7 +853,8 @@ export const BeginPayoutOperatorPreparationResponse = zod.object({
   "createdAt": zod.coerce.date()
 }))
 })).and(zod.object({
-  "attemptId": zod.string()
+  "attemptId": zod.string(),
+  "preparationHash": zod.string().optional()
 }))
 
 
@@ -855,13 +868,31 @@ export const RecordPayoutOperatorPreparationParams = zod.object({
 
 export const recordPayoutOperatorPreparationBodyDataEvidenceMax = 5000;
 
+export const recordPayoutOperatorPreparationBodyDataQuoteSendAmountCentsMin = 0;
+export const recordPayoutOperatorPreparationBodyDataQuoteSendAmountCentsMax = 50000;
+
+export const recordPayoutOperatorPreparationBodyDataQuoteFeeCentsMin = 0;
+export const recordPayoutOperatorPreparationBodyDataQuoteFeeCentsMax = 50000;
+
+export const recordPayoutOperatorPreparationBodyDataQuoteTaxCentsMin = 0;
+export const recordPayoutOperatorPreparationBodyDataQuoteTaxCentsMax = 50000;
+
+export const recordPayoutOperatorPreparationBodyDataQuotePromotionalDiscountCentsMin = 0;
+export const recordPayoutOperatorPreparationBodyDataQuotePromotionalDiscountCentsMax = 50000;
+
+export const recordPayoutOperatorPreparationBodyDataQuoteReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
+export const recordPayoutOperatorPreparationBodyDataQuoteProviderMinimumSendCentsMin = 0;
+export const recordPayoutOperatorPreparationBodyDataQuoteProviderMinimumSendCentsMax = 50000;
+
+export const recordPayoutOperatorPreparationBodyDataQuoteEvidenceMax = 5000;
+
 
 
 export const RecordPayoutOperatorPreparationBody = zod.object({
   "leaseId": zod.string(),
   "data": zod.object({
   "attemptId": zod.string(),
-  "quoteHash": zod.string(),
+  "quoteHash": zod.string().optional(),
   "draftId": zod.string().optional(),
   "reviewUrl": zod.string().optional(),
   "deadline": zod.coerce.date(),
@@ -872,8 +903,28 @@ export const RecordPayoutOperatorPreparationBody = zod.object({
   "historyInspected": zod.boolean(),
   "historyCoverage": zod.string(),
   "evidence": zod.string().min(1).max(recordPayoutOperatorPreparationBodyDataEvidenceMax),
-  "kind": zod.enum(['first_time_link', 'scheduled'])
-})
+  "kind": zod.enum(['first_time_link', 'scheduled', 'first_time_draft']),
+  "preparationHash": zod.string().optional(),
+  "quote": zod.object({
+  "methodId": zod.string(),
+  "sendAmountCents": zod.number().min(recordPayoutOperatorPreparationBodyDataQuoteSendAmountCentsMin).max(recordPayoutOperatorPreparationBodyDataQuoteSendAmountCentsMax),
+  "feeCents": zod.number().min(recordPayoutOperatorPreparationBodyDataQuoteFeeCentsMin).max(recordPayoutOperatorPreparationBodyDataQuoteFeeCentsMax),
+  "taxCents": zod.number().min(recordPayoutOperatorPreparationBodyDataQuoteTaxCentsMin).max(recordPayoutOperatorPreparationBodyDataQuoteTaxCentsMax),
+  "promotionalDiscountCents": zod.number().min(recordPayoutOperatorPreparationBodyDataQuotePromotionalDiscountCentsMin).max(recordPayoutOperatorPreparationBodyDataQuotePromotionalDiscountCentsMax),
+  "receiveAmount": zod.string().regex(recordPayoutOperatorPreparationBodyDataQuoteReceiveAmountRegExp),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string(),
+  "providerMinimumSendCents": zod.number().min(recordPayoutOperatorPreparationBodyDataQuoteProviderMinimumSendCentsMin).max(recordPayoutOperatorPreparationBodyDataQuoteProviderMinimumSendCentsMax),
+  "source": zod.enum(['signed_in_remitly_business']),
+  "sourceUrl": zod.string(),
+  "observedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "evidence": zod.string().min(1).max(recordPayoutOperatorPreparationBodyDataQuoteEvidenceMax)
+}).optional(),
+  "draftSaved": zod.literal(true).optional(),
+  "draftReopened": zod.literal(true).optional(),
+  "noPriorTransfer": zod.literal(true).optional()
+}).describe('Continuous preparation requires preparationHash plus final quote and verified saved draft together. first_time_draft also requires actual saved\/reopened draft evidence, noPriorTransfer, stable draft ID and approved URL identifying that ID. quoteHash is legacy-only.')
 })
 
 export const recordPayoutOperatorPreparationResponseOneGrossCentsMin = 1500;
@@ -1028,7 +1079,8 @@ export const CheckPayoutOperatorPreparationBody = zod.object({
   "historyCoverage": zod.string(),
   "oneTime": zod.boolean(),
   "autoSend": zod.boolean(),
-  "evidence": zod.string().min(1).max(checkPayoutOperatorPreparationBodyDataEvidenceMax)
+  "evidence": zod.string().min(1).max(checkPayoutOperatorPreparationBodyDataEvidenceMax),
+  "draftReopened": zod.boolean().optional().describe('Independent reopening verification required to pass a first_time_draft check.')
 })
 })
 
@@ -1677,7 +1729,13 @@ export const RenewPayoutOperatorPreparationLeaseResponse = zod.object({
   "heldUsd": zod.string().regex(renewPayoutOperatorPreparationLeaseResponseTwoBalancesHeldUsdRegExp),
   "reservedUsd": zod.string().regex(renewPayoutOperatorPreparationLeaseResponseTwoBalancesReservedUsdRegExp)
 }),
-  "canResolveRecipientError": zod.boolean().optional().describe('Current authenticated enabled owner may recover recipient errors after all provider checks.')
+  "canResolveRecipientError": zod.boolean().optional().describe('Current authenticated enabled owner may recover recipient errors after all provider checks.'),
+  "recipientPaymentHistory": zod.object({
+  "classification": zod.enum(['first_payout_in_pulse', 'previously_paid']),
+  "source": zod.enum(['pulse_verified_delivery']),
+  "requiresProviderVerification": zod.literal(true)
+}).optional().describe('Verified Pulse delivery history for this exact recipient, provider and account. Absence is not proof that no payment exists in Remitly; always verify provider history before scheduling. This field grants no preparation or sending permission.'),
+  "pendingFirstTimeRecipient": zod.boolean().optional().describe('True only while a verified saved\/reopened first-time provider draft awaits independent review or human action. Contacts, open forms, unsaved plans, errors and released transfers are not pending drafts.')
 }))
 
 
@@ -1867,7 +1925,13 @@ export const ReleasePayoutOperatorPreparationLeaseResponse = zod.object({
   "heldUsd": zod.string().regex(releasePayoutOperatorPreparationLeaseResponseTwoBalancesHeldUsdRegExp),
   "reservedUsd": zod.string().regex(releasePayoutOperatorPreparationLeaseResponseTwoBalancesReservedUsdRegExp)
 }),
-  "canResolveRecipientError": zod.boolean().optional().describe('Current authenticated enabled owner may recover recipient errors after all provider checks.')
+  "canResolveRecipientError": zod.boolean().optional().describe('Current authenticated enabled owner may recover recipient errors after all provider checks.'),
+  "recipientPaymentHistory": zod.object({
+  "classification": zod.enum(['first_payout_in_pulse', 'previously_paid']),
+  "source": zod.enum(['pulse_verified_delivery']),
+  "requiresProviderVerification": zod.literal(true)
+}).optional().describe('Verified Pulse delivery history for this exact recipient, provider and account. Absence is not proof that no payment exists in Remitly; always verify provider history before scheduling. This field grants no preparation or sending permission.'),
+  "pendingFirstTimeRecipient": zod.boolean().optional().describe('True only while a verified saved\/reopened first-time provider draft awaits independent review or human action. Contacts, open forms, unsaved plans, errors and released transfers are not pending drafts.')
 }))
 
 
@@ -3137,7 +3201,13 @@ export const ListAdminWithdrawalsResponse = zod.object({
   "reviewDeadline": zod.string().nullable(),
   "attemptState": zod.string().nullable(),
   "maker": zod.string().nullable(),
-  "providerReference": zod.string().nullable()
+  "providerReference": zod.string().nullable(),
+  "recipientPaymentHistory": zod.object({
+  "classification": zod.enum(['first_payout_in_pulse', 'previously_paid']),
+  "source": zod.enum(['pulse_verified_delivery']),
+  "requiresProviderVerification": zod.literal(true)
+}).optional().describe('Verified Pulse delivery history for this exact recipient, provider and account. Absence is not proof that no payment exists in Remitly; always verify provider history before scheduling. This field grants no preparation or sending permission.'),
+  "pendingFirstTimeRecipient": zod.boolean().optional().describe('True only while a verified saved\/reopened first-time provider draft awaits independent review or human action. Contacts, open forms, unsaved plans, errors and released transfers are not pending drafts.')
 }))),
   "preparationPaused": zod.boolean(),
   "policy": zod.object({
@@ -3413,7 +3483,13 @@ export const GetAdminWithdrawalDetailResponse = zod.object({
   "heldUsd": zod.string().regex(getAdminWithdrawalDetailResponseTwoBalancesHeldUsdRegExp),
   "reservedUsd": zod.string().regex(getAdminWithdrawalDetailResponseTwoBalancesReservedUsdRegExp)
 }),
-  "canResolveRecipientError": zod.boolean().optional().describe('Current authenticated enabled owner may recover recipient errors after all provider checks.')
+  "canResolveRecipientError": zod.boolean().optional().describe('Current authenticated enabled owner may recover recipient errors after all provider checks.'),
+  "recipientPaymentHistory": zod.object({
+  "classification": zod.enum(['first_payout_in_pulse', 'previously_paid']),
+  "source": zod.enum(['pulse_verified_delivery']),
+  "requiresProviderVerification": zod.literal(true)
+}).optional().describe('Verified Pulse delivery history for this exact recipient, provider and account. Absence is not proof that no payment exists in Remitly; always verify provider history before scheduling. This field grants no preparation or sending permission.'),
+  "pendingFirstTimeRecipient": zod.boolean().optional().describe('True only while a verified saved\/reopened first-time provider draft awaits independent review or human action. Contacts, open forms, unsaved plans, errors and released transfers are not pending drafts.')
 }))
 
 
@@ -3603,7 +3679,7 @@ export const beginWithdrawalPreparationBodyEvidenceMax = 5000;
 
 
 export const BeginWithdrawalPreparationBody = zod.object({
-  "quoteHash": zod.string(),
+  "quoteHash": zod.string().optional(),
   "evidence": zod.string().min(1).max(beginWithdrawalPreparationBodyEvidenceMax)
 })
 
@@ -3733,7 +3809,8 @@ export const BeginWithdrawalPreparationResponse = zod.object({
   "createdAt": zod.coerce.date()
 }))
 })).and(zod.object({
-  "attemptId": zod.string()
+  "attemptId": zod.string(),
+  "preparationHash": zod.string().optional()
 }))
 
 
@@ -3747,11 +3824,29 @@ export const RecordWithdrawalPreparationParams = zod.object({
 
 export const recordWithdrawalPreparationBodyEvidenceMax = 5000;
 
+export const recordWithdrawalPreparationBodyQuoteSendAmountCentsMin = 0;
+export const recordWithdrawalPreparationBodyQuoteSendAmountCentsMax = 50000;
+
+export const recordWithdrawalPreparationBodyQuoteFeeCentsMin = 0;
+export const recordWithdrawalPreparationBodyQuoteFeeCentsMax = 50000;
+
+export const recordWithdrawalPreparationBodyQuoteTaxCentsMin = 0;
+export const recordWithdrawalPreparationBodyQuoteTaxCentsMax = 50000;
+
+export const recordWithdrawalPreparationBodyQuotePromotionalDiscountCentsMin = 0;
+export const recordWithdrawalPreparationBodyQuotePromotionalDiscountCentsMax = 50000;
+
+export const recordWithdrawalPreparationBodyQuoteReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
+export const recordWithdrawalPreparationBodyQuoteProviderMinimumSendCentsMin = 0;
+export const recordWithdrawalPreparationBodyQuoteProviderMinimumSendCentsMax = 50000;
+
+export const recordWithdrawalPreparationBodyQuoteEvidenceMax = 5000;
+
 
 
 export const RecordWithdrawalPreparationBody = zod.object({
   "attemptId": zod.string(),
-  "quoteHash": zod.string(),
+  "quoteHash": zod.string().optional(),
   "draftId": zod.string().optional(),
   "reviewUrl": zod.string().optional(),
   "deadline": zod.coerce.date(),
@@ -3762,8 +3857,28 @@ export const RecordWithdrawalPreparationBody = zod.object({
   "historyInspected": zod.boolean(),
   "historyCoverage": zod.string(),
   "evidence": zod.string().min(1).max(recordWithdrawalPreparationBodyEvidenceMax),
-  "kind": zod.enum(['first_time_link', 'scheduled'])
-})
+  "kind": zod.enum(['first_time_link', 'scheduled', 'first_time_draft']),
+  "preparationHash": zod.string().optional(),
+  "quote": zod.object({
+  "methodId": zod.string(),
+  "sendAmountCents": zod.number().min(recordWithdrawalPreparationBodyQuoteSendAmountCentsMin).max(recordWithdrawalPreparationBodyQuoteSendAmountCentsMax),
+  "feeCents": zod.number().min(recordWithdrawalPreparationBodyQuoteFeeCentsMin).max(recordWithdrawalPreparationBodyQuoteFeeCentsMax),
+  "taxCents": zod.number().min(recordWithdrawalPreparationBodyQuoteTaxCentsMin).max(recordWithdrawalPreparationBodyQuoteTaxCentsMax),
+  "promotionalDiscountCents": zod.number().min(recordWithdrawalPreparationBodyQuotePromotionalDiscountCentsMin).max(recordWithdrawalPreparationBodyQuotePromotionalDiscountCentsMax),
+  "receiveAmount": zod.string().regex(recordWithdrawalPreparationBodyQuoteReceiveAmountRegExp),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string(),
+  "providerMinimumSendCents": zod.number().min(recordWithdrawalPreparationBodyQuoteProviderMinimumSendCentsMin).max(recordWithdrawalPreparationBodyQuoteProviderMinimumSendCentsMax),
+  "source": zod.enum(['signed_in_remitly_business']),
+  "sourceUrl": zod.string(),
+  "observedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "evidence": zod.string().min(1).max(recordWithdrawalPreparationBodyQuoteEvidenceMax)
+}).optional(),
+  "draftSaved": zod.literal(true).optional(),
+  "draftReopened": zod.literal(true).optional(),
+  "noPriorTransfer": zod.literal(true).optional()
+}).describe('Continuous preparation requires preparationHash plus final quote and verified saved draft together. first_time_draft also requires actual saved\/reopened draft evidence, noPriorTransfer, stable draft ID and approved URL identifying that ID. quoteHash is legacy-only.')
 
 export const recordWithdrawalPreparationResponseOneGrossCentsMin = 1500;
 export const recordWithdrawalPreparationResponseOneGrossCentsMax = 50000;
@@ -3915,7 +4030,8 @@ export const CheckWithdrawalPreparationBody = zod.object({
   "historyCoverage": zod.string(),
   "oneTime": zod.boolean(),
   "autoSend": zod.boolean(),
-  "evidence": zod.string().min(1).max(checkWithdrawalPreparationBodyEvidenceMax)
+  "evidence": zod.string().min(1).max(checkWithdrawalPreparationBodyEvidenceMax),
+  "draftReopened": zod.boolean().optional().describe('Independent reopening verification required to pass a first_time_draft check.')
 })
 
 export const checkWithdrawalPreparationResponseOneGrossCentsMin = 1500;

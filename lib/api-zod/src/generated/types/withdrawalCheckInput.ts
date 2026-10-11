@@ -21,4 +21,6 @@ export interface WithdrawalCheckInput {
      * @maxLength 5000
      */
   evidence: string;
+  /** Independent reopening verification required to pass a first_time_draft check. */
+  draftReopened?: boolean;
 }

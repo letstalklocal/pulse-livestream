@@ -3478,7 +3478,7 @@ function payoutProgress(w) {
           : 0;
   const savedStep = keys.indexOf(w.progress?.currentStep);
   if (savedStep >= 0) index = savedStep;
-  return `<ol class="payout-progress" aria-label="Transfer progress">${keys.map((key, i) => `<li class="${i < index || (i === index && w.status === "delivered") ? "complete" : i === index ? "current" : "upcoming"}" ${i === index ? 'aria-current="step"' : ""}>${esc(labels[i])}</li>`).join("")}</ol><p class="payout-progress-status" role="status">${esc(payoutStatusNames[payoutDisplayStatus(w)] || w.status)}</p>`;
+  return `<ol class="payout-progress" aria-label="Transfer progress">${keys.map((key, i) => `<li class="${i < index || (i === index && w.status === "delivered") ? "complete" : i === index ? "current" : "upcoming"}" ${i === index ? 'aria-current="step"' : ""}>${esc(labels[i])}</li>`).join("")}</ol><p class="payout-progress-status" role="status">${esc(payoutStatusLabel(w))}</p>`;
 }
 const payoutRecipientErrorMessage = (w) => {
   const fields = payoutRecipientIssueFields(w);
@@ -3496,7 +3496,26 @@ const payoutExceptions = (w) =>
     Date.parse(payoutAttempt(w)?.evidence?.deadline || w.reviewDeadline) <
       Date.now() &&
     !["delivered", "failed", "canceled", "returned"].includes(w.status));
-const payoutAttempt = (w) => w.attempts?.[0] || null;
+const payoutAttempt = (w) => w.attempts?.at(-1) || null;
+const payoutPendingFirstTimeRecipient = (w) => {
+  if (w.pendingFirstTimeRecipient !== true ||
+      w.status !== "awaiting_human_review" ||
+      !w.quote)
+    return false;
+  if (!Array.isArray(w.attempts))
+    return w.attemptState === "awaiting_human_review";
+  const attempt = payoutAttempt(w);
+  const evidence = attempt?.evidence;
+  return attempt?.state === "awaiting_human_review" &&
+    evidence?.kind === "first_time_draft" &&
+    evidence.draftSaved === true &&
+    evidence.draftReopened === true &&
+    evidence.noPriorTransfer === true &&
+    !!attempt.draftId && !!evidence.reviewUrl;
+};
+const payoutStatusLabel = (w) => payoutPendingFirstTimeRecipient(w)
+  ? "First-time recipient — awaiting your action"
+  : payoutStatusNames[payoutDisplayStatus(w)] || w.status;
 const payoutTime = (v) =>
   v && Number.isFinite(Date.parse(v)) ? dateTime(v) : "Not recorded";
 const payoutRecipientName = (w) =>
@@ -3525,7 +3544,7 @@ function payoutLink(value, label) {
   }
 }
 function payoutDeskPage() {
-  return `<section class="panel payouts-panel"><div class="panel-heading"><div><h2>Creator withdrawal queue</h2><p>USD 15 maximum includes fees and taxes. Saved catalog prices are estimates.</p></div><div class="payout-header-actions"><div id="payout-preparation-controls" class="payout-preparation-controls" hidden><span id="payout-pause-state" class="payout-preparation-state" role="status"></span><button id="payout-pause-toggle" class="page-button" type="button" aria-haspopup="dialog" aria-controls="payout-pause-modal">Pause</button></div><button id="refresh-withdrawals" class="page-button">Refresh queue</button></div></div><div class="payout-content"><div id="payout-summary" class="payout-summary"></div><p id="payout-queue-status" role="status">Loading withdrawals…</p></div><div class="table-tools"><label class="search"><span aria-hidden="true">⌕</span><input id="payout-search" type="search" maxlength="100" value="${esc(payoutDesk.query)}" placeholder="Creator, recipient or withdrawal ID…" aria-label="Search withdrawals"></label><label>Status <select id="payout-filter">${[["all", "All withdrawals"], ["exceptions", "Exceptions"], ...Object.entries(payoutStatusNames)].map(([value, label]) => `<option value="${value}" ${value === payoutDesk.filter ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label></div><div class="table-scroll"><table><thead><tr><th>Creator / withdrawal</th><th>Recipient / route</th><th>Gross limit</th><th>Fee / send · USD</th><th>Transfer status</th><th>Independent checker</th><th>Review deadline · UTC</th><th>Review</th></tr></thead><tbody id="payout-rows"></tbody></table></div><div class="table-footer"><span id="payout-result-count"></span><span>Internal approval does not mean payment was sent.</span></div></section><section id="payout-detail" aria-live="polite"></section><details class="panel payout-enrollment"><summary>Creator withdrawal access</summary><div class="payout-content"><p id="payout-funding-status">Withdrawal balance policy is awaiting confirmation. Enrollment is unavailable until that policy is configured.</p><form id="payout-enrollment-preview"><label>Pulse user ID<input name="userId" type="number" min="1" step="1" required></label><button class="page-button" type="submit" disabled>Preview withdrawal balance</button><span class="payout-feedback" role="status"></span></form><div id="payout-enrollment-result"></div></div></details>${payoutPauseDialog()}`;
+  return `<section class="panel payouts-panel"><div class="panel-heading"><div><h2>Creator withdrawal queue</h2><p>USD 15 maximum includes fees and taxes. Saved catalog prices are estimates.</p></div><div class="payout-header-actions"><div id="payout-preparation-controls" class="payout-preparation-controls" hidden><span id="payout-pause-state" class="payout-preparation-state" role="status"></span><button id="payout-pause-toggle" class="page-button" type="button" aria-haspopup="dialog" aria-controls="payout-pause-modal">Pause</button></div><button id="refresh-withdrawals" class="page-button">Refresh queue</button></div></div><div class="payout-content"><div id="payout-summary" class="payout-summary"></div><p id="payout-queue-status" role="status">Loading withdrawals…</p></div><div class="table-tools"><label class="search"><span aria-hidden="true">⌕</span><input id="payout-search" type="search" maxlength="100" value="${esc(payoutDesk.query)}" placeholder="Creator, recipient or withdrawal ID…" aria-label="Search withdrawals"></label><label>Status <select id="payout-filter">${[["all", "All withdrawals"], ["exceptions", "Exceptions"], ["pending_first_time", "First-time recipient — awaiting your action"], ["first_payout_in_pulse", "First payouts in Pulse"], ["previously_paid", "Previously paid recipients"], ...Object.entries(payoutStatusNames)].map(([value, label]) => `<option value="${value}" ${value === payoutDesk.filter ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label></div><div class="table-scroll"><table><thead><tr><th>Creator / withdrawal</th><th>Recipient / route</th><th>Gross limit</th><th>Fee / send · USD</th><th>Transfer status</th><th>Independent checker</th><th>Review deadline · UTC</th><th>Review</th></tr></thead><tbody id="payout-rows"></tbody></table></div><div class="table-footer"><span id="payout-result-count"></span><span>Internal approval does not mean payment was sent.</span></div></section><section id="payout-detail" aria-live="polite"></section><details class="panel payout-enrollment"><summary>Creator withdrawal access</summary><div class="payout-content"><p id="payout-funding-status">Withdrawal balance policy is awaiting confirmation. Enrollment is unavailable until that policy is configured.</p><form id="payout-enrollment-preview"><label>Pulse user ID<input name="userId" type="number" min="1" step="1" required></label><button class="page-button" type="submit" disabled>Preview withdrawal balance</button><span class="payout-feedback" role="status"></span></form><div id="payout-enrollment-result"></div></div></details>${payoutPauseDialog()}`;
 }
 function payoutPauseDialog() {
   return `<dialog id="payout-pause-modal" class="payout-pause-modal" aria-labelledby="payout-pause-title" aria-describedby="payout-pause-description"><div class="dialog-top"><h2 id="payout-pause-title">Pause preparation</h2><button id="payout-pause-close" class="icon-button" type="button" aria-label="Close preparation dialog">×</button></div><p id="payout-pause-description">Pausing stops new preparation. Outcome checks remain available.</p><form id="payout-pause-form" class="payout-content payout-pause-form"><label>Reason<textarea name="reason" maxlength="2000" required rows="3" autofocus placeholder="Why preparation should pause or resume"></textarea></label><span class="payout-feedback" role="status"></span><div class="catalog-actions"><button id="payout-pause-cancel" class="page-button" type="button">Cancel</button><button id="payout-pause-button" class="primary-button" type="submit">Pause preparation</button></div></form></dialog>`;
@@ -3568,6 +3587,16 @@ function openPayoutPauseDialog() {
   modal.showModal();
   form.elements.reason.focus();
 }
+function payoutRecipientHistory(w) {
+  const paid = w.recipientPaymentHistory?.classification === "previously_paid";
+  const known = w.recipientPaymentHistory?.classification === "first_payout_in_pulse";
+  return {
+    label: paid ? "Previously paid" : known ? "First payout in Pulse" : "Payment history unverified",
+    message: paid
+      ? "Prior delivery verified in Pulse. Verify Remitly scheduling eligibility for the current recipient."
+      : "Verify Remitly history before preparation. A saved contact does not establish a previous payment; first-time scheduling may be unavailable.",
+  };
+}
 function renderWithdrawalRows() {
   const target = document.getElementById("payout-rows");
   if (!target) return;
@@ -3577,12 +3606,17 @@ function renderWithdrawalRows() {
       (payoutDesk.filter === "all" ||
         (payoutDesk.filter === "exceptions"
           ? payoutExceptions(w)
-          : payoutDisplayStatus(w) === payoutDesk.filter)) &&
+          : payoutDesk.filter === "pending_first_time"
+            ? payoutPendingFirstTimeRecipient(w)
+          : ["first_payout_in_pulse", "previously_paid"].includes(payoutDesk.filter)
+            ? w.recipientPaymentHistory?.classification === payoutDesk.filter
+            : payoutDisplayStatus(w) === payoutDesk.filter)) &&
       [
         w.id,
         w.userId,
         w.creatorName,
         payoutRecipientName(w),
+        payoutRecipientHistory(w).label,
         w.route?.country,
         w.route?.countryCode,
       ].some((v) =>
@@ -3595,7 +3629,7 @@ function renderWithdrawalRows() {
     records
       .map((w) => {
         const attempt = payoutAttempt(w);
-        return `<tr><td><button class="user-button" data-withdrawal="${esc(w.id)}"><span><strong>${esc(w.creatorName || `UID ${w.userId}`)}</strong><small>${esc(w.id)}</small></span></button></td><td>${esc(payoutRecipientName(w))}<small>${esc(w.route?.country || w.route?.countryCode)} · ${esc(w.route?.method)} · ${esc(w.route?.receiveCurrency)}</small></td><td>${esc(catalogMoney(w.grossCents))}</td><td>${w.quote ? `${esc(catalogMoney(w.quote.feeCents))} / ${esc(catalogMoney(w.quote.sendAmountCents))}` : "Actual quote needed"}${w.quote?.taxCents ? `<small>Tax ${esc(catalogMoney(w.quote.taxCents))}</small>` : ""}</td><td><span class="status ${w.status === "delivered" ? "verified" : payoutExceptions(w) ? "payout-exception" : "pending"}">${esc(payoutStatusNames[payoutDisplayStatus(w)] || w.status)}</span>${payoutRecipientErrorMessage(w) ? `<small><strong>${payoutCorrectionSaved(w) ? "Next step" : "Error Message"}:</strong> ${esc(payoutRecipientErrorMessage(w))}</small>` : ""}</td><td>${esc(w.checker?.status?.replaceAll("_", " ") || "Not checked")}${w.checker?.actor ? `<small>${esc(w.checker.actor)}</small>` : ""}</td><td>${esc(payoutTime(attempt?.evidence?.deadline || w.reviewDeadline))}</td><td><button class="page-button" data-withdrawal="${esc(w.id)}">Open details</button></td></tr>`;
+        return `<tr><td><button class="user-button" data-withdrawal="${esc(w.id)}"><span><strong>${esc(w.creatorName || `UID ${w.userId}`)}</strong><small>${esc(w.id)}</small></span></button></td><td>${esc(payoutRecipientName(w))}<small>${esc(payoutRecipientHistory(w).label)} · verify Remitly</small><small>${esc(w.route?.country || w.route?.countryCode)} · ${esc(w.route?.method)} · ${esc(w.route?.receiveCurrency)}</small></td><td>${esc(catalogMoney(w.grossCents))}</td><td>${w.quote ? `${esc(catalogMoney(w.quote.feeCents))} / ${esc(catalogMoney(w.quote.sendAmountCents))}` : "Actual quote needed"}${w.quote?.taxCents ? `<small>Tax ${esc(catalogMoney(w.quote.taxCents))}</small>` : ""}</td><td><span class="status ${w.status === "delivered" ? "verified" : payoutExceptions(w) ? "payout-exception" : "pending"}">${esc(payoutStatusLabel(w))}</span>${payoutRecipientErrorMessage(w) ? `<small><strong>${payoutCorrectionSaved(w) ? "Next step" : "Error Message"}:</strong> ${esc(payoutRecipientErrorMessage(w))}</small>` : ""}${payoutPendingFirstTimeRecipient(w) ? '<small>Saved unsent draft. Independent check required before you send it in Remitly.</small>' : ""}</td><td>${esc(w.checker?.status?.replaceAll("_", " ") || "Not checked")}${w.checker?.actor ? `<small>${esc(w.checker.actor)}</small>` : ""}</td><td>${esc(payoutTime(attempt?.evidence?.deadline || w.reviewDeadline))}</td><td><button class="page-button" data-withdrawal="${esc(w.id)}">Open details</button></td></tr>`;
       })
       .join("") ||
     '<tr><td colspan="8" class="empty">No withdrawals match this view.</td></tr>';
@@ -3625,7 +3659,7 @@ async function loadWithdrawals() {
         !["delivered", "failed", "canceled", "returned"].includes(w.status),
     );
     document.getElementById("payout-summary").innerHTML =
-      `<span><strong>${unresolved.length}</strong> unresolved</span><span><strong>${esc(catalogMoney(unresolved.reduce((sum, w) => sum + w.grossCents, 0)))}</strong> reserved gross</span><span><strong>${data.withdrawals.filter(payoutExceptions).length}</strong> exceptions</span>`;
+      `<span><strong>${unresolved.length}</strong> unresolved</span><span><strong>${esc(catalogMoney(unresolved.reduce((sum, w) => sum + w.grossCents, 0)))}</strong> reserved gross</span><span><strong>${data.withdrawals.filter(payoutPendingFirstTimeRecipient).length}</strong> first-time recipients awaiting your action</span><span><strong>${data.withdrawals.filter(payoutExceptions).length}</strong> exceptions</span>`;
     status.textContent = `${data.withdrawals.length} withdrawals loaded${data.truncated ? " · Limited to the newest 500 records" : ""}.`;
     document.getElementById("payout-preparation-controls").hidden = false;
     document.getElementById("payout-pause-state").textContent =
@@ -3922,6 +3956,9 @@ function renderWithdrawalDetail() {
           "historyInspected",
           "I independently checked provider history for paid, pending and uncertain duplicates.",
         ) +
+        (attempt?.evidence?.kind === "first_time_draft"
+          ? payoutCheckbox("draftReopened", "I independently reopened the saved first-time draft and verified its details.", true)
+          : "") +
         payoutCheckbox(
           "oneTime",
           "The plan or schedule is one-time and the deadline is valid.",
@@ -3951,7 +3988,7 @@ function renderWithdrawalDetail() {
           maxlength: 2000,
         }) +
           payoutInput("providerReference", "Actual provider reference", {
-            required: attempt?.evidence?.kind === "scheduled",
+            required: ["scheduled", "first_time_draft"].includes(attempt?.evidence?.kind),
           }) +
           payoutTimestampInput("releasedAt", "Provider action observed") +
           payoutEvidence("evidence", "Human release evidence") +
@@ -3963,7 +4000,7 @@ function renderWithdrawalDetail() {
         "Approve and record manual release",
         {
           disabled: !attempt,
-          note: "You make the final approve or decline decision. Complete the provider action yourself in Remitly, then record what you did. Remitly emails the first-time recipient link directly; copying it here is optional. Saved-recipient transfers still require the provider reference. Saving this record does not send a payment or verify delivery.",
+          note: "You make the final approve or decline decision. Complete the provider action yourself in Remitly, then record what you did. Remitly emails the first-time recipient link directly; copying it here is optional. Saved drafts require the actual provider reference. Saving this record does not send a payment or verify delivery.",
         },
       );
   }
@@ -4173,7 +4210,10 @@ function renderWithdrawalDetail() {
   const body = issueFields.length
     ? `<p class="payout-withdrawal-summary">${esc(creatorName)} · ${esc(w.route?.country || w.route?.countryCode)} · ${esc(w.route?.method)}<br>${esc(catalogMoney(w.grossCents))} total wallet deduction${w.balances ? ` · ${esc(w.balances.reservedCoins)} coins reserved` : ""}</p>${recipientIssue}${contactAction}<details class="payout-advanced"><summary>Advanced details and operator actions</summary><div class="payout-advanced-content">${technicalDetails}${actions}${evidenceHistory}</div></details>`
     : `${technicalDetails}${actions}${evidenceHistory}`;
-  target.innerHTML = `<section class="panel payout-detail-panel"><div class="panel-heading"><div><h2>Withdrawal ${esc(w.id)}</h2><p>Updated ${esc(payoutTime(w.updatedAt))}</p></div><div class="payout-detail-toolbar"><button class="page-button" id="refresh-payout-detail">Refresh details</button><button class="page-button" id="close-payout-detail">Close</button></div></div><div class="payout-content"><p id="payout-detail-feedback" role="status"></p>${payoutProgress(w)}${body}</div></section>`;
+  const pendingFirstTime = payoutPendingFirstTimeRecipient(w)
+    ? `<section class="payout-callout" data-pending-first-time><strong>First-time recipient — awaiting your action</strong><p>Saved unsent draft ${esc(attempt.draftId)}. An independent checker must pass before you review and send it manually in Remitly. This record does not send payment.</p>${payoutLink(attempt.evidence.reviewUrl, "Review in Remitly")}</section>`
+    : "";
+  target.innerHTML = `<section class="panel payout-detail-panel"><div class="panel-heading"><div><h2>Withdrawal ${esc(w.id)}</h2><p>Updated ${esc(payoutTime(w.updatedAt))}</p></div><div class="payout-detail-toolbar"><button class="page-button" id="refresh-payout-detail">Refresh details</button><button class="page-button" id="close-payout-detail">Close</button></div></div><div class="payout-content"><p id="payout-detail-feedback" role="status"></p>${payoutProgress(w)}${pendingFirstTime}<p class="payout-callout" data-recipient-payment-history><strong>${esc(payoutRecipientHistory(w).label)}</strong> · ${esc(payoutRecipientHistory(w).message)}</p>${body}</div></section>`;
 }
 async function loadWithdrawalDetail(id) {
   if (!authorized || section !== "Payout desk") return;
@@ -4360,6 +4400,8 @@ async function submitPayoutAction(form) {
         historyCoverage: get("historyCoverage"),
         evidence: get("evidence"),
       };
+      if (attempt.evidence?.kind === "first_time_draft")
+        body.draftReopened = checked("draftReopened");
     } else if (action === "release") {
       if (!attempt)
         throw new Error("Reload the checked preparation attempt first.");

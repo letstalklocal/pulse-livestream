@@ -661,7 +661,7 @@ try {
   assert.equal(
     (await call("/api/payout-operator/identity", { token: maker.token })).body
       .workflowRevision,
-    "2026-10-09.2",
+    "2026-10-11.3",
   );
 
   assert.equal(
@@ -1840,6 +1840,188 @@ try {
     ).rows[0].value,
     "6000",
   );
+  // An actual durable first-time UNSENT draft is distinct from a schedule or legacy plan.
+  await pool.query(
+    "UPDATE payout_operator_credentials SET request_count=0,rate_window=NULL WHERE id=$1",
+    [otherMaker.credential.id],
+  );
+  await pool.query(
+    "INSERT INTO users VALUES(5,'First draft fixture','first-draft');INSERT INTO coin_balances(user_id,balance) VALUES(5,10000)",
+  );
+  await api.enroll(
+    pool,
+    {
+      userId: 5,
+      expectedWalletCoins: "10000",
+      reason: "Isolated first draft fixture",
+    },
+    "owner",
+  );
+  await api.saveRecipient(pool, 5, {
+    legalFirstName: "Test",
+    legalLastName: "First Draft",
+    countryCode: "CO",
+    email: "draft@example.test",
+    phone: "+573001234570",
+  });
+  const firstWd = await api.requestWithdrawal(pool, 5, "operator-business", {
+    methodId: method,
+    withdrawalCents: 1500,
+    idempotencyKey: "first-saved-draft",
+  });
+  const firstCall = (tool, data) =>
+    callMakerPreparationMcp({
+      base,
+      maker: otherMaker,
+      id: firstWd.id,
+      leaseId: continuousLease.leaseId,
+      tool,
+      data,
+    });
+  const firstBegin = await firstCall("prepare", {
+    evidence: "Isolated claim before saved draft; no provider action",
+  });
+  assert.equal(firstBegin.status, 200, JSON.stringify(firstBegin));
+  const firstDraft = {
+    ...continuousDraft,
+    attemptId: firstBegin.body.attemptId,
+    preparationHash: firstBegin.body.preparationHash,
+    kind: "first_time_draft",
+    draftId: "first-unsent-draft",
+    reviewUrl:
+      "https://www.remitly.com/us/en/transfer/review?draftId=first-unsent-draft",
+    draftSaved: true,
+    draftReopened: true,
+    noPriorTransfer: true,
+  };
+  const firstBefore = async () => ({
+    withdrawal: (
+      await pool.query("SELECT * FROM creator_withdrawals WHERE id=$1", [
+        firstWd.id,
+      ])
+    ).rows,
+    attempts: (
+      await pool.query(
+        "SELECT * FROM creator_payout_attempts WHERE withdrawal_id=$1",
+        [firstWd.id],
+      )
+    ).rows,
+    events: (
+      await pool.query(
+        "SELECT * FROM creator_payout_events WHERE withdrawal_id=$1 ORDER BY id",
+        [firstWd.id],
+      )
+    ).rows,
+    ledger: (
+      await pool.query(
+        "SELECT * FROM creator_cash_ledger WHERE user_id=5 ORDER BY id",
+      )
+    ).rows,
+    balance: (
+      await pool.query("SELECT balance FROM coin_balances WHERE user_id=5")
+    ).rows,
+  });
+  const unverifiedFirst = await firstBefore();
+  assert.equal(
+    (await api.adminWithdrawalDetail(pool, firstWd.id, "operator-business"))
+      .pendingFirstTimeRecipient,
+    false,
+  );
+  for (const invalid of [
+    { ...firstDraft, draftSaved: undefined },
+    { ...firstDraft, draftReopened: undefined },
+    { ...firstDraft, noPriorTransfer: undefined },
+    { ...firstDraft, draftId: undefined },
+    { ...firstDraft, reviewUrl: undefined },
+    {
+      ...firstDraft,
+      reviewUrl:
+        "https://www.remitly.com/us/en/transfer/review?draftId=another-draft",
+    },
+    {
+      ...firstDraft,
+      reviewUrl:
+        "https://example.test/transfer/review?draftId=first-unsent-draft",
+    },
+    { ...firstDraft, preparationHash: "0".repeat(64) },
+    { ...firstDraft, quote: { ...finalQuote, sendAmountCents: 1500 } },
+    {
+      ...firstDraft,
+      draftId: "continuous-draft",
+      reviewUrl: continuousDraft.reviewUrl,
+    },
+  ]) {
+    const result = await firstCall("record_preparation", invalid);
+    assert(result.status >= 400, JSON.stringify(result));
+    assert.deepEqual(
+      await firstBefore(),
+      unverifiedFirst,
+      "Invalid first draft cannot publish quote, draft, audit or change coins",
+    );
+  }
+  const firstCompleted = await firstCall("record_preparation", firstDraft);
+  assert.equal(firstCompleted.status, 200, JSON.stringify(firstCompleted));
+  assert.equal(firstCompleted.body.status, "awaiting_human_review");
+  assert.equal(firstCompleted.body.quote.totalEarningsDeductedCents, 1500);
+  assert.equal(firstCompleted.body.approvedQuoteHash, null);
+  const pendingFirstDetail = await api.adminWithdrawalDetail(
+    pool,
+    firstWd.id,
+    "operator-business",
+  );
+  assert.equal(pendingFirstDetail.pendingFirstTimeRecipient, true);
+  assert.equal(
+    pendingFirstDetail.attempts.at(-1).evidence.kind,
+    "first_time_draft",
+  );
+  assert.equal(
+    pendingFirstDetail.attempts.at(-1).draftId,
+    "first-unsent-draft",
+  );
+  assert.equal(
+    (await api.listWithdrawals(pool, "operator-business")).withdrawals.find(
+      (w) => w.id === firstWd.id,
+    ).pendingFirstTimeRecipient,
+    true,
+  );
+  assert.equal(
+    (
+      await api.adminWithdrawalDetail(
+        pool,
+        continuousWd.id,
+        "operator-business",
+      )
+    ).pendingFirstTimeRecipient,
+    false,
+    "Scheduled drafts are not first-time unsent drafts",
+  );
+  await runMcpIntegration({
+    base,
+    maker: otherMaker,
+    checker,
+    reconciler,
+    withdrawalId: firstWd.id,
+    leaseId: continuousLease.leaseId,
+    expectedPendingFirstTimeRecipient: true,
+  });
+  const firstRelease = {
+    attemptId: firstBegin.body.attemptId,
+    quoteHash: firstCompleted.body.quote.hash,
+    providerReference: "first-draft-human-reference",
+    evidence: "Isolated human record fixture; no real sending",
+    releasedAt: new Date().toISOString(),
+  };
+  assert.equal(
+    (
+      await call("/admin-data/withdrawals/" + firstWd.id + "/release", {
+        user: "owner",
+        method: "POST",
+        body: firstRelease,
+      })
+    ).status,
+    409,
+    "Unreviewed first-time draft cannot be released",
+  );
   await leaseCall(otherMaker.token, "release", {
     leaseId: continuousLease.leaseId,
     reason: "Saved fixture ready for independent check",
@@ -1873,6 +2055,76 @@ try {
     JSON.stringify(checkContinuous.body),
   );
   assert.equal(checkContinuous.body.checker.status, "passed");
+  const firstCheck = {
+    attemptId: firstBegin.body.attemptId,
+    quoteHash: firstCompleted.body.quote.hash,
+    recipientMatches: true,
+    amountsMatch: true,
+    reservationMatches: true,
+    historyInspected: true,
+    historyCoverage: "Independent fixture history coverage",
+    oneTime: true,
+    autoSend: false,
+    evidence: "Independent fixture verifies reopened first-time draft",
+  };
+  const withoutReopen = await action(
+    checker.token,
+    firstWd.id,
+    "check",
+    firstCheck,
+    continuousCheckLease.leaseId,
+  );
+  assert.equal(withoutReopen.status, 200);
+  assert.equal(withoutReopen.body.checker.status, "needs_attention");
+  assert.equal(
+    (
+      await call("/admin-data/withdrawals/" + firstWd.id + "/release", {
+        user: "owner",
+        method: "POST",
+        body: firstRelease,
+      })
+    ).status,
+    409,
+  );
+  const firstChecked = await action(
+    checker.token,
+    firstWd.id,
+    "check",
+    { ...firstCheck, draftReopened: true },
+    continuousCheckLease.leaseId,
+  );
+  assert.equal(firstChecked.status, 200, JSON.stringify(firstChecked));
+  assert.equal(firstChecked.body.checker.status, "passed");
+  assert.equal(
+    (
+      await call("/admin-data/withdrawals/" + firstWd.id + "/release", {
+        user: "owner",
+        method: "POST",
+        body: { ...firstRelease, providerReference: undefined },
+      })
+    ).status,
+    400,
+    "New first-time draft human record requires actual provider reference, no link copying",
+  );
+  const firstReleased = await call(
+    "/admin-data/withdrawals/" + firstWd.id + "/release",
+    { user: "owner", method: "POST", body: firstRelease },
+  );
+  assert.equal(firstReleased.status, 200, JSON.stringify(firstReleased));
+  assert.equal(firstReleased.body.status, "awaiting_recipient");
+  assert.equal(firstReleased.body.providerOnboardingStatus, "pending");
+  assert.equal(firstReleased.body.providerLink, null);
+  assert.equal(
+    (await api.adminWithdrawalDetail(pool, firstWd.id, "operator-business"))
+      .pendingFirstTimeRecipient,
+    false,
+  );
+  const firstAfter = await firstBefore();
+  assert.deepEqual(firstAfter.ledger, unverifiedFirst.ledger);
+  assert.deepEqual(firstAfter.balance, unverifiedFirst.balance);
+  console.log(
+    "PASS verified saved first-time unsent draft through actual Maker MCP: atomic quote/draft, rejected missing proof/ID/URL/stale binding/duplicate, visible pending flag, independent reopen check, human reference and unchanged reserved coins",
+  );
   await leaseCall(checker.token, "release", {
     leaseId: continuousCheckLease.leaseId,
     reason: "Fixture independent check complete; human remains required",
