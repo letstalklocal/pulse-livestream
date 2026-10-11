@@ -1,6 +1,7 @@
 import { fork, type ChildProcess } from "node:child_process";
 import { randomUUID, randomInt } from "node:crypto";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { access, readFile } from "node:fs/promises";
 import { RtcTokenBuilder, RtcRole } from "agora-token";
 import { pool } from "@workspace/db";
@@ -19,7 +20,9 @@ const sessions = new Map<string, Session>();
 let requested = false, revision = "0", fault: string | null = null, refreshing = false;
 let catalog: any[] = [], catalogAt = 0;
 const maxWorkers = () => Math.max(1, Math.min(16, Number(process.env.PULSE_GIFT_MAX_WORKERS) || 4));
-const workerPath = () => process.env.PULSE_GIFT_TEST_ROOT ? path.join(process.env.PULSE_GIFT_TEST_ROOT, "scripts/live-gift-renderer.cjs") : path.resolve("dist/live-gift-renderer.cjs");
+// esbuild places this module in dist/index.mjs; deployment cwd is not stable.
+const deliveryAssets = path.dirname(fileURLToPath(import.meta.url));
+const workerPath = () => process.env.PULSE_GIFT_TEST_ROOT ? path.join(process.env.PULSE_GIFT_TEST_ROOT, "scripts/live-gift-renderer.cjs") : path.join(deliveryAssets, "live-gift-renderer.cjs");
 const configured = () => !!(process.env.AGORA_APP_ID && process.env.AGORA_APP_CERTIFICATE);
 const assetCache = new Map<string, Buffer>();
 const assetLoads = new Map<string, Promise<Buffer>>();
@@ -39,10 +42,7 @@ async function bundledAsset(giftId: string, kind: string) {
   const definition = legacyAssets.find(asset => asset.giftId === giftId && asset.kind === kind);
   if (!definition) return null;
   const bytes = await cachedAsset(`bundled:${definition.file}`, async () => {
-    for (const root of [path.resolve("dist/legacy-gifts"), path.resolve("artifacts/api-server/dist/legacy-gifts")]) {
-      try { return await readFile(path.join(root, definition.file)); } catch (error: any) { if (error.code !== "ENOENT") throw error; }
-    }
-    throw Error("Bundled gift asset unavailable");
+    return readFile(path.join(deliveryAssets, "legacy-gifts", definition.file));
   });
   return { format: definition.format, base64: bytes.toString("base64") };
 }
@@ -144,7 +144,7 @@ function start(source: Source) {
   child.on("exit", () => { if (sessions.get(source.channel_id) === s) trip("Renderer stopped; existing delivery is active."); });
   const rtc = source.rtc_channel_name || source.channel_id;
   child.send({ appId: process.env.AGORA_APP_ID, sourceChannel: rtc, sourceUid: s.sourceUid, sourceToken: token(rtc, s.sourceUid),
-    hostUid: source.host_user_id, outputChannel: s.output, outputToken: token(s.output, source.host_user_id, true), svgaScript: path.resolve("dist/admin/gift-svga.js") });
+    hostUid: source.host_user_id, outputChannel: s.output, outputToken: token(s.output, source.host_user_id, true), svgaScript: path.join(deliveryAssets, "admin/gift-svga.js") });
 }
 export async function refreshLiveGiftDelivery() {
   if (refreshing) return; refreshing = true;
@@ -189,7 +189,7 @@ installLiveGiftDelivery((event, deliver) => {
   return true;
 }, stopGiftDelivery);
 export function startLiveGiftDeliveryMonitor() {
-  void readFile(path.resolve("dist/gift-migrations/20261011_live_gift_delivery.sql"), "utf8")
+  void readFile(path.join(deliveryAssets, "gift-migrations/20261011_live_gift_delivery.sql"), "utf8")
     .then(sql => pool.query(sql)).then(() => refreshLiveGiftDelivery()).catch(() => { requested = false; });
   const timer = setInterval(() => void refreshLiveGiftDelivery(), 2000); timer.unref();
   return () => { clearInterval(timer); requested = false; for (const channel of [...sessions.keys()]) stopGiftDelivery(channel); };

@@ -2,6 +2,10 @@
 
 ## Gift toolbar design — October 10, 2026
 
+Production live-delivery assets resolve relative to the built API module (`import.meta.url`), never the process working directory. Renderer, SVGA script, legacy media and delivery migration all ship beside `dist/index.mjs`; production can launch from the workspace root. A path-fix rollout requires API redeployment, not a mobile build. Keep the explicit test-renderer override.
+
+SVGA admin previews use the existing SVGAPlayer-Web inside `gift-svga-preview.html`, an opaque-origin `sandbox allow-scripts` iframe. The library's protobuf parser needs runtime code generation and blob XHR. Those permissions apply only to the isolated preview document; never add `unsafe-eval` to the main admin CSP. Fetch assets with staff authorization in the parent and send only the downloaded Blob to the frame. Check message sources; stop previews on tab switches/close. Browser fixtures must enforce CSP and verify rendered canvas pixels, not merely player initialization. WebM/native players are unchanged.
+
 Gift editor: keep Revision history and Archive gift inside Advanced settings with the stable ID; no separate Manage gift disclosure. Image animation heading, Total duration and Preview animation share one header row when space permits.
 
 Latest phase-card correction: Entrance/Hold/Exit use smaller 13px headings with the Entrance/Exit play buttons beside the heading, not beside the effect selector. All three cards use identical explicit heading, selector and seconds rows; Hold must not reserve extra label space. Total duration is 13px. The modal is now capped at 980px to use the width saved by moving the play buttons; preserve the 190px coin field.

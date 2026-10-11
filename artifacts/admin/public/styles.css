@@ -2289,7 +2289,7 @@ dialog.gift-reference-editor { width: min(980px, calc(100vw - 32px)); background
 .gift-reference-editor[data-gift-type="image"] .gift-message-artwork-heading,
 .gift-reference-editor[data-gift-type="animation"] .gift-preview-playback { display: none; }
 .gift-reference-editor[data-gift-type="animation"] .gift-image-upload #gift-preview-screen { width: 72px; height: 72px; aspect-ratio: 1; margin: 0; }
-.gift-reference-editor[data-gift-type="animation"] .gift-image-upload #gift-preview-screen .gift-preview-art { width: 100%; height: 100%; left: 0; top: 0; transform: none !important; }
+.gift-reference-editor[data-gift-type="animation"] .gift-image-upload #gift-preview-screen .gift-preview-art { width: 100%; height: 100%; left: 0 !important; top: 0 !important; object-fit: contain; object-position: center; transform: none !important; }
 .gift-reference-editor [hidden] { display: none !important; }
 @media (max-width: 1100px) {
   .gift-reference-editor .gift-artwork-section { grid-template-columns: minmax(240px, .55fr) minmax(0, 1fr); gap: 20px; }

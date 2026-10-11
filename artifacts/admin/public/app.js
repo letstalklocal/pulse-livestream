@@ -80,6 +80,8 @@ function stopGiftAnimation(field) {
   state.previewVersion++;
   if (state.previewFrame) cancelAnimationFrame(state.previewFrame);
   state.svga?.stopAnimation(true);
+  state.svgaFrame?.contentWindow?.postMessage({type: 'gift-svga-stop'}, '*');
+  state.disposeSvga?.();
   for (const media of [state.previewMedia, state.previewAudio]) {
     if (media) {
       media.pause();
@@ -553,51 +555,54 @@ async function previewGiftAsset(field, soundAsset, playButton) {
       return;
     }
     if (asset.format === "svga") {
-      const SVGA = await loadGiftSvga();
       if (
         version !== giftState.version ||
         previewVersion !== state.previewVersion ||
         !authorized
       )
         return;
-      const canvas = document.createElement("canvas");
-      canvas.width = asset.width || 720;
-      canvas.height = asset.height || 1280;
-      canvas.setAttribute("aria-label", "Animated gift preview");
-      position(canvas);
-      screen.append(canvas);
-      const player = new SVGA.Player(canvas);
-      state.svga = player;
-      player.loops = 0;
-      player.clearsAfterStop = false;
-      player.setContentMode("AspectFit");
-      const item = await new Promise((resolve, reject) =>
-        new SVGA.Parser().load(url, resolve, reject),
-      );
+      const frame = document.createElement('iframe');
+      frame.title = 'Animated gift preview';
+      frame.setAttribute('sandbox', 'allow-scripts');
+      frame.src = './gift-svga-preview.html';
+      frame.style.border = '0';
+      position(frame);
+      state.svgaFrame = frame;
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => { cleanup(); reject(new Error('SVGA preview timed out.')); }, 30000);
+        const cleanup = () => { clearTimeout(timeout); window.removeEventListener('message', receive); };
+        const receive = event => {
+          if (event.source !== frame.contentWindow) return;
+          if (event.data?.type === 'gift-svga-ready') frame.contentWindow.postMessage({type: 'gift-svga-load', blob}, '*');
+          if (event.data?.type === 'gift-svga-playing') { cleanup(); resolve(); }
+          if (event.data?.type === 'gift-svga-error') { cleanup(); reject(new Error(event.data.message || 'SVGA preview failed.')); }
+        };
+        state.disposeSvga = () => { cleanup(); resolve(); };
+        window.addEventListener('message', receive);
+        screen.append(frame);
+      });
       if (
         version !== giftState.version ||
         previewVersion !== state.previewVersion ||
         !authorized
       ) {
-        player.stopAnimation(true);
+        frame.contentWindow?.postMessage({type: 'gift-svga-stop'}, '*');
         return;
       }
-      player.setVideoItem(item);
       const controls = document.createElement("button");
       controls.type = "button";
       controls.className = "page-button";
       controls.textContent = "Pause preview";
       controls.onclick = () => {
         if (controls.textContent === "Pause preview") {
-          player.pauseAnimation();
+          frame.contentWindow.postMessage({type: 'gift-svga-pause'}, '*');
           controls.textContent = "Play preview";
         } else {
-          player.startAnimation();
+          frame.contentWindow.postMessage({type: 'gift-svga-play'}, '*');
           controls.textContent = "Pause preview";
         }
       };
       screen.append(controls);
-      player.startAnimation();
       feedback.textContent =
         "SVGA animation preview (silent). Check native playback separately.";
       return;

@@ -16,8 +16,10 @@ const root = path.resolve(__dirname, "../../admin/public");
         res.setHeader("Content-Type", "application/javascript");
         return res.end(await fs.readFile(path.join(path.dirname(adminRequire.resolve("svgaplayerweb/package.json")), "build/svga.min.js")));
       }
-      if (!["app.js", "styles.css", "index.html"].includes(name))
+      if (!["app.js", "styles.css", "index.html", "gift-svga-preview.html", "gift-svga-preview.js"].includes(name))
         return res.writeHead(404).end();
+      if (name === 'index.html') res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' https://clerk.fixture.test https://challenges.cloudflare.com; connect-src 'self' https://clerk.fixture.test; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; frame-src 'self'; worker-src 'self' blob:");
+      if (name === 'gift-svga-preview.html') res.setHeader('Content-Security-Policy', "sandbox allow-scripts; default-src 'none'; script-src 'self' 'unsafe-eval'; connect-src blob:; style-src 'unsafe-inline'; img-src data: blob:; media-src blob:; frame-ancestors 'self'; base-uri 'none'; form-action 'none'");
       res.setHeader(
         "Content-Type",
         name.endsWith(".js")
@@ -242,24 +244,28 @@ const root = path.resolve(__dirname, "../../admin/public");
     await page.locator('[data-gift-open="animated"]').click();
     for (const field of ['androidAssetId','iosAssetId']) {
       await page.locator(`button[data-preview-platform="${field}"]`).click();
-      await page.locator(`#gift-${field}-preview canvas`).waitFor();
+      const previewCanvas = page.frameLocator(`#gift-${field}-preview iframe`).locator('canvas');
+      await previewCanvas.waitFor();
+      assert.equal(await previewCanvas.evaluate(canvas => Math.abs(canvas.width - canvas.clientWidth) <= 1 && Math.abs(canvas.height - canvas.clientHeight) <= 1), true, 'SVGA backing dimensions match the preview, avoiding double scaling');
+      assert.equal(await previewCanvas.evaluate(() => getComputedStyle(document.documentElement).colorScheme), 'dark', 'Sandbox matches the parent color scheme to preserve iframe transparency');
       await page.waitForFunction(field => document.getElementById(`gift-${field}-feedback`)?.textContent.includes('SVGA animation preview'),field);
-      await page.waitForFunction(field => {
-        const canvas=document.querySelector(`#gift-${field}-preview canvas`);
+      const previewFrame = await (await page.locator(`#gift-${field}-preview iframe`).elementHandle()).contentFrame();
+      await previewFrame.waitForFunction(() => {
+        const canvas=document.querySelector('canvas');
         const pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
         for(let i=3;i<pixels.length;i+=4) if(pixels[i]>0) return true;
         return false;
-      },field);
+      });
       assert.equal(await page.locator(`#gift-${field}-preview`).evaluate(screen => !!screen.closest('.gift-preview-column')), true);
       assert.equal(await page.locator(`[data-platform-controls="${field}"]`).isVisible(), true);
     }
     await page.locator('#gift-preview-screen img').waitFor({ state: 'attached' });
     const animatedArtwork = await page.locator('#gift-preview-screen img').getAttribute('src');
-    const iphoneCanvas = await page.locator('#gift-iosAssetId-preview canvas').evaluate(c=>{c.dataset.original='true';return c.dataset.original;});
+    const iphoneCanvas = await page.locator('#gift-iosAssetId-preview iframe').evaluate(c=>{c.dataset.original='true';return c.dataset.original;});
     await page.locator('button[data-preview-platform="androidAssetId"]').click();
     await page.locator('[data-gift-preview="androidAssetId"]').click();
     await page.waitForFunction(()=>document.getElementById('gift-androidAssetId-feedback')?.textContent.includes('SVGA animation preview'));
-    assert.equal(await page.locator('#gift-iosAssetId-preview canvas').getAttribute('data-original'),iphoneCanvas);
+    assert.equal(await page.locator('#gift-iosAssetId-preview iframe').getAttribute('data-original'),iphoneCanvas);
     assert.equal(await page.locator('#gift-preview-screen img').getAttribute('src'),animatedArtwork);
     await page.locator('button[data-preview-platform="iosAssetId"]').click();
     await page.waitForFunction(()=>document.getElementById('gift-iosAssetId-feedback')?.textContent.includes('SVGA animation preview'));

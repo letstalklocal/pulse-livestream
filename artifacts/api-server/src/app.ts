@@ -42,13 +42,18 @@ app.use(
 
 // Public shell only; every live admin request requires staff authorization.
 const adminAssets = path.join(path.dirname(fileURLToPath(import.meta.url)), "admin");
-app.use(["/api/admin", "/admin"], (_req, res, next) => {
+app.use(["/api/admin", "/admin"], (req, res, next) => {
   res.setHeader("X-Robots-Tag", "noindex, nofollow");
   res.setHeader("X-Content-Type-Options", "nosniff");
   let clerkOrigin = "";
   try { clerkOrigin = adminAuthConfig().frontendApi; } catch { /* UI shows configuration error */ }
   res.setHeader("Cache-Control", "no-store");
-  res.setHeader("Content-Security-Policy", `default-src 'self'; script-src 'self' ${clerkOrigin} https://challenges.cloudflare.com; connect-src 'self' ${clerkOrigin}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://img.clerk.com ${clerkOrigin}; media-src 'self' blob:; font-src 'self' ${clerkOrigin} data:; frame-src ${clerkOrigin} https://challenges.cloudflare.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self' ${clerkOrigin}`);
+  if (req.path === '/gift-svga-preview.html') {
+    // Legacy protobuf code generation stays confined to an opaque-origin sandbox.
+    res.setHeader('Content-Security-Policy', "sandbox allow-scripts; default-src 'none'; script-src 'self' 'unsafe-eval'; connect-src blob:; style-src 'unsafe-inline'; img-src data: blob:; media-src blob:; frame-ancestors 'self'; base-uri 'none'; form-action 'none'");
+  } else {
+    res.setHeader("Content-Security-Policy", `default-src 'self'; script-src 'self' ${clerkOrigin} https://challenges.cloudflare.com; connect-src 'self' ${clerkOrigin}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://img.clerk.com ${clerkOrigin}; media-src 'self' blob:; font-src 'self' ${clerkOrigin} data:; frame-src 'self' ${clerkOrigin} https://challenges.cloudflare.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self' ${clerkOrigin}`);
+  }
   next();
 }, express.static(adminAssets, { index: "index.html" }));
 

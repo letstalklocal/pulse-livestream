@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { pathToFileURL } = require('node:url');
 const ts = require('typescript');
 const { EventEmitter } = require('node:events');
 const root = path.resolve(__dirname, '..');
@@ -17,7 +18,8 @@ const db = { async query(sql, values) {
   if (sql.startsWith('UPDATE live_gift_delivery_settings')) { enabled = values[0]; revision++; }
   return { rows: [], rowCount: 1 };
 }, release() {}, async connect() { return this; } };
-function fork() {
+function fork(worker) {
+  assert.equal(worker, path.join(root, 'dist/live-gift-renderer.cjs'), 'Worker resolves from bundle, not deployment cwd');
   const child = new EventEmitter(); child.connected = true; child.exitCode = null; child.messages = [];
   child.kill = () => { child.connected = false; child.exitCode = 0; return true; };
   child.send = (message, cb) => { child.messages.push(message); cb?.(null); };
@@ -32,9 +34,10 @@ const mocks = {
 function load(file) {
   file = path.resolve(root, file); if (modules.has(file)) return modules.get(file);
   const module = { exports: {} }; modules.set(file, module.exports);
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText, {
+  const source = fs.readFileSync(file, 'utf8').replaceAll('import.meta.url', JSON.stringify(pathToFileURL(path.join(root, 'dist/index.mjs')).href));
+  vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText, {
     module, exports: module.exports, Buffer, console, setTimeout, clearTimeout, setInterval, clearInterval,
-    process: { cwd: () => root, env: { AGORA_APP_ID: 'fixture', AGORA_APP_CERTIFICATE: 'fixture', PULSE_GIFT_TEST_ROOT: '/fixture', PULSE_PLAYWRIGHT_MODULE: '/fixture/player' } },
+    process: { cwd: () => '/unrelated-deployment-root', env: { AGORA_APP_ID: 'fixture', AGORA_APP_CERTIFICATE: 'fixture', PULSE_PLAYWRIGHT_MODULE: '/fixture/player' } },
     require(id) {
       if (mocks[id]) return mocks[id];
       if (id.endsWith('.json')) return require(path.resolve(path.dirname(file), id));
@@ -53,6 +56,7 @@ const gift = (id, recipientUid = 1, format = 'svga') => ({ type: 'gift', channel
   await service.refreshLiveGiftDelivery();
   const normal = []; bus.deliverLiveGift(gift('off'), e => normal.push(e)); assert.equal(normal.length, 1); assert.equal(normal[0].serverDelivery, undefined);
   await service.setLiveGiftDelivery(true, 'owner'); assert.equal(children.length, 4, 'One shared path for all live audiences');
+  assert.equal(children[0].messages[0].svgaScript, path.join(root, 'dist/admin/gift-svga.js'));
   children.forEach(child => child.emit('message', { type: 'ready' }));
   for (const source of sources) assert.ok(service.giftDeliveryStatus(source.channel_id));
   assert.equal(children[1].messages[0].sourceChannel, 'premium-rotated');
