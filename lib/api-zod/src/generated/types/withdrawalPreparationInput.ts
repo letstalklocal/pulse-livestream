@@ -7,9 +7,10 @@
  */
 import type { WithdrawalPreparationInputKind } from './withdrawalPreparationInputKind';
 import type { WithdrawalQuoteInput } from './withdrawalQuoteInput';
+import type { WithdrawalSavedPreparationRecoveryInput } from './withdrawalSavedPreparationRecoveryInput';
 
 /**
- * Continuous preparation requires preparationHash plus final quote and verified saved draft together. first_time_draft also requires actual saved/reopened draft evidence, noPriorTransfer, stable draft ID and approved URL identifying that ID. quoteHash is legacy-only.
+ * Continuous preparation requires preparationHash plus final quote and verified saved draft together. first_time_draft also requires actual saved/reopened draft evidence, noPriorTransfer, stable draft ID and approved URL identifying that ID. quoteHash is legacy-only. For unknown/expired same-attempt first_time_draft completion, recovery requires current version and fresh no-effect history evidence; the existing saved/reopened draft must match. No replacement draft or recipient edit is authorized.
  */
 export interface WithdrawalPreparationInput {
   attemptId: string;
@@ -34,4 +35,5 @@ export interface WithdrawalPreparationInput {
   draftSaved?: true;
   draftReopened?: true;
   noPriorTransfer?: true;
+  recovery?: WithdrawalSavedPreparationRecoveryInput;
 }

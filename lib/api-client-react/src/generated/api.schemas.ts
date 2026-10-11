@@ -717,8 +717,43 @@ export const WithdrawalPreparationInputKind = {
   first_time_draft: 'first_time_draft',
 } as const;
 
+export type WithdrawalSavedPreparationRecoveryInputSourceUrl = typeof WithdrawalSavedPreparationRecoveryInputSourceUrl[keyof typeof WithdrawalSavedPreparationRecoveryInputSourceUrl];
+
+
+export const WithdrawalSavedPreparationRecoveryInputSourceUrl = {
+  'https://wwwremitlycom/us/en/homepage': 'https://www.remitly.com/us/en/homepage',
+  'https://wwwremitlycom/us/en/transfer/send': 'https://www.remitly.com/us/en/transfer/send',
+} as const;
+
 /**
- * Continuous preparation requires preparationHash plus final quote and verified saved draft together. first_time_draft also requires actual saved/reopened draft evidence, noPriorTransfer, stable draft ID and approved URL identifying that ID. quoteHash is legacy-only.
+ * Fresh scoped provider-history inspection for same-attempt completion of an existing verified unsent first-time draft; never authorizes creation or sending.
+ */
+export interface WithdrawalSavedPreparationRecoveryInput {
+  /** @minimum 1 */
+  expectedVersion: number;
+  observationId: string;
+  sourceUrl: WithdrawalSavedPreparationRecoveryInputSourceUrl;
+  observedAt: string;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  evidence: string;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  historyCoverage: string;
+  historyInspected: true;
+  noRecipientLinkIssued: true;
+  noFundsSent: true;
+  noFundingDebit: true;
+  noPendingTransfers: true;
+  noUnknownTransfers: true;
+}
+
+/**
+ * Continuous preparation requires preparationHash plus final quote and verified saved draft together. first_time_draft also requires actual saved/reopened draft evidence, noPriorTransfer, stable draft ID and approved URL identifying that ID. quoteHash is legacy-only. For unknown/expired same-attempt first_time_draft completion, recovery requires current version and fresh no-effect history evidence; the existing saved/reopened draft must match. No replacement draft or recipient edit is authorized.
  */
 export interface WithdrawalPreparationInput {
   attemptId: string;
@@ -743,6 +778,7 @@ export interface WithdrawalPreparationInput {
   draftSaved?: true;
   draftReopened?: true;
   noPriorTransfer?: true;
+  recovery?: WithdrawalSavedPreparationRecoveryInput;
 }
 
 export interface PayoutOperatorPreparationInput {
@@ -2321,6 +2357,51 @@ export interface WithdrawalRecipientErrorInput {
      */
   reason: string;
   recipientIssue: WithdrawalRecipientIssueInput;
+}
+
+export type WithdrawalUnsavedPreparationRecoveryInputSourceUrl = typeof WithdrawalUnsavedPreparationRecoveryInputSourceUrl[keyof typeof WithdrawalUnsavedPreparationRecoveryInputSourceUrl];
+
+
+export const WithdrawalUnsavedPreparationRecoveryInputSourceUrl = {
+  'https://wwwremitlycom/us/en/homepage': 'https://www.remitly.com/us/en/homepage',
+  'https://wwwremitlycom/us/en/transfer/send': 'https://www.remitly.com/us/en/transfer/send',
+} as const;
+
+/**
+ * Maker-only recovery of generic interrupted preparation with verified absence of any saved provider object or transfer effect. Same withdrawal and reservation; no active recipient error/correction.
+ */
+export interface WithdrawalUnsavedPreparationRecoveryInput {
+  /** @minimum 1 */
+  expectedVersion: number;
+  observationId: string;
+  sourceUrl: WithdrawalUnsavedPreparationRecoveryInputSourceUrl;
+  observedAt: string;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  evidence: string;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  historyCoverage: string;
+  historyInspected: true;
+  noRecipientLinkIssued: true;
+  noFundsSent: true;
+  noFundingDebit: true;
+  noPendingTransfers: true;
+  noUnknownTransfers: true;
+  attemptId: string;
+  recipientRecordInspected: true;
+  noRecipientSaved: true;
+  noDraftSaved: true;
+  previousDraftClosed: true;
+}
+
+export interface PayoutOperatorUnsavedPreparationRecoveryInput {
+  leaseId: string;
+  data: WithdrawalUnsavedPreparationRecoveryInput;
 }
 
 export type ListPayoutOperatorWithdrawalsParams = {

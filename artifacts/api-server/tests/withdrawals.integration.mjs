@@ -1244,7 +1244,12 @@ try {
     );
   }
   await pool.query("UPDATE coin_balances SET balance=210000 WHERE user_id=1");
-  assert.equal((await api.adminWithdrawalDetail(pool, id, "test-business")).recipientPaymentHistory.classification, "previously_paid", "a verified delivery remains prior payment history after a later return");
+  assert.equal(
+    (await api.adminWithdrawalDetail(pool, id, "test-business"))
+      .recipientPaymentHistory.classification,
+    "previously_paid",
+    "a verified delivery remains prior payment history after a later return",
+  );
   for (const amount of [2500, 50000]) {
     const input = {
       methodId: method,
@@ -1989,6 +1994,36 @@ try {
   recipientRecovery.observedAt = new Date().toISOString();
   await assert.rejects(
     () =>
+      api.retryUnsavedPreparation(
+        pool,
+        "test-business",
+        failed.id,
+        {
+          attemptId: recipientRecovery.attemptId,
+          expectedVersion: latestCorrection.version,
+          observationId: "generic-must-not-erase-correction",
+          sourceUrl: quote.sourceUrl,
+          observedAt: new Date(Date.now() + 1000).toISOString(),
+          evidence: "Generic observation cannot consume a saved correction",
+          historyCoverage: "All recipient and transfer history",
+          historyInspected: true,
+          recipientRecordInspected: true,
+          noRecipientSaved: true,
+          noDraftSaved: true,
+          noRecipientLinkIssued: true,
+          noFundsSent: true,
+          noFundingDebit: true,
+          noPendingTransfers: true,
+          noUnknownTransfers: true,
+          previousDraftClosed: true,
+        },
+        "maker",
+      ),
+    (error) =>
+      error.status === 409 && error.code === "recipient_recovery_required",
+  );
+  await assert.rejects(
+    () =>
       api.resolveRecipientError(
         pool,
         "test-business",
@@ -2254,6 +2289,596 @@ try {
   await api.cancelUnprepared(pool, 2, recovery.id);
   console.log(
     "PASS attempted human decline retains coins until authoritative full funding return; failure refunds once and preserves first-success eligibility",
+  );
+
+  const unsaved = await request2("generic-unsaved-preparation");
+  const preparing = await api.prepare(
+    pool,
+    "test-business",
+    unsaved.id,
+    { evidence: "Interrupted before any provider object was saved" },
+    "maker",
+  );
+  const uncertain = await api.markUnknown(
+    pool,
+    "test-business",
+    unsaved.id,
+    { reason: "Browser interrupted before provider preparation result" },
+    "maker",
+  );
+  const unsavedInput = {
+    attemptId: preparing.attemptId,
+    expectedVersion: uncertain.version,
+    observationId: "independent-unsaved-observation",
+    sourceUrl: quote.sourceUrl,
+    observedAt: new Date(Date.now() + 1000).toISOString(),
+    evidence: "Provider recipient and transfer history independently inspected",
+    historyCoverage:
+      "Full recipient, draft, funding and transfer history for this request",
+    historyInspected: true,
+    recipientRecordInspected: true,
+    noRecipientSaved: true,
+    noDraftSaved: true,
+    noRecipientLinkIssued: true,
+    noFundsSent: true,
+    noFundingDebit: true,
+    noPendingTransfers: true,
+    noUnknownTransfers: true,
+    previousDraftClosed: true,
+  };
+  const retryUnsaved = (body = unsavedInput) =>
+    api.retryUnsavedPreparation(
+      pool,
+      "test-business",
+      unsaved.id,
+      body,
+      "maker",
+    );
+  const rejectUnsaved = async (body, code) =>
+    assert.rejects(
+      () => retryUnsaved(body),
+      (error) => error.status === 409 && error.code === code,
+    );
+  for (const flag of [
+    "historyInspected",
+    "recipientRecordInspected",
+    "noRecipientSaved",
+    "noDraftSaved",
+    "noRecipientLinkIssued",
+    "noFundsSent",
+    "noFundingDebit",
+    "noPendingTransfers",
+    "noUnknownTransfers",
+    "previousDraftClosed",
+  ])
+    await rejectUnsaved(
+      { ...unsavedInput, [flag]: false },
+      "recovery_checks_missing",
+    );
+  await rejectUnsaved(
+    { ...unsavedInput, expectedVersion: uncertain.version - 1 },
+    "preparation_version_mismatch",
+  );
+  await rejectUnsaved(
+    { ...unsavedInput, observedAt: new Date(0).toISOString() },
+    "recovery_observation_stale",
+  );
+  await rejectUnsaved(
+    { ...unsavedInput, attemptId: "other-attempt" },
+    "recovery_attempt_conflict",
+  );
+  await pool.query(
+    "UPDATE creator_payout_attempts SET draft_id='saved-draft' WHERE id=$1",
+    [preparing.attemptId],
+  );
+  await rejectUnsaved(unsavedInput, "provider_record_exists");
+  await pool.query(
+    "UPDATE creator_payout_attempts SET draft_id=NULL,provider_reference='recorded-ref' WHERE id=$1",
+    [preparing.attemptId],
+  );
+  await rejectUnsaved(unsavedInput, "provider_effects_recorded");
+  await pool.query(
+    "UPDATE creator_payout_attempts SET provider_reference=NULL WHERE id=$1",
+    [preparing.attemptId],
+  );
+  await api.setPause(
+    pool,
+    { paused: true, reason: "Recovery pause test" },
+    "owner",
+  );
+  await rejectUnsaved(unsavedInput, "preparation_paused");
+  await api.setPause(
+    pool,
+    { paused: false, reason: "Recovery pause test complete" },
+    "owner",
+  );
+  await pool.query(
+    "INSERT INTO creator_cash_ledger(user_id,kind,source_ref,reserved_ticks,withdrawal_id,actor,reason) VALUES(2,'adjustment','unsaved-reservation-missing',-6000,$1,'fixture','Missing exact reservation'),(2,'adjustment','unsaved-reservation-other',6000,'other-unsaved-fixture','fixture','Other request cannot cover reservation')",
+    [unsaved.id],
+  );
+  await rejectUnsaved(unsavedInput, "reservation_mismatch");
+  await pool.query(
+    "INSERT INTO creator_cash_ledger(user_id,kind,source_ref,reserved_ticks,withdrawal_id,actor,reason) VALUES(2,'adjustment','unsaved-reservation-restored',6000,$1,'fixture','Restore exact reservation'),(2,'adjustment','unsaved-reservation-other-cleared',-6000,'other-unsaved-fixture','fixture','Restore fixture baseline')",
+    [unsaved.id],
+  );
+  await pool.query(
+    "UPDATE creator_payout_recipients SET revision=revision+1 WHERE user_id=2",
+  );
+  await rejectUnsaved(unsavedInput, "recipient_revision_mismatch");
+  await pool.query(
+    "UPDATE creator_payout_recipients SET revision=revision-1,data=jsonb_set(data,'{email}',to_jsonb('changed@example.com'::text)) WHERE user_id=2",
+  );
+  await rejectUnsaved(unsavedInput, "recipient_snapshot_mismatch");
+  await pool.query(
+    "UPDATE creator_payout_recipients SET data=jsonb_set(data,'{email}',to_jsonb('operator-corrected@example.com'::text)) WHERE user_id=2",
+  );
+  const walletBeforeUnsaved = await api.overview(pool, 2);
+  const ledgerBeforeUnsaved = (
+    await pool.query(
+      "SELECT * FROM creator_cash_ledger WHERE withdrawal_id=$1 ORDER BY id",
+      [unsaved.id],
+    )
+  ).rows;
+  const recipientBeforeUnsaved = uncertain.recipient;
+  const resumed = await retryUnsaved();
+  assert.equal(resumed.status, "awaiting_quote");
+  assert.equal(resumed.version, uncertain.version + 1);
+  assert.deepEqual(resumed.recipient, recipientBeforeUnsaved);
+  assert.equal(resumed.quote, null);
+  assert.equal(resumed.checker, null);
+  assert.deepEqual(await retryUnsaved(), resumed);
+  await rejectUnsaved(
+    { ...unsavedInput, evidence: "Changed observation" },
+    "recovery_observation_conflict",
+  );
+  await rejectUnsaved(
+    { ...unsavedInput, observationId: "different-observation" },
+    "preparation_version_mismatch",
+  );
+  assert.deepEqual(
+    (await api.overview(pool, 2)).balances,
+    walletBeforeUnsaved.balances,
+  );
+  assert.deepEqual(
+    (
+      await pool.query(
+        "SELECT * FROM creator_cash_ledger WHERE withdrawal_id=$1 ORDER BY id",
+        [unsaved.id],
+      )
+    ).rows,
+    ledgerBeforeUnsaved,
+  );
+  assert.equal(
+    (
+      await pool.query(
+        "SELECT state FROM creator_payout_attempts WHERE id=$1",
+        [preparing.attemptId],
+      )
+    ).rows[0].state,
+    "canceled",
+  );
+  const recoveryEvents = (
+    await pool.query(
+      "SELECT evidence FROM creator_payout_events WHERE withdrawal_id=$1 AND action='unsaved_preparation_recovered'",
+      [unsaved.id],
+    )
+  ).rows;
+  assert.equal(recoveryEvents.length, 1);
+  assert.equal(recoveryEvents[0].evidence.reservationRetained, true);
+  assert.match(recoveryEvents[0].evidence.observationHash, /^[0-9a-f]{64}$/);
+  console.log(
+    "PASS independently observed unsaved preparation retry retains recipient and reservation, rejects missing or conflicting evidence and recorded provider effects",
+  );
+
+  await pool.query(
+    "INSERT INTO users VALUES(4,'Draft Creator','draft-creator');INSERT INTO coin_balances(user_id,balance) VALUES(4,6000);INSERT INTO coin_transactions(to_user_id,amount,type) VALUES(4,6000,'grant')",
+  );
+  const draftPreview = await api.enrollmentPreview(pool, 4);
+  await api.enroll(
+    pool,
+    {
+      userId: 4,
+      expectedWalletCoins: draftPreview.walletCoins,
+      reason: "Saved draft recovery fixture",
+    },
+    "owner",
+  );
+  await api.saveRecipient(pool, 4, {
+    legalFirstName: "Draft",
+    legalLastName: "Creator",
+    countryCode: "CO",
+    email: "draft@example.com",
+    phone: "+573001234568",
+  });
+  const draftRequest = await api.requestWithdrawal(pool, 4, "test-business", {
+    methodId: method,
+    withdrawalCents: 1500,
+    idempotencyKey: "saved-draft-reopen",
+  });
+  const draftPrepared = await api.prepare(
+    pool,
+    "test-business",
+    draftRequest.id,
+    { evidence: "First-time draft automatically saved" },
+    "maker",
+  );
+  const draftId = "auto-saved-first-draft";
+  const reviewUrl = `https://www.remitly.com/test-only-fixture/review/${draftId}`;
+  await pool.query(
+    "UPDATE creator_payout_attempts SET draft_id=$2,evidence=evidence||$3::jsonb,updated_at=now() WHERE id=$1",
+    [draftPrepared.attemptId, draftId, JSON.stringify({ reviewUrl })],
+  );
+  const draftUnknown = await api.markUnknown(
+    pool,
+    "test-business",
+    draftRequest.id,
+    { reason: "Browser interrupted after automatic draft save" },
+    "maker",
+  );
+  const draftRecovery = {
+    expectedVersion: draftUnknown.version,
+    observationId: "reopened-auto-saved-draft",
+    sourceUrl: quote.sourceUrl,
+    observedAt: new Date(Date.now() + 1000).toISOString(),
+    evidence:
+      "Existing draft reopened from Remitly history without recreating it",
+    historyCoverage:
+      "Full recipient draft and transfer history for this request",
+    historyInspected: true,
+    noRecipientLinkIssued: true,
+    noFundsSent: true,
+    noFundingDebit: true,
+    noPendingTransfers: true,
+    noUnknownTransfers: true,
+  };
+  const draftComplete = {
+    attemptId: draftPrepared.attemptId,
+    preparationHash: draftPrepared.preparationHash,
+    quote: {
+      ...quote,
+      observedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 3600000).toISOString(),
+    },
+    draftId,
+    reviewUrl,
+    deadline: new Date(Date.now() + 1800000).toISOString(),
+    oneTime: true,
+    autoSend: false,
+    recipientMatches: true,
+    amountsMatch: true,
+    historyInspected: true,
+    historyCoverage: "Existing saved draft and full transfer history",
+    evidence: "Draft reopened and final quote inspected",
+    kind: "first_time_draft",
+    draftSaved: true,
+    draftReopened: true,
+    noPriorTransfer: true,
+    recovery: draftRecovery,
+  };
+  const completeDraft = (value = draftComplete) =>
+    api.completePreparation(
+      pool,
+      "test-business",
+      draftRequest.id,
+      value,
+      "maker",
+    );
+  const rejectDraft = async (value, code) =>
+    assert.rejects(
+      () => completeDraft(value),
+      (error) => error.status === 409 && error.code === code,
+    );
+  await assert.rejects(
+    () => completeDraft({ ...draftComplete, recovery: undefined }),
+    (error) => error.status === 409,
+  );
+  for (const flag of [
+    "historyInspected",
+    "noRecipientLinkIssued",
+    "noFundsSent",
+    "noFundingDebit",
+    "noPendingTransfers",
+    "noUnknownTransfers",
+  ])
+    await rejectDraft(
+      { ...draftComplete, recovery: { ...draftRecovery, [flag]: false } },
+      "recovery_checks_missing",
+    );
+  await rejectDraft(
+    {
+      ...draftComplete,
+      recovery: { ...draftRecovery, observedAt: new Date(0).toISOString() },
+    },
+    "recovery_observation_stale",
+  );
+  await rejectDraft(
+    {
+      ...draftComplete,
+      draftId: "replacement-draft",
+      reviewUrl:
+        "https://www.remitly.com/test-only-fixture/review/replacement-draft",
+    },
+    "saved_draft_mismatch",
+  );
+  await pool.query(
+    "UPDATE creator_payout_attempts SET provider_reference='sent-transfer' WHERE id=$1",
+    [draftPrepared.attemptId],
+  );
+  await rejectDraft(draftComplete, "provider_effects_recorded");
+  await pool.query(
+    "UPDATE creator_payout_attempts SET provider_reference=NULL WHERE id=$1",
+    [draftPrepared.attemptId],
+  );
+  await api.setPause(
+    pool,
+    { paused: true, reason: "Saved draft recovery pause test" },
+    "owner",
+  );
+  await rejectDraft(draftComplete, "preparation_paused");
+  await api.setPause(
+    pool,
+    { paused: false, reason: "Saved draft recovery pause test complete" },
+    "owner",
+  );
+  await pool.query(
+    "UPDATE creator_payout_recipients SET revision=revision+1 WHERE user_id=4",
+  );
+  await rejectDraft(draftComplete, "recipient_revision_mismatch");
+  await pool.query(
+    "UPDATE creator_payout_recipients SET revision=revision-1 WHERE user_id=4",
+  );
+  await pool.query(
+    "UPDATE creator_payout_recipients SET data=jsonb_set(data,'{email}',to_jsonb('changed@example.com'::text)) WHERE user_id=4",
+  );
+  await rejectDraft(draftComplete, "recipient_snapshot_mismatch");
+  await pool.query(
+    "UPDATE creator_payout_recipients SET data=jsonb_set(data,'{email}',to_jsonb('draft@example.com'::text)) WHERE user_id=4",
+  );
+  await pool.query(
+    "INSERT INTO creator_cash_ledger(user_id,kind,source_ref,reserved_ticks,withdrawal_id,actor,reason) VALUES(4,'adjustment','saved-draft-reserve-missing',-6000,$1,'fixture','Missing target reservation'),(4,'adjustment','saved-draft-other',6000,'other-draft-fixture','fixture','Other reservation cannot mask target')",
+    [draftRequest.id],
+  );
+  await rejectDraft(draftComplete, "reservation_mismatch");
+  await pool.query(
+    "INSERT INTO creator_cash_ledger(user_id,kind,source_ref,reserved_ticks,withdrawal_id,actor,reason) VALUES(4,'adjustment','saved-draft-reserve-restored',6000,$1,'fixture','Restore target reservation'),(4,'adjustment','saved-draft-other-cleared',-6000,'other-draft-fixture','fixture','Restore fixture baseline')",
+    [draftRequest.id],
+  );
+  await assert.rejects(
+    () =>
+      completeDraft({
+        ...draftComplete,
+        quote: {
+          ...draftComplete.quote,
+          receiveCurrency: "USD",
+        },
+      }),
+    (error) => error.status === 400,
+  );
+  assert.equal(
+    (await api.withdrawalDetail(pool, draftRequest.id, 4)).status,
+    "unknown",
+  );
+  assert.equal(
+    (
+      await pool.query(
+        "SELECT count(*)::integer count FROM creator_payout_events WHERE withdrawal_id=$1 AND action='saved_preparation_recovered'",
+        [draftRequest.id],
+      )
+    ).rows[0].count,
+    0,
+    "rejected final quote rolls back recovery audit",
+  );
+  const draftBalances = (await api.overview(pool, 4)).balances;
+  const completedDraft = await completeDraft();
+  assert.equal(completedDraft.status, "awaiting_human_review");
+  assert.equal(completedDraft.version, draftUnknown.version + 1);
+  assert.deepEqual(completedDraft.recipient, draftUnknown.recipient);
+  assert.deepEqual(await completeDraft(), completedDraft);
+  await rejectDraft(
+    { ...draftComplete, evidence: "Changed completion" },
+    "recovery_observation_conflict",
+  );
+  assert.equal(
+    (
+      await pool.query(
+        "SELECT count(*)::integer count FROM creator_payout_attempts WHERE withdrawal_id=$1",
+        [draftRequest.id],
+      )
+    ).rows[0].count,
+    1,
+  );
+  assert.deepEqual((await api.overview(pool, 4)).balances, draftBalances);
+  const savedRecoveryEvents = (
+    await pool.query(
+      "SELECT evidence FROM creator_payout_events WHERE withdrawal_id=$1 AND action='saved_preparation_recovered'",
+      [draftRequest.id],
+    )
+  ).rows;
+  assert.equal(savedRecoveryEvents.length, 1);
+  assert.equal(savedRecoveryEvents[0].evidence.reservationRetained, true);
+  assert.equal(savedRecoveryEvents[0].evidence.draftId, draftId);
+  console.log(
+    "PASS existing first-time draft reopens on the same uncertain attempt with atomic proof and final quote, without another provider attempt or wallet change",
+  );
+
+  await pool.query(
+    "INSERT INTO users VALUES(5,'Corrected Creator','corrected-creator');INSERT INTO coin_balances(user_id,balance) VALUES(5,6000);INSERT INTO coin_transactions(to_user_id,amount,type) VALUES(5,6000,'grant')",
+  );
+  const correctionPreview = await api.enrollmentPreview(pool, 5);
+  await api.enroll(
+    pool,
+    {
+      userId: 5,
+      expectedWalletCoins: correctionPreview.walletCoins,
+      reason: "Prior correction and follow-up recovery fixture",
+    },
+    "owner",
+  );
+  await api.saveRecipient(pool, 5, {
+    legalFirstName: "Corrected",
+    legalLastName: "Creator",
+    countryCode: "CO",
+    email: "corrected@example.com",
+    phone: "+573001234568",
+  });
+  const correctedRequest = await api.requestWithdrawal(
+    pool,
+    5,
+    "test-business",
+    {
+      methodId: method,
+      withdrawalCents: 1500,
+      idempotencyKey: "prior-correction-generic",
+    },
+  );
+  const rejectedAttempt = await api.prepare(
+    pool,
+    "test-business",
+    correctedRequest.id,
+    { evidence: "Recipient validation failed without saved provider objects" },
+    "maker",
+  );
+  await api.markUnknown(
+    pool,
+    "test-business",
+    correctedRequest.id,
+    {
+      reason: "Recipient phone rejected",
+      recipientIssue: {
+        code: "recipient_validation_failed",
+        fields: ["phone"],
+      },
+    },
+    "maker",
+  );
+  const correctedContact = await api.submitAdminRecipientCorrection(
+    pool,
+    "test-business",
+    correctedRequest.id,
+    { phone: "+573001234569" },
+    "owner",
+  );
+  const correctedRecovery = {
+    attemptId: rejectedAttempt.attemptId,
+    correctionHash: correctedContact.recipientCorrection.hash,
+    observationId: "prior-phone-correction",
+    sourceUrl: quote.sourceUrl,
+    observedAt: new Date(Date.now() + 1000).toISOString(),
+    evidence:
+      "Rejected recipient had no saved provider object or transfer effect",
+    historyCoverage: "Complete recipient and transfer history",
+    historyInspected: true,
+    recipientRecordInspected: true,
+    recipientCorrectionApplied: true,
+    noRecipientLinkIssued: true,
+    noFundsSent: true,
+    noFundingDebit: true,
+    noPendingTransfers: true,
+    noUnknownTransfers: true,
+    previousDraftClosed: true,
+  };
+  const correctedAwaiting = await api.resolveRecipientError(
+    pool,
+    "test-business",
+    correctedRequest.id,
+    correctedRecovery,
+    "maker",
+  );
+  assert.equal(correctedAwaiting.status, "awaiting_quote");
+  for (let round = 1; round <= 2; round++) {
+    const retryPrepared = await api.prepare(
+      pool,
+      "test-business",
+      correctedRequest.id,
+      { evidence: `Generic interrupted preparation after correction ${round}` },
+      "maker",
+    );
+    const retryUnknown = await api.markUnknown(
+      pool,
+      "test-business",
+      correctedRequest.id,
+      { reason: `No provider object saved on generic attempt ${round}` },
+      "maker",
+    );
+    const recovered = await api.retryUnsavedPreparation(
+      pool,
+      "test-business",
+      correctedRequest.id,
+      {
+        ...unsavedInput,
+        attemptId: retryPrepared.attemptId,
+        expectedVersion: retryUnknown.version,
+        observationId: `after-correction-generic-${round}`,
+        observedAt: new Date(Date.now() + 1000).toISOString(),
+      },
+      "maker",
+    );
+    assert.equal(recovered.status, "awaiting_quote");
+    assert.equal(recovered.recipient.phone, "+573001234569");
+  }
+  const phoneDraft = await api.prepare(
+    pool,
+    "test-business",
+    correctedRequest.id,
+    { evidence: "Saved draft followed by structured phone issue" },
+    "maker",
+  );
+  const phoneDraftId = "phone-issue-draft";
+  const phoneReviewUrl = `https://www.remitly.com/test-only-fixture/review/${phoneDraftId}`;
+  await pool.query(
+    "UPDATE creator_payout_attempts SET draft_id=$2,evidence=evidence||$3::jsonb,updated_at=now() WHERE id=$1",
+    [
+      phoneDraft.attemptId,
+      phoneDraftId,
+      JSON.stringify({ reviewUrl: phoneReviewUrl }),
+    ],
+  );
+  await api.markUnknown(
+    pool,
+    "test-business",
+    correctedRequest.id,
+    {
+      reason: "Structured recipient phone error",
+      recipientIssue: {
+        code: "recipient_validation_failed",
+        fields: ["phone"],
+      },
+    },
+    "maker",
+  );
+  const hiddenIssue = await api.markUnknown(
+    pool,
+    "test-business",
+    correctedRequest.id,
+    { reason: "Later generic unknown cannot hide current phone issue" },
+    "maker",
+  );
+  await assert.rejects(
+    () =>
+      api.completePreparation(
+        pool,
+        "test-business",
+        correctedRequest.id,
+        {
+          ...draftComplete,
+          attemptId: phoneDraft.attemptId,
+          preparationHash: phoneDraft.preparationHash,
+          draftId: phoneDraftId,
+          reviewUrl: phoneReviewUrl,
+          recovery: {
+            ...draftRecovery,
+            expectedVersion: hiddenIssue.version,
+            observationId: "hidden-current-phone-issue",
+            observedAt: new Date(Date.now() + 1000).toISOString(),
+          },
+        },
+        "maker",
+      ),
+    (error) =>
+      error.status === 409 && error.code === "recipient_recovery_required",
+  );
+  console.log(
+    "PASS prior resolved phone correction and prior recovery absence proofs do not block a newly inspected generic attempt",
   );
 
   await assert.rejects(

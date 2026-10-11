@@ -65,6 +65,10 @@ export async function runMcpIntegration({
         names.includes("pulse_payout_retry_recipient_creation"),
         role === "maker",
       );
+      assert.equal(
+        names.includes("pulse_payout_retry_unsaved_preparation"),
+        role === "maker",
+      );
       assert(
         !names.some((n) =>
           /^pulse_payout_(release|decline|enroll|pause|issue|revoke)$/.test(n),
@@ -178,7 +182,7 @@ export async function runMakerRetryMcp({
       name: "pulse_payout_identity",
       arguments: {},
     });
-    assert.equal(identity.structuredContent.workflowRevision, "2026-10-11.3");
+    assert.equal(identity.structuredContent.workflowRevision, "2026-10-11.4");
     const result = await client.callTool({
       name: "pulse_payout_retry_recipient_creation",
       arguments: { id, leaseId, data },
@@ -200,6 +204,21 @@ export async function runMakerRetryMcp({
   }
 }
 
+// Keep one SDK session for a continuous browser run rather than reconnecting
+// for every checkpoint; the real transport rate limit remains enabled.
+export async function connectMakerPreparationMcp({ base, maker }) {
+  const client = new Client(
+    { name: "pulse-continuous-preparation-fixture", version: "1" },
+    { capabilities: {} },
+  );
+  await client.connect(
+    new StreamableHTTPClientTransport(new URL(base + "/api/payout-mcp"), {
+      requestInit: { headers: { Authorization: "Bearer " + maker.token } },
+    }),
+  );
+  return client;
+}
+
 // Exercise the actual public Maker tool schema and bridge, not a mocked domain call.
 export async function callMakerPreparationMcp({
   base,
@@ -208,29 +227,35 @@ export async function callMakerPreparationMcp({
   leaseId,
   tool,
   data,
+  client: sharedClient,
 }) {
-  const client = new Client(
-    { name: "pulse-continuous-preparation-fixture", version: "1" },
-    { capabilities: {} },
-  );
+  const client =
+    sharedClient ?? (await connectMakerPreparationMcp({ base, maker }));
   try {
-    await client.connect(
-      new StreamableHTTPClientTransport(new URL(base + "/api/payout-mcp"), {
-        requestInit: { headers: { Authorization: "Bearer " + maker.token } },
-      }),
-    );
     const result = await client.callTool({
       name: "pulse_payout_" + tool,
       arguments: tool === "unknown" ? { id, data } : { id, leaseId, data },
     });
-    const payload =
-      result.structuredContent ?? JSON.parse(result.content[0].text);
+    let payload = result.structuredContent;
+    if (!payload) {
+      try {
+        payload = JSON.parse(result.content[0].text);
+      } catch {
+        assert(result.isError);
+        payload = { code: "invalid_request", httpStatus: 400 };
+      }
+    }
     assert(!JSON.stringify(result).includes(maker.token));
     return {
       status: result.isError ? (payload.httpStatus ?? 400) : 200,
       body: payload,
     };
+  } catch (error) {
+    throw new Error(
+      `Isolated Maker MCP ${tool} failed with HTTP ${Number(error.code) || "unknown"}`,
+      { cause: error },
+    );
   } finally {
-    await client.close();
+    if (!sharedClient) await client.close();
   }
 }

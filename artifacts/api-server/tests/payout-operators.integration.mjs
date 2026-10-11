@@ -11,12 +11,14 @@ import {
   runMcpIntegration,
   runMakerRetryMcp,
   callMakerPreparationMcp,
+  connectMakerPreparationMcp,
 } from "./payout-mcp.real-service.mjs";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const temporary = mkdtempSync(join(tmpdir(), "pulse-operators-"));
 const output = join(root, "tests", `.operators-${randomUUID()}.cjs`);
 let pool,
   server,
+  preparationClient,
   started = false;
 try {
   execFileSync(
@@ -661,7 +663,7 @@ try {
   assert.equal(
     (await call("/api/payout-operator/identity", { token: maker.token })).body
       .workflowRevision,
-    "2026-10-11.3",
+    "2026-10-11.4",
   );
 
   assert.equal(
@@ -1590,8 +1592,13 @@ try {
       idempotencyKey: "continuous-preparation",
     })
   ).body;
+  preparationClient = await connectMakerPreparationMcp({
+    base,
+    maker: otherMaker,
+  });
   const continuousCall = (tool, data) =>
     callMakerPreparationMcp({
+      client: preparationClient,
       base,
       maker: otherMaker,
       id: continuousWd.id,
@@ -1711,6 +1718,10 @@ try {
       deadline: new Date(Date.now() + 60000).toISOString(),
     },
   ]) {
+    await pool.query(
+      "UPDATE payout_operator_credentials SET request_count=0,rate_window=NULL WHERE id=$1",
+      [otherMaker.credential.id],
+    );
     const rejected = await continuousCall("record_preparation", invalid);
     assert(rejected.status >= 400, JSON.stringify(rejected));
     assert.deepEqual(
@@ -1790,6 +1801,7 @@ try {
   });
   const errorCall = (tool, data) =>
     callMakerPreparationMcp({
+      client: preparationClient,
       base,
       maker: otherMaker,
       id: errorWd.id,
@@ -1871,6 +1883,7 @@ try {
   });
   const firstCall = (tool, data) =>
     callMakerPreparationMcp({
+      client: preparationClient,
       base,
       maker: otherMaker,
       id: firstWd.id,
@@ -1951,6 +1964,10 @@ try {
       reviewUrl: continuousDraft.reviewUrl,
     },
   ]) {
+    await pool.query(
+      "UPDATE payout_operator_credentials SET request_count=0,rate_window=NULL WHERE id=$1",
+      [otherMaker.credential.id],
+    );
     const result = await firstCall("record_preparation", invalid);
     assert(result.status >= 400, JSON.stringify(result));
     assert.deepEqual(
@@ -1959,11 +1976,72 @@ try {
       "Invalid first draft cannot publish quote, draft, audit or change coins",
     );
   }
+  await pool.query(
+    "UPDATE payout_operator_credentials SET request_count=0,rate_window=NULL WHERE id=$1",
+    [otherMaker.credential.id],
+  );
+  const firstUnknown = await firstCall("unknown", {
+    reason:
+      "Fixture browser interruption before the automatically saved draft could be recorded; no provider actions performed",
+  });
+  assert.equal(firstUnknown.status, 200);
+  assert.equal(firstUnknown.body.status, "unknown");
+  assert.equal(
+    (await firstCall("record_preparation", firstDraft)).status,
+    409,
+    "Unknown cannot complete without verified recovery evidence",
+  );
+  firstDraft.recovery = {
+    expectedVersion: firstUnknown.body.version,
+    observationId: "reopened-first-draft-recovery",
+    sourceUrl: "https://www.remitly.com/us/en/homepage",
+    observedAt: new Date().toISOString(),
+    evidence:
+      "Fixture inspected matching automatically saved draft and reopened it; no external actions",
+    historyCoverage:
+      "Complete fixture activity, pending transfers and funding-debit coverage",
+    historyInspected: true,
+    noRecipientLinkIssued: true,
+    noFundsSent: true,
+    noFundingDebit: true,
+    noPendingTransfers: true,
+    noUnknownTransfers: true,
+  };
+  const unknownFirstState = await firstBefore();
+  for (const invalidRecovery of [
+    { ...firstDraft.recovery, expectedVersion: firstUnknown.body.version + 1 },
+    {
+      ...firstDraft.recovery,
+      observedAt: new Date(Date.now() - 86401000).toISOString(),
+    },
+    { ...firstDraft.recovery, noFundsSent: false },
+  ]) {
+    const rejected = await firstCall("record_preparation", {
+      ...firstDraft,
+      recovery: invalidRecovery,
+    });
+    assert(rejected.status >= 400, JSON.stringify(rejected));
+    assert.deepEqual(
+      await firstBefore(),
+      unknownFirstState,
+      "Rejected saved-draft recovery cannot change attempt, reservation or audit",
+    );
+  }
   const firstCompleted = await firstCall("record_preparation", firstDraft);
   assert.equal(firstCompleted.status, 200, JSON.stringify(firstCompleted));
   assert.equal(firstCompleted.body.status, "awaiting_human_review");
   assert.equal(firstCompleted.body.quote.totalEarningsDeductedCents, 1500);
   assert.equal(firstCompleted.body.approvedQuoteHash, null);
+  assert.equal(
+    (await firstCall("record_preparation", firstDraft)).status,
+    200,
+    "Same saved-draft recovery observation is idempotent without new attempt",
+  );
+  assert.equal(
+    (await firstBefore()).attempts.length,
+    1,
+    "Reopened draft recovery uses the same internal attempt",
+  );
   const pendingFirstDetail = await api.adminWithdrawalDetail(
     pool,
     firstWd.id,
@@ -1995,6 +2073,9 @@ try {
     false,
     "Scheduled drafts are not first-time unsent drafts",
   );
+  await pool.query(
+    "UPDATE payout_operator_credentials SET request_count=0,rate_window=NULL",
+  );
   await runMcpIntegration({
     base,
     maker: otherMaker,
@@ -2021,6 +2102,183 @@ try {
     ).status,
     409,
     "Unreviewed first-time draft cannot be released",
+  );
+  // A generic interruption with NO saved provider object has its own Maker recovery.
+  await pool.query(
+    "UPDATE payout_operator_credentials SET request_count=0,rate_window=NULL",
+  );
+  await pool.query(
+    "INSERT INTO users VALUES(6,'Unsaved fixture','unsaved');INSERT INTO coin_balances(user_id,balance) VALUES(6,10000)",
+  );
+  await api.enroll(
+    pool,
+    {
+      userId: 6,
+      expectedWalletCoins: "10000",
+      reason: "Isolated generic interrupted preparation",
+    },
+    "owner",
+  );
+  await api.saveRecipient(pool, 6, {
+    legalFirstName: "Test",
+    legalLastName: "Unsaved",
+    countryCode: "CO",
+    email: "unsaved@example.test",
+    phone: "+573001234571",
+  });
+  const unsavedWd = await api.requestWithdrawal(pool, 6, "operator-business", {
+    methodId: method,
+    withdrawalCents: 1500,
+    idempotencyKey: "unsaved-preparation-recovery",
+  });
+  const unsavedCall = (tool, data) =>
+    callMakerPreparationMcp({
+      client: preparationClient,
+      base,
+      maker: otherMaker,
+      id: unsavedWd.id,
+      leaseId: continuousLease.leaseId,
+      tool,
+      data,
+    });
+  const unsavedBegin = await unsavedCall("prepare", {
+    evidence: "Isolated claim; no provider action",
+  });
+  assert.equal(unsavedBegin.status, 200);
+  const unsavedUnknown = await unsavedCall("unknown", {
+    reason: "Isolated browser interruption; no provider record saved",
+  });
+  assert.equal(unsavedUnknown.status, 200);
+  const unsavedProof = {
+    attemptId: unsavedBegin.body.attemptId,
+    expectedVersion: unsavedUnknown.body.version,
+    observationId: "generic-unsaved-fixture-inspection",
+    sourceUrl: "https://www.remitly.com/us/en/homepage",
+    observedAt: new Date().toISOString(),
+    historyCoverage:
+      "Complete fixture contacts, drafts, schedules, full activity and funding history",
+    evidence:
+      "Fixture confirms no recipient, draft, link, pending/uncertain transfer, debit or sent payment",
+    historyInspected: true,
+    recipientRecordInspected: true,
+    noRecipientSaved: true,
+    noDraftSaved: true,
+    noRecipientLinkIssued: true,
+    noFundsSent: true,
+    noFundingDebit: true,
+    noPendingTransfers: true,
+    noUnknownTransfers: true,
+    previousDraftClosed: true,
+  };
+  const unsavedState = async () => ({
+    withdrawal: (
+      await pool.query("SELECT * FROM creator_withdrawals WHERE id=$1", [
+        unsavedWd.id,
+      ])
+    ).rows,
+    attempts: (
+      await pool.query(
+        "SELECT * FROM creator_payout_attempts WHERE withdrawal_id=$1 ORDER BY created_at",
+        [unsavedWd.id],
+      )
+    ).rows,
+    events: (
+      await pool.query(
+        "SELECT * FROM creator_payout_events WHERE withdrawal_id=$1 ORDER BY id",
+        [unsavedWd.id],
+      )
+    ).rows,
+    ledger: (
+      await pool.query(
+        "SELECT * FROM creator_cash_ledger WHERE user_id=6 ORDER BY id",
+      )
+    ).rows,
+    balance: (
+      await pool.query("SELECT balance FROM coin_balances WHERE user_id=6")
+    ).rows,
+  });
+  const beforeRecovery = await unsavedState();
+  for (const credential of [checker, reconciler]) {
+    assert.equal(
+      (
+        await action(
+          credential.token,
+          unsavedWd.id,
+          "retry-unsaved-preparation",
+          unsavedProof,
+          continuousLease.leaseId,
+        )
+      ).status,
+      403,
+    );
+  }
+  const unownedRecoveryMaker = await issue("maker", "Unowned recovery fixture");
+  assert.equal(
+    (
+      await action(
+        unownedRecoveryMaker.token,
+        unsavedWd.id,
+        "retry-unsaved-preparation",
+        unsavedProof,
+        continuousLease.leaseId,
+      )
+    ).status,
+    409,
+    "Other Maker cannot use an unowned browser lease",
+  );
+  const staleRecovery = await unsavedCall("retry_unsaved_preparation", {
+    ...unsavedProof,
+    expectedVersion: unsavedProof.expectedVersion + 1,
+  });
+  assert.equal(staleRecovery.status, 409);
+  assert.equal(staleRecovery.body.code, "preparation_version_mismatch");
+  assert.deepEqual(await unsavedState(), beforeRecovery);
+  const unsavedRecovered = await unsavedCall(
+    "retry_unsaved_preparation",
+    unsavedProof,
+  );
+  assert.equal(unsavedRecovered.status, 200, JSON.stringify(unsavedRecovered));
+  assert.equal(unsavedRecovered.body.status, "awaiting_quote");
+  assert.equal(unsavedRecovered.body.id, unsavedWd.id);
+  assert.equal(unsavedRecovered.body.version, unsavedProof.expectedVersion + 1);
+  assert.equal((await unsavedState()).attempts[0].state, "canceled");
+  assert.deepEqual((await unsavedState()).ledger, beforeRecovery.ledger);
+  assert.deepEqual((await unsavedState()).balance, beforeRecovery.balance);
+  // Continue in this same authorized run instead of ending after recovery.
+  const resumed = await unsavedCall("prepare", {
+    evidence: "Continue immediately after verified unsaved recovery",
+  });
+  assert.equal(resumed.status, 200, JSON.stringify(resumed));
+  assert.notEqual(resumed.body.attemptId, unsavedBegin.body.attemptId);
+  const recoveredCompletion = await unsavedCall("record_preparation", {
+    ...firstDraft,
+    recovery: undefined,
+    attemptId: resumed.body.attemptId,
+    preparationHash: resumed.body.preparationHash,
+    quote: {
+      ...finalQuote,
+      observedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 3600000).toISOString(),
+    },
+    draftId: "unsaved-recovered-draft",
+    reviewUrl:
+      "https://www.remitly.com/us/en/transfer/review?draftId=unsaved-recovered-draft",
+  });
+  assert.equal(
+    recoveredCompletion.status,
+    200,
+    JSON.stringify(recoveredCompletion),
+  );
+  assert.equal(recoveredCompletion.body.status, "awaiting_human_review");
+  assert.equal(
+    (await api.adminWithdrawalDetail(pool, unsavedWd.id, "operator-business"))
+      .pendingFirstTimeRecipient,
+    true,
+  );
+  assert.deepEqual((await unsavedState()).ledger, beforeRecovery.ledger);
+  assert.deepEqual((await unsavedState()).balance, beforeRecovery.balance);
+  console.log(
+    "PASS actual Maker MCP recovers generic unsaved interruption and completes preparation in one run; existing first-time draft recovers on same attempt; roles, leases, version and funds preserved",
   );
   await leaseCall(otherMaker.token, "release", {
     leaseId: continuousLease.leaseId,
@@ -2157,6 +2415,7 @@ try {
     "PASS bounded per-credential request rates and immutable operator audit without cash minting",
   );
 } finally {
+  await preparationClient?.close();
   if (server) await new Promise((r) => server.close(r));
   if (pool) await pool.end();
   if (started)

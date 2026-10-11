@@ -101,6 +101,7 @@ import type {
   PayoutOperatorReleased,
   PayoutOperatorRevoked,
   PayoutOperatorUnknownInput,
+  PayoutOperatorUnsavedPreparationRecoveryInput,
   PayoutProviderCreate,
   PayoutResearchImportRequest,
   PayoutResearchImportResult,
@@ -1079,6 +1080,79 @@ export const useRecordPayoutOperatorQuote = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getRecordPayoutOperatorQuoteMutationOptions(options));
+    }
+
+export const getRetryPayoutOperatorUnsavedPreparationUrl = (id: string,) => {
+
+
+
+
+  return `/api/payout-operator/withdrawals/${id}/retry-unsaved-preparation`
+}
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Maker recovers an interrupted unsaved preparation using fresh no-record/no-effect evidence
+ */
+export const retryPayoutOperatorUnsavedPreparation = async (id: string,
+    payoutOperatorUnsavedPreparationRecoveryInput: PayoutOperatorUnsavedPreparationRecoveryInput, options?: RequestInit): Promise<WithdrawalDetail> => {
+
+  return customFetch<WithdrawalDetail>(getRetryPayoutOperatorUnsavedPreparationUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      payoutOperatorUnsavedPreparationRecoveryInput,)
+  }
+);}
+
+
+
+
+export const getRetryPayoutOperatorUnsavedPreparationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryPayoutOperatorUnsavedPreparation>>, TError,{id: string;data: BodyType<PayoutOperatorUnsavedPreparationRecoveryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retryPayoutOperatorUnsavedPreparation>>, TError,{id: string;data: BodyType<PayoutOperatorUnsavedPreparationRecoveryInput>}, TContext> => {
+
+const mutationKey = ['retryPayoutOperatorUnsavedPreparation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryPayoutOperatorUnsavedPreparation>>, {id: string;data: BodyType<PayoutOperatorUnsavedPreparationRecoveryInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  retryPayoutOperatorUnsavedPreparation(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetryPayoutOperatorUnsavedPreparationMutationResult = NonNullable<Awaited<ReturnType<typeof retryPayoutOperatorUnsavedPreparation>>>
+    export type RetryPayoutOperatorUnsavedPreparationMutationBody = BodyType<PayoutOperatorUnsavedPreparationRecoveryInput>
+    export type RetryPayoutOperatorUnsavedPreparationMutationError = ErrorType<void>
+
+    /**
+ * @summary Maker recovers an interrupted unsaved preparation using fresh no-record/no-effect evidence
+ */
+export const useRetryPayoutOperatorUnsavedPreparation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryPayoutOperatorUnsavedPreparation>>, TError,{id: string;data: BodyType<PayoutOperatorUnsavedPreparationRecoveryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retryPayoutOperatorUnsavedPreparation>>,
+        TError,
+        {id: string;data: BodyType<PayoutOperatorUnsavedPreparationRecoveryInput>},
+        TContext
+      > => {
+      return useMutation(getRetryPayoutOperatorUnsavedPreparationMutationOptions(options));
     }
 
 export const getBeginPayoutOperatorPreparationUrl = (id: string,) => {

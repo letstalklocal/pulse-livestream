@@ -1031,6 +1031,7 @@ export async function completePreparation(
     "draftSaved",
     "draftReopened",
     "noPriorTransfer",
+    "recovery",
   ]);
   const evidence = note(b.evidence, "preparation evidence", 5000);
   const coverage = note(b.historyCoverage, "provider history coverage", 2000);
@@ -1044,20 +1045,87 @@ export async function completePreparation(
     b.autoSend !== false
   )
     fail("All preparation checks must be confirmed; auto-send must be off.");
+  const recovery =
+    b.recovery === undefined
+      ? null
+      : body(b.recovery, [
+          "expectedVersion",
+          "observationId",
+          "sourceUrl",
+          "observedAt",
+          "evidence",
+          "historyCoverage",
+          "historyInspected",
+          "noRecipientLinkIssued",
+          "noFundsSent",
+          "noFundingDebit",
+          "noPendingTransfers",
+          "noUnknownTransfers",
+        ]);
+  const recoveryFlags = [
+    "historyInspected",
+    "noRecipientLinkIssued",
+    "noFundsSent",
+    "noFundingDebit",
+    "noPendingTransfers",
+    "noUnknownTransfers",
+  ];
+  if (recovery && recoveryFlags.some((flag) => recovery[flag] !== true))
+    fail(
+      "Saved draft recovery requires every provider history and transfer check.",
+      409,
+      "recovery_checks_missing",
+    );
+  const recoveryProof = recovery && {
+    expectedVersion: integer(recovery.expectedVersion, "expected version"),
+    observationId: str(recovery.observationId, "observation ID"),
+    sourceUrl: providerSource(recovery.sourceUrl),
+    observedAt: date(recovery.observedAt, "recovery observation"),
+    evidence: note(recovery.evidence, "recovery evidence", 5000),
+    historyCoverage: note(
+      recovery.historyCoverage,
+      "provider history coverage",
+      2000,
+    ),
+  };
+  const completionHash = recovery ? hash(b) : null;
   return tx(db, async (c) => {
     const w = await lockedWithdrawal(c, id, account);
+    if (recoveryProof) {
+      const prior = (
+        await c.query(
+          "SELECT evidence FROM creator_payout_events WHERE withdrawal_id=$1 AND action='saved_preparation_recovered' AND evidence->>'observationId'=$2",
+          [id, recoveryProof.observationId],
+        )
+      ).rows[0];
+      if (prior) {
+        if (prior.evidence.completionHash !== completionHash)
+          fail(
+            "Recovery observation ID reused with different completion evidence.",
+            409,
+            "recovery_observation_conflict",
+          );
+        return withdrawalDetail(c, id, undefined, account);
+      }
+    }
     const a = (
       await c.query(
         "SELECT * FROM creator_payout_attempts WHERE id=$1 AND withdrawal_id=$2 FOR UPDATE",
         [b.attemptId, id],
       )
     ).rows[0];
+    const recovering =
+      !!recoveryProof &&
+      !!a &&
+      ["unknown", "expired"].includes(a.state) &&
+      ["unknown", "expired"].includes(w.status);
     if (
       !a ||
       a.maker !== actor ||
-      a.state !== "preparing" ||
-      w.status !== "preparing" ||
-      Date.parse(a.lease_until) <= Date.now()
+      (!recovering &&
+        (a.state !== "preparing" ||
+          w.status !== "preparing" ||
+          Date.parse(a.lease_until) <= Date.now()))
     )
       fail(
         "Preparation lease expired or actor/attempt changed. Record unknown and reconcile.",
@@ -1065,6 +1133,200 @@ export async function completePreparation(
       );
     const continuous = a.evidence?.workflowMode === "continuous";
     const firstTimeDraft = b.kind === "first_time_draft";
+    if (recoveryProof) {
+      if (
+        !recovering ||
+        !continuous ||
+        !firstTimeDraft ||
+        recoveryProof.expectedVersion !== w.version ||
+        b.preparationHash !== a.binding_hash ||
+        a.binding_hash !== binding(w)
+      )
+        fail(
+          "Saved draft recovery requires the current continuous attempt and version.",
+          409,
+          "recovery_attempt_conflict",
+        );
+      if (
+        (
+          await c.query(
+            "SELECT preparation_paused FROM creator_payout_settings WHERE id=1 FOR SHARE",
+          )
+        ).rows[0]?.preparation_paused ??
+        true
+      )
+        fail("Preparation is paused.", 409, "preparation_paused");
+      if (
+        Date.parse(recoveryProof.observedAt) < Date.now() - 86400000 ||
+        Date.parse(recoveryProof.observedAt) <=
+          Math.max(Date.parse(a.updated_at), Date.parse(w.updated_at))
+      )
+        fail(
+          "Saved draft observation must follow the current uncertain attempt within 24 hours.",
+          409,
+          "recovery_observation_stale",
+        );
+      const draftId = str(b.draftId, "draft ID");
+      const reviewUrl = safeProviderLink(b.reviewUrl);
+      const attempts = (
+        await c.query(
+          "SELECT * FROM creator_payout_attempts WHERE withdrawal_id=$1 ORDER BY created_at FOR UPDATE",
+          [id],
+        )
+      ).rows;
+      if (
+        attempts.some(
+          (item) =>
+            item.id !== a.id &&
+            !["delivered", "failed", "canceled", "returned"].includes(
+              item.state,
+            ),
+        )
+      )
+        fail(
+          "Another unresolved provider attempt exists.",
+          409,
+          "recovery_attempt_conflict",
+        );
+      if (
+        attempts.some(
+          (item) =>
+            (item.draft_id && item.draft_id !== draftId) ||
+            (item.evidence?.draftId && item.evidence.draftId !== draftId) ||
+            (item.evidence?.scheduledDraftId &&
+              item.evidence.scheduledDraftId !== draftId) ||
+            (item.evidence?.reviewUrl && item.evidence.reviewUrl !== reviewUrl),
+        )
+      )
+        fail(
+          "The reopened draft differs from a recorded provider draft.",
+          409,
+          "saved_draft_mismatch",
+        );
+      const events = (
+        await c.query(
+          "SELECT action,evidence,created_at FROM creator_payout_events WHERE withdrawal_id=$1 ORDER BY id FOR SHARE",
+          [id],
+        )
+      ).rows;
+      const preparationEvent = events.findIndex(
+        (item) =>
+          item.action === "preparing" && item.evidence?.attemptId === a.id,
+      );
+      if (preparationEvent < 0)
+        fail(
+          "Current preparation audit is missing.",
+          409,
+          "recovery_attempt_conflict",
+        );
+      if (
+        events.some(
+          (item, index) =>
+            (index > preparationEvent &&
+              item.evidence?.recipientIssue?.code ===
+                "recipient_validation_failed") ||
+            (item.action === "recipient_correction_submitted" &&
+              item.evidence?.recipientVersion === w.version),
+        )
+      )
+        fail(
+          "Recipient validation or correction requires recipient recovery.",
+          409,
+          "recipient_recovery_required",
+        );
+      const effectMarker =
+        /(?:providerReference|activityId|providerLink|recipientLink|linkIssued|paymentSent|fundingDebit|fundingDebited|releasedAt|sentAt|transferId|transactionId)/i;
+      const hasEffect = (value: unknown): boolean =>
+        !!value &&
+        typeof value === "object" &&
+        Object.entries(value as Row).some(
+          ([key, part]) =>
+            (effectMarker.test(key) &&
+              !/^no[A-Z]/.test(key) &&
+              part !== null &&
+              part !== false &&
+              part !== "") ||
+            (typeof part === "object" && hasEffect(part)),
+        );
+      if (
+        w.provider_link ||
+        attempts.some(
+          (item) =>
+            item.provider_reference ||
+            item.activity_id ||
+            hasEffect(item.evidence),
+        ) ||
+        events.some(
+          (item) =>
+            ["human_declined", "human_release_recorded", "reconciled"].includes(
+              item.action,
+            ) || hasEffect(item.evidence),
+        )
+      )
+        fail(
+          "A human decision or provider transfer effect is recorded.",
+          409,
+          "provider_effects_recorded",
+        );
+      const reserved = (
+        await c.query(
+          "SELECT COALESCE(sum(reserved_ticks),0)::text reserved FROM creator_cash_ledger WHERE user_id=$1 AND withdrawal_id=$2",
+          [w.user_id, id],
+        )
+      ).rows[0].reserved;
+      if (BigInt(reserved) !== BigInt(w.gross_cents) * 4n)
+        fail(
+          "Exact withdrawal reservation is missing or inconsistent.",
+          409,
+          "reservation_mismatch",
+        );
+      const contact = (
+        await c.query(
+          "SELECT * FROM creator_payout_recipients WHERE user_id=$1 FOR UPDATE",
+          [w.user_id],
+        )
+      ).rows[0];
+      if (!contact)
+        fail("Saved recipient is missing.", 409, "saved_recipient_missing");
+      if (contact.revision !== w.recipient.revision)
+        fail(
+          "Saved recipient revision changed.",
+          409,
+          "recipient_revision_mismatch",
+        );
+      if (
+        hash(contact.data) !==
+        hash(
+          Object.fromEntries(
+            Object.entries(w.recipient).filter(
+              ([key]) => !["revision", "status"].includes(key),
+            ),
+          ),
+        )
+      )
+        fail(
+          "Saved recipient details changed.",
+          409,
+          "recipient_snapshot_mismatch",
+        );
+      await event(
+        c,
+        w.user_id,
+        actor,
+        "saved_preparation_recovered",
+        {
+          ...recovery,
+          ...recoveryProof,
+          attemptId: a.id,
+          draftId,
+          reviewUrl,
+          observationHash: hash(recovery),
+          completionHash,
+          reservationRetained: true,
+        },
+        id,
+      );
+    }
     if (firstTimeDraft) {
       if (
         !continuous ||
@@ -1797,6 +2059,278 @@ export async function retryRecipientCreation(
   return recoverRecipientError(db, account, id, input, actor, true);
 }
 
+// An interrupted preparation may be retried only after a fresh, independent
+// inspection establishes that no provider object or transfer effect exists.
+// This deliberately does not consume recipient corrections or alter wallet funds.
+export async function retryUnsavedPreparation(
+  db: Database,
+  account: string,
+  id: string,
+  input: unknown,
+  actor: string,
+) {
+  const flags = [
+    "historyInspected",
+    "recipientRecordInspected",
+    "noRecipientSaved",
+    "noDraftSaved",
+    "noRecipientLinkIssued",
+    "noFundsSent",
+    "noFundingDebit",
+    "noPendingTransfers",
+    "noUnknownTransfers",
+    "previousDraftClosed",
+  ];
+  const b = body(input, [
+    "attemptId",
+    "expectedVersion",
+    "observationId",
+    "sourceUrl",
+    "observedAt",
+    "evidence",
+    "historyCoverage",
+    ...flags,
+  ]);
+  const attemptId = str(b.attemptId, "attempt ID");
+  const expectedVersion = integer(b.expectedVersion, "expected version");
+  const observationId = str(b.observationId, "observation ID");
+  const sourceUrl = providerSource(b.sourceUrl);
+  const observedAt = date(b.observedAt, "recovery observation");
+  const evidence = note(b.evidence, "recovery evidence", 5000);
+  const historyCoverage = note(
+    b.historyCoverage,
+    "provider history coverage",
+    2000,
+  );
+  if (flags.some((flag) => b[flag] !== true))
+    fail(
+      "Recovery requires every provider inspection and absence check.",
+      409,
+      "recovery_checks_missing",
+    );
+  const observationHash = hash(b);
+  return tx(db, async (c) => {
+    const w = await lockedWithdrawal(c, id, account);
+    const previous = (
+      await c.query(
+        "SELECT evidence FROM creator_payout_events WHERE withdrawal_id=$1 AND action='unsaved_preparation_recovered' AND evidence->>'observationId'=$2",
+        [id, observationId],
+      )
+    ).rows[0];
+    if (previous) {
+      if (previous.evidence.observationHash !== observationHash)
+        fail(
+          "Recovery observation ID reused with different evidence.",
+          409,
+          "recovery_observation_conflict",
+        );
+      return withdrawalDetail(c, id, undefined, account);
+    }
+    if (w.version !== expectedVersion)
+      fail(
+        "Withdrawal changed; inspect the current version.",
+        409,
+        "preparation_version_mismatch",
+      );
+    if (!["unknown", "expired"].includes(w.status))
+      fail(
+        "The withdrawal has no current uncertain preparation.",
+        409,
+        "recovery_attempt_conflict",
+      );
+    if (
+      (
+        await c.query(
+          "SELECT preparation_paused FROM creator_payout_settings WHERE id=1 FOR SHARE",
+        )
+      ).rows[0]?.preparation_paused ??
+      true
+    )
+      fail("Preparation is paused.", 409, "preparation_paused");
+    const attempts = (
+      await c.query(
+        "SELECT * FROM creator_payout_attempts WHERE withdrawal_id=$1 ORDER BY created_at FOR UPDATE",
+        [id],
+      )
+    ).rows;
+    const a = attempts.find((item) => item.id === attemptId);
+    if (
+      !a ||
+      a.maker !== actor ||
+      !["unknown", "expired"].includes(a.state) ||
+      attempts.some(
+        (item) =>
+          item.id !== attemptId &&
+          !["delivered", "failed", "canceled", "returned"].includes(item.state),
+      )
+    )
+      fail(
+        "The current uncertain Maker attempt must be inspected.",
+        409,
+        "recovery_attempt_conflict",
+      );
+    if (
+      Date.parse(observedAt) < Date.now() - 86400000 ||
+      Date.parse(observedAt) <=
+        Math.max(Date.parse(a!.updated_at), Date.parse(w.updated_at))
+    )
+      fail(
+        "Provider observation must follow the latest uncertain attempt and backend update within 24 hours.",
+        409,
+        "recovery_observation_stale",
+      );
+    const events = (
+      await c.query(
+        "SELECT action,evidence,created_at FROM creator_payout_events WHERE withdrawal_id=$1 ORDER BY id FOR SHARE",
+        [id],
+      )
+    ).rows;
+    const preparationEvent = events.findIndex(
+      (item) =>
+        item.action === "preparing" && item.evidence?.attemptId === a!.id,
+    );
+    if (preparationEvent < 0)
+      fail(
+        "Current preparation audit is missing.",
+        409,
+        "recovery_attempt_conflict",
+      );
+    if (
+      events.some(
+        (item, index) =>
+          index > preparationEvent &&
+          item.evidence?.recipientIssue?.code === "recipient_validation_failed",
+      ) ||
+      events.some(
+        (item) =>
+          item.action === "recipient_correction_submitted" &&
+          item.evidence?.recipientVersion === w.version,
+      )
+    )
+      fail(
+        "A recorded recipient error or correction requires recipient recovery.",
+        409,
+        "recipient_recovery_required",
+      );
+    // Treat any recorded provider object as authoritative even if the operator's
+    // current observation says that none was saved.
+    const hasMarker = (value: unknown, pattern: RegExp): boolean =>
+      !!value &&
+      typeof value === "object" &&
+      Object.entries(value as Row).some(
+        ([key, part]) =>
+          (pattern.test(key) &&
+            !/^no[A-Z]/.test(key) &&
+            !/(?:Inspected|Coverage|Hash)$/.test(key) &&
+            part !== null &&
+            part !== false &&
+            part !== "") ||
+          (typeof part === "object" && hasMarker(part, pattern)),
+      );
+    const objectMarker =
+      /(?:draft|providerRecipient(?:Id|Url|Saved)?|recipientId|recipientSaved|recipientRecord(?:Id|Url|Saved)?|providerContact(?:Id|Url|Saved)?|contactId|contactSaved|contactRecord(?:Id|Url|Saved)?|payeeId|payeeSaved|reviewUrl|preparation(?:Id|Url|Saved|Record)?|providerObject|scheduled)/i;
+    if (
+      attempts.some(
+        (item) => item.draft_id || hasMarker(item.evidence, objectMarker),
+      )
+    )
+      fail(
+        "A saved provider object or preparation is recorded.",
+        409,
+        "provider_record_exists",
+      );
+    const effectMarker =
+      /(?:providerReference|activityId|providerLink|recipientLink|linkIssued|paymentSent|fundingDebit|fundingDebited|releasedAt|sentAt|transferId|transactionId)/i;
+    if (
+      w.provider_link ||
+      attempts.some(
+        (item) =>
+          item.provider_reference ||
+          item.activity_id ||
+          hasMarker(item.evidence, effectMarker),
+      ) ||
+      events.some(
+        (item) =>
+          ["human_declined", "human_release_recorded", "reconciled"].includes(
+            item.action,
+          ) || hasMarker(item.evidence, effectMarker),
+      )
+    )
+      fail(
+        "A human decision or provider effect is recorded.",
+        409,
+        "provider_effects_recorded",
+      );
+    const reserved = (
+      await c.query(
+        "SELECT COALESCE(sum(reserved_ticks),0)::text reserved FROM creator_cash_ledger WHERE user_id=$1 AND withdrawal_id=$2",
+        [w.user_id, id],
+      )
+    ).rows[0].reserved;
+    if (BigInt(reserved) !== BigInt(w.gross_cents) * 4n)
+      fail(
+        "Exact withdrawal reservation is missing or inconsistent.",
+        409,
+        "reservation_mismatch",
+      );
+    const contact = (
+      await c.query(
+        "SELECT * FROM creator_payout_recipients WHERE user_id=$1 FOR UPDATE",
+        [w.user_id],
+      )
+    ).rows[0];
+    if (!contact)
+      fail("Saved recipient is missing.", 409, "saved_recipient_missing");
+    if (contact.revision !== w.recipient.revision)
+      fail(
+        "Saved recipient revision changed.",
+        409,
+        "recipient_revision_mismatch",
+      );
+    if (
+      hash(contact.data) !==
+      hash(
+        Object.fromEntries(
+          Object.entries(w.recipient).filter(
+            ([key]) => !["revision", "status"].includes(key),
+          ),
+        ),
+      )
+    )
+      fail(
+        "Saved recipient details changed.",
+        409,
+        "recipient_snapshot_mismatch",
+      );
+    await c.query(
+      "UPDATE creator_payout_attempts SET state='canceled',lease_until=now(),updated_at=now() WHERE id=$1",
+      [attemptId],
+    );
+    await c.query(
+      "UPDATE creator_withdrawals SET status='awaiting_quote',quote=NULL,approved_quote_hash=NULL,checker=NULL,version=version+1,updated_at=now() WHERE id=$1",
+      [id],
+    );
+    await event(
+      c,
+      w.user_id,
+      actor,
+      "unsaved_preparation_recovered",
+      {
+        ...b,
+        sourceUrl,
+        observedAt,
+        evidence,
+        historyCoverage,
+        observationHash,
+        recipientHash: hash(w.recipient),
+        reservationRetained: true,
+      },
+      id,
+    );
+    return withdrawalDetail(c, id, undefined, account);
+  });
+}
+
 export async function markUnknown(
   db: Database,
   account: string,
@@ -2207,10 +2741,7 @@ export async function adminWithdrawalDetail(
     events,
     recipientRecoveryDiagnostics,
     recipientPaymentHistory: recipientPaymentHistory(diagnosticRow ?? {}),
-    pendingFirstTimeRecipient: pendingFirstTimeRecipient(
-      w.status,
-      attempts.at(-1),
-    ),
+    pendingFirstTimeRecipient: pendingFirstTimeRecipient(w.status, attempts[0]),
     balances: await balances(db, w.userId),
   };
 }

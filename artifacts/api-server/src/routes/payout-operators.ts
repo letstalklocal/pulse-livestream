@@ -38,23 +38,24 @@ const safe =
             guard: rejection.code,
             operation: req.route?.path ?? "authentication",
             operatorRole: res.locals.payoutOperator?.role,
-            withdrawalId: /^wd_[a-f0-9-]{36}$/.test(String(req.params.id)) ? req.params.id : undefined,
+            withdrawalId: /^wd_[a-f0-9-]{36}$/.test(String(req.params.id))
+              ? req.params.id
+              : undefined,
           },
           "Payout operator request rejected",
         );
-        res
-          .status(error.status)
-          .json({
-            error: error.code ? rejection.message : error.message,
-            code: rejection.code,
-          });
+        res.status(error.status).json({
+          error: error.code ? rejection.message : error.message,
+          code: rejection.code,
+        });
         return;
       }
       const rawCode =
         typeof error === "object" && error && "code" in error
           ? String(error.code)
           : undefined;
-      const code = rawCode && /^[A-Z0-9]{5}$/.test(rawCode) ? rawCode : undefined;
+      const code =
+        rawCode && /^[A-Z0-9]{5}$/.test(rawCode) ? rawCode : undefined;
       req.log?.error(
         { category: "payout_operator", code },
         "Payout operator operation failed",
@@ -162,6 +163,10 @@ const actions = {
   preparation: { roles: ["maker"], fn: w.completePreparation },
   check: { roles: ["checker"], fn: w.check },
   reconcile: { roles: ["reconciler"], fn: w.reconcile },
+  "retry-unsaved-preparation": {
+    roles: ["maker"],
+    fn: w.retryUnsavedPreparation,
+  },
   "retry-recipient-creation": {
     roles: ["maker"],
     fn: w.retryRecipientCreation,

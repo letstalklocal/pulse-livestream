@@ -709,6 +709,172 @@ export const RecordPayoutOperatorQuoteResponse = zod.object({
 
 /**
  * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
+ * @summary Maker recovers an interrupted unsaved preparation using fresh no-record/no-effect evidence
+ */
+export const RetryPayoutOperatorUnsavedPreparationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+export const retryPayoutOperatorUnsavedPreparationBodyDataEvidenceMax = 5000;
+
+export const retryPayoutOperatorUnsavedPreparationBodyDataHistoryCoverageMax = 2000;
+
+
+
+export const RetryPayoutOperatorUnsavedPreparationBody = zod.object({
+  "leaseId": zod.string(),
+  "data": zod.object({
+  "expectedVersion": zod.number().min(1),
+  "observationId": zod.string(),
+  "sourceUrl": zod.enum(['https://www.remitly.com/us/en/homepage', 'https://www.remitly.com/us/en/transfer/send']),
+  "observedAt": zod.coerce.date(),
+  "evidence": zod.string().min(1).max(retryPayoutOperatorUnsavedPreparationBodyDataEvidenceMax),
+  "historyCoverage": zod.string().min(1).max(retryPayoutOperatorUnsavedPreparationBodyDataHistoryCoverageMax),
+  "historyInspected": zod.literal(true),
+  "noRecipientLinkIssued": zod.literal(true),
+  "noFundsSent": zod.literal(true),
+  "noFundingDebit": zod.literal(true),
+  "noPendingTransfers": zod.literal(true),
+  "noUnknownTransfers": zod.literal(true),
+  "attemptId": zod.string(),
+  "recipientRecordInspected": zod.literal(true),
+  "noRecipientSaved": zod.literal(true),
+  "noDraftSaved": zod.literal(true),
+  "previousDraftClosed": zod.literal(true)
+}).describe('Maker-only recovery of generic interrupted preparation with verified absence of any saved provider object or transfer effect. Same withdrawal and reservation; no active recipient error\/correction.')
+})
+
+export const retryPayoutOperatorUnsavedPreparationResponseOneGrossCentsMin = 1500;
+export const retryPayoutOperatorUnsavedPreparationResponseOneGrossCentsMax = 50000;
+
+export const retryPayoutOperatorUnsavedPreparationResponseOneRecipientCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+export const retryPayoutOperatorUnsavedPreparationResponseOneQuoteOneSendAmountCentsMin = 0;
+export const retryPayoutOperatorUnsavedPreparationResponseOneQuoteOneSendAmountCentsMax = 50000;
+
+export const retryPayoutOperatorUnsavedPreparationResponseOneQuoteOneFeeCentsMin = 0;
+export const retryPayoutOperatorUnsavedPreparationResponseOneQuoteOneFeeCentsMax = 50000;
+
+export const retryPayoutOperatorUnsavedPreparationResponseOneQuoteOneTaxCentsMin = 0;
+export const retryPayoutOperatorUnsavedPreparationResponseOneQuoteOneTaxCentsMax = 50000;
+
+export const retryPayoutOperatorUnsavedPreparationResponseOneQuoteOnePromotionalDiscountCentsMin = 0;
+export const retryPayoutOperatorUnsavedPreparationResponseOneQuoteOnePromotionalDiscountCentsMax = 50000;
+
+export const retryPayoutOperatorUnsavedPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMin = 0;
+export const retryPayoutOperatorUnsavedPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMax = 50000;
+
+export const retryPayoutOperatorUnsavedPreparationResponseOneQuoteOneReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
+export const retryPayoutOperatorUnsavedPreparationResponseOneQuoteOneProviderMinimumSendCentsMin = 0;
+export const retryPayoutOperatorUnsavedPreparationResponseOneQuoteOneProviderMinimumSendCentsMax = 50000;
+
+export const retryPayoutOperatorUnsavedPreparationResponseOneCheckerOneEvidenceMax = 5000;
+
+export const retryPayoutOperatorUnsavedPreparationResponseOneRecipientIssueOneFieldsMax = 4;
+
+export const retryPayoutOperatorUnsavedPreparationResponseOneRecipientCorrectionOnePhoneMax = 20;
+
+
+export const retryPayoutOperatorUnsavedPreparationResponseOneRecipientCorrectionOnePhoneRegExp = new RegExp('^\\+\\d{8,15}$');
+export const retryPayoutOperatorUnsavedPreparationResponseOneRecipientCorrectionOneEmailMax = 254;
+
+
+
+export const RetryPayoutOperatorUnsavedPreparationResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.number(),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "grossCents": zod.number().min(retryPayoutOperatorUnsavedPreparationResponseOneGrossCentsMin).max(retryPayoutOperatorUnsavedPreparationResponseOneGrossCentsMax),
+  "methodId": zod.string(),
+  "recipient": zod.object({
+  "legalFirstName": zod.string(),
+  "legalLastName": zod.string(),
+  "secondSurname": zod.string().nullish(),
+  "countryCode": zod.string().regex(retryPayoutOperatorUnsavedPreparationResponseOneRecipientCountryCodeRegExp),
+  "email": zod.string(),
+  "phone": zod.string(),
+  "revision": zod.number().optional(),
+  "status": zod.enum(['contact_saved']).optional()
+}),
+  "route": zod.object({
+  "providerId": zod.string(),
+  "provider": zod.string(),
+  "countryCode": zod.string(),
+  "country": zod.string(),
+  "method": zod.string(),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string()
+}),
+  "quote": zod.object({
+  "hash": zod.string(),
+  "methodId": zod.string(),
+  "sendAmountCents": zod.number().min(retryPayoutOperatorUnsavedPreparationResponseOneQuoteOneSendAmountCentsMin).max(retryPayoutOperatorUnsavedPreparationResponseOneQuoteOneSendAmountCentsMax),
+  "feeCents": zod.number().min(retryPayoutOperatorUnsavedPreparationResponseOneQuoteOneFeeCentsMin).max(retryPayoutOperatorUnsavedPreparationResponseOneQuoteOneFeeCentsMax),
+  "taxCents": zod.number().min(retryPayoutOperatorUnsavedPreparationResponseOneQuoteOneTaxCentsMin).max(retryPayoutOperatorUnsavedPreparationResponseOneQuoteOneTaxCentsMax),
+  "promotionalDiscountCents": zod.number().min(retryPayoutOperatorUnsavedPreparationResponseOneQuoteOnePromotionalDiscountCentsMin).max(retryPayoutOperatorUnsavedPreparationResponseOneQuoteOnePromotionalDiscountCentsMax),
+  "totalEarningsDeductedCents": zod.number().min(retryPayoutOperatorUnsavedPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMin).max(retryPayoutOperatorUnsavedPreparationResponseOneQuoteOneTotalEarningsDeductedCentsMax),
+  "receiveAmount": zod.string().regex(retryPayoutOperatorUnsavedPreparationResponseOneQuoteOneReceiveAmountRegExp),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string(),
+  "providerMinimumSendCents": zod.number().min(retryPayoutOperatorUnsavedPreparationResponseOneQuoteOneProviderMinimumSendCentsMin).max(retryPayoutOperatorUnsavedPreparationResponseOneQuoteOneProviderMinimumSendCentsMax),
+  "source": zod.enum(['signed_in_remitly_business']),
+  "sourceUrl": zod.string(),
+  "observedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "recipientHash": zod.string(),
+  "evidenceHash": zod.string()
+}).nullable(),
+  "approvedQuoteHash": zod.string().nullable().describe('Legacy exact-quote acknowledgement only; new withdrawals need no second creator approval.'),
+  "checker": zod.object({
+  "status": zod.enum(['passed', 'needs_attention']),
+  "checkedAt": zod.coerce.date(),
+  "actor": zod.string().optional(),
+  "bindingHash": zod.string().optional(),
+  "attemptId": zod.string().optional(),
+  "quoteHash": zod.string().optional(),
+  "evidence": zod.string().min(1).max(retryPayoutOperatorUnsavedPreparationResponseOneCheckerOneEvidenceMax).optional(),
+  "historyCoverage": zod.string().optional()
+}).nullable(),
+  "providerLink": zod.string().nullable(),
+  "providerOnboardingStatus": zod.enum(['pending', 'ready']),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "recipientIssue": zod.object({
+  "code": zod.enum(['recipient_validation_failed']),
+  "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(retryPayoutOperatorUnsavedPreparationResponseOneRecipientIssueOneFieldsMax),
+  "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
+}).nullish(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "errorMessage": zod.string().nullish(),
+  "recipientCorrection": zod.object({
+  "phone": zod.string().max(retryPayoutOperatorUnsavedPreparationResponseOneRecipientCorrectionOnePhoneMax).regex(retryPayoutOperatorUnsavedPreparationResponseOneRecipientCorrectionOnePhoneRegExp),
+  "email": zod.string().max(retryPayoutOperatorUnsavedPreparationResponseOneRecipientCorrectionOneEmailMax),
+  "hash": zod.string(),
+  "requestedAt": zod.coerce.date()
+}).nullish(),
+  "progress": zod.object({
+  "stage": zod.string(),
+  "statusLabel": zod.string(),
+  "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
+  "blocked": zod.boolean(),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "steps": zod.array(zod.object({
+  "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
+  "label": zod.string(),
+  "state": zod.enum(['complete', 'current', 'upcoming'])
+}))
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).and(zod.object({
+  "history": zod.array(zod.object({
+  "action": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * Human retains final payout decision and manual Remitly sending. Operator service credentials cannot authorize human actions.
  * @summary Maker allocates a durable preparation attempt while holding the fenced browser lease
  */
 export const BeginPayoutOperatorPreparationParams = zod.object({
@@ -887,6 +1053,11 @@ export const recordPayoutOperatorPreparationBodyDataQuoteProviderMinimumSendCent
 export const recordPayoutOperatorPreparationBodyDataQuoteEvidenceMax = 5000;
 
 
+export const recordPayoutOperatorPreparationBodyDataRecoveryEvidenceMax = 5000;
+
+export const recordPayoutOperatorPreparationBodyDataRecoveryHistoryCoverageMax = 2000;
+
+
 
 export const RecordPayoutOperatorPreparationBody = zod.object({
   "leaseId": zod.string(),
@@ -923,8 +1094,22 @@ export const RecordPayoutOperatorPreparationBody = zod.object({
 }).optional(),
   "draftSaved": zod.literal(true).optional(),
   "draftReopened": zod.literal(true).optional(),
-  "noPriorTransfer": zod.literal(true).optional()
-}).describe('Continuous preparation requires preparationHash plus final quote and verified saved draft together. first_time_draft also requires actual saved\/reopened draft evidence, noPriorTransfer, stable draft ID and approved URL identifying that ID. quoteHash is legacy-only.')
+  "noPriorTransfer": zod.literal(true).optional(),
+  "recovery": zod.object({
+  "expectedVersion": zod.number().min(1),
+  "observationId": zod.string(),
+  "sourceUrl": zod.enum(['https://www.remitly.com/us/en/homepage', 'https://www.remitly.com/us/en/transfer/send']),
+  "observedAt": zod.coerce.date(),
+  "evidence": zod.string().min(1).max(recordPayoutOperatorPreparationBodyDataRecoveryEvidenceMax),
+  "historyCoverage": zod.string().min(1).max(recordPayoutOperatorPreparationBodyDataRecoveryHistoryCoverageMax),
+  "historyInspected": zod.literal(true),
+  "noRecipientLinkIssued": zod.literal(true),
+  "noFundsSent": zod.literal(true),
+  "noFundingDebit": zod.literal(true),
+  "noPendingTransfers": zod.literal(true),
+  "noUnknownTransfers": zod.literal(true)
+}).optional().describe('Fresh scoped provider-history inspection for same-attempt completion of an existing verified unsent first-time draft; never authorizes creation or sending.')
+}).describe('Continuous preparation requires preparationHash plus final quote and verified saved draft together. first_time_draft also requires actual saved\/reopened draft evidence, noPriorTransfer, stable draft ID and approved URL identifying that ID. quoteHash is legacy-only. For unknown\/expired same-attempt first_time_draft completion, recovery requires current version and fresh no-effect history evidence; the existing saved\/reopened draft must match. No replacement draft or recipient edit is authorized.')
 })
 
 export const recordPayoutOperatorPreparationResponseOneGrossCentsMin = 1500;
@@ -3843,6 +4028,11 @@ export const recordWithdrawalPreparationBodyQuoteProviderMinimumSendCentsMax = 5
 export const recordWithdrawalPreparationBodyQuoteEvidenceMax = 5000;
 
 
+export const recordWithdrawalPreparationBodyRecoveryEvidenceMax = 5000;
+
+export const recordWithdrawalPreparationBodyRecoveryHistoryCoverageMax = 2000;
+
+
 
 export const RecordWithdrawalPreparationBody = zod.object({
   "attemptId": zod.string(),
@@ -3877,8 +4067,22 @@ export const RecordWithdrawalPreparationBody = zod.object({
 }).optional(),
   "draftSaved": zod.literal(true).optional(),
   "draftReopened": zod.literal(true).optional(),
-  "noPriorTransfer": zod.literal(true).optional()
-}).describe('Continuous preparation requires preparationHash plus final quote and verified saved draft together. first_time_draft also requires actual saved\/reopened draft evidence, noPriorTransfer, stable draft ID and approved URL identifying that ID. quoteHash is legacy-only.')
+  "noPriorTransfer": zod.literal(true).optional(),
+  "recovery": zod.object({
+  "expectedVersion": zod.number().min(1),
+  "observationId": zod.string(),
+  "sourceUrl": zod.enum(['https://www.remitly.com/us/en/homepage', 'https://www.remitly.com/us/en/transfer/send']),
+  "observedAt": zod.coerce.date(),
+  "evidence": zod.string().min(1).max(recordWithdrawalPreparationBodyRecoveryEvidenceMax),
+  "historyCoverage": zod.string().min(1).max(recordWithdrawalPreparationBodyRecoveryHistoryCoverageMax),
+  "historyInspected": zod.literal(true),
+  "noRecipientLinkIssued": zod.literal(true),
+  "noFundsSent": zod.literal(true),
+  "noFundingDebit": zod.literal(true),
+  "noPendingTransfers": zod.literal(true),
+  "noUnknownTransfers": zod.literal(true)
+}).optional().describe('Fresh scoped provider-history inspection for same-attempt completion of an existing verified unsent first-time draft; never authorizes creation or sending.')
+}).describe('Continuous preparation requires preparationHash plus final quote and verified saved draft together. first_time_draft also requires actual saved\/reopened draft evidence, noPriorTransfer, stable draft ID and approved URL identifying that ID. quoteHash is legacy-only. For unknown\/expired same-attempt first_time_draft completion, recovery requires current version and fresh no-effect history evidence; the existing saved\/reopened draft must match. No replacement draft or recipient edit is authorized.')
 
 export const recordWithdrawalPreparationResponseOneGrossCentsMin = 1500;
 export const recordWithdrawalPreparationResponseOneGrossCentsMax = 50000;
