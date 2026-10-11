@@ -1,5 +1,21 @@
 # Pulse payout operator for the Mac
 
+## October 11: verify the checkout used by the Mac bridge
+
+GitHub `letstalklocal/pulse-livestream` main commit `fce3c38948f65bdf1470c14b3fbee01470bea04d` already contains the continuous-preparation schemas for workflow `2026-10-09.2`. On October 11 the workspace HEAD and GitHub main matched this commit; the actual SDK `tools/list` confirms that prepare requires only evidence, final completion accepts preparationHash plus quote, and both preparation lease tools accept preparationHash without requiring quoteHash. A report that the Mac still requires quoteHash does not establish a missing backend change. The Mac checkout/running bridge remains unverified here.
+
+Identify the exact repository path launched by the existing MCP command/args (including project overrides and symlinks), preserving the current profile and Keychain item. Inspect its branch, HEAD and worktree status; do not print full configuration/environment values or credential-bearing remote URLs. Compare that checkout with the correct repository's remote main. **Fetching downloads refs; it does not advance the working checkout.** Fast-forward the clean intended checkout when possible, preserving local changes and stopping on conflicts. Do not hard-reset or invent a quoteHash to bypass the schema.
+
+From the checkout used by the bridge, run:
+
+```bash
+node lib/payout-mcp/scripts/inspect-maker-schema.mjs
+```
+
+This credential-free, offline command reports the loaded source path, source-file SHA-256 (not a recipient hash), local workflow revision and the actual schemas emitted through SDK tools/list. It must report `continuousPreparationSupported: true`. It does not contact production or verify the already-running bridge. If it passes but the chat still requires quoteHash, reconnect the existing Pulse MCP process after confirming its launch path, then inspect the live tool list. Verify that prepare's data.required excludes quoteHash and that record_preparation supports preparationHash and quote. A backend identity revision alone does not verify local schemas. Stop after identity/tool-discovery verification; do not prepare, recover, create drafts/links/schedules or send money during this diagnostic.
+
+Codex stdio command/args/cwd and user/project configuration locations are described in the [official OpenAI MCP documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli). No backend publication, new native build, profile or credential is required just to correct the Mac source/tool discovery mismatch.
+
 ## October 9 continuous preparation
 
 Current workflow revision **`2026-10-09.2`** makes quoting and draft saving one uninterrupted preparation job. Publish the backend and update/reconnect the existing Mac bridge; keep the current compatible `2026-10-04.1` profile and credential.

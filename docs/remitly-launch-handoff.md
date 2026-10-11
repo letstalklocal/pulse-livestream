@@ -1,5 +1,11 @@
 # Pulse Remitly payouts — implementation handoff
 
+## October 11 Mac schema mismatch report
+
+The user relayed that the Mac sees workflow `2026-10-09.2` but prepare still requires quoteHash, reportedly even after a repository fetch. Withdrawal state is user-reported awaiting_quote/version 4 with its reservation intact and no created transfer/link/schedule. This workspace and GitHub main both point to `fce3c38948f65bdf1470c14b3fbee01470bea04d`, whose Maker schema already makes quoteHash optional and supports final preparationHash/quote/draft reporting and pre-quote lease renewal/release. Actual SDK tools/list and the existing protocol regression verify these schemas here; no missing source schema change has been demonstrated. Fetching refs alone does not update a working checkout. The exact Mac checkout/branch/launch path and live bridge registry must be compared before claiming a stale checkout/process as the confirmed cause.
+
+A credential-free [offline Maker schema inspector](../lib/payout-mcp/scripts/inspect-maker-schema.mjs) and [Mac checkout verification guide](../artifacts/payout-operator/README.md#october-11-verify-the-checkout-used-by-the-mac-bridge) are supplied. The inspector reports the actual locally emitted tool schema and source location/digest without production calls; it is not proof of the Mac's already-running tool list. Verify checkout then live discovery while retaining existing profile/credential and withdrawal. Do not fabricate a quoteHash, reset state or create a provider object to diagnose this mismatch. There is no demonstrated need for another backend deployment or TestFlight build for this schema report.
+
 ## October 9 continuous preparation and visible estimates
 
 **Latest user decision:** quote entry and saving the scheduled transfer are one preparation step. Do not publish a quote-only result, stop for creator confirmation, wait for another job or present another approval stage. After a supported unsent scheduled draft is saved, update Pulse with its quote and draft details together. If quote entry or draft saving fails, report the error and stop. The app must explicitly label quoted amounts **Estimate** because the final recipient-currency amount can change. This supersedes earlier explanations suggesting two separate preparation stages.
