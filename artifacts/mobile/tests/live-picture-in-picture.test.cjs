@@ -36,6 +36,7 @@ function fixture(stored = null) {
       if (name === '@react-native-async-storage/async-storage') return { getItem: async () => f.stored, setItem: async (_key, next) => { if (f.failStorage) throw Error('disk full'); f.stored = next; } };
       if (name === '@tanstack/react-query') return { useQueryClient: () => queryClient };
       if (name === '@/utils/agora') return { createEngine: () => engine, ChannelProfileType: { ChannelProfileLiveBroadcasting: 1 }, ClientRoleType: { ClientRoleAudience: 2 } };
+      if (name === '@/utils/liveGiftDelivery') return { deliveryFeed: value => value ?? null };
       if (name === '@/hooks/useStreamSocket') return { useStreamSocket: options => { f.socket = options; } };
       if (name === '@/hooks/usePremiumGiftRequest') return { usePremiumGiftRequest: () => f.premium, premiumGiftRequestKey: id => [id] };
       if (name === '@/hooks/useLiveParty') return { useLiveParty: () => ({ party: null }) };

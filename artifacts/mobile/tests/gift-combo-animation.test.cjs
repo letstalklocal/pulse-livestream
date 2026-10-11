@@ -31,6 +31,40 @@ vm.runInNewContext(code, { module: moduleObject, exports: moduleObject.exports, 
   return { hasGiftImage: gift => ['rose','kisses','luxury_rocket','dragon'].includes(gift?.toLowerCase()), hasLuxuryGiftAnimation: gift => ['kisses','luxury_rocket','dragon'].includes(gift?.toLowerCase()), GiftImageArtwork: 'still', LuxuryGiftArtwork: 'svga' };
 } });
 const done = [];
+function renderMotion(liveImageMotion, imageMotion, count = 1, framing = {}) {
+  cursor = 0;
+  moduleObject.exports.GiftFloater({ gift: { id: 'motion', name: 'Rose', comboCount: count, giftSnapshot: { type: 'image', framing: { imageMotion, ...framing } } }, liveImageMotion, onDone() {} });
+  effects.pop()();
+  return animations.at(-1);
+}
+const fade = renderMotion(true, 'fade');
+assert.equal(fade.steps[0].options.toValue, 1);
+assert.equal(fade.steps[1].delay, 1820);
+assert.equal(fade.steps[2].options.duration, 1000);
+const independent = renderMotion(true, undefined, 1, { imageEntrance: 'slide-down', imageExit: 'shrink' });
+assert.equal(independent.steps[0].parallel[1].options.toValue, 0);
+assert.equal(independent.steps[1].delay, 1620);
+assert.equal(independent.steps[2].parallel[2].options.toValue, .35);
+const popFade = renderMotion(true, undefined, 1, { imageEntrance: 'pop', imageExit: 'fade' });
+assert.ok(popFade.steps[0].parallel);
+assert.equal(popFade.steps[2].options.toValue, 0);
+const customTiming = { imageEntrance: 'slide-up', imageExit: 'shrink', imageEnterMs: 500, imageHoldMs: 2200, imageExitMs: 750, imageFeel: 'bouncy' };
+const timed = renderMotion(true, undefined, 1, customTiming);
+assert.equal(timed.steps[0].parallel[0].options.duration, 500);
+assert.equal(timed.steps[1].delay, 2200);
+assert.equal(timed.steps[2].parallel[0].options.duration, 750);
+const snappy = renderMotion(true, undefined, 1, { ...customTiming, imageEntrance: 'pop', imageFeel: 'snappy' });
+assert.equal(snappy.steps[0].parallel[0].steps[0].options.duration, 175, 'Snappy enters during the first 35%');
+assert.equal(snappy.steps[0].parallel[1].steps[0].options.toValue, 1, 'Snappy settles without bounce');
+assert.equal(snappy.steps[2].parallel[0].steps[0].delay, 487.5, 'Snappy exits during the last 35%');
+assert.equal(renderMotion(true, undefined, 2, customTiming).steps[0].delay, 2700, 'Combos renew the configured hold and preserve the combo window');
+const none = renderMotion(true, undefined, 1, { ...customTiming, imageEntrance: 'none', imageExit: 'none' });
+assert.equal(none.steps.length, 2);
+assert.equal(none.steps[1].parallel[0].options.duration, 0);
+assert.ok(renderMotion(false, undefined, 1, customTiming).steps[0].parallel, 'DM playback does not opt into live timings');
+assert.equal(renderMotion(true, 'fade', 2).steps[0].delay, 2000, 'Fade combos renew their hold');
+assert.ok(renderMotion(false, 'fade').steps[0].parallel, 'DM and video playback retain their existing entrance');
+assert.ok(renderMotion(true, undefined).steps[0].parallel, 'Older live images retain pop/float by default');
 function render(count, id) {
   cursor = 0;
   moduleObject.exports.GiftFloater({ gift: { id, comboCount: count, name: 'Rose' }, onDone: id => done.push(id) });

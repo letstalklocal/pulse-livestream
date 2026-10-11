@@ -1,4 +1,5 @@
 import { canInviteParty } from "../lib/privacy";
+import { giftDeliveryStatus } from "../lib/liveGiftDelivery";
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import { and, eq, inArray, isNull, or } from "drizzle-orm";
@@ -41,7 +42,7 @@ router.get("/streams/:channelId/party", async (req, res) => {
   res.json({ serverTime: Date.now(), party: {
     id: party.id, status: party.status, expiresAt: party.expiresAt.getTime(),
     startedAt: party.startedAt?.getTime() ?? null, ready: partyMediaReady(party), viewerCount: count,
-    participants: [first, second].map(s => ({ channelId: s.channelId, rtcChannelName: s.rtcChannelName ?? s.channelId, uid: s.hostUserId, name: s.hostName, avatarUrl: s.hostAvatarUrl })),
+    participants: [first, second].map(s => ({ channelId: s.channelId, rtcChannelName: s.rtcChannelName ?? s.channelId, giftDelivery: giftDeliveryStatus(s.channelId), uid: s.hostUserId, name: s.hostName, avatarUrl: s.hostAvatarUrl })),
     battle: battle ? { id: battle.id, status: battle.status, requesterUid: battle.requesterUid, expiresAt: battle.expiresAt.getTime(),
       startsAt: battle.startsAt?.getTime() ?? null, endsAt: battle.endsAt?.getTime() ?? null,
       simulated: battle.simulated, firstScore: battle.firstScore, secondScore: battle.secondScore,
@@ -170,7 +171,8 @@ router.get("/streams/:channelId/party/media", async (req, res) => {
   const appId = process.env.AGORA_APP_ID;
   const certificate = process.env.AGORA_APP_CERTIFICATE;
   if (!appId || !certificate) return void res.status(503).json({ error: "Live video is unavailable" });
-  const channelName = peer.rtcChannelName ?? peer.channelId;
+  const giftDelivery = req.get("x-live-gift-delivery") === "1" ? giftDeliveryStatus(peer.channelId) : null;
+  const channelName = giftDelivery?.channelName ?? peer.rtcChannelName ?? peer.channelId;
   const expiresAt = Math.floor(Date.now() / 1000) + 120;
   const token = RtcTokenBuilder.buildTokenWithUid(appId, certificate, channelName, user.uid, RtcRole.SUBSCRIBER, expiresAt, expiresAt);
   res.set("Cache-Control", "no-store");

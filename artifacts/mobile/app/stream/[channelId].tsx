@@ -1,4 +1,5 @@
 import { GiftImageArtwork, hasGiftImage } from "@/components/GiftImageArtwork";
+import { giftIsInServerFeed, type ServerGiftDelivery } from "@/utils/liveGiftDelivery";
 import { giftFromSnapshot, refreshGiftCatalog, type GiftSnapshot } from "@/utils/giftCatalog";
 import { LiveStickerOverlay } from "@/components/LiveStickerOverlay";
 import { DemoVideo } from "@/components/DemoVideo";
@@ -72,6 +73,7 @@ import {
 } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { GiftPicker, GIFTS, type Gift } from "@/components/GiftPicker";
+import { ServerGiftTest } from "@/components/ServerGiftTest";
 import { GiftFloater, type FloatingGift } from "@/components/GiftFloater";
 import { GiftLeaderboard } from "@/components/GiftLeaderboard";
 import { GoldCoinIcon } from "@/components/GoldCoinIcon";
@@ -172,6 +174,7 @@ export default function StreamScreen() {
   const [inputText, setInputText] = useState("");
   const [likeCount, setLikeCount] = useState(Math.floor(Math.random() * 500) + 50);
   const [showGiftPicker, setShowGiftPicker] = useState(false);
+  const [showServerGiftTest, setShowServerGiftTest] = useState(false);
   const pendingGiftPayments = useRef(0);
   const giftPresentation = useRef(createGiftPresentation());
   useEffect(() => { giftPresentation.current = createGiftPresentation(); setFloatingGifts([]); }, [channelId]);
@@ -451,13 +454,21 @@ export default function StreamScreen() {
   }, [channelId, nextStream, hintOpacity]);
 
   // Helper: spawn a floating gift on screen
-  const spawnGift = (gift: Gift, senderName: string, giftId?: string, amount = gift.coins, combo?: { id: string; count: number; totalCoins: number }) => {
-    const nativeExpected = !isDemo && expectsNativeCrown(gift.name, amount, gift.snapshot);
+  const spawnGift = (gift: Gift, senderName: string, giftId?: string, amount = gift.coins, combo?: { id: string; count: number; totalCoins: number }, serverDelivery?: ServerGiftDelivery, fromPayment = false) => {
+    // Payment feedback/balance stay immediate. The authoritative delivery event
+    // determines presentation; never mount an invisible player/download twice.
+    if (fromPayment && (playback.serverGiftFeed || playback.partyMedia.serverGiftFeed)) return;
+    if (giftIsInServerFeed(serverDelivery, [playback.serverGiftFeed, playback.partyMedia.serverGiftFeed])) {
+      if (giftId) giftPresentation.current.claim(giftId, false);
+      setFloatingGifts(previous => previous.filter(g => g.id !== giftId && (!combo?.id || g.comboId !== combo.id)));
+      return;
+    }
+    const nativeExpected = !isDemo && !serverDelivery && expectsNativeCrown(gift.name, amount, gift.snapshot);
     if (giftId && !giftPresentation.current.claim(giftId, nativeExpected)) return;
     const inVideo = giftId ? giftPresentation.current.inVideo(giftId) : nativeExpected;
     const x = Math.random() * (SCREEN_W * 0.55) + 16;
     setFloatingGifts(prev => mergeGiftFloater(prev, { id: giftId ?? `${Date.now()}-${Math.random()}`, catalogId: gift.id, emoji: gift.emoji, name: gift.name, senderName, x, size: gift.size, inVideo,
-      giftSnapshot: gift.snapshot, playbackAudio: isDemo,
+      giftSnapshot: gift.snapshot, playbackAudio: isDemo || !!serverDelivery,
       comboId: combo?.id, comboCount: combo?.count, comboLabel: combo ? `×${appNumber(combo.count)}` : undefined }));
   };
 
@@ -510,6 +521,7 @@ export default function StreamScreen() {
             giftName?: string;
             giftId?: string;
             giftSnapshot?: GiftSnapshot;
+            serverDelivery?: ServerGiftDelivery;
             amount?: number;
             inVideo?: boolean;
             senderName?: string;
@@ -531,7 +543,7 @@ export default function StreamScreen() {
           } else if (msg.type === "gift" && msg.giftName) {
             if (typeof msg.coins === "number") setRealtimeCoins(previous => Math.max(previous ?? 0, msg.coins!));
             const gift = giftFromSnapshot(msg.giftSnapshot) ?? GIFTS.find((g) => (g.name === msg.giftName || (g.id === "luxury_rocket" && msg.giftName === "Rocket")) && g.coins === msg.amount) ?? GIFTS.find((g) => g.name === msg.giftName);
-            if (gift) spawnGift(gift, msg.senderName ?? "Viewer", msg.giftId, msg.amount ?? gift.coins, msg.combo);
+            if (gift) spawnGift(gift, msg.senderName ?? "Viewer", msg.giftId, msg.amount ?? gift.coins, msg.combo, msg.serverDelivery);
           }
         } catch { /* ignore */ }
     },
@@ -680,6 +692,10 @@ export default function StreamScreen() {
 
   const VideoView = RtcSurfaceViewComponent;
   const showNativeVideo = !playback.minimized && playback.channelId === channelId && isNative && joined && remoteUid !== null && VideoView;
+  useEffect(() => {
+    if (!viewerFocused || !canEnterStream || streamEnded || playback.minimized || isTransitioning ||
+      streamPaused || requiresAdmission || isPrivateStream || party?.status === "active") setShowServerGiftTest(false);
+  }, [viewerFocused, canEnterStream, streamEnded, playback.minimized, isTransitioning, streamPaused, requiresAdmission, isPrivateStream, party?.status]);
 
   if (accessRestricted) {
     return <View style={[styles.endedScreen, { padding: 24 }]}>
@@ -956,12 +972,18 @@ export default function StreamScreen() {
         key={fg.comboId ?? fg.id}
         gift={fg}
         fullPageLuxury
+        liveImageMotion
         onDone={(id) => setFloatingGifts((prev) => prev.filter((g) => g.id !== id))}
       />
     ))}
     </Animated.View>
 
     {/* Gift picker */}
+    {__DEV__ && Platform.OS === "android" && showServerGiftTest && viewerFocused && canEnterStream &&
+      !streamEnded && !playback.minimized && !isTransitioning && (isDemo || hostUid != null) && !streamPaused &&
+      !requiresAdmission && !isPrivateStream && party?.status !== "active" ?
+      <ServerGiftTest channelId={channelId} hostUid={hostUid ?? 0} getToken={getToken}
+        getLease={playback.getCompositorTestEngine} onClose={() => setShowServerGiftTest(false)} /> : null}
     <GiftPicker
       visible={showGiftPicker}
       coins={viewerCoins}
@@ -969,6 +991,11 @@ export default function StreamScreen() {
       recipientUid={giftRecipient?.uid ?? hostUid ?? undefined}
       onRecipientChange={setGiftRecipientUid}
       onClose={() => setShowGiftPicker(false)}
+      onServerGiftTest={__DEV__ && Platform.OS === "android" && (isDemo || joined) && viewerFocused &&
+        !isPrivateStream && !requiresAdmission && party?.status !== "active" && !streamPaused ? () => {
+          setShowGiftPicker(false);
+          setShowServerGiftTest(true);
+        } : undefined}
       onSend={async (gift) => {
         if (!user?.uid) return;
         // Acknowledge each tap immediately; paid playback/counters still wait for confirmation.
@@ -990,7 +1017,7 @@ export default function StreamScreen() {
           queryClient.invalidateQueries({
             queryKey: getGetCoinBalanceQueryKey({ uid: giftRecipient?.uid ?? hostUid ?? 0 }),
           });
-          spawnGift(giftFromSnapshot(data.giftSnapshot) ?? gift, giftRecipient ? `${user.name ?? "You"} to ${giftRecipient.name}` : user.name ?? "You", giftId, gift.coins, data.combo);
+          spawnGift(giftFromSnapshot(data.giftSnapshot) ?? gift, giftRecipient ? `${user.name ?? "You"} to ${giftRecipient.name}` : user.name ?? "You", giftId, gift.coins, data.combo, undefined, true);
         } catch {
           void refreshGiftCatalog().catch(() => {});
           Alert.alert(t("Gift not sent"), t("Check your coin balance and that the selected host is still live."));

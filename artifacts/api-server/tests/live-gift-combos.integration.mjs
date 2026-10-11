@@ -5,8 +5,8 @@ import { unlinkSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { build } from 'esbuild';
 const dir = fileURLToPath(new URL('..', import.meta.url)), output = `${dir}/tests/.live-combos-${randomUUID()}.cjs`;
-await build({ stdin: { contents: "export {default as router} from './src/routes/coins'; export {pool} from '@workspace/db'; export {chatStore,deletedMessages} from './src/lib/liveChat'; export {subscribe} from './src/lib/wsHub';", resolveDir: dir }, outfile: output, bundle: true, platform: 'node', format: 'cjs', external: ['pg-native'], logLevel: 'silent' });
-const { router, pool, chatStore, deletedMessages, subscribe } = createRequire(import.meta.url)(output);
+await build({ stdin: { contents: "export {default as router} from './src/routes/coins'; export {pool} from '@workspace/db'; export {chatStore,deletedMessages} from './src/lib/liveChat'; export {subscribe} from './src/lib/wsHub'; export {installLiveGiftDelivery} from './src/lib/liveGiftDeliveryBus';", resolveDir: dir }, outfile: output, bundle: true, platform: 'node', format: 'cjs', external: ['pg-native'], logLevel: 'silent' });
+const { router, pool, chatStore, deletedMessages, subscribe, installLiveGiftDelivery } = createRequire(import.meta.url)(output);
 const sender = 1880000000 + Math.floor(Math.random() * 10000) * 3, recipient = sender + 1;
 const prefix = `live-combo-${randomUUID()}`, channel = prefix, events = [];
 subscribe(channel, { readyState: 1, send: text => events.push(JSON.parse(text)) }, sender);
@@ -50,6 +50,22 @@ try {
   deletedMessages.set(channel,[`gift:${reset.body.combo.id}`]);
   chatStore.set(channel,chatStore.get(channel).filter(row=>row.id!==`gift:${reset.body.combo.id}`));
   await send(); assert.equal(chatStore.get(channel).filter(row=>row.id===`gift:${reset.body.combo.id}`).length,0,'removed combo is not recreated by an update');
+  const pendingDelivery = [];
+  installLiveGiftDelivery((event, deliver) => { pendingDelivery.push({ event, deliver }); return true; }, () => {});
+  const before = (await pool.query('select balance from coin_balances where user_id=$1', [sender])).rows[0].balance;
+  const delayedKey = randomUUID();
+  const delayed = await send('Rose', 1, delayedKey);
+  assert.equal(delayed.statusCode, 200, 'Payment response does not wait for the renderer');
+  assert.equal(delayed.body.balance, before - 1);
+  assert.equal(pendingDelivery.length, 1);
+  await send('Rose', 1, delayedKey);
+  assert.equal(pendingDelivery.length, 1, 'Exact payment retry does not enqueue a second rendering');
+  pendingDelivery[0].deliver(pendingDelivery[0].event); // Renderer failure fallback.
+  assert.equal((await pool.query('select count(*)::int as n from coin_transactions where idempotency_key=$1', [delayedKey])).rows[0].n, 1);
+  assert.equal((await pool.query('select balance from coin_balances where user_id=$1', [sender])).rows[0].balance, before - 1);
+  await pool.query('update coin_balances set balance=0 where user_id=$1', [sender]);
+  assert.equal((await send()).statusCode, 402);
+  assert.equal(pendingDelivery.length, 1, 'Unpaid gifts never reach server delivery');
   console.log('PASS: live payment combos, 2-second expiry/gift/channel/failure boundaries, concurrent/retry ledger protection, socket counters, grouped chat and unique 5/10 milestones.');
 } finally {
   await pool.query('delete from live_gift_combo_milestones where combo_id in (select gift_combo_id from coin_transactions where from_user_id=$1)',[sender]);

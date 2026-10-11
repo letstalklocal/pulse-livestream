@@ -45,6 +45,15 @@ try {
     GiftCatalogError,
   );
   assert.throws(() => validateGiftFraming({ scale: 4 }), GiftCatalogError);
+  for (const imageMotion of ['pop-float', 'fade']) assert.equal(validateGiftFraming({ imageMotion }).imageMotion, imageMotion);
+  for (const imageEntrance of ['pop', 'fade', 'slide-up', 'slide-down']) assert.equal(validateGiftFraming({ imageEntrance }).imageEntrance, imageEntrance);
+  for (const imageExit of ['float-up', 'float-down', 'fade', 'shrink']) assert.equal(validateGiftFraming({ imageExit }).imageExit, imageExit);
+  assert.throws(() => validateGiftFraming({ imageEntrance: 'unknown' }), GiftCatalogError);
+  assert.throws(() => validateGiftFraming({ imageExit: 'unknown' }), GiftCatalogError);
+  assert.equal(validateGiftFraming({ imageEntrance: 'none', imageExit: 'none', imageEnterMs: 100, imageHoldMs: 10000, imageExitMs: 3000, imageFeel: 'snappy' }).imageFeel, 'snappy');
+  for (const framing of [{ imageEnterMs: 0 }, { imageExitMs: 3001 }, { imageHoldMs: 10001 }, { imageHoldMs: -1 }, { imageEnterMs: 100.5 }, { imageFeel: 'unknown' }]) assert.throws(() => validateGiftFraming(framing), GiftCatalogError);
+  for (const imageMotion of ['spin', '', null, 1]) assert.throws(() => validateGiftFraming({ imageMotion }), GiftCatalogError);
+  assert.equal(validateGiftFraming({}).imageMotion, undefined, 'Existing revisions remain unchanged; players supply the default');
   for (const artworkScale of [0, 3.1, NaN, "1"]) assert.throws(() => validateGiftFraming({ artworkScale }), GiftCatalogError);
   assert.deepEqual(validateGiftFraming({ scale: 1.2, artworkScale: .75 }), { preset: "contained", scale: 1.2, x: 0, y: 0, artworkScale: .75 });
   for (const fileName of ["../bad.png", "folder/bad.png", "bad\u0000.png", " ", "a".repeat(256)]) await assert.rejects(uploadManagedGiftAsset({},"owner",Buffer.from("not used"),"thumbnail","png",fileName),/filename/);

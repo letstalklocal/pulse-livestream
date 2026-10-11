@@ -1,5 +1,6 @@
 import { appendGiftChat } from "./liveChat";
 import type { WebSocket } from "ws";
+import { deliverLiveGift, stopLiveGiftDelivery } from "./liveGiftDeliveryBus";
 
 const viewers = new Map<WebSocket, number>();
 const channels = new Map<string, Set<WebSocket>>();
@@ -41,23 +42,28 @@ export type GiftDetails = { giftId: string; amount: number; senderUid: number; r
 
 export function pushGift(channelId: string, giftName: string, senderName: string, coins: number, details?: GiftDetails): void {
   if (details) appendGiftChat(channelId, giftName, senderName, details);
-  broadcast(channelId, { type: "gift", channelId, giftName, senderName, coins, ...details });
+  deliverLiveGift({ type: "gift", channelId, giftName, senderName, coins, ...details }, event => broadcast(channelId, event));
 }
 
 export function pushStreamEnded(channelId: string): void {
+  stopLiveGiftDelivery(channelId);
   broadcast(channelId, { type: "stream_ended", channelId });
 }
 
 export function pushPartyGift(channelId: string, giftName: string, senderName: string, details?: GiftDetails): void {
   if (details) appendGiftChat(channelId, giftName, senderName, details);
-  broadcast(channelId, { type: "gift", channelId, giftName, senderName, ...details });
+  deliverLiveGift({ type: "gift", channelId, giftName, senderName, ...details }, event => broadcast(channelId, event));
 }
 
 export function pushStreamUpdated(channelId: string): void {
+  // A pause/access/media-mode change must stop the public pilot immediately.
+  stopLiveGiftDelivery(channelId);
   broadcast(channelId, { type: "stream_updated", channelId });
 }
 
 export function disconnectViewer(channelId: string, viewerUid: number) {
+  // Retire output so an old token cannot retain access after removal.
+  stopLiveGiftDelivery(channelId);
   for (const ws of channels.get(channelId) ?? []) {
     if (viewers.get(ws) === viewerUid && ws.readyState === 1) {
       ws.send(JSON.stringify({ type: "stream_restricted", channelId }));

@@ -22,16 +22,16 @@ export function prepareLiveGiftSound(giftName: string): string {
     return prepareMomentGiftSound();
   }
 }
-export function playLiveGiftSound(engine: any, giftName: string): void {
+export function playLiveGiftSound(engine: any, giftName: string, publish = true): void {
   if (!engine) return;
   try {
     const id = 7800 + (voice++ % 3);
     engine.stopEffect(id);
     const path = prepareLiveGiftSound(giftName);
     // Publish once from the host: viewers (including PiP) hear the same effect.
-    const result = engine.playEffect(id, path, 0, 1, 0, 65, true, 0);
+    const result = engine.playEffect(id, path, 0, 1, 0, 65, publish, 0);
     if (result < 0) {
-      const fallback = engine.playEffect(id, prepareMomentGiftSound(), 0, 1, 0, 65, true, 0);
+      const fallback = engine.playEffect(id, prepareMomentGiftSound(), 0, 1, 0, 65, publish, 0);
       if (fallback < 0) console.warn("[Live] Gift sound failed", fallback);
     }
   } catch (error) { console.warn("[Live] Gift sound failed", error); }

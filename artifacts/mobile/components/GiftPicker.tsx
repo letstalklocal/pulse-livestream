@@ -53,6 +53,8 @@ export const LUXURY_GIFTS: Gift[] = [
 export const GIFTS: Gift[] = [...POPULAR_GIFTS, ...LUXURY_GIFTS];
 
 interface Props {
+  /** Isolated Android development experiment; never passes through onSend. */
+  onServerGiftTest?: () => void;
   visible: boolean;
   onClose: () => void;
   onSend: (gift: Gift) => void;
@@ -71,7 +73,7 @@ interface Props {
   onRecipientChange?: (uid: number) => void;
 }
 
-export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipientUid, onRecipientChange, hintText = "Select a gift, then tap Send.", preview = false, sendingGiftId, feedbackOverlay, onDrawerHeightChange }: Props) {
+export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipientUid, onRecipientChange, hintText = "Select a gift, then tap Send.", preview = false, sendingGiftId, feedbackOverlay, onDrawerHeightChange, onServerGiftTest }: Props) {
   const { t, localizedTextStyle, appLocale, appNumber } = useAppLanguage();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
@@ -82,11 +84,13 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
   const [gridOffset, setGridOffset] = useState(0);
   const [giftRowHeight, setGiftRowHeight] = useState(100);
   const { collections, version } = useGiftCatalog(visible);
+  const serverTestEnabled = __DEV__ && Platform.OS === "android" && !!onServerGiftTest;
+  const tabs = serverTestEnabled ? [...collections.filter(c => c.id !== "test" && c.name.toLowerCase() !== "test"), { id: "server-test", name: "Test" }] : collections;
   const [selectionVersion, setSelectionVersion] = useState(version);
   useEffect(() => { if (selectionVersion !== version) { setSelectedGiftId(null); setSelectionVersion(version); } }, [selectionVersion, version]);
   useEffect(() => { setGridOffset(0); }, [activeGiftTab]);
   const displayedGifts = collections.find(collection => collection.id === activeGiftTab)?.gifts ?? POPULAR_GIFTS;
-  useEffect(() => { if (!collections.some(collection => collection.id === activeGiftTab)) { setActiveGiftTab("popular"); setSelectedGiftId(null); } }, [collections, activeGiftTab]);
+  useEffect(() => { if (serverTestEnabled && activeGiftTab === "server-test") return; if (!collections.some(collection => collection.id === activeGiftTab)) { setActiveGiftTab("popular"); setSelectedGiftId(null); } }, [collections, activeGiftTab, serverTestEnabled]);
   useEffect(() => { if (visible) void prefetchGiftThumbnails(displayedGifts.map(gift => gift.snapshot?.thumbnail)); }, [visible, displayedGifts]);
   useEffect(() => { if (!visible) { setBuyingCoins(false); setSelectedGiftId(null); } }, [visible]);
 
@@ -110,7 +114,7 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
         <View style={styles.header}>
           <View style={[styles.giftTabs, { flex: 1, minWidth: 0, marginRight: 12 }]} accessibilityRole="tablist">
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.giftTabs}>
-            {collections.map(collection => <TouchableOpacity key={collection.id} testID={`gift-tab-${collection.id}`} onPress={() => { setActiveGiftTab(collection.id); setSelectedGiftId(null); }} accessibilityRole="tab" accessibilityState={{ selected: activeGiftTab === collection.id }}>
+            {tabs.map(collection => <TouchableOpacity key={collection.id} testID={`gift-tab-${collection.id}`} onPress={() => { setActiveGiftTab(collection.id); setSelectedGiftId(null); }} accessibilityRole="tab" accessibilityState={{ selected: activeGiftTab === collection.id }}>
               <Text style={[localizedTextStyle(), styles.title, activeGiftTab !== collection.id && styles.inactiveTitle]}>{collection.name === "Popular" ? t("Popular") : collection.name === "Luxury" ? t("Luxury") : collection.name}</Text>
             </TouchableOpacity>)}
             </ScrollView>
@@ -139,7 +143,14 @@ export function GiftPicker({ visible, onClose, onSend, coins, recipients, recipi
           contentContainerStyle={styles.grid}
           keyboardShouldPersistTaps="handled"
         >
-          {displayedGifts.map((gift, index) => {
+          {serverTestEnabled && activeGiftTab === "server-test" ? <View style={{ width: "100%", padding: 12, gap: 12 }}>
+            <Text style={{ color: "#fff", fontSize: 16, fontWeight: "600" }}>Mummy · server-rendered</Text>
+            <Text style={{ color: "#ccc", fontSize: 13 }}>Free Android test. Demos use a moving server test picture; regular lives use the host feed. No coins or recordings.</Text>
+            <TouchableOpacity testID="server-gift-test-start" accessibilityRole="button" onPress={onServerGiftTest}
+              style={{ padding: 14, borderRadius: 12, borderWidth: 1, borderColor: "#fff", minHeight: 48 }}>
+              <Text style={{ color: "#fff", textAlign: "center", fontWeight: "600" }}>Start server test</Text>
+            </TouchableOpacity>
+          </View> : displayedGifts.map((gift, index) => {
             const canAfford = preview || coins >= gift.coins;
             const selected = selectedGiftId === gift.id;
             const sending = sendingGiftId === gift.id;

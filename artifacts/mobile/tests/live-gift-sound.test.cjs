@@ -23,6 +23,8 @@ const engine = { stopEffect: id => stops.push(id), playEffect: (...args) => { ef
 sound.playLiveGiftSound(engine, 'Rose');
 assert.equal(effects.length, 2); assert.equal(effects[1][1], '/default.wav', 'Failed custom playback retries default');
 assert.equal(effects[1][6], true, 'Host publishes the sound for viewers and PiP');
+sound.playLiveGiftSound(engine, 'Party', false);
+assert.equal(effects.at(-1)[6], false, 'Server-delivered gift preview never republishes its local sound');
 for (let i = 0; i < 7; i++) sound.playLiveGiftSound(engine, 'Party');
 assert.equal(new Set(stops).size, 3, 'Rapid gifting bounds concurrent audio effects');
 // Execute the real broadcaster websocket callback: duplicates/party forwarding/
@@ -40,14 +42,16 @@ const catalog = load(require.resolve('../utils/giftCatalog.ts'), {
   '@react-native-async-storage/async-storage': { getItem: async () => null, setItem: async () => {} },
 });
 function fixture() {
-  const played = [], published = [], pending = [], floaters = [];
+  const played = [], published = [], pending = [], floaters = [], publishFlags = [];
   const scope = {
     user: { uid: 1 }, activeChannelId: 'live', engineRef: { current: {} }, mediaChannelRef: { current: 'live' },
     isLiveRef: { current: true }, pausedRef: { current: false }, playedGiftSounds: { current: new Set() },
     giftPresentation: { current: presentation.createGiftPresentation() }, expectsNativeCrown: presentation.expectsNativeCrown,
     setFloatingGifts: fn => { const next = fn(floaters); floaters.splice(0, floaters.length, ...next); },
     mergeGiftFloater: presentation.mergeGiftFloater,
-    playLiveGiftSound: (_engine, name) => played.push(name),
+    playLiveGiftSound: (_engine, name, publish = true) => { played.push(name); publishFlags.push(publish); },
+    partyMedia: { serverGiftFeed: null },
+    giftIsInServerFeed: load(require.resolve('../utils/liveGiftDelivery.ts')).giftIsInServerFeed,
     playPublishedCatalogGiftSound: async (_engine, snapshot, isCurrent) => { if (isCurrent()) published.push(snapshot); },
     giftFromSnapshot: catalog.giftFromSnapshot,
     recordGiftMoment: (_engine, _channel, _gift, _token, options) => { pending.push(options); return true; },
@@ -57,7 +61,7 @@ function fixture() {
   };
   const code = ts.transpileModule(`const receive = ${callback};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
   const receive = new Function(...Object.keys(scope), code + '\nreturn receive;')(...Object.values(scope));
-  return { scope, played, published, pending, floaters, send: body => receive({ data: JSON.stringify({ type: 'gift', giftName: 'Rose', recipientUid: 1, amount: 1, ...body }) }) };
+  return { scope, played, published, pending, floaters, publishFlags, send: body => receive({ data: JSON.stringify({ type: 'gift', giftName: 'Rose', recipientUid: 1, amount: 1, ...body }) }) };
 }
 const f = fixture(); f.send({ giftId: 'a' }); f.send({ giftId: 'a' }); assert.deepEqual(f.played, ['Rose']);
 f.send({ giftId: 'b' }); assert.deepEqual(f.played, ['Rose', 'Rose'], 'Separate combo transactions each play a sound');
@@ -91,4 +95,16 @@ assert.equal(managed.published.length, 1, 'A forwarded party gift sound belongs 
 managed.scope.pausedRef.current = true;
 managed.send({ giftId: 'paused-managed', giftName: snapshot.name, amount: 25, giftSnapshot: snapshot });
 assert.equal(managed.published.length, 1, 'Paused hosts suppress remote sound too');
+const server = fixture();
+const serverDelivery = { sessionId: 'server', recipientUid: 1, channelId: 'live', durationMs: 5000 };
+server.send({ giftId: 'server-gift', giftName: snapshot.name, giftSnapshot: snapshot, serverDelivery });
+assert.equal(server.published.length, 0, 'Composited audio is not duplicated into the source feed');
+assert.equal(server.floaters.at(-1).playbackAudio, true, 'Recipient retains local preview sound');
+server.send({ giftId: 'server-crown', giftName: 'Crown', amount: 500, serverDelivery });
+assert.equal(server.pending.length, 0, 'Native Crown does not burn a second gift into the source');
+assert.equal(server.publishFlags.at(-1), false, 'Legacy local chime stays local');
+server.scope.partyMedia.serverGiftFeed = { id: 'peer', channelName: 'peer-output', publisherUid: 2 };
+const count = server.floaters.length;
+server.send({ giftId: 'peer-server', recipientUid: 2, serverDelivery: { ...serverDelivery, recipientUid: 2, sessionId: 'peer' } });
+assert.equal(server.floaters.length, count, 'Peer composed video does not receive a duplicate host overlay');
 console.log('PASS: custom/default sounds, cache/failure fallback, host publication, bounded voices, transaction deduplication, party recipient, Crown recording/fallback and paused silence. Native audio mocked.');

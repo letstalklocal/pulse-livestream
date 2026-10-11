@@ -29,6 +29,7 @@ interface Props {
   gift: FloatingGift;
   onDone: (id: string) => void;
   fullPageLuxury?: boolean;
+  liveImageMotion?: boolean;
 }
 
 // Visible top edges inside the existing 180 × 220 contain boxes, measured
@@ -37,12 +38,21 @@ const artworkTop: Record<string, number> = {
   Rose: 35, Heart: 54, Lips: 59, Strawberry: 29, Crown: 31,
 };
 
-export function GiftFloater({ gift, onDone, fullPageLuxury = false }: Props) {
+export function GiftFloater({ gift, onDone, fullPageLuxury = false, liveImageMotion = false }: Props) {
   const { width, height } = useWindowDimensions();
   const artworkId = gift.catalogId ?? gift.name;
   const remoteAnimation = gift.giftSnapshot && (gift.giftSnapshot.animation || gift.giftSnapshot.androidAnimation || gift.giftSnapshot.iosAnimation);
   const fullPage = !!remoteAnimation && !gift.reduceMotion || fullPageLuxury && gift.giftSnapshot?.type !== "image" && hasLuxuryGiftAnimation(artworkId) && !gift.reduceMotion;
   const [playbackFailed, setPlaybackFailed] = useState(false);
+  const imageEntrance = gift.giftSnapshot?.framing.imageEntrance ?? (gift.giftSnapshot?.framing.imageMotion === "fade" ? "fade" : "pop");
+  const imageExit = gift.giftSnapshot?.framing.imageExit ?? (gift.giftSnapshot?.framing.imageMotion === "fade" ? "fade" : "float-up");
+  const imageFraming = gift.giftSnapshot?.framing;
+  const imageEnterMs = imageEntrance === "none" ? 0 : imageFraming?.imageEnterMs ?? 1000;
+  const imageHoldMs = imageFraming?.imageHoldMs ?? 1000;
+  const imageExitMs = imageExit === "none" ? 0 : imageFraming?.imageExitMs ?? 1000;
+  const imageFeel = imageFraming?.imageFeel ?? "smooth";
+  const timedImageMotion = liveImageMotion && gift.giftSnapshot?.type === "image" && (imageFraming?.imageEnterMs !== undefined || imageFraming?.imageHoldMs !== undefined || imageFraming?.imageExitMs !== undefined || imageFraming?.imageFeel !== undefined || imageEntrance === "none" || imageExit === "none");
+  const customImageMotion = liveImageMotion && gift.giftSnapshot?.type === "image" && !!(gift.giftSnapshot.framing.imageEntrance || gift.giftSnapshot.framing.imageExit || gift.giftSnapshot.framing.imageMotion === "fade");
   const playbackUnavailable = useCallback(() => setPlaybackFailed(true), []);
   const blastOff = fullPage && artworkId === "luxury_rocket";
   const artworkSize = fullPage ? Math.round(width * (blastOff ? 1.12 : 1)) : 180;
@@ -83,6 +93,69 @@ export function GiftFloater({ gift, onDone, fullPageLuxury = false }: Props) {
       return;
     }
     const continuing = (gift.comboCount ?? 1) > 1;
+    if (timedImageMotion) {
+      const easeOut = (t: number) => imageFeel === "bouncy" ? 1 + 2.70158 * Math.pow(t - 1, 3) + 1.70158 * Math.pow(t - 1, 2) : 1 - Math.pow(1 - t, imageFeel === "snappy" ? 5 : 3);
+      const easeIn = (t: number) => t * t;
+      const entryTiming = (value: Animated.Value, toValue: number, easing: (t: number) => number) => imageFeel === "snappy" ? Animated.sequence([
+        Animated.timing(value, { toValue, duration: imageEnterMs * .35, easing, useNativeDriver: true }),
+        Animated.delay(imageEnterMs * .65),
+      ]) : Animated.timing(value, { toValue, duration: imageEnterMs, easing, useNativeDriver: true });
+      const exitTiming = (value: Animated.Value, toValue: number, easing: (t: number) => number) => imageFeel === "snappy" ? Animated.sequence([
+        Animated.delay(imageExitMs * .65),
+        Animated.timing(value, { toValue, duration: imageExitMs * .35, easing, useNativeDriver: true }),
+      ]) : Animated.timing(value, { toValue, duration: imageExitMs, easing, useNativeDriver: true });
+      const pop = imageEntrance === "pop";
+      const peak = imageFeel === "bouncy" ? 1.4 : imageFeel === "snappy" ? 1.08 : 1.25;
+      translateY.setValue(continuing ? 0 : imageEntrance === "slide-up" ? 150 : imageEntrance === "slide-down" ? -150 : 0);
+      scale.setValue(continuing || !pop ? 1 : .35);
+      opacity.setValue(continuing || imageEntrance === "none" ? 1 : 0);
+      const entrance = Animated.parallel([
+        entryTiming(opacity, 1, imageFeel === "snappy" ? easeOut : (t: number) => t),
+        ...(pop ? [imageFeel === "snappy" ? entryTiming(scale, 1, easeOut) : Animated.sequence([
+          Animated.timing(scale, { toValue: peak, duration: imageEnterMs * .33, easing: easeOut, useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1, duration: imageEnterMs * .67, easing: easeOut, useNativeDriver: true }),
+        ])] : [entryTiming(translateY, 0, easeOut)]),
+      ]);
+      const exit = Animated.parallel([
+        exitTiming(opacity, 0, (t: number) => t),
+        exitTiming(translateY, imageExit === "float-up" ? -150 : imageExit === "float-down" ? 150 : 0, easeIn),
+        exitTiming(scale, imageExit === "shrink" ? .35 : imageExit.startsWith("float") ? 1.12 : 1, easeIn),
+      ]);
+      const animation = Animated.sequence([
+        ...(continuing || !imageEnterMs ? [] : [entrance]),
+        Animated.delay(continuing ? Math.max(2000, imageEnterMs + imageHoldMs) : imageHoldMs),
+        exit,
+      ]);
+      animation.start(({ finished }) => { if (finished) latest.current.onDone(latest.current.id); });
+      return () => animation.stop();
+    }
+    if (customImageMotion) {
+      const pop = imageEntrance === "pop";
+      const entryDuration = pop ? 970 : imageEntrance === "fade" ? 180 : 380;
+      translateY.setValue(continuing ? 0 : imageEntrance === "slide-up" ? 150 : imageEntrance === "slide-down" ? -150 : 0);
+      scale.setValue(continuing || !pop ? 1 : .35);
+      opacity.setValue(continuing ? 1 : 0);
+      const entrance = imageEntrance === "fade" ? Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }) : Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+        ...(pop ? [Animated.sequence([
+          Animated.timing(scale, { toValue: 1.25, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1, duration: 650, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
+        ])] : [Animated.timing(translateY, { toValue: 0, duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true })]),
+      ]);
+      const fadeOut = Animated.timing(opacity, { toValue: 0, duration: 1000, useNativeDriver: true });
+      const exit = imageExit === "fade" ? fadeOut : Animated.parallel([
+        fadeOut,
+        Animated.timing(translateY, { toValue: imageExit === "float-up" ? -150 : imageExit === "float-down" ? 150 : 0, duration: 1000, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+        Animated.timing(scale, { toValue: imageExit === "shrink" ? .35 : 1.12, duration: 1000, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+      ]);
+      const animation = Animated.sequence([
+        ...(continuing ? [] : [entrance]),
+        Animated.delay(continuing ? 2000 : 2000 - entryDuration),
+        exit,
+      ]);
+      animation.start(({ finished }) => { if (finished) latest.current.onDone(latest.current.id); });
+      return () => animation.stop();
+    }
     // Combo updates reuse this mounted gift. Stop the entrance/exit and hold
     // the artwork steady until two seconds pass without another paid gift.
     if (continuing) {
@@ -142,7 +215,7 @@ export function GiftFloater({ gift, onDone, fullPageLuxury = false }: Props) {
     animation.start(({ finished }) => { if (finished) latest.current.onDone(latest.current.id); });
     return () => animation.stop();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gift.comboCount, fullPage, playbackFailed]);
+  }, [gift.comboCount, fullPage, playbackFailed, customImageMotion, imageEntrance, imageExit, timedImageMotion, imageEnterMs, imageHoldMs, imageExitMs, imageFeel]);
 
   return (
     <Animated.View

@@ -2,6 +2,7 @@ import { GiftImageArtwork, hasGiftImage } from "@/components/GiftImageArtwork";
 import { LiveStickerSetup } from "@/components/LiveStickerSetup";
 import { LiveStickerOverlay } from "@/components/LiveStickerOverlay";
 import { stickerApi, type StickerDraft } from "@/utils/liveStickers";
+import { giftIsInServerFeed, type ServerGiftDelivery } from "@/utils/liveGiftDelivery";
 import { setBroadcastPaused, flipBroadcastCamera } from "@/utils/liveMediaControls";
 import { playLiveGiftSound } from "@/utils/liveGiftSound";
 import { giftFromSnapshot, type GiftSnapshot } from "@/utils/giftCatalog";
@@ -519,10 +520,17 @@ export default function GoLiveScreen() {
             const inVideo = giftPresentation.current.decide(msg.giftId, msg.inVideo !== false);
             setFloatingGifts(prev => prev.map(g => g.id === msg.giftId ? { ...g, inVideo } : g));
           }
-          const nativeExpected = expectsNativeCrown(msg.giftName, msg.amount, msg.giftSnapshot);
+          const serverDelivery = (msg as typeof msg & { serverDelivery?: ServerGiftDelivery }).serverDelivery;
+          const nativeExpected = !serverDelivery && expectsNativeCrown(msg.giftName, msg.amount, msg.giftSnapshot);
           if (msg.type === "gift" && msg.giftId && !giftPresentation.current.claim(msg.giftId, nativeExpected)) return;
           let nativeGift = nativeExpected && !pausedRef.current;
           const playGiftSound = () => {
+            if (serverDelivery) {
+              // Local host preview only. The server already publishes the sound.
+              if (msg.recipientUid === user?.uid && !pausedRef.current && !msg.giftSnapshot?.sound &&
+                !msg.giftSnapshot?.androidAnimation && !msg.giftSnapshot?.iosAnimation) playLiveGiftSound(engineRef.current, msg.giftName ?? "", false);
+              return;
+            }
             if (!msg.giftId || !msg.giftName || msg.recipientUid !== user?.uid || pausedRef.current ||
                 !isLiveRef.current || playedGiftSounds.current.has(msg.giftId)) return;
             playedGiftSounds.current.add(msg.giftId);
@@ -542,7 +550,7 @@ export default function GoLiveScreen() {
             if (nativeExpected) void momentsRequest("/live-gift", getToken, "POST", { giftId: msg.giftId, inVideo: false }).catch(error => console.warn("[Moments] Gift fallback notification failed", error));
           };
           if (msg.type === "gift" && nativeExpected && pausedRef.current) fallback();
-          if (msg.type === "gift" && msg.giftId && typeof msg.amount === "number" && msg.amount >= 500 && (msg.giftName !== "Crown" || nativeExpected) && typeof msg.recipientUid === "number" && msg.recipientUid === user?.uid && isLiveRef.current && !pausedRef.current) {
+          if (!serverDelivery && msg.type === "gift" && msg.giftId && typeof msg.amount === "number" && msg.amount >= 500 && (msg.giftName !== "Crown" || nativeExpected) && typeof msg.recipientUid === "number" && msg.recipientUid === user?.uid && isLiveRef.current && !pausedRef.current) {
             stopMomentProof(engineRef.current, "A real gift arrived; the test yielded to normal recording.");
             const engine = engineRef.current;
             const channel = mediaChannelRef.current || activeChannelId;
@@ -561,10 +569,11 @@ export default function GoLiveScreen() {
             playGiftSound();
           }
           if (msg.type === "gift" && msg.giftName) {
+            if (serverDelivery && giftIsInServerFeed(serverDelivery, [partyMedia.serverGiftFeed])) return;
             const gift = giftFromSnapshot(msg.giftSnapshot) ?? GIFTS.find((g) => (g.name === msg.giftName || (g.id === "luxury_rocket" && msg.giftName === "Rocket")) && g.coins === msg.amount) ?? GIFTS.find((g) => g.name === msg.giftName) ?? GIFTS[0]!;
             const x = 60 + Math.random() * 200;
             setFloatingGifts(prev => mergeGiftFloater(prev, { id: msg.giftId ?? `${Date.now()}-${Math.random()}`, catalogId: gift.id, emoji: gift.emoji, name: gift.name, senderName: msg.senderName ?? "Viewer", x, size: gift.size, inVideo: msg.giftId ? giftPresentation.current.inVideo(msg.giftId) : nativeGift,
-              giftSnapshot: gift.snapshot, playbackAudio: false,
+              giftSnapshot: gift.snapshot, playbackAudio: !!serverDelivery && serverDelivery.recipientUid === user?.uid,
               comboId: msg.combo?.id, comboCount: msg.combo?.count, comboLabel: msg.combo ? `×${appNumber(msg.combo.count)}` : undefined }));
           }
           if (msg.type === "stream_ended") {
@@ -1541,6 +1550,7 @@ export default function GoLiveScreen() {
         {/* Floating gift animations — rendered above everything */}
         {floatingGifts.map((fg) => (
           <GiftFloater
+            liveImageMotion
             key={fg.comboId ?? fg.id}
             gift={fg}
             fullPageLuxury

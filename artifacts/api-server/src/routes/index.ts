@@ -1,4 +1,5 @@
 import liveStickersRouter from "./live-stickers";
+import giftCompositorTestRouter from "./gift-compositor-test";
 import creatorVideosRouter from "./creator-videos";
 import reactionPreferencesRouter from "./reaction-preferences";
 import purchasesRouter from "./purchases";
@@ -33,6 +34,7 @@ import postsRouter from "./posts";
 import privateStreamInvitationsRouter from "./private-stream-invitations";
 
 const router: IRouter = Router();
+router.use("/gift-compositor-test", giftCompositorTestRouter);
 
 router.use("/admin-data", adminRouter);
 router.use("/gift-catalog", giftCatalogRouter);

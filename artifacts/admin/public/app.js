@@ -41,6 +41,20 @@ const giftState = {
   imported: false,
 };
 let giftSvgaPromise;
+let liveGiftDeliveryConfig = null;
+let liveGiftDeliveryBusy = false;
+async function loadLiveGiftDelivery() {
+  const target = document.getElementById("live-gift-delivery-control");
+  if (!target || !authorized || section !== "Gifts") return;
+  try {
+    const data = await api("/live-gift-delivery");
+    if (!target.isConnected || !authorized) return;
+    liveGiftDeliveryConfig = data;
+    target.innerHTML = '<button type="button" class="gift-delivery-switch" id="live-gift-delivery-toggle" role="switch" aria-label="Turn on live gifts" aria-checked="' + data.enabled + '" title="Server delivery for all live gifts. Turning this off restores existing delivery; it does not disable gifting."' +
+      (liveGiftDeliveryBusy ? ' disabled' : '') + '><span>Turn on live gifts</span><span class="gift-switch-track" aria-hidden="true"><span></span></span></button>' +
+      (data.fault ? '<span class="gift-delivery-warning" role="alert" title="' + esc(data.fault) + '">Fallback active<span class="gift-delivery-detail">: ' + esc(data.fault) + '</span></span>' : '');
+  } catch (error) { if (target.isConnected) target.textContent = 'Live delivery setting unavailable: ' + error.message; }
+}
 function loadGiftSvga() {
   if (window.SVGA) return Promise.resolve(window.SVGA);
   if (!giftSvgaPromise)
@@ -81,13 +95,25 @@ function stopGiftAnimation(field) {
 }
 const giftCoin =
   '<svg class="gift-coin" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#E5A400" stroke="#A96B00" stroke-width="1"/><circle cx="12" cy="12" r="8.5" fill="#FFD54A" stroke="#FFF0A3" stroke-width="1.5"/><path d="M15 8.5a4.5 4.5 0 1 0 0 7" fill="none" stroke="#B87900" stroke-width="2" stroke-linecap="round"/></svg>';
+function setGiftSoundIcon(button, playing = false) {
+  button.innerHTML = '<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">' +
+    (playing ? '<rect x="4" y="4" width="12" height="12" rx="1" fill="currentColor"/>' : '<path d="M5 3.5v13l11-6.5z" fill="currentColor"/>') + '</svg>';
+  button.setAttribute('aria-label', playing ? button.dataset.playLabel.replace('Play ', 'Stop ') : button.dataset.playLabel);
+  if (playing) button.dataset.playing = 'true';
+  else { button.removeAttribute('data-playing'); button.removeAttribute('aria-busy'); }
+}
 function stopGiftPreview(preserveArtwork = false) {
+  document.querySelectorAll('[data-gift-sound-play]').forEach(button => {
+    setGiftSoundIcon(button);
+  });
   if (!preserveArtwork)
     Object.keys(giftState.animationPreviews).forEach(stopGiftAnimation);
   giftState.previewVersion++;
   if (giftState.previewFrame) cancelAnimationFrame(giftState.previewFrame);
   giftState.previewFrame = null;
   if (giftState.previewMedia) {
+    giftState.previewMedia.onended = null;
+    giftState.previewMedia.onerror = null;
     giftState.previewMedia.pause();
     giftState.previewMedia.removeAttribute("src");
     giftState.previewMedia.load();
@@ -122,7 +148,7 @@ function resetGifts(preserveCatalog = false) {
   giftState.busy = false;
 }
 function giftsPage() {
-  return `<section class="panel gift-panel"><div class="panel-heading"><div><h2>Gift collections</h2><p>Popular opens first. Publish complete revisions; previous receipts keep their original artwork and price.</p></div><button class="page-button" id="gift-refresh">Refresh gifts</button></div><div class="gift-content"><p id="gift-status" role="status">Loading gifts…</p><div id="gift-workspace"></div></div></section>`;
+  return `<section class="panel gift-panel"><div class="panel-heading"><div><h2>Gift collections</h2><p>Popular opens first. Publish complete revisions; previous receipts keep their original artwork and price.</p></div><div class="gift-header-actions"><button class="page-button" id="gift-refresh">Refresh gifts</button><div id="live-gift-delivery-control" class="live-gift-delivery-control"><button type="button" class="gift-delivery-switch" disabled aria-label="Loading live gift setting"><span>Turn on live gifts</span><span class="gift-switch-track" aria-hidden="true"><span></span></span></button></div></div></div><div class="gift-content"><p id="gift-status" role="status">Loading gifts…</p><div id="gift-workspace"></div></div></section>`;
 }
 function bindGiftEvents() {
   bindCollectionDragEvents();
@@ -141,22 +167,53 @@ function bindGiftEvents() {
     void uploadGiftFile(input, event.dataTransfer.files[0]);
   });
   main.addEventListener("input", event => {
-    if (event.target.name === "artworkScale") {
+    if (event.target.name === 'imageHoldSeconds') {
+      const output = document.getElementById('gift-image-hold-value');
+      if (output) output.textContent = Number(event.target.value).toFixed(1) + 's';
+    }
+    if (['offsetX', 'offsetY'].includes(event.target.name)) {
+      const form = event.target.form;
+      const axis = event.target.name === 'offsetX' ? 'x' : 'y';
+      if (!event.target.validity.valid || event.target.value === '') return;
+      form.elements[axis].value = Number(event.target.value) / 100;
+      const image = document.querySelector('#gift-preview-screen img');
+      if (image) {
+        image.style.left = `${25 + Number(form.elements.x.value) * 100}%`;
+        image.style.top = `${32.8125 + Number(form.elements.y.value) * 100}%`;
+      }
+    }
+    if (event.target.name === "artworkSizePosition") {
+      const position = Number(event.target.value);
+      const percent = Math.round((position <= 300 ? 25 + position / 4 : 100 + (position - 300) / 3) * 100) / 100;
+      event.target.form.elements.artworkScale.value = percent;
+      event.target.setAttribute('aria-valuetext', percent + '%');
       const image = document.querySelector("#gift-preview-screen img");
-      if (image) image.style.transform = `scale(${Number(event.target.value) / 100})`;
+      if (image) { image.getAnimations().forEach(animation => animation.cancel()); image.style.transform = `scale(${percent / 100})`; }
+      const output = document.getElementById("gift-artwork-size-value");
+      if (output) output.textContent = percent + "%";
     }
   });
   main.addEventListener("click", async (event) => {
     if (section !== "Gifts" || !authorized) return;
     const b = event.target.closest("button");
     if (!b || giftState.busy) return;
+    if (b.id === "live-gift-delivery-toggle") {
+      if (!liveGiftDeliveryConfig || liveGiftDeliveryBusy) return;
+      const enabled = !liveGiftDeliveryConfig.enabled;
+      if (enabled && !window.confirm("Enable server delivery for ALL live gifts? Update Android and iPhone apps before rollout. Existing wallets, prices and receipts will not change.")) return;
+      liveGiftDeliveryBusy = true; b.disabled = true;
+      try { await api("/live-gift-delivery", { method: "PUT", body: JSON.stringify({ enabled }) }); }
+      catch (error) { window.alert(error.message); }
+      finally { liveGiftDeliveryBusy = false; await loadLiveGiftDelivery(); }
+      return;
+    }
     if (b.dataset.giftChoose) return main.querySelector(`[data-gift-upload="${b.dataset.giftChoose}"]`)?.click();
     if (b.id === "gift-new-collection") return renderGiftCollectionEditor(true);
     if (b.id === "gift-manage-collection")
       return renderGiftCollectionEditor(false);
     if (b.id === "gift-collection-close" || b.id === "gift-collection-cancel")
       return closeGiftCollectionEditor();
-    if (b.id === "gift-editor-close" || b.id === "gift-editor-cancel")
+    if (b.id === "gift-editor-close")
       return closeGiftEditor();
     if (b.id === "gift-refresh") return loadGifts();
     if (b.dataset.giftCollection) {
@@ -220,10 +277,25 @@ function bindGiftEvents() {
             error.message;
       }
     }
+    if (b.dataset.giftMotionPlay) {
+      if (b.dataset.playing) return document.querySelector('#gift-preview-screen img')?.getAnimations().forEach(animation => animation.cancel());
+      return previewImageGiftMotion(b.dataset.giftMotionPlay, b);
+    }
+    if (b.dataset.giftSoundPlay) {
+      if (b.dataset.playing) return stopGiftPreview(true);
+      const asset = giftSoundPreviewAsset(b.dataset.giftSoundPlay);
+      if (asset) return previewGiftAsset('soundAssetId', asset, b);
+      return;
+    }
     if (b.dataset.giftPreview) return previewGiftAsset(b.dataset.giftPreview);
   });
   main.addEventListener("change", async (event) => {
     const input = event.target;
+    if (["imageEntrance", "imageExit", "imageEnterSeconds", "imageExitSeconds", "imageHoldSeconds", "imageFeel"].includes(input.name) && input.form?.getAttribute("id") === "gift-draft-form") {
+      updateImageMotionControls(input.form);
+      return previewImageGiftMotion();
+    }
+    if (input.name === "artworkSizePosition" && input.form?.getAttribute("id") === "gift-draft-form") return previewImageGiftMotion();
     if (
       input.name === "soundChoice" &&
       input.form?.getAttribute("id") === "gift-draft-form"
@@ -341,6 +413,7 @@ async function uploadGiftFile(input, file) {
         main.querySelector('[name="soundAssetId"]').dataset.customSoundId =
           result.id;
       if (field !== "soundAssetId") previewGiftAsset(field);
+      updateGiftSound(document.getElementById('gift-draft-form'));
       feedback.textContent =
         "Validated upload ready. Save the draft to attach it.";
     } catch (error) {
@@ -351,13 +424,14 @@ async function uploadGiftFile(input, file) {
       uploadButtons.forEach(([b, disabled]) => {
         if (b.isConnected) b.disabled = disabled;
       });
+      if (version === giftState.version && document.getElementById('gift-draft-form')) updateGiftSound(document.getElementById('gift-draft-form'));
       input.disabled = false;
       input.value = "";
     }
 }
-async function previewGiftAsset(field) {
+async function previewGiftAsset(field, soundAsset, playButton) {
   const select = main.querySelector(`[name="${field}"]`),
-    asset = giftAsset(select.value);
+    asset = soundAsset || giftAsset(select.value);
   const soundPreview = field === "soundAssetId";
   const animationPreview = field === "androidAssetId" || field === "iosAssetId";
   if (animationPreview) stopGiftAnimation(field);
@@ -392,6 +466,7 @@ async function previewGiftAsset(field) {
     version = giftState.version,
     previewVersion = state.previewVersion;
   screen.replaceChildren();
+  if (soundPreview) screen.hidden = Boolean(playButton);
   if (!asset) {
     feedback.textContent = "Select or upload an asset first.";
     return;
@@ -400,7 +475,11 @@ async function previewGiftAsset(field) {
     feedback.textContent = "Invalid catalog asset URL.";
     return;
   }
-  feedback.textContent = "Loading preview…";
+  feedback.textContent = playButton ? '' : "Loading preview…";
+  if (playButton) {
+    setGiftSoundIcon(playButton, true);
+    playButton.setAttribute('aria-busy', 'true');
+  }
   try {
     const token = await window.Clerk.session?.getToken();
     if (
@@ -431,10 +510,17 @@ async function previewGiftAsset(field) {
     if (asset.kind === "sound") {
       const audio = new Audio(url);
       state.previewMedia = audio;
-      audio.controls = true;
+      audio.controls = !playButton;
       screen.append(audio);
-      feedback.textContent = "Sound preview.";
+      feedback.textContent = playButton ? '' : "Sound preview.";
+      if (playButton) {
+        playButton.removeAttribute('aria-busy');
+        audio.onended = () => stopGiftPreview(true);
+        audio.onerror = () => { stopGiftPreview(true); feedback.textContent = 'Unable to play sound.'; };
+      }
       audio.play().catch(() => {
+        if (version !== giftState.version || previewVersion !== state.previewVersion) return;
+        if (playButton) stopGiftPreview(true);
         if (version === giftState.version)
           feedback.textContent = "Press Play to preview sound.";
       });
@@ -458,8 +544,12 @@ async function previewGiftAsset(field) {
       img.src = url;
       img.alt = "Gift artwork preview";
       img.className = "gift-preview-art contained";
+      img.style.left = `${25 + x * 100}%`;
+      img.style.top = `${32.8125 + y * 100}%`;
       screen.append(img);
-      feedback.textContent = "Still artwork preview.";
+      feedback.textContent = "";
+      await img.decode().catch(() => {});
+      if (img.isConnected) previewImageGiftMotion();
       return;
     }
     if (asset.format === "svga") {
@@ -627,8 +717,10 @@ async function previewGiftAsset(field) {
       version === giftState.version &&
       previewVersion === state.previewVersion &&
       !accessError(error)
-    )
+    ) {
+      if (playButton) stopGiftPreview(true);
       feedback.textContent = error.message;
+    }
   }
 }
 async function loadGifts() {
@@ -752,6 +844,7 @@ function renderGifts() {
       })
       .join("") || "<p>No gifts yet. Add a gift to begin.</p>") +
     '</div><div id="gift-editor"></div><div id="gift-collection-editor-slot"></div>';
+  void loadLiveGiftDelivery();
   if (giftState.selected) renderGiftEditor();
   loadGiftCardArtwork();
 }
@@ -1110,6 +1203,14 @@ function giftAssetControl(label, field, kind, formats, selected) {
     : kind === "sound"
       ? "No custom sound attached"
       : "No file attached";
+  if (kind === "thumbnail") return '<fieldset class="gift-asset-field gift-image-upload" data-gift-drop="' + field + '"><legend class="sr-only">Image</legend>' +
+    '<input type="hidden" name="' + field + '" value="' + esc(selected || '') + '">' +
+    '<input type="file" hidden aria-label="Upload artwork" data-gift-upload="' + field + '" data-kind="thumbnail" data-formats="' + formats.join(',') + '" accept="' + accept + '">' +
+    '<div class="gift-preview-screen" id="gift-preview-screen"><span>' + (selected ? 'Loading image…' : 'Drop image here') + '</span></div>' +
+    '<button type="button" class="page-button gift-upload-zone" data-gift-choose="' + field + '" ' + (selected ? 'hidden' : '') + '>Upload image</button>' +
+    '<button type="button" class="page-button" data-gift-choose="' + field + '" data-gift-replace="' + field + '" ' + (selected ? '' : 'hidden') + '>Replace image</button>' +
+    '<span class="gift-current-file" data-current-file="' + field + '" title="' + esc(current) + '">' + (asset ? esc(current) : '') + '</span>' +
+    '<small hidden data-file-metadata="' + field + '">' + giftFileMetadata(asset) + '</small><p id="gift-preview-feedback" role="status"></p><small data-upload-feedback="' + field + '" role="status"></small></fieldset>';
   return (
     '<fieldset class="gift-asset-field" data-gift-drop="' + field + '"><legend>' +
     esc(label) +
@@ -1174,9 +1275,75 @@ function previewGiftSelections(form) {
   if (form.elements.thumbnailAssetId.value)
     previewGiftAsset("thumbnailAssetId");
   if (form.elements.type.value === "animation") {
-    for (const field of ["androidAssetId", "iosAssetId"]) {
+    for (const field of [document.getElementById('gift-editor-modal')?.dataset.previewPlatform || 'androidAssetId']) {
       if (form.elements[field].value) previewGiftAsset(field);
     }
+  }
+}
+function updateImageMotionControls(form) {
+  for (const [phase, field, duration] of [['entrance', 'imageEntrance', 'imageEnterSeconds'], ['exit', 'imageExit', 'imageExitSeconds']]) {
+    const none = form.elements[field].value === 'none';
+    form.elements[duration].disabled = none;
+    form.querySelector(`[data-gift-motion-play="${phase}"]`).disabled = none;
+  }
+  const total = form.querySelector('#gift-motion-total');
+  if (total) total.textContent = ((form.elements.imageEntrance.value === 'none' ? 0 : Number(form.elements.imageEnterSeconds.value)) + Number(form.elements.imageHoldSeconds.value) + (form.elements.imageExit.value === 'none' ? 0 : Number(form.elements.imageExitSeconds.value))).toFixed(1) + 's';
+}
+function previewImageGiftMotion(phase = 'all', playButton) {
+  const form = document.getElementById("gift-draft-form");
+  const img = document.querySelector("#gift-preview-screen img");
+  if (!img || form?.elements.type.value !== "image") return;
+  if (['imageEnterSeconds', 'imageExitSeconds', 'imageHoldSeconds'].some(name => !form.elements[name].validity.valid)) return;
+  img.getAnimations().forEach(animation => animation.cancel());
+  const size = Number(form.elements.artworkScale.value || 100) / 100;
+  const entrance = form.elements.imageEntrance.value, exit = form.elements.imageExit.value;
+  const enterMs = entrance === 'none' ? 0 : Number(form.elements.imageEnterSeconds.value) * 1000;
+  const exitMs = exit === 'none' ? 0 : Number(form.elements.imageExitSeconds.value) * 1000;
+  const holdMs = Number(form.elements.imageHoldSeconds.value) * 1000;
+  const total = enterMs + holdMs + exitMs;
+  const duration = phase === 'entrance' ? enterMs : phase === 'exit' ? exitMs : total;
+  if (!duration) return;
+  const travel = document.getElementById("gift-preview-screen").clientHeight * 150 / 640;
+  const feel = form.elements.imageFeel.value;
+  const ease = t => feel === 'bouncy' ? 1 + 2.70158 * Math.pow(t - 1, 3) + 1.70158 * Math.pow(t - 1, 2) : 1 - Math.pow(1 - t, feel === 'snappy' ? 5 : 3);
+  const peak = feel === 'bouncy' ? 1.4 : feel === 'snappy' ? 1.08 : 1.25;
+  const clamp = t => Math.max(0, Math.min(1, t));
+  const frames = Array.from({ length: 121 }, (_, index) => {
+    const elapsed = duration * index / 120 + (phase === 'exit' ? enterMs + holdMs : 0);
+    const entry = enterMs ? clamp(elapsed / enterMs) : 1;
+    const out = exitMs && phase !== 'entrance' ? clamp((elapsed - enterMs - holdMs) / exitMs) : 0;
+    const entryProgress = feel === 'snappy' ? ease(clamp(entry / .35)) : ease(entry);
+    const snapExit = clamp((out - .65) / .35);
+    const exitProgress = feel === 'snappy' ? snapExit * snapExit : out * out;
+    const pop = feel === 'snappy' ? .35 + .65 * entryProgress : entry < .33 ? .35 + (peak - .35) * ease(entry / .33) : peak + (1 - peak) * ease((entry - .33) / .67);
+    const scale = size * (entrance === 'pop' ? pop : 1) * (exit === 'shrink' ? 1 - .65 * exitProgress : exit.startsWith('float') ? 1 + .12 * exitProgress : 1);
+    const y = (entrance === 'slide-up' ? travel : entrance === 'slide-down' ? -travel : 0) * (1 - entryProgress) + (exit === 'float-up' ? -travel : exit === 'float-down' ? travel : 0) * exitProgress;
+    return { opacity: (entrance === 'none' ? 1 : feel === 'snappy' ? entryProgress : entry) * (1 - (feel === 'snappy' ? snapExit : out)), transform: `translateY(${y}px) scale(${scale})`, offset: index / 120 };
+  });
+  const animation = img.animate(frames, { duration, fill: phase === 'entrance' ? 'forwards' : 'none' });
+  const timeline = form.querySelector('#gift-preview-timeline');
+  const time = form.querySelector('#gift-preview-time');
+  const previewPlay = form.querySelector('#gift-preview-play');
+  let tick;
+  if (timeline && phase === 'all') {
+    setGiftSoundIcon(previewPlay, true);
+    const update = () => {
+      if (!form.isConnected) { animation.cancel(); return; }
+      const elapsed = Number(animation.currentTime || 0);
+      timeline.value = String(elapsed / duration * 1000);
+      time.textContent = (elapsed / 1000).toFixed(1) + ' / ' + (duration / 1000).toFixed(1) + 's';
+      if (animation.playState === 'running') tick = requestAnimationFrame(update);
+    };
+    update();
+  }
+  const reset = () => {
+    if (tick) cancelAnimationFrame(tick);
+    if (playButton) setGiftSoundIcon(playButton);
+    if (previewPlay) setGiftSoundIcon(previewPlay);
+  };
+  animation.onfinish = animation.oncancel = reset;
+  if (playButton) {
+    setGiftSoundIcon(playButton, true);
   }
 }
 function renderGiftEditor() {
@@ -1195,7 +1362,7 @@ function renderGiftEditor() {
   document.getElementById("gift-editor").innerHTML =
     '<dialog id="gift-editor-modal" class="gift-modal" aria-labelledby="gift-modal-title"><header class="gift-modal-header"><h2 id="gift-modal-title">' +
     (g ? "Edit gift" : "Add gift") +
-    '</h2><button type="button" class="page-button" id="gift-editor-close" aria-label="Close gift editor">✕</button></header><form id="gift-draft-form" class="gift-draft">' +
+    '</h2><div class="gift-editor-header-actions"><button type="submit" form="gift-draft-form" class="primary-button" id="gift-editor-save">Save</button><button type="button" class="page-button" id="gift-editor-close" aria-label="Close gift editor">✕</button></div></header><form id="gift-draft-form" class="gift-draft">' +
     '<fieldset class="gift-type-controls"><legend>Gift type</legend><label class="gift-type-choice"><input type="radio" name="type" value="image" ' +
     (type === "image" ? "checked autofocus" : "") +
     '><span>▧ Image</span></label><label class="gift-type-choice"><input type="radio" name="type" value="animation" ' +
@@ -1209,9 +1376,12 @@ function renderGiftEditor() {
       ["png", "jpeg", "webp"],
       r?.thumbnailAssetId,
     ) +
-    '<div class="gift-artwork-preview"><div class="gift-preview-screen" id="gift-preview-screen"><span>' +
-    (r?.thumbnailAssetId ? "Loading artwork…" : "No artwork attached") +
-    '</span></div><p id="gift-preview-feedback" role="status"></p><label>Artwork size (%)<input name="artworkScale" type="number" min="25" max="300" step="5" required value="' + Math.round((f.artworkScale ?? 1) * 100) + '"></label><small>Still image only. Animation size is separate.</small></div></div>' +
+    '<div class="gift-artwork-settings"><label class="gift-size-slider"><span>Size <output id="gift-artwork-size-value" for="gift-artwork-size">' + Math.round((f.artworkScale ?? 1) * 100) + '%</output></span><input type="hidden" name="artworkScale" value="' + ((f.artworkScale ?? 1) * 100) + '"><input id="gift-artwork-size" name="artworkSizePosition" aria-label="Size" aria-valuetext="' + Math.round((f.artworkScale ?? 1) * 100) + '%" type="range" min="0" max="600" step="20" value="' + ((f.artworkScale ?? 1) <= 1 ? ((f.artworkScale ?? 1) * 100 - 25) * 4 : 300 + ((f.artworkScale ?? 1) * 100 - 100) * 3) + '"></label>' +
+    '<fieldset id="gift-image-motion-controls" class="gift-type-controls"><legend>Image animation</legend><div class="gift-motion-toolbar"><button type="button" class="gift-motion-full" data-gift-motion-play="all" data-play-label="Play full animation" aria-label="Play full animation"></button></div><div class="gift-motion-phases">' +
+    '<div class="gift-motion-phase"><label>Entrance</label><div class="gift-motion-select"><select name="imageEntrance" aria-label="Entrance">' + [['none','None'],['pop','Pop in'],['fade','Fade in'],['slide-up','Slide up'],['slide-down','Slide down']].map(([value,label]) => '<option value="' + value + '" ' + ((f.imageEntrance || (f.imageMotion === 'fade' ? 'fade' : 'pop')) === value ? 'selected' : '') + '>' + label + '</option>').join('') + '</select><button type="button" class="gift-sound-play" data-gift-motion-play="entrance" data-play-label="Play entrance"></button></div><label class="gift-motion-duration">Duration<span><input type="number" name="imageEnterSeconds" min="0.1" max="3" step="0.01" value="' + (f.imageEnterMs ?? 1000) / 1000 + '" required aria-label="Entrance duration">s</span></label></div>' +
+    '<div class="gift-motion-phase"><label>Exit</label><div class="gift-motion-select"><select name="imageExit" aria-label="Exit">' + [['none','None'],['float-up','Float up'],['float-down','Float down'],['fade','Fade out'],['shrink','Shrink out']].map(([value,label]) => '<option value="' + value + '" ' + ((f.imageExit || (f.imageMotion === 'fade' ? 'fade' : 'float-up')) === value ? 'selected' : '') + '>' + label + '</option>').join('') + '</select><button type="button" class="gift-sound-play" data-gift-motion-play="exit" data-play-label="Play exit"></button></div><label class="gift-motion-duration">Duration<span><input type="number" name="imageExitSeconds" min="0.1" max="3" step="0.01" value="' + (f.imageExitMs ?? 1000) / 1000 + '" required aria-label="Exit duration">s</span></label></div></div>' +
+    '<label class="gift-motion-hold"><span>Hold time<output id="gift-image-hold-value">' + ((f.imageHoldMs ?? 1000) / 1000).toFixed(1) + 's</output></span><input type="range" name="imageHoldSeconds" min="0.1" max="10" step="0.1" value="' + (f.imageHoldMs ?? 1000) / 1000 + '"><span class="gift-motion-range"><small>0.1s</small><small>10s</small></span></label><details class="gift-motion-advanced"><summary>Advanced</summary><div class="gift-motion-feel" role="group" aria-label="Motion feel"><span class="gift-motion-feel-label">Motion feel</span>' + ['smooth','bouncy','snappy'].map(value => '<label><input type="radio" name="imageFeel" value="' + value + '" ' + ((f.imageFeel || 'smooth') === value ? 'checked' : '') + '><span>' + value[0].toUpperCase() + value.slice(1) + '</span></label>').join('') + '</div></details>' +
+    '</fieldset></div></div>' +
     '<div id="gift-animation-controls" class="gift-animation-controls">' +
     giftAnimationControl(
       "Android animation",
@@ -1242,7 +1412,7 @@ function renderGiftEditor() {
       r?.soundAssetId,
     ) +
     '</div><button type="button" class="page-button" id="gift-default-sound-preview" data-gift-preview="soundAssetId">Preview default sound</button><p id="gift-sound-hint"></p><div id="gift-sound-preview"></div><p id="gift-sound-preview-feedback" role="status"></p></fieldset>' +
-    '<details class="gift-options" id="gift-advanced-options"><summary>Size, position &amp; identifier</summary><fieldset><legend>Playback position</legend><label>Preset<select name="preset"><option value="contained" ' +
+    '<details class="gift-options" id="gift-advanced-options"><summary>Identifier</summary><fieldset class="gift-position-row"><legend>Position</legend><label>Preset<select name="preset"><option value="contained" ' +
     (f.preset === "contained" ? "selected" : "") +
     '>Contained</option><option value="fullscreen" ' +
     (f.preset === "fullscreen" ? "selected" : "") +
@@ -1256,23 +1426,87 @@ function renderGiftEditor() {
     esc(g?.id) +
     '" pattern="[a-z][a-z0-9_-]*" maxlength="64" required ' +
     (g ? "readonly" : "") +
-    "></label></details>" +
+    "></label>" +
     (g
-      ? '<details class="gift-options"><summary>Manage gift</summary><div class="gift-actions"><button type="button" class="page-button" id="gift-history">Revision history</button><button type="button" class="page-button" id="gift-archive">Archive gift</button>' +
-        '</div><div id="gift-history-records"></div></details>'
+      ? '<div class="gift-actions"><button type="button" class="page-button" id="gift-history">Revision history</button><button type="button" class="page-button" id="gift-archive">Archive gift</button>' +
+        '</div><div id="gift-history-records"></div>'
       : "") +
+    '</details>' +
     '<fieldset class="gift-publication-status"><legend>Status</legend><label class="gift-type-choice"><input type="radio" name="status" value="draft" ' +
     (g?.status !== "published" ? "checked" : "") +
     ' required><span>Draft</span></label><label class="gift-type-choice"><input type="radio" name="status" value="published" ' +
     (g?.status === "published" ? "checked" : "") +
-    ' required><span>Published</span></label></fieldset><small>Published makes this gift available in its published collection. Draft hides it from the app. Previous sent gifts stay unchanged.</small><p id="gift-editor-feedback" role="status"></p><footer class="gift-actions gift-modal-actions"><button type="button" class="page-button" id="gift-editor-cancel">Cancel</button><button class="primary-button" type="submit">Save</button></footer></form></dialog>';
+    ' required><span>Published</span></label></fieldset><p id="gift-editor-feedback" role="status"></p></form></dialog>';
   const modal = document.getElementById("gift-editor-modal");
   modal.addEventListener("cancel", (event) => {
     event.preventDefault();
     if (!giftState.busy) closeGiftEditor();
   });
   const form = document.getElementById("gift-draft-form");
+  const layout = document.createElement("div"); layout.className = "gift-editor-layout";
+  const sizeMarks = document.createElement('small');
+  sizeMarks.className = 'gift-size-marks';
+  sizeMarks.innerHTML = '<span>25%</span><span class="gift-size-default">100%</span><span>200%</span>';
+  form.elements.artworkSizePosition.before(sizeMarks);
+  modal.addEventListener('keydown', event => {
+    if (event.key === 'Enter' && event.target.tagName === 'INPUT') event.preventDefault();
+  });
+  for (const [axis, name, label] of [['x', 'offsetX', 'Horizontal offset'], ['y', 'offsetY', 'Vertical offset']]) {
+    const stored = form.elements[axis];
+    const input = document.createElement('input');
+    input.type = 'number'; input.name = name; input.min = '-100'; input.max = '100'; input.step = 'any'; input.required = true;
+    input.value = String(Math.round(Number(stored.value) * 10000) / 100);
+    input.setAttribute('aria-label', label);
+    input.title = label + ': 0% is centered';
+    stored.type = 'hidden';
+    const control = document.createElement('span'); control.className = 'gift-offset-value';
+    control.append(input, document.createTextNode('%')); stored.after(control);
+  }
+  const typePicker = form.querySelector(".gift-type-controls");
+  typePicker.classList.add("gift-header-type");
+  typePicker.querySelectorAll("input").forEach(input => input.setAttribute("form", "gift-draft-form"));
+  modal.querySelector(".gift-modal-header").insertBefore(typePicker, modal.querySelector(".gift-editor-header-actions"));
+  form.elements.imageEntrance.setAttribute("aria-label", "Entrance");
+  form.elements.imageExit.setAttribute("aria-label", "Exit");
+  form.querySelectorAll('[data-gift-motion-play]').forEach(button => setGiftSoundIcon(button));
+  form.querySelectorAll('.gift-motion-phase').forEach(phase => {
+    const duration = phase.querySelector('.gift-motion-duration');
+    duration.firstChild.remove();
+    phase.querySelector('.gift-motion-select').insertBefore(duration, phase.querySelector('[data-gift-motion-play]'));
+  });
+  const fields = document.createElement("div"); fields.className = "gift-editor-fields";
+  const artwork = form.querySelector(".gift-artwork-section");
+  form.insertBefore(layout, artwork);
+  fields.append(form.querySelector(".gift-details-fields"), form.querySelector(".gift-sound-controls"));
+  const nameField = fields.querySelector('[name="name"]').closest("label");
+  nameField.classList.add("gift-name-field");
+  const identity = document.createElement("div"); identity.className = "gift-identity-row";
+  identity.append(nameField, fields.querySelector(".gift-price-field"));
+  fields.querySelector(".gift-details-fields").remove();
+  artwork.querySelector(".gift-artwork-settings").prepend(identity);
+  artwork.querySelector(".gift-artwork-settings").append(form.querySelector(".gift-position-row"));
+  artwork.querySelector(".gift-artwork-settings").append(fields);
+  artwork.querySelector(".gift-artwork-settings").append(form.querySelector(".gift-publication-status"));
+  const previewColumn = document.createElement("div"); previewColumn.className = "gift-preview-column";
+  const imageUpload = artwork.querySelector(".gift-image-upload");
+  artwork.insertBefore(previewColumn, imageUpload);
+  previewColumn.append(imageUpload);
+  layout.append(artwork);
   const savedSound = giftAsset(r?.soundAssetId);
+  form.querySelectorAll('.gift-sound-choices > label').forEach(label => {
+    const mode = label.querySelector('input').value;
+    const row = document.createElement('div'); row.className = 'gift-sound-option';
+    if (label.id) { row.id = label.id; label.removeAttribute('id'); }
+    label.replaceWith(row); row.append(label);
+    const play = document.createElement('button');
+    play.type = 'button'; play.className = 'gift-sound-play';
+    play.dataset.giftSoundPlay = mode;
+    play.dataset.playLabel = 'Play ' + (mode === 'default' ? 'default sound' : mode === 'custom' ? 'custom sound' : 'original animation audio');
+    setGiftSoundIcon(play);
+    row.append(play);
+  });
+  form.querySelector('#gift-default-sound-preview').remove();
+  form.querySelector('[data-gift-preview="soundAssetId"]').remove();
   form.elements.soundChoice.value = savedSound?.isDefaultSound
     ? "default"
     : r?.soundAssetId
@@ -1298,12 +1532,219 @@ function renderGiftEditor() {
     form.elements.id.dataset.manual = "true";
   });
   updateGiftType(form);
+  layoutGiftEditorReference(form, modal);
   modal.showModal();
   previewGiftSelections(form);
 }
+function layoutGiftEditorReference(form, modal) {
+  modal.classList.add('gift-reference-editor');
+  const header = modal.querySelector('.gift-modal-header');
+  header.querySelector('h2').tabIndex = -1;
+  header.querySelector('h2').setAttribute('autofocus', '');
+  const subtitle = document.createElement('p');
+  subtitle.className = 'gift-editor-subtitle';
+  subtitle.textContent = 'Customize how your gift appears on live streams';
+  header.querySelector('h2').append(subtitle);
+  const settings = form.querySelector('.gift-artwork-settings');
+  settings.prepend(form.querySelector('.gift-header-type') || header.querySelector('.gift-header-type'));
+  settings.querySelectorAll('.gift-header-type label').forEach(label => {
+    label.querySelector('input').removeAttribute('autofocus');
+    const image = label.querySelector('input').value === 'image';
+    label.querySelector('span').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">' + (image ? '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.5"/><path d="m4 17 5-5 4 3 3-5 5 7"/>' : '<path d="m7 4 14 8-14 8z"/>') + '</svg>' + (image ? 'Image' : 'Animation');
+  });
+  const heading = document.createElement('h3'); heading.className = 'gift-details-heading'; heading.textContent = 'Gift details';
+  settings.insertBefore(heading, settings.querySelector('.gift-identity-row'));
+  const currentSize = form.querySelector('#gift-artwork-size-value');
+  form.querySelector('.gift-size-default').replaceChildren(currentSize);
+  form.querySelectorAll('.gift-options').forEach(options => settings.append(options));
+  form.querySelector('#gift-advanced-options summary').textContent = 'Advanced settings';
+  const advanced = form.querySelector('#gift-advanced-options');
+  const advancedRow = document.createElement('div');
+  advancedRow.className = 'gift-advanced-row';
+  advancedRow.append(advanced.querySelector('[name="id"]').closest('label'));
+  const manageActions = advanced.querySelector('.gift-actions');
+  if (manageActions) advancedRow.append(manageActions);
+  advanced.querySelector('summary').after(advancedRow);
+  const phases = form.querySelector('.gift-motion-phases');
+  phases.querySelectorAll('.gift-motion-phase').forEach(phase => {
+    const duration = phase.querySelector('.gift-motion-duration');
+    phase.append(duration);
+  });
+  const feelValue = form.elements.imageFeel.value;
+  const hold = document.createElement('div'); hold.className = 'gift-motion-phase gift-hold-card';
+  hold.innerHTML = '<label>Hold</label><label class="gift-feel-select"><select name="imageFeel" aria-label="Motion Feel">' + ['smooth', 'bouncy', 'snappy'].map(value => '<option value="' + value + '"' + (value === feelValue ? ' selected' : '') + '>' + value[0].toUpperCase() + value.slice(1) + '</option>').join('') + '</select></label>';
+  const holdInput = form.elements.imageHoldSeconds;
+  holdInput.type = 'number'; holdInput.setAttribute('aria-label', 'Hold duration');
+  const holdDuration = document.createElement('label'); holdDuration.className = 'gift-motion-duration';
+  const holdValue = document.createElement('span'); holdValue.append(holdInput, 's'); holdDuration.append(holdValue); hold.append(holdDuration);
+  form.querySelector('.gift-motion-hold').remove();
+  form.querySelector('.gift-motion-advanced').remove();
+  phases.insertBefore(hold, phases.lastElementChild);
+  phases.querySelectorAll('.gift-motion-phase').forEach(phase => {
+    const header = document.createElement('div');
+    header.className = 'gift-phase-heading';
+    const label = phase.firstElementChild;
+    phase.prepend(header);
+    header.append(label);
+    const play = phase.querySelector('[data-gift-motion-play]');
+    if (play) header.append(play);
+  });
+  const toolbar = form.querySelector('.gift-motion-toolbar');
+  const total = document.createElement('span'); total.className = 'gift-total-duration';
+  total.innerHTML = 'Total duration: <strong id="gift-motion-total"></strong>';
+  toolbar.prepend(total);
+  const motionHeader = document.createElement('div');
+  motionHeader.className = 'gift-motion-header';
+  const motionTitle = document.createElement('h3');
+  motionTitle.textContent = 'Image animation';
+  form.querySelector('#gift-image-motion-controls > legend').classList.add('sr-only');
+  motionHeader.append(motionTitle, toolbar);
+  phases.before(motionHeader);
+  const placement = document.createElement('h3'); placement.className = 'gift-placement-heading'; placement.textContent = 'Placement';
+  placement.title = 'Live placement is shared by Android and iOS. Message artwork size is separate.';
+  settings.insertBefore(placement, settings.querySelector('.gift-position-row'));
+  const preview = form.querySelector('.gift-preview-column');
+  const previewHeading = document.createElement('div'); previewHeading.className = 'gift-preview-heading';
+  previewHeading.innerHTML = '<h3>Preview</h3><div class="gift-preview-modes" role="group" aria-label="Preview background"><button type="button" aria-pressed="false" data-preview-background="live">Live</button><button type="button" aria-pressed="true" data-preview-background="transparency">Transparency</button></div>';
+  preview.prepend(previewHeading);
+  const platformTabs = document.createElement('div'); platformTabs.className = 'gift-preview-platforms';
+  platformTabs.setAttribute('role', 'group'); platformTabs.setAttribute('aria-label', 'Animation platform');
+  platformTabs.innerHTML = '<button type="button" data-preview-platform="androidAssetId" aria-pressed="true">Android</button><button type="button" data-preview-platform="iosAssetId" aria-pressed="false">iOS</button>';
+  previewHeading.after(platformTabs);
+  const animationScreens = document.createElement('div'); animationScreens.className = 'gift-animation-screens';
+  platformTabs.after(animationScreens);
+  modal.dataset.previewPlatform = 'androidAssetId';
+  for (const field of ['androidAssetId', 'iosAssetId']) {
+    const screen = form.querySelector('#gift-' + field + '-preview');
+    const feedback = form.querySelector('#gift-' + field + '-feedback');
+    const pane = document.createElement('div'); pane.dataset.platformScreen = field;
+    pane.append(screen, feedback); animationScreens.append(pane);
+    form.querySelector('[name="' + field + '"]').closest('.gift-platform-preview').dataset.platformControls = field;
+  }
+  settings.insertBefore(form.querySelector('#gift-animation-controls'), settings.querySelector('.gift-placement-heading'));
+  platformTabs.querySelectorAll('button').forEach(button => button.addEventListener('click', () => {
+    modal.dataset.previewPlatform = button.dataset.previewPlatform;
+    syncGiftPreviewPlatform(form);
+    const field = modal.dataset.previewPlatform;
+    if (form.elements[field].value) previewGiftAsset(field);
+  }));
+  const playback = document.createElement('div'); playback.className = 'gift-preview-playback';
+  playback.innerHTML = '<button type="button" class="gift-sound-play" id="gift-preview-play" data-gift-motion-play="all" data-play-label="Play preview"></button><output id="gift-preview-time">0.0 / 3.0s</output><input type="range" id="gift-preview-timeline" aria-label="Preview progress" min="0" max="1000" value="0">';
+  setGiftSoundIcon(playback.querySelector('button'));
+  form.querySelector('#gift-preview-screen').after(playback);
+  playback.querySelector('input').addEventListener('input', event => {
+    const img = form.querySelector('#gift-preview-screen img');
+    if (!img) return;
+    if (!img.getAnimations().length) previewImageGiftMotion();
+    const animation = img.getAnimations()[0];
+    if (!animation) return;
+    animation.pause();
+    animation.currentTime = Number(event.target.value) / 1000 * animation.effect.getTiming().duration;
+    playback.querySelector('output').textContent = (animation.currentTime / 1000).toFixed(1) + ' / ' + (animation.effect.getTiming().duration / 1000).toFixed(1) + 's';
+    setGiftSoundIcon(playback.querySelector('button'));
+  });
+  previewHeading.querySelectorAll('button').forEach(button => button.addEventListener('click', () => {
+    previewHeading.querySelectorAll('button').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+    preview.dataset.background = button.dataset.previewBackground;
+  }));
+  previewHeading.querySelector('[data-preview-background="live"]').title = 'Preview on a dark background (not a live camera feed)';
+  const status = form.querySelector('.gift-publication-status');
+  status.querySelector('legend').classList.add('sr-only');
+  status.querySelectorAll('input').forEach(input => input.setAttribute('form', 'gift-draft-form'));
+  const statusGroup = document.createElement('div'); statusGroup.className = 'gift-header-status';
+  const statusLabel = document.createElement('span'); statusLabel.className = 'gift-status-label'; statusLabel.textContent = 'Status';
+  statusGroup.append(statusLabel, status);
+  const actions = header.querySelector('.gift-editor-header-actions');
+  actions.prepend(statusGroup);
+  modal.querySelector('#gift-editor-save').textContent = 'Save';
+  form.addEventListener('input', event => {
+    if (['imageEnterSeconds', 'imageExitSeconds', 'imageHoldSeconds'].includes(event.target.name)) updateImageMotionControls(form);
+    if (['offsetX', 'offsetY'].includes(event.target.name)) syncGiftAnchor(form);
+    if (['offsetX', 'offsetY', 'scale'].includes(event.target.name)) updateGiftAnimationFraming(form);
+  });
+  form.elements.preset.addEventListener('change', () => updateGiftAnimationFraming(form));
+  const artworkHeading = document.createElement('h3'); artworkHeading.className = 'gift-message-artwork-heading'; artworkHeading.textContent = 'Message artwork';
+  form.querySelector('.gift-image-upload').prepend(artworkHeading);
+  syncGiftPreviewPlatform(form);
+  updateImageMotionControls(form);
+}
+function syncGiftPreviewPlatform(form) {
+  const modal = form.closest('dialog');
+  const selected = modal.dataset.previewPlatform || 'androidAssetId';
+  const animation = form.elements.type.value === 'animation';
+  if (animation) form.querySelector('.gift-image-upload').append(form.querySelector('.gift-size-slider'));
+  form.querySelectorAll('[data-preview-platform]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.previewPlatform === selected)));
+  form.querySelectorAll('[data-platform-screen]').forEach(pane => { pane.hidden = pane.dataset.platformScreen !== selected; });
+  form.querySelectorAll('[data-platform-controls]').forEach(pane => { pane.hidden = pane.dataset.platformControls !== selected; });
+  for (const field of ['androidAssetId', 'iosAssetId']) if (!animation || field !== selected) stopGiftAnimation(field);
+}
 function updateGiftType(form) {
   const image = form.elements.type.value === "image";
+  const position = form.querySelector(".gift-position-row");
+  const size = form.querySelector(".gift-size-slider");
+  let sizeBox = position.querySelector('.gift-size-box');
+  if (image && !sizeBox) {
+    sizeBox = document.createElement('fieldset'); sizeBox.className = 'gift-size-box';
+    sizeBox.innerHTML = '<legend id="gift-size-title">Size</legend>';
+    size.querySelector('span').firstChild.textContent = '';
+    form.elements.artworkScale.setAttribute('aria-label', 'Size');
+    sizeBox.append(size);
+    position.insertBefore(sizeBox, form.elements.preset.closest('label'));
+  } else if (!image && sizeBox) {
+    size.querySelector('span').prepend('Size ');
+    form.querySelector(".gift-artwork-settings").insertBefore(size, document.getElementById("gift-image-motion-controls"));
+    sizeBox.remove();
+  }
+  for (const name of ["preset", "scale"]) form.elements[name].closest("label").hidden = image;
+  let offsets = position.querySelector(".gift-offset-group");
+  if (image && !offsets) {
+    offsets = document.createElement("fieldset");
+    offsets.className = "gift-offset-group";
+    offsets.setAttribute("role", "group");
+    offsets.setAttribute("aria-labelledby", "gift-offset-title");
+    offsets.innerHTML = '<legend id="gift-offset-title">Position</legend><div class="gift-offset-inputs"></div>';
+    for (const [name, axis, label] of [["x", "Horizontal", "Horizontal offset"], ["y", "Vertical", "Vertical offset"]]) {
+      const input = form.elements[name], wrapper = input.closest("label");
+      input.setAttribute("aria-label", label);
+      wrapper.firstChild.textContent = axis;
+      offsets.lastElementChild.append(wrapper);
+    }
+    position.append(offsets);
+  } else if (!image && offsets) {
+    for (const [name, label] of [["x", "Horizontal offset"], ["y", "Vertical offset"]]) {
+      const wrapper = form.elements[name].closest("label");
+      wrapper.firstChild.textContent = label;
+      position.append(wrapper);
+    }
+    offsets.remove();
+  }
   const animations = document.getElementById("gift-animation-controls");
+  let anchor = position.querySelector('.gift-anchor');
+  if (image && !anchor) {
+    anchor = document.createElement('fieldset'); anchor.className = 'gift-anchor';
+    anchor.innerHTML = '<legend>Anchor</legend><div class="gift-anchor-grid" role="group" aria-label="Gift anchor"></div><span class="gift-anchor-name">Center</span><button type="button" class="gift-anchor-reset">↺ Reset</button>';
+    const names = ['Top left', 'Top center', 'Top right', 'Center left', 'Center', 'Center right', 'Bottom left', 'Bottom center', 'Bottom right'];
+    names.forEach((name, index) => {
+      const button = document.createElement('button'); button.type = 'button'; button.setAttribute('aria-label', name); button.dataset.anchor = String(index);
+      button.addEventListener('click', () => {
+        for (const [field, value] of [['offsetX', (index % 3 - 1) * 25], ['offsetY', (Math.floor(index / 3) - 1) * 25]]) {
+          form.elements[field].value = String(value); form.elements[field].dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        syncGiftAnchor(form);
+      });
+      anchor.querySelector('.gift-anchor-grid').append(button);
+    });
+    anchor.querySelector('.gift-anchor-reset').addEventListener('click', () => anchor.querySelector('[data-anchor="4"]').click());
+    position.append(anchor);
+  }
+  if (anchor) anchor.hidden = !image;
+  // Position is recreated after switching types; keep Anchor after it.
+  if (image && anchor) position.append(anchor);
+  syncGiftAnchor(form);
+  const motion = document.getElementById("gift-image-motion-controls");
+  motion.hidden = !image;
+  motion.querySelectorAll("input, select, button").forEach(control => { control.disabled = !image; });
+  if (image) updateImageMotionControls(form);
   animations.hidden = image;
   animations.querySelectorAll("input, select, button").forEach((control) => {
     control.disabled = image;
@@ -1317,6 +1758,26 @@ function updateGiftType(form) {
   if (image && form.elements.soundChoice.value === "original")
     form.elements.soundChoice.value = "default";
   updateGiftSound(form);
+  if (form.closest('dialog').classList.contains('gift-reference-editor')) syncGiftPreviewPlatform(form);
+}
+function syncGiftAnchor(form) {
+  let selected = 'Custom';
+  form.querySelectorAll('[data-anchor]').forEach(button => {
+    const index = Number(button.dataset.anchor);
+    const active = Number(form.elements.offsetX.value) === (index % 3 - 1) * 25 && Number(form.elements.offsetY.value) === (Math.floor(index / 3) - 1) * 25;
+    button.setAttribute('aria-pressed', String(active));
+    if (active) selected = button.getAttribute('aria-label');
+  });
+  const name = form.querySelector('.gift-anchor-name');
+  if (name) name.textContent = selected;
+}
+function updateGiftAnimationFraming(form) {
+  form.querySelectorAll('.gift-animation-screens .gift-preview-art').forEach(node => {
+    const screen = node.closest('.gift-preview-screen');
+    node.classList.toggle('fullscreen', form.elements.preset.value === 'fullscreen');
+    node.classList.toggle('contained', form.elements.preset.value !== 'fullscreen');
+    node.style.transform = `translate(${Number(form.elements.offsetX.value) / 100 * screen.clientWidth}px,${Number(form.elements.offsetY.value) / 100 * screen.clientHeight}px) scale(${Number(form.elements.scale.value)})`;
+  });
 }
 function updateGiftSound(form) {
   const mode = form.elements.soundChoice.value;
@@ -1331,8 +1792,10 @@ function updateGiftSound(form) {
         ? ""
         : reference.dataset.customSoundId || "";
   document.getElementById("gift-custom-sound").hidden = mode !== "custom";
-  document.getElementById("gift-default-sound-preview").hidden =
-    mode !== "default";
+  form.querySelectorAll('[data-gift-sound-play]').forEach(button => {
+    button.disabled = !giftSoundPreviewAsset(button.dataset.giftSoundPlay);
+    button.title = button.disabled ? 'No audio available' : button.dataset.playLabel;
+  });
   document.getElementById("gift-sound-hint").textContent =
     mode === "default"
       ? "Uses the standard gift chime."
@@ -1342,6 +1805,17 @@ function updateGiftSound(form) {
   const custom = giftAsset(reference.dataset.customSoundId);
   main.querySelector('[data-current-file="soundAssetId"]').textContent =
     custom?.fileName || custom?.label || "No custom sound attached";
+}
+function giftSoundPreviewAsset(mode) {
+  const form = document.getElementById('gift-draft-form');
+  if (!form) return null;
+  if (mode === 'default') return giftState.data.assets.find(asset => asset.isDefaultSound);
+  if (mode === 'custom') return giftAsset(form.elements.soundAssetId.dataset.customSoundId);
+  for (const field of ['androidAssetId', 'iosAssetId']) {
+    const audio = giftAsset(giftAsset(form.elements[field].value)?.audioAssetId);
+    if (audio) return audio;
+  }
+  return null;
 }
 async function giftMutation(path, body, method = "POST") {
   if (giftState.busy || !authorized || section !== "Gifts") return;
@@ -1445,6 +1919,9 @@ function bindGiftSubmit() {
         values.type === "animation" ? values.iosAssetId || null : null,
       soundAssetId: values.soundAssetId || null,
       framing: {
+        ...(values.type === "image" ? { imageEntrance: values.imageEntrance || "pop", imageExit: values.imageExit || "float-up",
+          imageEnterMs: Math.round(Number(form.elements.imageEnterSeconds.value) * 1000), imageHoldMs: Math.round(Number(values.imageHoldSeconds || 1) * 1000), imageExitMs: Math.round(Number(form.elements.imageExitSeconds.value) * 1000), imageFeel: values.imageFeel || 'smooth',
+          imageMotion: values.imageEntrance === "fade" && values.imageExit === "fade" ? "fade" : "pop-float" } : {}),
         artworkScale: Number(values.artworkScale) / 100,
         preset: values.preset,
         scale: Number(values.scale),
@@ -2854,12 +3331,10 @@ setInterval(() => {
     loadOperations();
 }, 30000);
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden) {
-    // Keep Clerk's in-progress email/password flow intact when using a password manager.
-    if (!authorized && !sessionId) return;
-    clearPrivate();
-    notice("Pulse admin", "Checking access when you return…");
-  } else if (window.Clerk?.loaded) checkAccess();
+  // A browser-tab switch is not a sign-out. Keep every section's forms,
+  // uploads, filters and scroll position; revalidate without rebuilding it.
+  // checkAccess still clears private state on session change or access failure.
+  if (!document.hidden && window.Clerk?.loaded) checkAccess();
 });
 window.addEventListener("pagehide", () => clearPrivate());
 window.addEventListener("pageshow", (e) => {

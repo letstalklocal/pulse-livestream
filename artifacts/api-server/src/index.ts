@@ -1,4 +1,5 @@
 import { startVipReconciliation } from "./lib/vipReconciliation";
+import { startLiveGiftDeliveryMonitor } from "./lib/liveGiftDelivery";
 import { loadEnvFile } from 'node:process';
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -16,6 +17,9 @@ import { runProductionGiftMigration } from "./lib/productionGiftMigration";
 // process environment values take precedence; production never loads this file.
 if (process.env.NODE_ENV === 'development') {
   try { loadEnvFile('.local/revenuecat.env'); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+  // Optional, ignored local experiment settings. Never read in production.
+  try { loadEnvFile('.local/gift-compositor.env'); }
   catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
 }
 
@@ -86,5 +90,7 @@ server.listen(port, (err?: Error) => {
   }
 
   startVipReconciliation();
+  const stopGiftDelivery = startLiveGiftDeliveryMonitor();
+  server.once("close", stopGiftDelivery);
   logger.info({ port }, "Server listening");
 });

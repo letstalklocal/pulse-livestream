@@ -1,4 +1,5 @@
 import { settlePremiumGiftRequests } from "../lib/premiumGiftRequests";
+import { giftDeliveryStatus } from "../lib/liveGiftDelivery";
 import { canAccessChannel } from "../lib/privateChannelAccess";
 import { findParty, partyStreams } from "../lib/liveParty";
 import { viewerModeration } from "../lib/streamModeration";
@@ -100,6 +101,10 @@ router.post("/agora/token", async (req: any, res): Promise<any> => {
     return;
   }
 
+  // Apply only after original authentication/admission checks. Hosts always
+  // publish the source, never the composed output (which would create a loop).
+  const giftDelivery = role === "audience" && req.body?.serverGiftDelivery === true ? giftDeliveryStatus(channelName) : null;
+  if (giftDelivery) rtcChannelName = giftDelivery.channelName;
   const expiresInSeconds = 3600;
   const currentTs = Math.floor(Date.now() / 1000);
   const privilegeExpireTs = currentTs + expiresInSeconds;
@@ -118,6 +123,7 @@ router.post("/agora/token", async (req: any, res): Promise<any> => {
 
   res.json({
     token,
+    giftDelivery,
     appId: APP_ID,
     channelName: rtcChannelName,
     uid: tokenUid,

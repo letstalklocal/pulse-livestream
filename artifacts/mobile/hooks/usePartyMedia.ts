@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { actOnStreamParty, getPartyMedia, type LiveParty } from "@workspace/api-client-react";
 import { openPartyConnection } from "@/utils/partyConnection";
+import { deliveryFeed } from "@/utils/liveGiftDelivery";
 
 export function usePartyMedia(engineRef: RefObject<any>, channelId: string, party: LiveParty | null, enabled: boolean, host: boolean) {
   const peer = party?.status === "active" ? party.participants.find(p => p.channelId !== channelId) : undefined;
@@ -35,9 +36,9 @@ export function usePartyMedia(engineRef: RefObject<any>, channelId: string, part
     setState({ connection: null, ready: false, error: null });
     const engine = engineRef.current;
     if (!enabled || !engine || !peer || !party) return;
-    const dispose = openPartyConnection(engine, () => getPartyMedia(channelId), peer.uid, setState, () => audioRef.current.scope === audioScope && audioRef.current.muted);
+    const dispose = openPartyConnection(engine, () => getPartyMedia(channelId, { headers: { "x-live-gift-delivery": "1" } }), peer.uid, setState, () => audioRef.current.scope === audioScope && audioRef.current.muted);
     return () => { void dispose(); };
-  }, [enabled, engineRef, channelId, party?.id, peer?.uid, peer?.rtcChannelName, retry]);
+  }, [enabled, engineRef, channelId, party?.id, peer?.uid, peer?.rtcChannelName, (peer as any)?.giftDelivery?.id, retry]);
   useEffect(() => {
     if (!state.error || !enabled || !peer) return;
     const timer = setTimeout(() => setRetry(n => n + 1), 4000);
@@ -50,5 +51,7 @@ export function usePartyMedia(engineRef: RefObject<any>, channelId: string, part
     const timer = setInterval(ready, 5000);
     return () => clearInterval(timer);
   }, [host, enabled, state.ready, channelId, party?.id]);
-  return { ...state, peer, audioMuted, audioError, setAudioMuted, retry: () => setRetry(n => n + 1) };
+  const candidateFeed = deliveryFeed((peer as any)?.giftDelivery);
+  const serverGiftFeed = state.ready && state.connection?.channelId === candidateFeed?.channelName ? candidateFeed : null;
+  return { ...state, peer, audioMuted, audioError, setAudioMuted, serverGiftFeed, retry: () => setRetry(n => n + 1) };
 }

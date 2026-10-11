@@ -11,6 +11,7 @@ import { usePremiumGiftRequest, premiumGiftRequestKey } from "@/hooks/usePremium
 import { useLiveParty } from "@/hooks/useLiveParty";
 import { usePartyMedia } from "@/hooks/usePartyMedia";
 import type { AgoraGiftEngineLease } from "@/utils/agoraGiftProbe";
+import { deliveryFeed, type GiftDeliveryFeed } from "@/utils/liveGiftDelivery";
 
 const isNative = Platform.OS === "ios" || Platform.OS === "android";
 const preferenceKey = "pulse.picture-in-picture.enabled";
@@ -96,6 +97,7 @@ function usePlaybackController() {
   const [remoteVideoReady, setRemoteVideoReady] = useState(false);
   const [agoraError, setAgoraError] = useState<string | null>(null);
   const [joined, setJoined] = useState(false);
+  const [serverGiftFeed, setServerGiftFeed] = useState<GiftDeliveryFeed | null>(null);
   const engineRef = useRef<any>(null);
   const giftTestEngineRef = useRef<AgoraGiftEngineLease | null>(null);
   const primaryRtcChannelRef = useRef("");
@@ -145,6 +147,7 @@ function usePlaybackController() {
   useEffect(() => {
     // Access loss must discard public-channel rendering state before admission.
     setJoined(false);
+    setServerGiftFeed(null);
     setRemoteUid(null);
     setRemoteVideoReady(false);
     primaryRtcChannelRef.current = "";
@@ -284,14 +287,22 @@ function usePlaybackController() {
             }
           },
         });
+        // One-phone server gift test: retain a viewer-owned engine in Android dev
+        // demos, but do not request an ordinary live token or publish any camera.
+        if (isDemo && Platform.OS === "android" && __DEV__) {
+          engine.enableLocalVideo(false);
+          engine.enableLocalAudio(false);
+          return;
+        }
         const tokenData = await generateToken.mutateAsync({
-          data: { channelName: channelId, uid: user?.uid ?? 0, role: "audience" },
+          data: { channelName: channelId, uid: user?.uid ?? 0, role: "audience", serverGiftDelivery: true } as any,
         });
         if (setupIsCancelled() || engineRef.current !== engine) {
           releaseSetupEngine();
           return;
         }
         primaryRtcChannelRef.current = tokenData.channelName;
+        setServerGiftFeed(deliveryFeed((tokenData as any).giftDelivery));
         const joinResult = engine.joinChannel(tokenData.token, tokenData.channelName, user?.uid ?? 0, {
           clientRoleType: ClientRoleType.ClientRoleAudience,
           autoSubscribeAudio: true,
@@ -326,7 +337,7 @@ function usePlaybackController() {
       try { updateViewers.mutate({ channelId, data: { action: "leave" } }); } catch (_e) {}
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channelId, canEnterStream, stream?.rtcChannelName]);
+  }, [channelId, canEnterStream, stream?.rtcChannelName, (stream as any)?.giftDelivery?.id]);
 
   // Once joined, pre-set the remote uid from the known host uid so the
   // RtcTextureView mounts immediately — don't wait for onUserPublished
@@ -346,10 +357,19 @@ function usePlaybackController() {
     const lease = giftTestEngineRef.current;
     return lease?.isCurrent() ? lease : null;
   }, [joined, canEnterStream, channelId]);
+  const getCompositorTestEngine = useCallback(() => {
+    if (isDemo && Platform.OS === "android" && __DEV__ && canEnterStream && !minimizedRef.current && sessionRef.current?.channelId === channelId) {
+      const demoLease = giftTestEngineRef.current;
+      return demoLease?.isCurrent() ? { ...demoLease, primaryConnection: null } : null;
+    }
+    const lease = getGiftTestEngine();
+    if (!lease || !primaryRtcChannelRef.current || !user?.uid) return null;
+    return { ...lease, primaryConnection: { channelId: primaryRtcChannelRef.current, localUid: user.uid } };
+  }, [getGiftTestEngine, user?.uid, isDemo, canEnterStream, channelId]);
   return { previewsBlocked: !!session || pathname === "/go-live", session, channelId, minimized, enabled, preferenceReady, saving, saveEnabled, attach, detach, admit, minimize, close,
-    canEnterStream, accessRestricted, ended, joined, remoteUid, remoteVideoReady, agoraError, stream, demoCategory,
+    canEnterStream, accessRestricted, ended, joined, remoteUid, remoteVideoReady, agoraError, stream, demoCategory, serverGiftFeed: joined && remoteVideoReady ? serverGiftFeed : null,
     backgroundImageUrl: stream?.hostBackgroundImageUrl ?? invitationQuery.data?.invitation?.backgroundImageUrl,
-    premiumGift, partyState, partyMedia, getGiftTestEngine };
+    premiumGift, partyState, partyMedia, getGiftTestEngine, getCompositorTestEngine };
 }
 const PlaybackContext = createContext<ReturnType<typeof usePlaybackController> | null>(null);
 export function LivePlaybackProvider({ children }: { children: React.ReactNode }) {

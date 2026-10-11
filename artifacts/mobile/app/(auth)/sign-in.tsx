@@ -31,35 +31,80 @@ export default function SignInScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [verifyCode, setVerifyCode] = useState("");
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const loading = busy || fetchStatus === "fetching";
+  const needsEmailVerification = (signIn.status === "needs_client_trust" || signIn.status === "needs_second_factor")
+    && signIn.supportedSecondFactors.some(factor => factor.strategy === "email_code");
+
+  const showError = (error: unknown) => {
+    const details = error as { longMessage?: string; message?: string; errors?: { longMessage?: string; message?: string }[] } | null;
+    const first = details?.errors?.[0];
+    setSubmitError(first?.longMessage || first?.message || details?.longMessage || details?.message || t("Could not sign in. Please try again."));
+  };
 
   useEffect(() => {
     if (isSignedIn) router.replace("/(tabs)/profile");
   }, [isSignedIn]);
 
-  const handleSubmit = async () => {
-    const { error } = await signIn.password({ emailAddress: email, password });
-    if (error) return;
+  const finalizeSignIn = async () => {
+    const { error } = await signIn.finalize({ navigate: () => router.replace("/(tabs)") });
+    if (error) showError(error);
+  };
 
-    if (signIn.status === "complete") {
-      await signIn.finalize({
-        navigate: ({ decorateUrl }) => {
-          const url = decorateUrl("/");
-          router.replace(url.startsWith("http") ? "/(tabs)" : "/(tabs)");
-        },
-      });
+  const handleSubmit = async () => {
+    setSubmitError(null);
+    setBusy(true);
+    try {
+      const { error } = await signIn.password({ emailAddress: email.trim(), password });
+      if (error) { showError(error); return; }
+      if (signIn.status === "complete") {
+        await finalizeSignIn();
+      } else if (signIn.status === "needs_client_trust" || signIn.status === "needs_second_factor") {
+        if (signIn.supportedSecondFactors.some(factor => factor.strategy === "email_code")) {
+          const { error } = await signIn.mfa.sendEmailCode();
+          if (error) showError(error);
+        } else {
+          setSubmitError(t("Your account requires another verification method. Please use another sign-in option."));
+        }
+      } else {
+        setSubmitError(t("Sign-in needs another step. Please reset your password or use another sign-in option."));
+      }
+    } catch (error) {
+      showError(error);
+    } finally {
+      setBusy(false);
     }
   };
 
   const handleVerify = async () => {
-    await signIn.mfa.verifyEmailCode({ code: verifyCode });
-    if (signIn.status === "complete") {
-      await signIn.finalize({
-        navigate: () => router.replace("/(tabs)"),
-      });
+    setSubmitError(null);
+    setBusy(true);
+    try {
+      const { error } = await signIn.mfa.verifyEmailCode({ code: verifyCode.trim() });
+      if (error) { showError(error); return; }
+      if (signIn.status === "complete") await finalizeSignIn();
+    } catch (error) {
+      showError(error);
+    } finally {
+      setBusy(false);
     }
   };
 
-  if (signIn.status === "needs_client_trust") {
+  const handleResend = async () => {
+    setSubmitError(null);
+    setBusy(true);
+    try {
+      const { error } = await signIn.mfa.sendEmailCode();
+      if (error) showError(error);
+    } catch (error) {
+      showError(error);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (needsEmailVerification) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
         <StatusBar barStyle="light-content" />
@@ -91,23 +136,24 @@ export default function SignInScreen() {
             <Text style={styles.errorText}>{errors.fields.code.message}</Text>
           )}
 
+          {submitError && <Text accessibilityRole="alert" style={styles.errorText}>{submitError}</Text>}
           <TouchableOpacity
-            style={[styles.primaryBtn, { backgroundColor: colors.primary, opacity: fetchStatus === "fetching" ? 0.6 : 1 }]}
+            style={[styles.primaryBtn, { backgroundColor: colors.primary, opacity: loading ? 0.6 : 1 }]}
             onPress={handleVerify}
-            disabled={fetchStatus === "fetching"}
+            disabled={loading}
             activeOpacity={0.85}
           >
-            {fetchStatus === "fetching" ? (
+            {loading ? (
               <ActivityIndicator color="#FFF" />
             ) : (
               <Text style={[localizedTextStyle(), styles.primaryBtnText]}>{t("Verify")}</Text>
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => signIn.mfa.sendEmailCode()} style={styles.linkRow}>
+          <TouchableOpacity onPress={handleResend} disabled={loading} style={styles.linkRow}>
             <Text style={[localizedTextStyle(), [styles.linkText, { color: colors.primary }]]}>{t("Resend code")}</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => signIn.reset()} style={styles.linkRow}>
+          <TouchableOpacity disabled={loading} onPress={() => { setSubmitError(null); setVerifyCode(""); signIn.reset(); }} style={styles.linkRow}>
             <Text style={[localizedTextStyle(), [styles.linkText, { color: colors.mutedForeground }]]}>{t("Start over")}</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -176,16 +222,17 @@ export default function SignInScreen() {
             </Pressable>
           </Link>
 
+          {submitError && <Text accessibilityRole="alert" style={styles.errorText}>{submitError}</Text>}
           <TouchableOpacity
             style={[
               styles.primaryBtn,
-              { backgroundColor: colors.primary, opacity: (!email || !password || fetchStatus === "fetching") ? 0.5 : 1 },
+              { backgroundColor: colors.primary, opacity: (!email || !password || loading) ? 0.5 : 1 },
             ]}
             onPress={handleSubmit}
-            disabled={!email || !password || fetchStatus === "fetching"}
+            disabled={!email || !password || loading}
             activeOpacity={0.85}
           >
-            {fetchStatus === "fetching" ? (
+            {loading ? (
               <ActivityIndicator color="#FFF" />
             ) : (
               <Text style={[localizedTextStyle(), styles.primaryBtnText]}>{t("Sign in")}</Text>

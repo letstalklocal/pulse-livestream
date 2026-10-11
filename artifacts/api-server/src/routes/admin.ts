@@ -9,6 +9,7 @@ import { adminCatalogRouter } from "./payout-catalog";
 import { adminWithdrawalsRouter } from "./withdrawals";
 import { adminPayoutOperatorsRouter } from "./payout-operators";
 import { adminGiftCatalogRouter } from "./gift-catalog";
+import { adminLiveGiftDeliveryRouter } from "./live-gift-delivery";
 import { CLERK_PROXY_PATH } from "../middlewares/clerkProxyMiddleware";
 
 export function adminAuthConfig() {
@@ -79,6 +80,7 @@ router.get("/config", (_req, res) => {
   }
 });
 router.use(adminGuard);
+router.use("/live-gift-delivery", adminLiveGiftDeliveryRouter);
 router.use("/gifts", adminGiftCatalogRouter);
 router.use("/payout-catalog", adminCatalogRouter);
 router.use("/withdrawals", adminWithdrawalsRouter);

@@ -8,7 +8,7 @@ export type GiftSnapshot = {
   thumbnail: CatalogAsset | null; animation?: CatalogAsset | null;
   androidAnimation?: CatalogAsset | null; iosAnimation?: CatalogAsset | null;
   sound: CatalogAsset | null; legacy: boolean;
-  framing: { preset: "contained" | "fullscreen"; scale: number; x: number; y: number; artworkScale?: number };
+  framing: { preset: "contained" | "fullscreen"; scale: number; x: number; y: number; artworkScale?: number; imageMotion?: "pop-float" | "fade"; imageEntrance?: "none" | "pop" | "fade" | "slide-up" | "slide-down"; imageExit?: "none" | "float-up" | "float-down" | "fade" | "shrink"; imageEnterMs?: number; imageHoldMs?: number; imageExitMs?: number; imageFeel?: "smooth" | "bouncy" | "snappy" };
 };
 export type CatalogGift = { id: string; name: string; emoji: string; coins: number; size: number; revisionId?: string; snapshot?: GiftSnapshot };
 export type GiftCollection = { id: string; name: string; sortOrder: number; locked: boolean; gifts: CatalogGift[] };
@@ -31,6 +31,12 @@ export function validateGiftSnapshot(value: unknown): value is GiftSnapshot {
     !!gift.framing && ["contained", "fullscreen"].includes(gift.framing.preset) &&
     [gift.framing.scale, gift.framing.x, gift.framing.y].every(Number.isFinite) && gift.framing.scale > 0 && gift.framing.scale <= 3 &&
     (gift.framing.artworkScale === undefined || (Number.isFinite(gift.framing.artworkScale) && gift.framing.artworkScale >= 0.25 && gift.framing.artworkScale <= 3)) &&
+    (gift.framing.imageMotion === undefined || ["pop-float", "fade"].includes(gift.framing.imageMotion)) &&
+    (gift.framing.imageEntrance === undefined || ["none", "pop", "fade", "slide-up", "slide-down"].includes(gift.framing.imageEntrance)) &&
+    (gift.framing.imageExit === undefined || ["none", "float-up", "float-down", "fade", "shrink"].includes(gift.framing.imageExit)) &&
+    [gift.framing.imageEnterMs, gift.framing.imageExitMs].every(value => value === undefined || (Number.isSafeInteger(value) && value >= 100 && value <= 3000)) &&
+    (gift.framing.imageHoldMs === undefined || (Number.isSafeInteger(gift.framing.imageHoldMs) && gift.framing.imageHoldMs >= 100 && gift.framing.imageHoldMs <= 10000)) &&
+    (gift.framing.imageFeel === undefined || ["smooth", "bouncy", "snappy"].includes(gift.framing.imageFeel)) &&
     [gift.thumbnail, gift.animation, gift.androidAnimation, gift.iosAnimation, gift.sound].every(validAsset);
 }
 export function parseGiftCatalog(value: unknown): GiftCatalog {

@@ -1,4 +1,5 @@
 import { pushPrivateGift } from "../lib/incognito";
+import { giftDeliveryStatus } from "../lib/liveGiftDelivery";
 import { choosePremiumIdentity, premiumIdentity, publicLiveIdentity, visibleLiveViewer, IncognitoError } from "../lib/incognito";
 import { disableVideoBeforeLive } from "./creator-videos";
 import { createPremiumGiftRequest, payPremiumGiftRequest, premiumGiftStatus, settlePremiumGiftRequests, PremiumGiftError } from "../lib/premiumGiftRequests";
@@ -121,6 +122,7 @@ async function toStreamResponse(stream: StreamRecord) {
   const { hostBackgroundImagePath, isPrivate: _isPrivate, premiumFreeViewerIds: _free, ...response } = stream;
   return {
     ...response,
+    giftDelivery: giftDeliveryStatus(stream.channelId),
     hostBackgroundImageUrl: hostBackgroundImagePath
       ? await createPrivateGetUrl(hostBackgroundImagePath)
       : null,

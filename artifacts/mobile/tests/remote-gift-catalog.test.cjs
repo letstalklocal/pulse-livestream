@@ -28,6 +28,10 @@ test('catalog rejects corrupt publication and keeps immutable snapshot price/art
   assert.throws(() => catalog.parseGiftCatalog(invalid));
   assert.equal(catalog.validateGiftSnapshot({ ...snapshot(), framing: { preset: 'fullscreen', scale: Infinity, x: 0, y: 0 } }), false);
   const sized = snapshot(); sized.framing.artworkScale = .75;
+  for (const imageMotion of ['pop-float', 'fade']) assert.equal(catalog.validateGiftSnapshot({ ...snapshot(), framing: { ...snapshot().framing, imageMotion } }), true);
+  assert.equal(catalog.validateGiftSnapshot({ ...snapshot(), framing: { ...snapshot().framing, imageMotion: 'unknown' } }), false);
+  assert.equal(catalog.validateGiftSnapshot({ ...snapshot(), framing: { ...snapshot().framing, imageEntrance: 'none', imageExit: 'none', imageEnterMs: 500, imageHoldMs: 2000, imageExitMs: 750, imageFeel: 'bouncy' } }), true);
+  for (const framing of [{ imageEnterMs: 0 }, { imageExitMs: 3001 }, { imageHoldMs: 10001 }, { imageFeel: 'unknown' }]) assert.equal(catalog.validateGiftSnapshot({ ...snapshot(), framing: { ...snapshot().framing, ...framing } }), false);
   assert.equal(catalog.validateGiftSnapshot(sized), true);
   assert.equal(sized.framing.scale, 1, 'artwork sizing does not alter animation scale');
   sized.framing.artworkScale = 4;

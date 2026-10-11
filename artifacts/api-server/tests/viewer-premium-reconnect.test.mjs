@@ -14,19 +14,23 @@ function fixture() {
   // The installed SDK returns this SAME JS wrapper after release/create.
   const engine = {
     initialize: () => 0, enableVideo: () => 0, enableAudio: () => 0,
+    enableLocalVideo: value => { state.localVideo = value; return 0; },
+    enableLocalAudio: value => { state.localAudio = value; return 0; },
     registerEventHandler: handler => handlers.push(handler),
     joinChannel: (_, channel) => { joins.push(channel); return 0; },
     muteAllRemoteVideoStreams: () => 0, muteAllRemoteAudioStreams: () => 0,
     leaveChannel: () => { state.leaves++; }, release: () => { state.releases++; },
   };
   const scope = {
-    channelId: 'public-room', isNative: true, canEnterStream: true,
+    channelId: 'public-room', isNative: true, canEnterStream: true, isDemo: false,
+    Platform: { OS: 'android' }, __DEV__: true,
     stream: { rtcChannelName: 'public-room' }, user: { uid: 7 },
     engineRef: { current: null }, giftTestEngineRef: { current: null }, streamEndedRef: { current: false }, primaryRtcChannelRef: { current: '' },
     createEngine: () => engine, ChannelProfileType: { ChannelProfileLiveBroadcasting: 1 },
     ClientRoleType: { ClientRoleAudience: 2 }, process: { env: { EXPO_PUBLIC_AGORA_APP_ID: 'test' } },
     generateToken: { mutateAsync: () => new Promise((resolve, reject) => tokens.push({ resolve, reject })) },
     setJoined: v => { state.joined = v; }, setRemoteUid: v => { state.uid = v; },
+    setServerGiftFeed() {}, deliveryFeed: value => value ?? null,
     setRemoteVideoReady: v => { state.ready = v; }, setAgoraError: v => { state.error = v; },
     setRestrictedByEvent() {}, queryClient: { invalidateQueries() {} }, getGetStreamQueryKey: v => [v],
     updateViewers: { mutate() {} }, console: { log() {}, warn() {} },
@@ -87,4 +91,15 @@ test('current setup failure still releases its engine and exposes an error', asy
   assert.equal(f.state.releases, 1);
   cleanup();
   assert.equal(f.state.releases, 1, 'Cleanup must be idempotent after failure');
+});
+test('Android development demo retains a receive-only engine without a live token or camera', async () => {
+  const f = fixture(); f.scope.isDemo = true; f.scope.channelId = 'pulse-talk-demo';
+  const cleanup = f.run(); await flush();
+  assert.equal(f.tokens.length, 0);
+  assert.equal(f.joins.length, 0);
+  assert.equal(f.state.localVideo, false);
+  assert.equal(f.state.localAudio, false);
+  assert.equal(f.scope.giftTestEngineRef.current.isCurrent(), true);
+  assert.equal(f.state.error, null);
+  cleanup(); assert.equal(f.state.releases, 1);
 });

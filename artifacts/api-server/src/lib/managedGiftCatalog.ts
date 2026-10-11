@@ -64,6 +64,13 @@ export function validateGiftFraming(v: any = {}) {
     x: v.x ?? 0,
     y: v.y ?? 0,
     ...(v.artworkScale !== undefined ? { artworkScale: v.artworkScale } : {}),
+    ...(v.imageMotion !== undefined ? { imageMotion: v.imageMotion } : {}),
+    ...(v.imageEntrance !== undefined ? { imageEntrance: v.imageEntrance } : {}),
+    ...(v.imageExit !== undefined ? { imageExit: v.imageExit } : {}),
+    ...(v.imageEnterMs !== undefined ? { imageEnterMs: v.imageEnterMs } : {}),
+    ...(v.imageHoldMs !== undefined ? { imageHoldMs: v.imageHoldMs } : {}),
+    ...(v.imageExitMs !== undefined ? { imageExitMs: v.imageExitMs } : {}),
+    ...(v.imageFeel !== undefined ? { imageFeel: v.imageFeel } : {}),
   };
   if (
     !["contained", "fullscreen"].includes(f.preset) ||
@@ -74,7 +81,13 @@ export function validateGiftFraming(v: any = {}) {
     !Number.isFinite(f.y) ||
     Math.abs(f.x) > 1 ||
     Math.abs(f.y) > 1 ||
-    (f.artworkScale !== undefined && (!Number.isFinite(f.artworkScale) || f.artworkScale < 0.25 || f.artworkScale > 3))
+    (f.artworkScale !== undefined && (!Number.isFinite(f.artworkScale) || f.artworkScale < 0.25 || f.artworkScale > 3)) ||
+    (f.imageMotion !== undefined && !["pop-float", "fade"].includes(f.imageMotion)) ||
+    (f.imageEntrance !== undefined && !["none", "pop", "fade", "slide-up", "slide-down"].includes(f.imageEntrance)) ||
+    (f.imageExit !== undefined && !["none", "float-up", "float-down", "fade", "shrink"].includes(f.imageExit)) ||
+    [f.imageEnterMs, f.imageExitMs].some(value => value !== undefined && (!Number.isSafeInteger(value) || value < 100 || value > 3000)) ||
+    (f.imageHoldMs !== undefined && (!Number.isSafeInteger(f.imageHoldMs) || f.imageHoldMs < 100 || f.imageHoldMs > 10000)) ||
+    (f.imageFeel !== undefined && !["smooth", "bouncy", "snappy"].includes(f.imageFeel))
   )
     throw new GiftCatalogError("Invalid framing preset, scale or position.");
   return f;
