@@ -2231,6 +2231,12 @@ dialog.gift-reference-editor { width: min(980px, calc(100vw - 32px)); background
 .gift-reference-editor #gift-image-motion-controls .gift-feel-select select { width: 100%; max-width: 100%; flex: none; height: 44px; margin: 0; font-size: 15px; padding: 8px; }
 .gift-reference-editor .gift-motion-toolbar { margin: 0; justify-content: flex-end; align-items: center; gap: 12px; }
 .gift-total-duration { color: var(--muted); font-size: 13px; }
+.gift-reference-editor #gift-image-motion-controls .gift-duration-control { display: grid; grid-template-columns: minmax(20px, 1fr) 48px 20px; align-items: center; gap: 4px; width: 128px; }
+.gift-reference-editor #gift-image-motion-controls .gift-duration-control input[type="range"] { width: 100%; height: 24px; padding: 0; margin: 0; accent-color: var(--pink); }
+.gift-reference-editor #gift-image-motion-controls .gift-duration-value { padding: 0 3px 0 0; gap: 0; font-size: 11px; }
+.gift-reference-editor #gift-image-motion-controls .gift-duration-value input { padding: 0 2px; text-align: center; font-size: 12px; }
+.gift-duration-arrows { display: flex; flex-direction: column; }
+.gift-duration-arrows button { width: 20px; height: 22px; padding: 0; border: 1px solid #363744; border-radius: 4px; background: #11151d; color: #efeff4; cursor: pointer; }
 .gift-total-duration strong { color: #f4f4f7; margin-left: 6px; }
 .gift-reference-editor .gift-motion-full { width: 176px; height: 44px; background: #1b202a; }
 .gift-reference-editor .gift-motion-full::after { content: 'Preview animation'; font-size: 13px; }

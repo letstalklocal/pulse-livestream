@@ -1287,6 +1287,13 @@ function updateImageMotionControls(form) {
     form.querySelector(`[data-gift-motion-play="${phase}"]`).disabled = none;
   }
   const total = form.querySelector('#gift-motion-total');
+  form.querySelectorAll('.gift-duration-control').forEach(control => {
+    const input = control.querySelector('input[name]');
+    const slider = control.querySelector('input[type="range"]');
+    slider.value = input.value;
+    slider.disabled = input.disabled;
+    control.querySelectorAll('button').forEach(button => { button.disabled = input.disabled; });
+  });
   if (total) total.textContent = ((form.elements.imageEntrance.value === 'none' ? 0 : Number(form.elements.imageEnterSeconds.value)) + Number(form.elements.imageHoldSeconds.value) + (form.elements.imageExit.value === 'none' ? 0 : Number(form.elements.imageExitSeconds.value))).toFixed(1) + 's';
 }
 function previewImageGiftMotion(phase = 'all', playButton) {
@@ -1580,6 +1587,31 @@ function layoutGiftEditorReference(form, modal) {
   form.querySelector('.gift-motion-hold').remove();
   form.querySelector('.gift-motion-advanced').remove();
   phases.insertBefore(hold, phases.lastElementChild);
+  phases.querySelectorAll('.gift-motion-duration').forEach(duration => {
+    const input = duration.querySelector('input');
+    const control = document.createElement('div');
+    control.className = 'gift-motion-duration gift-duration-control';
+    input.readOnly = true;
+    input.step = '0.01';
+    const slider = document.createElement('input');
+    slider.type = 'range'; slider.min = input.min; slider.max = input.max; slider.step = '0.1'; slider.value = input.value;
+    slider.setAttribute('aria-label', input.getAttribute('aria-label') + ' slider');
+    const value = document.createElement('span'); value.className = 'gift-duration-value'; value.append(input, 's');
+    const arrows = document.createElement('div'); arrows.className = 'gift-duration-arrows';
+    const setValue = value => {
+      input.value = String(Math.max(Number(input.min), Math.min(Number(input.max), Math.round(value * 10) / 10)));
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    slider.addEventListener('input', () => setValue(Number(slider.value)));
+    slider.addEventListener('change', () => input.dispatchEvent(new Event('change', { bubbles: true })));
+    for (const [symbol, delta, action] of [['▴', 0.1, 'Increase'], ['▾', -0.1, 'Decrease']]) {
+      const button = document.createElement('button'); button.type = 'button'; button.textContent = symbol;
+      button.setAttribute('aria-label', action + ' ' + input.getAttribute('aria-label').toLowerCase() + ' by 0.1 seconds');
+      button.addEventListener('click', () => { setValue(Number(input.value) + delta); input.dispatchEvent(new Event('change', { bubbles: true })); });
+      arrows.append(button);
+    }
+    control.append(slider, value, arrows); duration.replaceWith(control);
+  });
   phases.querySelectorAll('.gift-motion-phase').forEach(phase => {
     const header = document.createElement('div');
     header.className = 'gift-phase-heading';

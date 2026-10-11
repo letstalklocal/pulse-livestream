@@ -344,7 +344,7 @@ const root = path.resolve(__dirname, "../../admin/public");
         return { headings, controls, gaps, durationTops: seconds.map(rect => rect.top), durationWidths: seconds.map(rect => rect.width) };
       });
       assert.ok(Math.max(...aligned.headings) - Math.min(...aligned.headings) < 1 && Math.max(...aligned.controls) - Math.min(...aligned.controls) < 1, 'Peer animation headings and dropdowns align exactly: ' + JSON.stringify(aligned));
-      assert.ok(aligned.durationWidths.every(width => width <= 72) && Math.max(...aligned.durationTops) - Math.min(...aligned.durationTops) < 1, 'Seconds inputs are compact and share one aligned row');
+      assert.ok(aligned.durationWidths.every(width => width <= 128) && Math.max(...aligned.durationTops) - Math.min(...aligned.durationTops) < 1, 'Duration sliders share one aligned row');
       assert.ok(aligned.gaps.every(gap => gap <= 8), 'Removing the label also collapses its reserved gap');
       assert.ok(await page.locator('.gift-motion-phases select').evaluateAll(fields => fields.every(field => field.getBoundingClientRect().width <= 128)), 'Short effect selections use compact dropdowns');
       assert.ok(await page.locator('.gift-motion-phases select').evaluateAll(fields => {
@@ -446,22 +446,23 @@ const root = path.resolve(__dirname, "../../admin/public");
     assert.equal(await page.getByLabel('Exit', { exact: true }).inputValue(), 'float-up', 'Entrance does not change exit');
     await page.getByLabel('Exit', { exact: true }).selectOption('shrink');
     assert.equal(await page.getByLabel('Entrance', { exact: true }).inputValue(), 'slide-down', 'Exit does not change entrance');
-    await page.getByLabel('Entrance duration', { exact: true }).fill('0.5');
-    await page.getByLabel('Entrance duration', { exact: true }).press('Tab');
-    await page.getByLabel('Exit duration', { exact: true }).fill('0.75');
-    await page.locator('[name="imageHoldSeconds"]').fill('2');
-    await page.locator('[name="imageHoldSeconds"]').dispatchEvent('change');
+    await page.getByRole('slider', {name: 'Entrance duration slider'}).fill('0.5');
+    await page.getByRole('slider', {name: 'Entrance duration slider'}).dispatchEvent('change');
+    await page.getByRole('slider', {name: 'Exit duration slider'}).fill('0.7');
+    await page.getByRole('button', {name: 'Increase exit duration by 0.1 seconds'}).click();
+    await page.getByRole('slider', {name: 'Hold duration slider'}).fill('2');
+    await page.getByRole('slider', {name: 'Hold duration slider'}).dispatchEvent('change');
     await page.getByLabel('Motion Feel', { exact: true }).selectOption('bouncy');
     await page.getByRole('button', { name: 'Play entrance', exact: true }).click();
     assert.equal(await page.locator('#gift-preview-screen img').evaluate(img => img.getAnimations().at(-1).effect.getTiming().duration), 500);
     await page.getByRole('button', { name: 'Play exit', exact: true }).click();
-    assert.equal(await page.locator('#gift-preview-screen img').evaluate(img => img.getAnimations().at(-1).effect.getTiming().duration), 750);
+    assert.equal(await page.locator('#gift-preview-screen img').evaluate(img => img.getAnimations().at(-1).effect.getTiming().duration), 800);
     await page.getByRole('button', { name: 'Play full animation', exact: true }).click();
-    assert.equal(await page.locator('#gift-preview-screen img').evaluate(img => img.getAnimations().at(-1).effect.getTiming().duration), 3250);
+    assert.equal(await page.locator('#gift-preview-screen img').evaluate(img => img.getAnimations().at(-1).effect.getTiming().duration), 3300);
     assert.equal(await page.locator('#gift-motion-total').textContent(), '3.3s');
     await page.locator('#gift-preview-timeline').fill('500');
     assert.equal(await page.locator('#gift-preview-screen img').evaluate(img => img.getAnimations().at(-1).playState), 'paused');
-    assert.equal(await page.locator('#gift-preview-screen img').evaluate(img => img.getAnimations().at(-1).currentTime), 1625);
+    assert.equal(await page.locator('#gift-preview-screen img').evaluate(img => img.getAnimations().at(-1).currentTime), 1650);
     assert.equal(await page.locator('#gift-image-motion-preview, [data-gift-preview="thumbnailAssetId"]').count(), 0, 'No redundant image preview buttons');
     assert.equal(await page.locator('#gift-preview-screen img').evaluate(img => img.getAnimations().length), 1);
     await page.locator('[name="type"][value="animation"]').check();
@@ -580,7 +581,7 @@ const root = path.resolve(__dirname, "../../admin/public");
       imageExit: 'shrink',
       imageEnterMs: 500,
       imageHoldMs: 2000,
-      imageExitMs: 750,
+      imageExitMs: 800,
       imageFeel: 'bouncy',
       artworkScale: .75,
       preset: "fullscreen",
