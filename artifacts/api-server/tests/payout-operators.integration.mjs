@@ -663,7 +663,7 @@ try {
   assert.equal(
     (await call("/api/payout-operator/identity", { token: maker.token })).body
       .workflowRevision,
-    "2026-10-11.4",
+    "2026-10-11.6",
   );
 
   assert.equal(
@@ -2279,6 +2279,140 @@ try {
   assert.deepEqual((await unsavedState()).balance, beforeRecovery.balance);
   console.log(
     "PASS actual Maker MCP recovers generic unsaved interruption and completes preparation in one run; existing first-time draft recovers on same attempt; roles, leases, version and funds preserved",
+  );
+  // Corrected saved contact + empty amount form is ordinary reuse, not absence.
+  await pool.query(
+    "UPDATE payout_operator_credentials SET request_count=0,rate_window=NULL WHERE id=$1",
+    [otherMaker.credential.id],
+  );
+  await pool.query(
+    "INSERT INTO users VALUES(7,'Reuse fixture','saved-contact-reuse');INSERT INTO coin_balances(user_id,balance) VALUES(7,10000)",
+  );
+  await api.enroll(
+    pool,
+    {
+      userId: 7,
+      expectedWalletCoins: "10000",
+      reason: "Isolated saved-contact retry",
+    },
+    "owner",
+  );
+  await api.saveRecipient(pool, 7, {
+    legalFirstName: "Test",
+    legalLastName: "Reuse",
+    countryCode: "CO",
+    email: "reuse@example.test",
+    phone: "+573001234572",
+  });
+  const reuseWd = await api.requestWithdrawal(pool, 7, "operator-business", {
+    methodId: method,
+    withdrawalCents: 1500,
+    idempotencyKey: "reuse-saved-contact",
+  });
+  const reuseCall = (tool, data) =>
+    callMakerPreparationMcp({
+      client: preparationClient,
+      base,
+      maker: otherMaker,
+      id: reuseWd.id,
+      leaseId: continuousLease.leaseId,
+      tool,
+      data,
+    });
+  const reuseBegin = await reuseCall("prepare", {
+    evidence: "Isolated first-time preparation; no external actions",
+  });
+  assert.equal(reuseBegin.status, 200);
+  await pool.query(
+    "UPDATE creator_payout_attempts SET evidence=evidence || $2::jsonb WHERE id=$1",
+    [
+      reuseBegin.body.attemptId,
+      JSON.stringify({
+        providerRecipientId: "fixture-existing-contact",
+        recipientSaved: true,
+      }),
+    ],
+  );
+  const reuseUnknown = await reuseCall("unknown", {
+    reason:
+      "Fixture corrected contact exists; Send money opens empty amount form, no draft or transfer",
+  });
+  assert.equal(reuseUnknown.status, 200);
+  const reuseProof = {
+    ...unsavedProof,
+    attemptId: reuseBegin.body.attemptId,
+    expectedVersion: reuseUnknown.body.version,
+    observationId: "reuse-saved-contact-observation",
+    observedAt: new Date().toISOString(),
+    noRecipientSaved: false,
+    reuseSavedRecipient: true,
+    recipientMatches: true,
+    evidence:
+      "Matching corrected contact verified; no draft at actual attempted location; recorded pre-send boundary never crossed, no external actions",
+    historyCoverage:
+      "Relevant attempt audit and provider draft location; no sending, funding or link action occurred in fixture",
+  };
+  const reuseFunds = async () => ({
+    ledger: (
+      await pool.query(
+        "SELECT * FROM creator_cash_ledger WHERE user_id=7 ORDER BY id",
+      )
+    ).rows,
+    balance: (
+      await pool.query("SELECT balance FROM coin_balances WHERE user_id=7")
+    ).rows,
+    recipient: (
+      await pool.query(
+        "SELECT * FROM creator_payout_recipients WHERE user_id=7",
+      )
+    ).rows,
+  });
+  const reuseBefore = await reuseFunds();
+  for (const invalid of [
+    { ...reuseProof, recipientMatches: false },
+    { ...reuseProof, reuseSavedRecipient: undefined },
+    { ...reuseProof, noDraftSaved: false },
+  ])
+    assert(
+      (await reuseCall("retry_unsaved_preparation", invalid)).status >= 400,
+    );
+  const reused = await reuseCall("retry_unsaved_preparation", reuseProof);
+  assert.equal(reused.status, 200, JSON.stringify(reused));
+  assert.equal(reused.body.id, reuseWd.id);
+  assert.equal(reused.body.status, "awaiting_quote");
+  assert.deepEqual(await reuseFunds(), reuseBefore);
+  const reuseClaim = await reuseCall("prepare", {
+    evidence:
+      "Continue immediately with the verified existing contact; no creation/edit",
+  });
+  assert.equal(reuseClaim.status, 200, JSON.stringify(reuseClaim));
+  assert.equal(reuseClaim.body.recipientHandling, "reuse_existing");
+  const reuseAttempt = (
+    await pool.query(
+      "SELECT evidence FROM creator_payout_attempts WHERE id=$1",
+      [reuseClaim.body.attemptId],
+    )
+  ).rows[0];
+  assert.equal(reuseAttempt.evidence.recipientHandling, "reuse_existing");
+  const reuseCompleted = await reuseCall("record_preparation", {
+    ...firstDraft,
+    recovery: undefined,
+    attemptId: reuseClaim.body.attemptId,
+    preparationHash: reuseClaim.body.preparationHash,
+    quote: {
+      ...finalQuote,
+      observedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 3600000).toISOString(),
+    },
+    draftId: "reuse-contact-draft",
+    reviewUrl:
+      "https://www.remitly.com/us/en/transfer/review?draftId=reuse-contact-draft",
+  });
+  assert.equal(reuseCompleted.status, 200, JSON.stringify(reuseCompleted));
+  assert.equal(reuseCompleted.body.status, "awaiting_human_review");
+  assert.deepEqual(await reuseFunds(), reuseBefore);
+  console.log(
+    "PASS actual Maker MCP retries with saved matching contact, no invented provider ID or absence claim, immediately prepares with reuse directive and preserves recipient/reservation",
   );
   await leaseCall(otherMaker.token, "release", {
     leaseId: continuousLease.leaseId,

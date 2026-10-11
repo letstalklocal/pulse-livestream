@@ -716,21 +716,26 @@ export const RetryPayoutOperatorUnsavedPreparationParams = zod.object({
 })
 
 
-export const retryPayoutOperatorUnsavedPreparationBodyDataEvidenceMax = 5000;
+export const retryPayoutOperatorUnsavedPreparationBodyDataOneEvidenceMax = 5000;
 
-export const retryPayoutOperatorUnsavedPreparationBodyDataHistoryCoverageMax = 2000;
+export const retryPayoutOperatorUnsavedPreparationBodyDataOneHistoryCoverageMax = 2000;
+
+
+export const retryPayoutOperatorUnsavedPreparationBodyDataTwoEvidenceMax = 5000;
+
+export const retryPayoutOperatorUnsavedPreparationBodyDataTwoHistoryCoverageMax = 2000;
 
 
 
 export const RetryPayoutOperatorUnsavedPreparationBody = zod.object({
   "leaseId": zod.string(),
-  "data": zod.object({
+  "data": zod.union([zod.object({
   "expectedVersion": zod.number().min(1),
   "observationId": zod.string(),
   "sourceUrl": zod.enum(['https://www.remitly.com/us/en/homepage', 'https://www.remitly.com/us/en/transfer/send']),
   "observedAt": zod.coerce.date(),
-  "evidence": zod.string().min(1).max(retryPayoutOperatorUnsavedPreparationBodyDataEvidenceMax),
-  "historyCoverage": zod.string().min(1).max(retryPayoutOperatorUnsavedPreparationBodyDataHistoryCoverageMax),
+  "evidence": zod.string().min(1).max(retryPayoutOperatorUnsavedPreparationBodyDataOneEvidenceMax),
+  "historyCoverage": zod.string().min(1).max(retryPayoutOperatorUnsavedPreparationBodyDataOneHistoryCoverageMax),
   "historyInspected": zod.literal(true),
   "noRecipientLinkIssued": zod.literal(true),
   "noFundsSent": zod.literal(true),
@@ -742,7 +747,27 @@ export const RetryPayoutOperatorUnsavedPreparationBody = zod.object({
   "noRecipientSaved": zod.literal(true),
   "noDraftSaved": zod.literal(true),
   "previousDraftClosed": zod.literal(true)
-}).describe('Maker-only recovery of generic interrupted preparation with verified absence of any saved provider object or transfer effect. Same withdrawal and reservation; no active recipient error\/correction.')
+}).describe('Recovery when neither a provider draft nor saved contact exists; same reserved withdrawal.'),zod.object({
+  "expectedVersion": zod.number().min(1),
+  "observationId": zod.string(),
+  "sourceUrl": zod.enum(['https://www.remitly.com/us/en/homepage', 'https://www.remitly.com/us/en/transfer/send']),
+  "observedAt": zod.coerce.date(),
+  "evidence": zod.string().min(1).max(retryPayoutOperatorUnsavedPreparationBodyDataTwoEvidenceMax),
+  "historyCoverage": zod.string().min(1).max(retryPayoutOperatorUnsavedPreparationBodyDataTwoHistoryCoverageMax),
+  "historyInspected": zod.literal(true),
+  "noRecipientLinkIssued": zod.literal(true),
+  "noFundsSent": zod.literal(true),
+  "noFundingDebit": zod.literal(true),
+  "noPendingTransfers": zod.literal(true),
+  "noUnknownTransfers": zod.literal(true),
+  "attemptId": zod.string(),
+  "recipientRecordInspected": zod.literal(true),
+  "noRecipientSaved": zod.literal(false),
+  "noDraftSaved": zod.literal(true),
+  "previousDraftClosed": zod.literal(true),
+  "reuseSavedRecipient": zod.literal(true),
+  "recipientMatches": zod.literal(true)
+}).describe('Recovery when no payout draft or transfer exists but the saved contact matches the current corrected recipient snapshot. Reuse it; do not create or edit another contact. No provider ID required.')])
 })
 
 export const retryPayoutOperatorUnsavedPreparationResponseOneGrossCentsMin = 1500;
@@ -1020,7 +1045,8 @@ export const BeginPayoutOperatorPreparationResponse = zod.object({
 }))
 })).and(zod.object({
   "attemptId": zod.string(),
-  "preparationHash": zod.string().optional()
+  "preparationHash": zod.string().optional(),
+  "recipientHandling": zod.enum(['reuse_existing']).optional().describe('Select the verified existing corrected provider contact; never recreate or edit the recipient for this preparation.')
 }))
 
 
@@ -3995,7 +4021,8 @@ export const BeginWithdrawalPreparationResponse = zod.object({
 }))
 })).and(zod.object({
   "attemptId": zod.string(),
-  "preparationHash": zod.string().optional()
+  "preparationHash": zod.string().optional(),
+  "recipientHandling": zod.enum(['reuse_existing']).optional().describe('Select the verified existing corrected provider contact; never recreate or edit the recipient for this preparation.')
 }))
 
 

@@ -5,36 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { WithdrawalUnsavedPreparationRecoveryInputSourceUrl } from './withdrawalUnsavedPreparationRecoveryInputSourceUrl';
+import type { WithdrawalUnsavedPreparationNoRecipientInput } from './withdrawalUnsavedPreparationNoRecipientInput';
+import type { WithdrawalUnsavedPreparationReuseRecipientInput } from './withdrawalUnsavedPreparationReuseRecipientInput';
 
-/**
- * Maker-only recovery of generic interrupted preparation with verified absence of any saved provider object or transfer effect. Same withdrawal and reservation; no active recipient error/correction.
- */
-export interface WithdrawalUnsavedPreparationRecoveryInput {
-  /** @minimum 1 */
-  expectedVersion: number;
-  observationId: string;
-  sourceUrl: WithdrawalUnsavedPreparationRecoveryInputSourceUrl;
-  observedAt: Date;
-  /**
-     * @minLength 1
-     * @maxLength 5000
-     */
-  evidence: string;
-  /**
-     * @minLength 1
-     * @maxLength 2000
-     */
-  historyCoverage: string;
-  historyInspected: true;
-  noRecipientLinkIssued: true;
-  noFundsSent: true;
-  noFundingDebit: true;
-  noPendingTransfers: true;
-  noUnknownTransfers: true;
-  attemptId: string;
-  recipientRecordInspected: true;
-  noRecipientSaved: true;
-  noDraftSaved: true;
-  previousDraftClosed: true;
-}
+export type WithdrawalUnsavedPreparationRecoveryInput = WithdrawalUnsavedPreparationNoRecipientInput | WithdrawalUnsavedPreparationReuseRecipientInput;

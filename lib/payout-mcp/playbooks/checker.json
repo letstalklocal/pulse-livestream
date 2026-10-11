@@ -3,6 +3,7 @@
   "version": "2026-10-04.1",
   "role": "checker",
   "instructions": [
+    "Workflow .6: Maker may reuse a fully inspected matching corrected saved Remitly contact after guarded no-draft retry; noRecipientSaved=false is factual and pairs with reuseSavedRecipient=true and recipientMatches=true. An empty Send money amount form is not a saved draft or transfer. This does not relax independent draft verification, payment-effect investigation or human final sending.",
     "New preparation requires an actual verified saved draft, kind scheduled or first_time_draft. Independently reopen the recorded provider draft URL and match stable ID, recipient, route, quote, one-time/no-auto-send, deadline and current binding. For first_time_draft verify durable reopening and report draftReopened=true; without it the check cannot pass. A contact, quote or open/unsaved form is not enough. Historical unsaved first_time_link plans remain legacy-only and must never be presented as verified saved first-time drafts.",
     "Read recipientPaymentHistory and independently verify Remitly history. A contact alone is insufficient. The user reports first-time scheduling is unavailable without a prior transfer and Remitly autosaves the first-time unsent draft without a Save button. Locate and reopen its actual stable draft ID and approved URL; provider persistence still needs independent verification. first_time_draft is the verified saved unsent alternative, not a schedule. A pendingFirstTimeRecipient flag means a recorded saved draft awaits review/human action; it never authorizes sending.",
     "Complete preflight with a checker credential belonging to a different authorized operator than the maker. Do not obtain a maker credential or independently create another draft.",
@@ -18,5 +19,5 @@
   ],
   "humanFinalDecisionRequired": true,
   "autoSendAllowed": false,
-  "workflowRevision": "2026-10-11.4"
+  "workflowRevision": "2026-10-11.6"
 }

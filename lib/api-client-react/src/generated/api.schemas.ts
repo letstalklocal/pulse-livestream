@@ -1039,9 +1039,21 @@ export type AdminWithdrawalDetail = WithdrawalDetail & {
   readonly pendingFirstTimeRecipient?: boolean;
 };
 
+/**
+ * Select the verified existing corrected provider contact; never recreate or edit the recipient for this preparation.
+ */
+export type WithdrawalPrepareResultRecipientHandling = typeof WithdrawalPrepareResultRecipientHandling[keyof typeof WithdrawalPrepareResultRecipientHandling];
+
+
+export const WithdrawalPrepareResultRecipientHandling = {
+  reuse_existing: 'reuse_existing',
+} as const;
+
 export type WithdrawalPrepareResult = WithdrawalDetail & {
   attemptId: string;
   preparationHash?: string;
+  /** Select the verified existing corrected provider contact; never recreate or edit the recipient for this preparation. */
+  recipientHandling?: WithdrawalPrepareResultRecipientHandling;
 };
 
 export interface WithdrawalReleaseInput {
@@ -2359,22 +2371,22 @@ export interface WithdrawalRecipientErrorInput {
   recipientIssue: WithdrawalRecipientIssueInput;
 }
 
-export type WithdrawalUnsavedPreparationRecoveryInputSourceUrl = typeof WithdrawalUnsavedPreparationRecoveryInputSourceUrl[keyof typeof WithdrawalUnsavedPreparationRecoveryInputSourceUrl];
+export type WithdrawalUnsavedPreparationNoRecipientInputSourceUrl = typeof WithdrawalUnsavedPreparationNoRecipientInputSourceUrl[keyof typeof WithdrawalUnsavedPreparationNoRecipientInputSourceUrl];
 
 
-export const WithdrawalUnsavedPreparationRecoveryInputSourceUrl = {
+export const WithdrawalUnsavedPreparationNoRecipientInputSourceUrl = {
   'https://wwwremitlycom/us/en/homepage': 'https://www.remitly.com/us/en/homepage',
   'https://wwwremitlycom/us/en/transfer/send': 'https://www.remitly.com/us/en/transfer/send',
 } as const;
 
 /**
- * Maker-only recovery of generic interrupted preparation with verified absence of any saved provider object or transfer effect. Same withdrawal and reservation; no active recipient error/correction.
+ * Recovery when neither a provider draft nor saved contact exists; same reserved withdrawal.
  */
-export interface WithdrawalUnsavedPreparationRecoveryInput {
+export interface WithdrawalUnsavedPreparationNoRecipientInput {
   /** @minimum 1 */
   expectedVersion: number;
   observationId: string;
-  sourceUrl: WithdrawalUnsavedPreparationRecoveryInputSourceUrl;
+  sourceUrl: WithdrawalUnsavedPreparationNoRecipientInputSourceUrl;
   observedAt: string;
   /**
      * @minLength 1
@@ -2398,6 +2410,50 @@ export interface WithdrawalUnsavedPreparationRecoveryInput {
   noDraftSaved: true;
   previousDraftClosed: true;
 }
+
+export type WithdrawalUnsavedPreparationReuseRecipientInputSourceUrl = typeof WithdrawalUnsavedPreparationReuseRecipientInputSourceUrl[keyof typeof WithdrawalUnsavedPreparationReuseRecipientInputSourceUrl];
+
+
+export const WithdrawalUnsavedPreparationReuseRecipientInputSourceUrl = {
+  'https://wwwremitlycom/us/en/homepage': 'https://www.remitly.com/us/en/homepage',
+  'https://wwwremitlycom/us/en/transfer/send': 'https://www.remitly.com/us/en/transfer/send',
+} as const;
+
+/**
+ * Recovery when no payout draft or transfer exists but the saved contact matches the current corrected recipient snapshot. Reuse it; do not create or edit another contact. No provider ID required.
+ */
+export interface WithdrawalUnsavedPreparationReuseRecipientInput {
+  /** @minimum 1 */
+  expectedVersion: number;
+  observationId: string;
+  sourceUrl: WithdrawalUnsavedPreparationReuseRecipientInputSourceUrl;
+  observedAt: string;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  evidence: string;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  historyCoverage: string;
+  historyInspected: true;
+  noRecipientLinkIssued: true;
+  noFundsSent: true;
+  noFundingDebit: true;
+  noPendingTransfers: true;
+  noUnknownTransfers: true;
+  attemptId: string;
+  recipientRecordInspected: true;
+  noRecipientSaved: false;
+  noDraftSaved: true;
+  previousDraftClosed: true;
+  reuseSavedRecipient: true;
+  recipientMatches: true;
+}
+
+export type WithdrawalUnsavedPreparationRecoveryInput = WithdrawalUnsavedPreparationNoRecipientInput | WithdrawalUnsavedPreparationReuseRecipientInput;
 
 export interface PayoutOperatorUnsavedPreparationRecoveryInput {
   leaseId: string;

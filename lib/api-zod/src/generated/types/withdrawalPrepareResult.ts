@@ -6,8 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { WithdrawalDetail } from './withdrawalDetail';
+import type { WithdrawalPrepareResultRecipientHandling } from './withdrawalPrepareResultRecipientHandling';
 
 export type WithdrawalPrepareResult = WithdrawalDetail & {
   attemptId: string;
   preparationHash?: string;
+  /** Select the verified existing corrected provider contact; never recreate or edit the recipient for this preparation. */
+  recipientHandling?: WithdrawalPrepareResultRecipientHandling;
 };

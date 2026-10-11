@@ -957,6 +957,17 @@ export async function prepare(
     const bal = await balances(c, w.user_id);
     if (BigInt(bal.reservedTicks) < BigInt(w.gross_cents) * 4n)
       fail("Reservation is missing.", 409);
+    const latestRecovery = (
+      await c.query(
+        "SELECT evidence FROM creator_payout_events WHERE withdrawal_id=$1 AND action='unsaved_preparation_recovered' ORDER BY id DESC LIMIT 1",
+        [id],
+      )
+    ).rows[0]?.evidence;
+    const reuseExistingRecipient =
+      latestRecovery?.reuseSavedRecipient === true &&
+      latestRecovery?.noRecipientSaved === false &&
+      latestRecovery?.recoveredVersion === w.version &&
+      latestRecovery?.recipientHash === hash(w.recipient);
     if (continuous) {
       const reserved = (
         await c.query(
@@ -990,6 +1001,13 @@ export async function prepare(
         JSON.stringify({
           evidence,
           ...(continuous ? { workflowMode: "continuous" } : {}),
+          ...(reuseExistingRecipient
+            ? {
+                recipientHandling: "reuse_existing",
+                recipientRecoveryVersion: latestRecovery.recoveredVersion,
+                recipientHash: latestRecovery.recipientHash,
+              }
+            : {}),
         }),
       ],
     );
@@ -997,11 +1015,27 @@ export async function prepare(
       "UPDATE creator_withdrawals SET status='preparing',checker=NULL,updated_at=now() WHERE id=$1",
       [id],
     );
-    await event(c, w.user_id, actor, "preparing", { attemptId, evidence }, id);
+    await event(
+      c,
+      w.user_id,
+      actor,
+      "preparing",
+      {
+        attemptId,
+        evidence,
+        ...(reuseExistingRecipient
+          ? { recipientHandling: "reuse_existing" }
+          : {}),
+      },
+      id,
+    );
     return {
       ...(await withdrawalDetail(c, id, undefined, account)),
       attemptId,
       ...(continuous ? { preparationHash: binding(w) } : {}),
+      ...(reuseExistingRecipient
+        ? { recipientHandling: "reuse_existing" }
+        : {}),
     };
   });
 }
@@ -2072,7 +2106,6 @@ export async function retryUnsavedPreparation(
   const flags = [
     "historyInspected",
     "recipientRecordInspected",
-    "noRecipientSaved",
     "noDraftSaved",
     "noRecipientLinkIssued",
     "noFundsSent",
@@ -2089,6 +2122,9 @@ export async function retryUnsavedPreparation(
     "observedAt",
     "evidence",
     "historyCoverage",
+    "noRecipientSaved",
+    "reuseSavedRecipient",
+    "recipientMatches",
     ...flags,
   ]);
   const attemptId = str(b.attemptId, "attempt ID");
@@ -2108,6 +2144,30 @@ export async function retryUnsavedPreparation(
       409,
       "recovery_checks_missing",
     );
+  const reuseSavedRecipient = b.noRecipientSaved === false;
+  if (reuseSavedRecipient) {
+    if (b.reuseSavedRecipient !== true || b.recipientMatches !== true)
+      fail(
+        "Saved recipient reuse requires verified matching contact details.",
+        409,
+        "saved_recipient_reuse_required",
+      );
+  } else if (b.noRecipientSaved !== true) {
+    fail(
+      "Recovery requires a definite saved-recipient observation.",
+      409,
+      "recovery_checks_missing",
+    );
+  } else if (
+    b.reuseSavedRecipient !== undefined ||
+    b.recipientMatches !== undefined
+  ) {
+    fail(
+      "Saved recipient reuse contradicts an unsaved recipient observation.",
+      409,
+      "saved_recipient_reuse_required",
+    );
+  }
   const observationHash = hash(b);
   return tx(db, async (c) => {
     const w = await lockedWithdrawal(c, id, account);
@@ -2221,6 +2281,7 @@ export async function retryUnsavedPreparation(
         ([key, part]) =>
           (pattern.test(key) &&
             !/^no[A-Z]/.test(key) &&
+            key !== "previousDraftClosed" &&
             !/(?:Inspected|Coverage|Hash)$/.test(key) &&
             part !== null &&
             part !== false &&
@@ -2229,16 +2290,50 @@ export async function retryUnsavedPreparation(
       );
     const objectMarker =
       /(?:draft|providerRecipient(?:Id|Url|Saved)?|recipientId|recipientSaved|recipientRecord(?:Id|Url|Saved)?|providerContact(?:Id|Url|Saved)?|contactId|contactSaved|contactRecord(?:Id|Url|Saved)?|payeeId|payeeSaved|reviewUrl|preparation(?:Id|Url|Saved|Record)?|providerObject|scheduled)/i;
+    const draftMarker =
+      /(?:draft|reviewUrl|preparation(?:Id|Url|Saved|Record)?|scheduled|providerObject)/i;
     if (
       attempts.some(
-        (item) => item.draft_id || hasMarker(item.evidence, objectMarker),
-      )
+        (item) =>
+          item.draft_id ||
+          hasMarker(
+            item.evidence,
+            reuseSavedRecipient ? draftMarker : objectMarker,
+          ),
+      ) ||
+      (reuseSavedRecipient &&
+        events.some((item) => hasMarker(item.evidence, draftMarker)))
     )
       fail(
         "A saved provider object or preparation is recorded.",
         409,
         "provider_record_exists",
       );
+    if (reuseSavedRecipient) {
+      const knownIds = new Set<string>();
+      const collectContactIds = (value: unknown): void => {
+        if (!value || typeof value !== "object") return;
+        for (const [key, part] of Object.entries(value as Row)) {
+          if (
+            /(?:providerRecipientId|recipientId|providerContactId|contactId|payeeId)$/i.test(
+              key,
+            ) &&
+            typeof part === "string" &&
+            part.trim()
+          )
+            knownIds.add(part.trim());
+          else if (typeof part === "object") collectContactIds(part);
+        }
+      };
+      for (const item of attempts) collectContactIds(item.evidence);
+      for (const item of events) collectContactIds(item.evidence);
+      if (knownIds.size > 1)
+        fail(
+          "Recorded provider recipient IDs conflict.",
+          409,
+          "provider_record_exists",
+        );
+    }
     const effectMarker =
       /(?:providerReference|activityId|providerLink|recipientLink|linkIssued|paymentSent|fundingDebit|fundingDebited|releasedAt|sentAt|transferId|transactionId)/i;
     if (
@@ -2323,6 +2418,8 @@ export async function retryUnsavedPreparation(
         historyCoverage,
         observationHash,
         recipientHash: hash(w.recipient),
+        recoveredVersion: w.version + 1,
+        ...(reuseSavedRecipient ? { recipientHandling: "reuse_existing" } : {}),
         reservationRetained: true,
       },
       id,

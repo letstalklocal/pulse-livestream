@@ -2342,7 +2342,6 @@ try {
   for (const flag of [
     "historyInspected",
     "recipientRecordInspected",
-    "noRecipientSaved",
     "noDraftSaved",
     "noRecipientLinkIssued",
     "noFundsSent",
@@ -2355,6 +2354,14 @@ try {
       { ...unsavedInput, [flag]: false },
       "recovery_checks_missing",
     );
+  await rejectUnsaved(
+    { ...unsavedInput, noRecipientSaved: false },
+    "saved_recipient_reuse_required",
+  );
+  await rejectUnsaved(
+    { ...unsavedInput, reuseSavedRecipient: true, recipientMatches: true },
+    "saved_recipient_reuse_required",
+  );
   await rejectUnsaved(
     { ...unsavedInput, expectedVersion: uncertain.version - 1 },
     "preparation_version_mismatch",
@@ -2816,6 +2823,136 @@ try {
     assert.equal(recovered.status, "awaiting_quote");
     assert.equal(recovered.recipient.phone, "+573001234569");
   }
+  const savedContactAttempt = await api.prepare(
+    pool,
+    "test-business",
+    correctedRequest.id,
+    { evidence: "Corrected contact is saved; amount form is empty" },
+    "maker",
+  );
+  await pool.query(
+    "UPDATE creator_payout_attempts SET evidence=evidence||$2::jsonb,updated_at=now() WHERE id=$1",
+    [
+      savedContactAttempt.attemptId,
+      JSON.stringify({
+        recipientSaved: true,
+        providerRecipientId: "known-corrected-contact",
+      }),
+    ],
+  );
+  const savedContactUnknown = await api.markUnknown(
+    pool,
+    "test-business",
+    correctedRequest.id,
+    { reason: "Saved contact exists, empty amount form, no draft" },
+    "maker",
+  );
+  const reuseInput = {
+    ...unsavedInput,
+    attemptId: savedContactAttempt.attemptId,
+    expectedVersion: savedContactUnknown.version,
+    observationId: "reuse-corrected-saved-contact",
+    observedAt: new Date(Date.now() + 1000).toISOString(),
+    noRecipientSaved: false,
+    reuseSavedRecipient: true,
+    recipientMatches: true,
+    evidence:
+      "Corrected saved contact matches this recipient; amount form remains empty",
+  };
+  const retryContact = (value = reuseInput) =>
+    api.retryUnsavedPreparation(
+      pool,
+      "test-business",
+      correctedRequest.id,
+      value,
+      "maker",
+    );
+  const rejectContact = (value, code) =>
+    assert.rejects(
+      () => retryContact(value),
+      (error) => error.status === 409 && error.code === code,
+    );
+  for (const value of [
+    { ...reuseInput, reuseSavedRecipient: false },
+    { ...reuseInput, recipientMatches: false },
+    { ...reuseInput, noRecipientSaved: true },
+  ])
+    await rejectContact(value, "saved_recipient_reuse_required");
+  for (const flag of [
+    "noDraftSaved",
+    "noRecipientLinkIssued",
+    "noFundsSent",
+    "noFundingDebit",
+    "noPendingTransfers",
+    "noUnknownTransfers",
+  ])
+    await rejectContact(
+      { ...reuseInput, [flag]: false },
+      "recovery_checks_missing",
+    );
+  await pool.query(
+    "UPDATE creator_payout_attempts SET evidence=evidence||'{\"draftSaved\":true}'::jsonb WHERE id=$1",
+    [savedContactAttempt.attemptId],
+  );
+  await rejectContact(reuseInput, "provider_record_exists");
+  await pool.query(
+    "UPDATE creator_payout_attempts SET evidence=evidence-'draftSaved' WHERE id=$1",
+    [savedContactAttempt.attemptId],
+  );
+  await pool.query(
+    "UPDATE creator_payout_attempts SET provider_reference='contact-transfer' WHERE id=$1",
+    [savedContactAttempt.attemptId],
+  );
+  await rejectContact(reuseInput, "provider_effects_recorded");
+  await pool.query(
+    "UPDATE creator_payout_attempts SET provider_reference=NULL WHERE id=$1",
+    [savedContactAttempt.attemptId],
+  );
+  for (const marker of [
+    "paymentSent",
+    "fundingDebited",
+    "recipientLinkIssued",
+  ]) {
+    await pool.query(
+      "UPDATE creator_payout_attempts SET evidence=evidence||$2::jsonb WHERE id=$1",
+      [savedContactAttempt.attemptId, JSON.stringify({ [marker]: true })],
+    );
+    await rejectContact(reuseInput, "provider_effects_recorded");
+    await pool.query(
+      "UPDATE creator_payout_attempts SET evidence=evidence-$2 WHERE id=$1",
+      [savedContactAttempt.attemptId, marker],
+    );
+  }
+  await pool.query(
+    "UPDATE creator_payout_recipients SET data=jsonb_set(data,'{email}',to_jsonb('mismatch@example.com'::text)) WHERE user_id=5",
+  );
+  await rejectContact(reuseInput, "recipient_snapshot_mismatch");
+  await pool.query(
+    "UPDATE creator_payout_recipients SET data=jsonb_set(data,'{email}',to_jsonb('corrected@example.com'::text)) WHERE user_id=5",
+  );
+  const contactBalances = (await api.overview(pool, 5)).balances;
+  const reusedContact = await retryContact();
+  assert.equal(reusedContact.status, "awaiting_quote");
+  assert.deepEqual(reusedContact.recipient, savedContactUnknown.recipient);
+  assert.deepEqual(await retryContact(), reusedContact);
+  await rejectContact(
+    { ...reuseInput, recipientMatches: false },
+    "saved_recipient_reuse_required",
+  );
+  await rejectContact(
+    { ...reuseInput, evidence: "changed observation" },
+    "recovery_observation_conflict",
+  );
+  assert.deepEqual((await api.overview(pool, 5)).balances, contactBalances);
+  const reuseAudit = (
+    await pool.query(
+      "SELECT evidence FROM creator_payout_events WHERE withdrawal_id=$1 AND action='unsaved_preparation_recovered' ORDER BY id DESC LIMIT 1",
+      [correctedRequest.id],
+    )
+  ).rows[0].evidence;
+  assert.equal(reuseAudit.recoveredVersion, reusedContact.version);
+  assert.equal(reuseAudit.recipientHandling, "reuse_existing");
+  assert.equal(reuseAudit.reservationRetained, true);
   const phoneDraft = await api.prepare(
     pool,
     "test-business",
@@ -2823,6 +2960,16 @@ try {
     { evidence: "Saved draft followed by structured phone issue" },
     "maker",
   );
+  assert.equal(phoneDraft.recipientHandling, "reuse_existing");
+  const carried = (
+    await pool.query(
+      "SELECT evidence FROM creator_payout_attempts WHERE id=$1",
+      [phoneDraft.attemptId],
+    )
+  ).rows[0].evidence;
+  assert.equal(carried.recipientHandling, "reuse_existing");
+  assert.equal(carried.recipientRecoveryVersion, reusedContact.version);
+  assert.equal(carried.recipientHash, reuseAudit.recipientHash);
   const phoneDraftId = "phone-issue-draft";
   const phoneReviewUrl = `https://www.remitly.com/test-only-fixture/review/${phoneDraftId}`;
   await pool.query(

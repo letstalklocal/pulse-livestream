@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type WithdrawalUnsavedPreparationRecoveryInputSourceUrl = typeof WithdrawalUnsavedPreparationRecoveryInputSourceUrl[keyof typeof WithdrawalUnsavedPreparationRecoveryInputSourceUrl];
+export type WithdrawalUnsavedPreparationNoRecipientInputSourceUrl = typeof WithdrawalUnsavedPreparationNoRecipientInputSourceUrl[keyof typeof WithdrawalUnsavedPreparationNoRecipientInputSourceUrl];
 
 
-export const WithdrawalUnsavedPreparationRecoveryInputSourceUrl = {
+export const WithdrawalUnsavedPreparationNoRecipientInputSourceUrl = {
   'https://wwwremitlycom/us/en/homepage': 'https://www.remitly.com/us/en/homepage',
   'https://wwwremitlycom/us/en/transfer/send': 'https://www.remitly.com/us/en/transfer/send',
 } as const;
