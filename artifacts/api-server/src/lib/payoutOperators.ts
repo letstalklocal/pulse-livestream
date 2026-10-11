@@ -32,7 +32,7 @@ export class OperatorError extends Error {
 }
 export const PLAYBOOK_VERSION = "2026-10-04.1";
 // Compatible MCP/profile version stays fixed; workflow instructions have their own revision.
-export const WORKFLOW_REVISION = "2026-10-11.6";
+export const WORKFLOW_REVISION = "2026-10-11.7";
 export const operatorEnvironment = (): Operator["environment"] =>
   process.env.NODE_ENV === "production" ? "production" : "development";
 const hash = (v: string) => createHash("sha256").update(v).digest("hex");
@@ -304,6 +304,7 @@ export async function operatorWithdrawals(
       "awaiting_confirmation",
       "requested",
       "preparing",
+      "awaiting_card_verification",
       "unknown",
       "expired",
     ],

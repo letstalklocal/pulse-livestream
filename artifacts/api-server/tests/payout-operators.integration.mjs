@@ -61,6 +61,7 @@ try {
     bundle: true,
     platform: "node",
     format: "cjs",
+    define: { "import.meta.url": JSON.stringify(import.meta.url) },
     external: ["pg-native"],
     logLevel: "silent",
   });
@@ -663,7 +664,7 @@ try {
   assert.equal(
     (await call("/api/payout-operator/identity", { token: maker.token })).body
       .workflowRevision,
-    "2026-10-11.6",
+    "2026-10-11.7",
   );
 
   assert.equal(
@@ -2414,10 +2415,334 @@ try {
   console.log(
     "PASS actual Maker MCP retries with saved matching contact, no invented provider ID or absence claim, immediately prepares with reuse directive and preserves recipient/reservation",
   );
+  for (const uid of [80, 81, 82]) {
+    await pool.query("INSERT INTO users(uid,name,clerk_id) VALUES($1,$2,$3)", [
+      uid,
+      `Card fixture ${uid}`,
+      `card-${uid}`,
+    ]);
+    await pool.query(
+      "INSERT INTO coin_balances(user_id,balance) VALUES($1,10000)",
+      [uid],
+    );
+    await api.enroll(
+      pool,
+      {
+        userId: uid,
+        expectedWalletCoins: "10000",
+        reason: "Card verification fixture",
+      },
+      "owner",
+    );
+    await api.saveRecipient(pool, uid, {
+      legalFirstName: "Card",
+      legalLastName: `Fixture${uid}`,
+      countryCode: "CO",
+      email: `card${uid}@example.test`,
+      phone: `+57300123${String(uid).padStart(4, "0")}`,
+    });
+  }
+  const cardWd = await api.requestWithdrawal(pool, 80, "operator-business", {
+    methodId: method,
+    withdrawalCents: 1500,
+    idempotencyKey: "card-verified",
+  });
+  const cardCall = (leaseId, tool, data, id = cardWd.id) =>
+    callMakerPreparationMcp({
+      client: preparationClient,
+      base,
+      maker: otherMaker,
+      id,
+      leaseId,
+      tool,
+      data,
+    });
+  const cardClaim = await cardCall(continuousLease.leaseId, "prepare", {
+    evidence: "Card prompt fixture",
+  });
+  assert.equal(cardClaim.status, 200, JSON.stringify(cardClaim));
+  const cardDraftId = "verified-card-draft";
+  const cardReviewUrl = `https://www.remitly.com/us/en/transfer/review?draftId=${cardDraftId}`;
+  const cardHandoff = {
+    attemptId: cardClaim.body.attemptId,
+    preparationHash: cardClaim.body.preparationHash,
+    kind: "card_verification",
+    cardVerificationRequired: true,
+    draftSaved: true,
+    draftId: cardDraftId,
+    reviewUrl: cardReviewUrl,
+    recipientMatches: true,
+    noRecipientLinkIssued: true,
+    noFundsSent: true,
+    noFundingDebit: true,
+    evidence:
+      "Actual autosaved draft inspected; expected card check before send",
+  };
+  const cardRecorded = await cardCall(
+    continuousLease.leaseId,
+    "record_preparation",
+    cardHandoff,
+  );
+  assert.equal(cardRecorded.status, 200, JSON.stringify(cardRecorded));
+  assert.equal(cardRecorded.body.status, "awaiting_card_verification");
+  assert.deepEqual(cardRecorded.body.cardVerification, {
+    required: true,
+    draftCreated: true,
+  });
+  assert.equal(cardRecorded.body.progress.nextAction, "verify_card");
+  assert.equal(
+    (await api.adminWithdrawalDetail(pool, cardWd.id, "operator-business"))
+      .pendingFirstTimeRecipient,
+    true,
+  );
+  assert.equal(
+    (
+      await cardCall(continuousLease.leaseId, "prepare", {
+        evidence: "Resume same saved draft",
+      })
+    ).body.attemptId,
+    cardClaim.body.attemptId,
+  );
+  const cardAgain = await cardCall(
+    continuousLease.leaseId,
+    "record_preparation",
+    cardHandoff,
+  );
+  assert.equal(cardAgain.status, 200, JSON.stringify(cardAgain));
+  const cardUnverifiedWd = await api.requestWithdrawal(
+    pool,
+    81,
+    "operator-business",
+    {
+      methodId: method,
+      withdrawalCents: 1500,
+      idempotencyKey: "card-unverified",
+    },
+  );
+  const cardUnverifiedClaim = await cardCall(
+    continuousLease.leaseId,
+    "prepare",
+    { evidence: "Expected card prompt without verified draft" },
+    cardUnverifiedWd.id,
+  );
+  const cardUnverifiedInput = {
+    ...cardHandoff,
+    attemptId: cardUnverifiedClaim.body.attemptId,
+    preparationHash: cardUnverifiedClaim.body.preparationHash,
+    draftSaved: false,
+    draftId: undefined,
+    reviewUrl: undefined,
+  };
+  const cardUnverified = await cardCall(
+    continuousLease.leaseId,
+    "record_preparation",
+    cardUnverifiedInput,
+    cardUnverifiedWd.id,
+  );
+  assert.equal(cardUnverified.status, 200, JSON.stringify(cardUnverified));
+  assert.deepEqual(cardUnverified.body.cardVerification, {
+    required: true,
+    draftCreated: false,
+  });
+  assert.equal(
+    cardUnverified.body.progress.statusLabel,
+    "Waiting for card verification",
+  );
+  assert.equal(
+    (
+      await api.adminWithdrawalDetail(
+        pool,
+        cardUnverifiedWd.id,
+        "operator-business",
+      )
+    ).pendingFirstTimeRecipient,
+    false,
+  );
+  const interruptedWd = await api.requestWithdrawal(
+    pool,
+    82,
+    "operator-business",
+    {
+      methodId: method,
+      withdrawalCents: 1500,
+      idempotencyKey: "card-unknown-recovery",
+    },
+  );
+  const interruptedClaim = await cardCall(
+    continuousLease.leaseId,
+    "prepare",
+    { evidence: "Prompt seen before result" },
+    interruptedWd.id,
+  );
+  const interruptedUnknown = await cardCall(
+    continuousLease.leaseId,
+    "unknown",
+    { reason: "Browser interrupted at expected card prompt" },
+    interruptedWd.id,
+  );
+  assert.equal(interruptedUnknown.body.status, "unknown");
+  const cardRecovery = {
+    expectedVersion: interruptedUnknown.body.version,
+    observationId: "card-prompt-inspected",
+    sourceUrl: finalQuote.sourceUrl,
+    observedAt: new Date(Date.now() + 1000).toISOString(),
+    evidence: "Card prompt and no transfer inspected in provider",
+    historyCoverage: "Actual draft and relevant transfer state",
+    historyInspected: true,
+    noRecipientLinkIssued: true,
+    noFundsSent: true,
+    noFundingDebit: true,
+    noPendingTransfers: true,
+    noUnknownTransfers: true,
+  };
+  const recoveredCard = await cardCall(
+    continuousLease.leaseId,
+    "record_preparation",
+    {
+      ...cardUnverifiedInput,
+      attemptId: interruptedClaim.body.attemptId,
+      preparationHash: interruptedClaim.body.preparationHash,
+      recovery: cardRecovery,
+    },
+    interruptedWd.id,
+  );
+  assert.equal(recoveredCard.status, 200, JSON.stringify(recoveredCard));
+  assert.equal(recoveredCard.body.status, "awaiting_card_verification");
+  assert.equal(
+    (
+      await api.adminWithdrawalDetail(
+        pool,
+        interruptedWd.id,
+        "operator-business",
+      )
+    ).attempts[0].id,
+    interruptedClaim.body.attemptId,
+  );
+  const cardPreparationReleased = await cardCall(
+    continuousLease.leaseId,
+    "preparation_lease_release",
+    {
+      attemptId: cardClaim.body.attemptId,
+      preparationHash: cardClaim.body.preparationHash,
+      evidence: "Expected card verification waiting state safely handed off",
+    },
+  );
+  assert.equal(
+    cardPreparationReleased.status,
+    200,
+    JSON.stringify(cardPreparationReleased),
+  );
+  assert.equal(
+    cardPreparationReleased.body.status,
+    "awaiting_card_verification",
+  );
   await leaseCall(otherMaker.token, "release", {
     leaseId: continuousLease.leaseId,
     reason: "Saved fixture ready for independent check",
   });
+  for (const id of [cardWd.id, cardUnverifiedWd.id, interruptedWd.id])
+    assert.equal(
+      (await api.adminWithdrawalDetail(pool, id, "operator-business")).status,
+      "awaiting_card_verification",
+    );
+  const cardResumeLease = (
+    await leaseCall(otherMaker.token, "acquire", {
+      idempotencyKey: "card-resume-after-release",
+    })
+  ).body;
+  const resumedCard = await cardCall(cardResumeLease.leaseId, "prepare", {
+    evidence: "Card verification done; inspect saved draft",
+  });
+  assert.equal(resumedCard.status, 200, JSON.stringify(resumedCard));
+  assert.equal(resumedCard.body.attemptId, cardClaim.body.attemptId);
+  assert.equal(resumedCard.body.recipientHandling, "reuse_existing");
+  assert.deepEqual(resumedCard.body.existingDraft, {
+    draftId: cardDraftId,
+    reviewUrl: cardReviewUrl,
+  });
+  assert.equal(
+    (
+      await cardCall(cardResumeLease.leaseId, "record_preparation", {
+        ...firstDraft,
+        recovery: undefined,
+        attemptId: resumedCard.body.attemptId,
+        preparationHash: resumedCard.body.preparationHash,
+        draftId: "different-draft",
+        reviewUrl:
+          "https://www.remitly.com/us/en/transfer/review?draftId=different-draft",
+      })
+    ).status,
+    409,
+  );
+  const completedCard = await cardCall(
+    cardResumeLease.leaseId,
+    "record_preparation",
+    {
+      ...firstDraft,
+      recovery: undefined,
+      attemptId: resumedCard.body.attemptId,
+      preparationHash: resumedCard.body.preparationHash,
+      draftId: cardDraftId,
+      reviewUrl: cardReviewUrl,
+      quote: {
+        ...finalQuote,
+        observedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 3600000).toISOString(),
+      },
+    },
+  );
+  assert.equal(completedCard.status, 200, JSON.stringify(completedCard));
+  assert.equal(completedCard.body.status, "awaiting_human_review");
+  assert.equal(
+    (await api.adminWithdrawalDetail(pool, cardWd.id, "operator-business"))
+      .attempts.length,
+    1,
+  );
+  const preparingOnExpiry = await cardCall(
+    cardResumeLease.leaseId,
+    "prepare",
+    {
+      evidence: "Genuine unreported preparation before lease expiry",
+    },
+    cardUnverifiedWd.id,
+  );
+  assert.equal(preparingOnExpiry.status, 200);
+  await pool.query(
+    "UPDATE payout_operator_browser_leases SET expires_at=clock_timestamp()-interval '1 second' WHERE id=$1",
+    [cardResumeLease.leaseId],
+  );
+  const reclaimedCardLease = (
+    await leaseCall(otherMaker.token, "acquire", {
+      idempotencyKey: "card-expiry-reclaim",
+    })
+  ).body;
+  assert.equal(
+    (
+      await api.adminWithdrawalDetail(
+        pool,
+        interruptedWd.id,
+        "operator-business",
+      )
+    ).status,
+    "awaiting_card_verification",
+  );
+  assert.equal(
+    (
+      await api.adminWithdrawalDetail(
+        pool,
+        cardUnverifiedWd.id,
+        "operator-business",
+      )
+    ).status,
+    "unknown",
+  );
+  await leaseCall(otherMaker.token, "release", {
+    leaseId: reclaimedCardLease.leaseId,
+    reason: "Card expiry assertion complete",
+  });
+  console.log(
+    "PASS actual Maker MCP card handoff keeps verified draft and unverified waiting state through browser lease release/expiry, resumes same attempt and quarantines only unreported preparing",
+  );
   const continuousCheckLease = (
     await leaseCall(checker.token, "acquire", {
       idempotencyKey: "continuous-check",

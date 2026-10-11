@@ -284,6 +284,16 @@ function bindGiftEvents() {
       return previewImageGiftMotion(b.dataset.giftMotionPlay, b);
     }
     if (b.dataset.giftSoundPlay) {
+      const form = document.getElementById('gift-draft-form');
+      const field = form?.closest('dialog').dataset.previewPlatform || 'androidAssetId';
+      if (b.dataset.giftSoundPlay === 'original' && giftAsset(form?.elements[field]?.value)?.format === 'svga') {
+        if (b.dataset.playing) {
+          giftState.animationPreviews[field]?.svgaFrame?.contentWindow?.postMessage({type: 'gift-svga-audio-stop'}, '*');
+          setGiftSoundIcon(b); return;
+        }
+        return previewGiftAsset(field, undefined, b);
+      }
+      for (const preview of Object.values(giftState.animationPreviews)) preview.svgaFrame?.contentWindow?.postMessage({type: 'gift-svga-audio-stop'}, '*');
       if (b.dataset.playing) return stopGiftPreview(true);
       const asset = giftSoundPreviewAsset(b.dataset.giftSoundPlay);
       if (asset) return previewGiftAsset('soundAssetId', asset, b);
@@ -302,6 +312,8 @@ function bindGiftEvents() {
       input.name === "soundChoice" &&
       input.form?.getAttribute("id") === "gift-draft-form"
     ) {
+      for (const preview of Object.values(giftState.animationPreviews)) preview.svgaFrame?.contentWindow?.postMessage({type: 'gift-svga-audio-stop'}, '*');
+      input.form.querySelectorAll('[data-gift-sound-play]').forEach(button => setGiftSoundIcon(button));
       stopGiftPreview(true);
       updateGiftSound(input.form);
       return;
@@ -564,6 +576,7 @@ async function previewGiftAsset(field, soundAsset, playButton) {
       const frame = document.createElement('iframe');
       frame.title = 'Animated gift preview';
       frame.setAttribute('sandbox', 'allow-scripts');
+      frame.setAttribute('allow', 'autoplay');
       frame.src = './gift-svga-preview.html';
       frame.style.border = '0';
       position(frame);
@@ -573,11 +586,12 @@ async function previewGiftAsset(field, soundAsset, playButton) {
         const cleanup = () => { clearTimeout(timeout); window.removeEventListener('message', receive); };
         const receive = event => {
           if (event.source !== frame.contentWindow) return;
-          if (event.data?.type === 'gift-svga-ready') frame.contentWindow.postMessage({type: 'gift-svga-load', blob}, '*');
-          if (event.data?.type === 'gift-svga-playing') { cleanup(); resolve(); }
+          if (event.data?.type === 'gift-svga-ready') frame.contentWindow.postMessage({type: 'gift-svga-load', blob, audio: playButton?.dataset.giftSoundPlay === 'original'}, '*');
+          if (event.data?.type === 'gift-svga-playing') { clearTimeout(timeout); frame.dataset.ready = 'true'; resolve(); }
+          if (event.data?.type === 'gift-svga-audio-error') { feedback.textContent = event.data.message; state.audioError = true; if (playButton) setGiftSoundIcon(playButton); }
           if (event.data?.type === 'gift-svga-error') { cleanup(); reject(new Error(event.data.message || 'SVGA preview failed.')); }
         };
-        state.disposeSvga = () => { cleanup(); resolve(); };
+        state.disposeSvga = () => { cleanup(); if (playButton) setGiftSoundIcon(playButton); resolve(); };
         window.addEventListener('message', receive);
         screen.append(frame);
       });
@@ -603,8 +617,8 @@ async function previewGiftAsset(field, soundAsset, playButton) {
         }
       };
       screen.append(controls);
-      feedback.textContent =
-        "SVGA animation preview (silent). Check native playback separately.";
+      if (!state.audioError) feedback.textContent = '';
+      if (playButton) playButton.removeAttribute('aria-busy');
       return;
     }
     const media = document.createElement(
@@ -1662,6 +1676,7 @@ function layoutGiftEditorReference(form, modal) {
   platformTabs.querySelectorAll('button').forEach(button => button.addEventListener('click', () => {
     modal.dataset.previewPlatform = button.dataset.previewPlatform;
     syncGiftPreviewPlatform(form);
+    updateGiftSound(form);
     const field = modal.dataset.previewPlatform;
     if (form.elements[field].value) previewGiftAsset(field);
   }));
@@ -1830,7 +1845,9 @@ function updateGiftSound(form) {
         : reference.dataset.customSoundId || "";
   document.getElementById("gift-custom-sound").hidden = mode !== "custom";
   form.querySelectorAll('[data-gift-sound-play]').forEach(button => {
-    button.disabled = !giftSoundPreviewAsset(button.dataset.giftSoundPlay);
+    const field = form.closest('dialog').dataset.previewPlatform || 'androidAssetId';
+    const embeddedSvga = button.dataset.giftSoundPlay === 'original' && giftAsset(form.elements[field].value)?.format === 'svga';
+    button.disabled = !embeddedSvga && !giftSoundPreviewAsset(button.dataset.giftSoundPlay);
     button.title = button.disabled ? 'No audio available' : button.dataset.playLabel;
   });
   document.getElementById("gift-sound-hint").textContent =
@@ -3397,6 +3414,7 @@ const payoutStatusNames = {
   awaiting_confirmation: "Ready to prepare",
   requested: "Ready to prepare",
   preparing: "Preparing",
+  awaiting_card_verification: "Waiting for card verification",
   awaiting_human_review: "Awaiting human review",
   awaiting_recipient: "Awaiting recipient",
   processing: "Processing",
@@ -3467,6 +3485,7 @@ function payoutProgress(w) {
     awaiting_confirmation: 1,
     requested: 1,
     preparing: 1,
+    awaiting_card_verification: 1,
     awaiting_human_review: 2,
     awaiting_recipient: 3,
     processing: 4,
@@ -3501,26 +3520,50 @@ const payoutExceptions = (w) =>
     Date.parse(payoutAttempt(w)?.evidence?.deadline || w.reviewDeadline) <
       Date.now() &&
     !["delivered", "failed", "canceled", "returned"].includes(w.status));
-const payoutAttempt = (w) => w.attempts?.at(-1) || null;
+const payoutAttempt = (w) => {
+  if (!Array.isArray(w.attempts) || !w.attempts.length) return null;
+  const current = w.attempts.filter((attempt) => attempt.state === w.status);
+  const candidates = current.length ? current : w.attempts;
+  return candidates.reduce((latest, attempt) => {
+    const date = Date.parse(attempt.createdAt || attempt.created_at);
+    const latestDate = Date.parse(latest.createdAt || latest.created_at);
+    return Number.isFinite(date) && (!Number.isFinite(latestDate) || date > latestDate)
+      ? attempt
+      : latest;
+  });
+};
+const payoutAwaitingCard = (w) =>
+  w.status === "awaiting_card_verification" &&
+  w.cardVerification?.required === true;
+const payoutCardDraftCreated = (w) =>
+  payoutAwaitingCard(w) && w.cardVerification?.draftCreated === true;
 const payoutPendingFirstTimeRecipient = (w) => {
   if (w.pendingFirstTimeRecipient !== true ||
-      w.status !== "awaiting_human_review" ||
-      !w.quote)
+      !["awaiting_human_review", "awaiting_card_verification"].includes(w.status))
     return false;
   if (!Array.isArray(w.attempts))
-    return w.attemptState === "awaiting_human_review";
+    return w.attemptState === w.status;
   const attempt = payoutAttempt(w);
   const evidence = attempt?.evidence;
+  if (payoutCardDraftCreated(w))
+    return attempt?.state === "awaiting_card_verification" &&
+      evidence?.kind === "card_verification" && evidence.draftSaved === true &&
+      !!attempt.draftId && !!evidence.reviewUrl;
   return attempt?.state === "awaiting_human_review" &&
+    !!w.quote &&
     evidence?.kind === "first_time_draft" &&
     evidence.draftSaved === true &&
     evidence.draftReopened === true &&
     evidence.noPriorTransfer === true &&
     !!attempt.draftId && !!evidence.reviewUrl;
 };
-const payoutStatusLabel = (w) => payoutPendingFirstTimeRecipient(w)
-  ? "First-time recipient — awaiting your action"
-  : payoutStatusNames[payoutDisplayStatus(w)] || w.status;
+const payoutStatusLabel = (w) => payoutAwaitingCard(w)
+  ? payoutCardDraftCreated(w)
+    ? "Draft created — waiting for card verification"
+    : "Waiting for card verification"
+  : payoutPendingFirstTimeRecipient(w)
+    ? "First-time recipient — awaiting your action"
+    : payoutStatusNames[payoutDisplayStatus(w)] || w.status;
 const payoutTime = (v) =>
   v && Number.isFinite(Date.parse(v)) ? dateTime(v) : "Not recorded";
 const payoutRecipientName = (w) =>
@@ -3634,7 +3677,7 @@ function renderWithdrawalRows() {
     records
       .map((w) => {
         const attempt = payoutAttempt(w);
-        return `<tr><td><button class="user-button" data-withdrawal="${esc(w.id)}"><span><strong>${esc(w.creatorName || `UID ${w.userId}`)}</strong><small>${esc(w.id)}</small></span></button></td><td>${esc(payoutRecipientName(w))}<small>${esc(payoutRecipientHistory(w).label)} · verify Remitly</small><small>${esc(w.route?.country || w.route?.countryCode)} · ${esc(w.route?.method)} · ${esc(w.route?.receiveCurrency)}</small></td><td>${esc(catalogMoney(w.grossCents))}</td><td>${w.quote ? `${esc(catalogMoney(w.quote.feeCents))} / ${esc(catalogMoney(w.quote.sendAmountCents))}` : "Actual quote needed"}${w.quote?.taxCents ? `<small>Tax ${esc(catalogMoney(w.quote.taxCents))}</small>` : ""}</td><td><span class="status ${w.status === "delivered" ? "verified" : payoutExceptions(w) ? "payout-exception" : "pending"}">${esc(payoutStatusLabel(w))}</span>${payoutRecipientErrorMessage(w) ? `<small><strong>${payoutCorrectionSaved(w) ? "Next step" : "Error Message"}:</strong> ${esc(payoutRecipientErrorMessage(w))}</small>` : ""}${payoutPendingFirstTimeRecipient(w) ? '<small>Saved unsent draft. Independent check required before you send it in Remitly.</small>' : ""}</td><td>${esc(w.checker?.status?.replaceAll("_", " ") || "Not checked")}${w.checker?.actor ? `<small>${esc(w.checker.actor)}</small>` : ""}</td><td>${esc(payoutTime(attempt?.evidence?.deadline || w.reviewDeadline))}</td><td><button class="page-button" data-withdrawal="${esc(w.id)}">Open details</button></td></tr>`;
+        return `<tr><td><button class="user-button" data-withdrawal="${esc(w.id)}"><span><strong>${esc(w.creatorName || `UID ${w.userId}`)}</strong><small>${esc(w.id)}</small></span></button></td><td>${esc(payoutRecipientName(w))}<small>${esc(payoutRecipientHistory(w).label)} · verify Remitly</small><small>${esc(w.route?.country || w.route?.countryCode)} · ${esc(w.route?.method)} · ${esc(w.route?.receiveCurrency)}</small></td><td>${esc(catalogMoney(w.grossCents))}</td><td>${payoutAwaitingCard(w) ? "After card verification" : w.quote ? `${esc(catalogMoney(w.quote.feeCents))} / ${esc(catalogMoney(w.quote.sendAmountCents))}` : "Actual quote needed"}${!payoutAwaitingCard(w) && w.quote?.taxCents ? `<small>Tax ${esc(catalogMoney(w.quote.taxCents))}</small>` : ""}</td><td><span class="status ${w.status === "delivered" ? "verified" : payoutExceptions(w) ? "payout-exception" : "pending"}">${esc(payoutStatusLabel(w))}</span>${payoutRecipientErrorMessage(w) ? `<small><strong>${payoutCorrectionSaved(w) ? "Next step" : "Error Message"}:</strong> ${esc(payoutRecipientErrorMessage(w))}</small>` : ""}${payoutPendingFirstTimeRecipient(w) && !payoutAwaitingCard(w) ? '<small>Saved unsent draft. Independent check required before you send it in Remitly.</small>' : ""}${payoutAwaitingCard(w) ? `<small>${payoutCardDraftCreated(w) ? "Saved draft verified. " : "Draft not verified. "}Verify the card in Remitly; Codex will continue this attempt.</small>` : ""}</td><td>${payoutAwaitingCard(w) ? "After card verification" : esc(w.checker?.status?.replaceAll("_", " ") || "Not checked")}${!payoutAwaitingCard(w) && w.checker?.actor ? `<small>${esc(w.checker.actor)}</small>` : ""}</td><td>${payoutAwaitingCard(w) ? "After card verification" : esc(payoutTime(attempt?.evidence?.deadline || w.reviewDeadline))}</td><td><button class="page-button" data-withdrawal="${esc(w.id)}">Open details</button></td></tr>`;
       })
       .join("") ||
     '<tr><td colspan="8" class="empty">No withdrawals match this view.</td></tr>';
@@ -3859,9 +3902,9 @@ function renderWithdrawalDetail() {
     ],
     [
       "Independent checker",
-      `${checker?.status?.replaceAll("_", " ") || "Not checked"}${checker?.actor ? ` · ${checker.actor}` : ""}`,
+      payoutAwaitingCard(w) ? "After card verification" : `${checker?.status?.replaceAll("_", " ") || "Not checked"}${checker?.actor ? ` · ${checker.actor}` : ""}`,
     ],
-    ["Review deadline · UTC", payoutTime(attempt?.evidence?.deadline)],
+    ["Review deadline · UTC", payoutAwaitingCard(w) ? "After card verification" : payoutTime(attempt?.evidence?.deadline)],
     ["Maker", attempt?.maker || "Not assigned"],
     [
       "Preparation lease · UTC",
@@ -4211,14 +4254,17 @@ function renderWithdrawalDetail() {
     ? `<section class="payout-callout" role="alert"><strong>${savedCorrection ? "Correction saved — awaiting processing" : "Error — identified"}</strong><p>${esc(payoutRecipientErrorMessage(w))}</p>${savedCorrection ? "<p>Your edit is complete. The payout operator checks the existing Remitly attempt before retrying. No additional form or approval is needed from you.</p>" : `<p>${issueFields.some((field) => ["phone", "email"].includes(field)) ? "Correct the contact details below and save once." : "An operator needs to review the rejected recipient details."}${issueFields.some((field) => ["name", "other"].includes(field)) ? " Legal-name or other recipient issues still need operator review." : ""}</p>`}${w.recipientCorrection ? `<p><strong>Saved contact correction</strong><br>${w.recipientCorrection.phone ? `Phone: ${esc(w.recipientCorrection.phone)}<br>` : ""}${w.recipientCorrection.email ? `Email: ${esc(w.recipientCorrection.email)}<br>` : ""}Saved ${esc(payoutTime(w.recipientCorrection.requestedAt))}.</p>` : ""}</section>`
     : "";
   const evidenceHistory = `<details class="payout-history"><summary>Evidence and history (${events.length} events)</summary>${events.map((e) => `<article><strong>${esc(e.action?.replaceAll("_", " "))}</strong><small>${esc(payoutTime(e.createdAt || e.created_at))}${e.actor ? ` · ${esc(e.actor)}` : ""}</small>${e.evidence ? `<pre>${esc(typeof e.evidence === "string" ? e.evidence : JSON.stringify(e.evidence, null, 2))}</pre>` : ""}</article>`).join("") || "<p>No events recorded.</p>"}</details>`;
-  const technicalDetails = `<dl class="payout-facts">${facts.map(([label, value]) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join("")}</dl>${q ? `<section class="payout-quote"><h3>Current provider quote</h3><p>Send ${esc(catalogMoney(q.sendAmountCents))} + fee ${esc(catalogMoney(q.feeCents))} + tax ${esc(catalogMoney(q.taxCents))} = ${esc(catalogMoney(q.totalEarningsDeductedCents))} total wallet deduction.</p><p>Recipient estimate: ${esc(q.receiveAmount)} ${esc(q.receiveCurrency)} · ${esc(q.fundingMethod)}. Promotion: ${esc(catalogMoney(q.promotionalDiscountCents))}, separate from fees.</p><p>Observed ${esc(payoutTime(q.observedAt))} · Expires ${esc(payoutTime(q.expiresAt))}</p><p class="payout-hash">Quote reference: ${esc(q.hash)}</p></section>` : '<p class="payout-callout">No exact signed-in provider quote recorded. Do not prepare a transfer from catalog fee estimates.</p>'}<div class="payout-links">${attempt?.evidence?.reviewUrl ? payoutLink(attempt.evidence.reviewUrl, "Review in Remitly") : ""}${w.providerLink ? payoutLink(w.providerLink, "Recipient link") : ""}${events.findLast((e) => e.evidence?.activityUrl)?.evidence?.activityUrl ? payoutLink(events.findLast((e) => e.evidence?.activityUrl).evidence.activityUrl, "Provider activity") : ""}</div>${["unknown", "expired"].includes(w.status) ? '<p class="payout-callout">Reservation retained. Replacement preparation is blocked until provider history resolves the existing attempt.</p>' : ""}`;
+  const technicalDetails = `<dl class="payout-facts">${facts.map(([label, value]) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join("")}</dl>${payoutAwaitingCard(w) ? '<p class="payout-callout">A fresh provider quote and independent check follow card verification.</p>' : q ? `<section class="payout-quote"><h3>Current provider quote</h3><p>Send ${esc(catalogMoney(q.sendAmountCents))} + fee ${esc(catalogMoney(q.feeCents))} + tax ${esc(catalogMoney(q.taxCents))} = ${esc(catalogMoney(q.totalEarningsDeductedCents))} total wallet deduction.</p><p>Recipient estimate: ${esc(q.receiveAmount)} ${esc(q.receiveCurrency)} · ${esc(q.fundingMethod)}. Promotion: ${esc(catalogMoney(q.promotionalDiscountCents))}, separate from fees.</p><p>Observed ${esc(payoutTime(q.observedAt))} · Expires ${esc(payoutTime(q.expiresAt))}</p><p class="payout-hash">Quote reference: ${esc(q.hash)}</p></section>` : '<p class="payout-callout">No exact signed-in provider quote recorded. Do not prepare a transfer from catalog fee estimates.</p>'}<div class="payout-links">${payoutAwaitingCard(w) ? "" : attempt?.evidence?.reviewUrl ? payoutLink(attempt.evidence.reviewUrl, "Review in Remitly") : ""}${w.providerLink ? payoutLink(w.providerLink, "Recipient link") : ""}${events.findLast((e) => e.evidence?.activityUrl)?.evidence?.activityUrl ? payoutLink(events.findLast((e) => e.evidence?.activityUrl).evidence.activityUrl, "Provider activity") : ""}</div>${["unknown", "expired"].includes(w.status) ? '<p class="payout-callout">Reservation retained. Replacement preparation is blocked until provider history resolves the existing attempt.</p>' : ""}`;
   const body = issueFields.length
     ? `<p class="payout-withdrawal-summary">${esc(creatorName)} · ${esc(w.route?.country || w.route?.countryCode)} · ${esc(w.route?.method)}<br>${esc(catalogMoney(w.grossCents))} total wallet deduction${w.balances ? ` · ${esc(w.balances.reservedCoins)} coins reserved` : ""}</p>${recipientIssue}${contactAction}<details class="payout-advanced"><summary>Advanced details and operator actions</summary><div class="payout-advanced-content">${technicalDetails}${actions}${evidenceHistory}</div></details>`
     : `${technicalDetails}${actions}${evidenceHistory}`;
-  const pendingFirstTime = payoutPendingFirstTimeRecipient(w)
+  const pendingFirstTime = payoutPendingFirstTimeRecipient(w) && !payoutAwaitingCard(w)
     ? `<section class="payout-callout" data-pending-first-time><strong>First-time recipient — awaiting your action</strong><p>Saved unsent draft ${esc(attempt.draftId)}. An independent checker must pass before you review and send it manually in Remitly. This record does not send payment.</p>${payoutLink(attempt.evidence.reviewUrl, "Review in Remitly")}</section>`
     : "";
-  target.innerHTML = `<section class="panel payout-detail-panel"><div class="panel-heading"><div><h2>Withdrawal ${esc(w.id)}</h2><p>Updated ${esc(payoutTime(w.updatedAt))}</p></div><div class="payout-detail-toolbar"><button class="page-button" id="refresh-payout-detail">Refresh details</button><button class="page-button" id="close-payout-detail">Close</button></div></div><div class="payout-content"><p id="payout-detail-feedback" role="status"></p>${payoutProgress(w)}${pendingFirstTime}<p class="payout-callout" data-recipient-payment-history><strong>${esc(payoutRecipientHistory(w).label)}</strong> · ${esc(payoutRecipientHistory(w).message)}</p>${body}</div></section>`;
+  const cardVerification = payoutAwaitingCard(w)
+    ? `<section class="payout-callout" data-card-verification><strong>${esc(payoutStatusLabel(w))}</strong><p>${payoutCardDraftCreated(w) ? `Saved unsent draft ${esc(attempt?.draftId || "verified")}. ` : "The provider draft has not been verified. "}Verify the credit card directly in Remitly. Codex then reopens the same draft if one exists, refreshes the quote and continues this attempt for independent review. No funds have been sent.</p>${payoutCardDraftCreated(w) && attempt?.draftId && attempt?.evidence?.reviewUrl ? payoutLink(attempt.evidence.reviewUrl, "Open saved draft in Remitly") : ""}</section>`
+    : "";
+  target.innerHTML = `<section class="panel payout-detail-panel"><div class="panel-heading"><div><h2>Withdrawal ${esc(w.id)}</h2><p>Updated ${esc(payoutTime(w.updatedAt))}</p></div><div class="payout-detail-toolbar"><button class="page-button" id="refresh-payout-detail">Refresh details</button><button class="page-button" id="close-payout-detail">Close</button></div></div><div class="payout-content"><p id="payout-detail-feedback" role="status"></p>${payoutProgress(w)}${cardVerification}${pendingFirstTime}<p class="payout-callout" data-recipient-payment-history><strong>${esc(payoutRecipientHistory(w).label)}</strong> · ${esc(payoutRecipientHistory(w).message)}</p>${body}</div></section>`;
 }
 async function loadWithdrawalDetail(id) {
   if (!authorized || section !== "Payout desk") return;

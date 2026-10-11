@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { WithdrawalDetail } from './withdrawalDetail';
+import type { WithdrawalPrepareResultExistingDraft } from './withdrawalPrepareResultExistingDraft';
 import type { WithdrawalPrepareResultRecipientHandling } from './withdrawalPrepareResultRecipientHandling';
 
 export type WithdrawalPrepareResult = WithdrawalDetail & {
@@ -13,4 +14,6 @@ export type WithdrawalPrepareResult = WithdrawalDetail & {
   preparationHash?: string;
   /** Select the verified existing corrected provider contact; never recreate or edit the recipient for this preparation. */
   recipientHandling?: WithdrawalPrepareResultRecipientHandling;
+  /** Protected same-attempt draft pointer when resuming card verification. Reopen it; never create a replacement. */
+  existingDraft?: WithdrawalPrepareResultExistingDraft;
 };

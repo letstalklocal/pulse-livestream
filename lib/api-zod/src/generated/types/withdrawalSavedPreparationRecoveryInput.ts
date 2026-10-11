@@ -8,7 +8,7 @@
 import type { WithdrawalSavedPreparationRecoveryInputSourceUrl } from './withdrawalSavedPreparationRecoveryInputSourceUrl';
 
 /**
- * Fresh scoped provider-history inspection for same-attempt completion of an existing verified unsent first-time draft; never authorizes creation or sending.
+ * Fresh scoped provider inspection for same-attempt completion of an existing verified first-time draft or recording an expected card-verification handoff after interruption; never authorizes creation or sending.
  */
 export interface WithdrawalSavedPreparationRecoveryInput {
   /** @minimum 1 */

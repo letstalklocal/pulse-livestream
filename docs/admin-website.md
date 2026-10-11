@@ -2,6 +2,8 @@
 
 ## Gift toolbar design — October 10, 2026
 
+Admin SVGA Original-audio preview decodes embedded audio in the isolated frame with Web Audio, respecting frame/start offsets and the final-second fade. The existing Original-audio play/stop icon is enabled for the selected platform's SVGA even without an extracted audio asset. Previewing does not change the saved sound choice. Stop audio on pause, sound-choice changes, platform switches and closing; do not substitute a chime for an SVGA with no embedded track. Remove the obsolete silent-preview success note. This admin-only change does not establish real-live audio recovery or modify DM playback.
+
 Live renderer Chromium is a declared Nix system dependency alongside ffmpeg-full. Resolve `PULSE_CHROMIUM_EXECUTABLE` when explicitly set, otherwise find Chromium on PATH and send the resolved executable to the worker. `/repl/tools/bin/chromium` is only a development fallback, never a production assumption. Builds check browser availability; a changed system-package declaration needs a production redeploy. Do not silently replace an invalid explicit override.
 
 Production live-delivery assets resolve relative to the built API module (`import.meta.url`), never the process working directory. Renderer, SVGA script, legacy media and delivery migration all ship beside `dist/index.mjs`; production can launch from the workspace root. A path-fix rollout requires API redeployment, not a mobile build. Keep the explicit test-renderer override.

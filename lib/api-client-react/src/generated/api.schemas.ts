@@ -169,6 +169,7 @@ export const CreatorWithdrawalStatus = {
   expired: 'expired',
   returned: 'returned',
   unknown: 'unknown',
+  awaiting_card_verification: 'awaiting_card_verification',
 } as const;
 
 export type WithdrawalRecipientStatus = typeof WithdrawalRecipientStatus[keyof typeof WithdrawalRecipientStatus];
@@ -330,6 +331,7 @@ export const CreatorWithdrawalCreatorStatus = {
   unknown: 'unknown',
   error: 'error',
   correction_saved: 'correction_saved',
+  awaiting_card_verification: 'awaiting_card_verification',
 } as const;
 
 export interface WithdrawalRecipientCorrection {
@@ -365,6 +367,7 @@ export const CreatorWithdrawalProgressNextAction = {
   identify_error: 'identify_error',
   continue: 'continue',
   none: 'none',
+  verify_card: 'verify_card',
 } as const;
 
 export type CreatorWithdrawalProgressStepsItemKey = typeof CreatorWithdrawalProgressStepsItemKey[keyof typeof CreatorWithdrawalProgressStepsItemKey];
@@ -387,6 +390,14 @@ export const CreatorWithdrawalProgressStepsItemState = {
   current: 'current',
   upcoming: 'upcoming',
 } as const;
+
+/**
+ * Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.
+ */
+export interface WithdrawalCardVerification {
+  required: true;
+  draftCreated: boolean;
+}
 
 export type CreatorWithdrawalProgressStepsItem = {
   key: CreatorWithdrawalProgressStepsItemKey;
@@ -436,6 +447,7 @@ export interface CreatorWithdrawal {
   recipientCorrection?: WithdrawalRecipientCorrection | null;
   /** Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery. */
   progress?: CreatorWithdrawalProgress;
+  cardVerification?: WithdrawalCardVerification | null;
 }
 
 export type RecipientPaymentHistoryClassification = typeof RecipientPaymentHistoryClassification[keyof typeof RecipientPaymentHistoryClassification];
@@ -708,10 +720,10 @@ export interface PayoutOperatorPrepareInput {
   data: WithdrawalPrepareInput;
 }
 
-export type WithdrawalPreparationInputKind = typeof WithdrawalPreparationInputKind[keyof typeof WithdrawalPreparationInputKind];
+export type WithdrawalCompletedPreparationInputKind = typeof WithdrawalCompletedPreparationInputKind[keyof typeof WithdrawalCompletedPreparationInputKind];
 
 
-export const WithdrawalPreparationInputKind = {
+export const WithdrawalCompletedPreparationInputKind = {
   first_time_link: 'first_time_link',
   scheduled: 'scheduled',
   first_time_draft: 'first_time_draft',
@@ -726,7 +738,7 @@ export const WithdrawalSavedPreparationRecoveryInputSourceUrl = {
 } as const;
 
 /**
- * Fresh scoped provider-history inspection for same-attempt completion of an existing verified unsent first-time draft; never authorizes creation or sending.
+ * Fresh scoped provider inspection for same-attempt completion of an existing verified first-time draft or recording an expected card-verification handoff after interruption; never authorizes creation or sending.
  */
 export interface WithdrawalSavedPreparationRecoveryInput {
   /** @minimum 1 */
@@ -755,7 +767,7 @@ export interface WithdrawalSavedPreparationRecoveryInput {
 /**
  * Continuous preparation requires preparationHash plus final quote and verified saved draft together. first_time_draft also requires actual saved/reopened draft evidence, noPriorTransfer, stable draft ID and approved URL identifying that ID. quoteHash is legacy-only. For unknown/expired same-attempt first_time_draft completion, recovery requires current version and fresh no-effect history evidence; the existing saved/reopened draft must match. No replacement draft or recipient edit is authorized.
  */
-export interface WithdrawalPreparationInput {
+export interface WithdrawalCompletedPreparationInput {
   attemptId: string;
   quoteHash?: string;
   draftId?: string;
@@ -772,7 +784,7 @@ export interface WithdrawalPreparationInput {
      * @maxLength 5000
      */
   evidence: string;
-  kind: WithdrawalPreparationInputKind;
+  kind: WithdrawalCompletedPreparationInputKind;
   preparationHash?: string;
   quote?: WithdrawalQuoteInput;
   draftSaved?: true;
@@ -780,6 +792,39 @@ export interface WithdrawalPreparationInput {
   noPriorTransfer?: true;
   recovery?: WithdrawalSavedPreparationRecoveryInput;
 }
+
+export type WithdrawalCardVerificationInputKind = typeof WithdrawalCardVerificationInputKind[keyof typeof WithdrawalCardVerificationInputKind];
+
+
+export const WithdrawalCardVerificationInputKind = {
+  card_verification: 'card_verification',
+} as const;
+
+/**
+ * Expected card-verification handoff on the same first-time attempt. No deadline or complete quote required. draftSaved=true requires an actually verified saved draft ID and matching approved review URL; false never claims a draft exists. This state is not ready for checking or sending. Human verifies the card in Remitly; Maker resumes the same attempt/draft. Never include card details.
+ */
+export interface WithdrawalCardVerificationInput {
+  attemptId: string;
+  preparationHash: string;
+  kind: WithdrawalCardVerificationInputKind;
+  cardVerificationRequired: true;
+  draftSaved: boolean;
+  draftId?: string;
+  reviewUrl?: string;
+  quote?: WithdrawalQuoteInput;
+  recipientMatches: true;
+  noFundsSent: true;
+  noFundingDebit: true;
+  noRecipientLinkIssued: true;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  evidence: string;
+  recovery?: WithdrawalSavedPreparationRecoveryInput;
+}
+
+export type WithdrawalPreparationInput = WithdrawalCompletedPreparationInput | WithdrawalCardVerificationInput;
 
 export interface PayoutOperatorPreparationInput {
   leaseId: string;
@@ -1049,11 +1094,21 @@ export const WithdrawalPrepareResultRecipientHandling = {
   reuse_existing: 'reuse_existing',
 } as const;
 
+/**
+ * Protected same-attempt draft pointer when resuming card verification. Reopen it; never create a replacement.
+ */
+export type WithdrawalPrepareResultExistingDraft = {
+  draftId: string;
+  reviewUrl: string;
+};
+
 export type WithdrawalPrepareResult = WithdrawalDetail & {
   attemptId: string;
   preparationHash?: string;
   /** Select the verified existing corrected provider contact; never recreate or edit the recipient for this preparation. */
   recipientHandling?: WithdrawalPrepareResultRecipientHandling;
+  /** Protected same-attempt draft pointer when resuming card verification. Reopen it; never create a replacement. */
+  existingDraft?: WithdrawalPrepareResultExistingDraft;
 };
 
 export interface WithdrawalReleaseInput {

@@ -23,4 +23,5 @@ export const CreatorWithdrawalStatus = {
   expired: 'expired',
   returned: 'returned',
   unknown: 'unknown',
+  awaiting_card_verification: 'awaiting_card_verification',
 } as const;

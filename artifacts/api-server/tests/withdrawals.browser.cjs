@@ -451,13 +451,22 @@ const root = path.resolve(__dirname, "../../admin/public");
       { ...savedFirstTime, id: "wd_incomplete_draft", creatorName: "Incomplete draft", pendingFirstTimeRecipient: undefined,
         attempts: [{ ...savedFirstTime.attempts.at(-1), evidence: { ...savedFirstTime.attempts.at(-1).evidence, draftReopened: false } }] },
       { ...savedFirstTime, id: "wd_released_draft", creatorName: "Released draft", status: "awaiting_recipient" },
+      { ...savedFirstTime, id: "wd_card_draft", creatorName: "Card verification draft", status: "awaiting_card_verification",
+        cardVerification: { required: true, draftCreated: true }, pendingFirstTimeRecipient: true,
+        quote: { hash: "old-quote", feeCents: 100, sendAmountCents: 1400 },
+        attempts: [{ id: "older_unknown", state: "unknown", evidence: { kind: "first_time_link" } },
+          { ...savedFirstTime.attempts.at(-1), id: "current_card", state: "awaiting_card_verification",
+            evidence: { kind: "card_verification", draftSaved: true, reviewUrl: "https://www.remitly.com/review/actual-draft-123" } }] },
+      { ...savedFirstTime, id: "wd_card_no_draft", creatorName: "Card verification no draft", status: "awaiting_card_verification",
+        cardVerification: { required: true, draftCreated: false }, pendingFirstTimeRecipient: false,
+        attempts: [{ ...savedFirstTime.attempts.at(-1), state: "awaiting_card_verification", draftId: null, evidence: { kind: "card_verification", draftSaved: false } }] },
     );
     await page.locator("#refresh-withdrawals").click();
-    await page.waitForFunction(() => document.querySelector("#payout-result-count")?.textContent.includes("6 loaded"));
-    assert.match(await page.locator("#payout-summary").textContent(), /1 first-time recipients awaiting your action/);
+    await page.waitForFunction(() => document.querySelector("#payout-result-count")?.textContent.includes("8 loaded"));
+    assert.match(await page.locator("#payout-summary").textContent(), /2 first-time recipients awaiting your action/);
     assert.equal(await page.locator("#payout-rows").getByText("First-time recipient — awaiting your action").count(), 1);
     await page.locator("#payout-filter").selectOption("pending_first_time");
-    assert.equal(await page.locator("#payout-rows tr").count(), 1);
+    assert.equal(await page.locator("#payout-rows tr").count(), 2);
     assert.match(await page.locator("#payout-rows").textContent(), /Saved first-time draft/);
     await page.locator('[data-withdrawal="wd_saved_first_time"]').first().click();
     const pendingDraft = page.locator("#payout-detail [data-pending-first-time]");
@@ -468,6 +477,24 @@ const root = path.resolve(__dirname, "../../admin/public");
       "https://www.remitly.com/review/actual-draft-123");
     assert.equal(await page.locator('[data-payout-action="release"] [name=providerReference]').evaluate((el) => el.required), true);
     assert.equal(await page.locator('[data-payout-action="check"] [name=draftReopened]').evaluate((el) => el.required), true);
+    await page.locator("#close-payout-detail").click();
+    await page.locator("#payout-filter").selectOption("awaiting_card_verification");
+    assert.equal(await page.locator("#payout-rows tr").count(), 2);
+    assert.match(await page.locator("#payout-rows").textContent(), /Draft created — waiting for card verification/);
+    assert.match(await page.locator("#payout-rows").textContent(), /Draft not verified/);
+    assert.doesNotMatch(await page.locator("#payout-rows").textContent(), /old-quote/);
+    await page.locator('[data-withdrawal="wd_card_draft"]').first().click();
+    const cardDraft = page.locator("#payout-detail [data-card-verification]");
+    assert.match(await cardDraft.textContent(), /Saved unsent draft actual-draft-123/);
+    assert.equal(await cardDraft.getByRole("link", { name: /Open saved draft/ }).getAttribute("href"),
+      "https://www.remitly.com/review/actual-draft-123");
+    assert.equal(await page.locator('#payout-detail [data-payout-action="check"]').count(), 0);
+    assert.equal(await page.locator('#payout-detail [data-payout-action="release"]').count(), 0);
+    assert.equal(await page.locator("#payout-detail .payout-quote").count(), 0);
+    await page.locator("#close-payout-detail").click();
+    await page.locator('[data-withdrawal="wd_card_no_draft"]').first().click();
+    assert.match(await page.locator("#payout-detail [data-card-verification]").textContent(), /draft has not been verified/i);
+    assert.equal(await page.locator("#payout-detail [data-card-verification] a").count(), 0);
     await page.locator("#close-payout-detail").click();
     extraWithdrawals.length = 0;
     await page.locator("#payout-filter").selectOption("all");

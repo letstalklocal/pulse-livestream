@@ -6,6 +6,7 @@ type ProgressInput = {
   recipientIssue?: { fields: readonly string[] } | null;
   recipientCorrection?: { hash?: string } | null;
   recordedStage?: "recipient" | "processing" | null;
+  cardVerification?: { required: boolean; draftCreated: boolean } | null;
 };
 
 const steps = [
@@ -22,6 +23,7 @@ const labels: Record<string, string> = {
   awaiting_confirmation: "Preparing withdrawal",
   requested: "Preparing withdrawal",
   preparing: "Preparing withdrawal",
+  awaiting_card_verification: "Waiting for card verification",
   awaiting_human_review: "Awaiting human review",
   awaiting_recipient: "Awaiting recipient details",
   processing: "Processing",
@@ -54,9 +56,19 @@ export function withdrawalProgress(w: ProgressInput) {
       ? "Error — identified"
       : uncertain
         ? "Error — awaiting identification"
-        : (labels[w.status] ?? "Withdrawal under review");
+        : w.status === "awaiting_card_verification" &&
+            w.cardVerification?.draftCreated
+          ? "Draft created — waiting for card verification"
+          : (labels[w.status] ?? "Withdrawal under review");
   let index = 0;
-  if (["awaiting_confirmation", "requested", "preparing"].includes(w.status))
+  if (
+    [
+      "awaiting_confirmation",
+      "requested",
+      "preparing",
+      "awaiting_card_verification",
+    ].includes(w.status)
+  )
     index = 1;
   if (w.status === "awaiting_human_review") index = 2;
   if (w.status === "awaiting_recipient") index = 3;
@@ -86,9 +98,11 @@ export function withdrawalProgress(w: ProgressInput) {
         ? "correct_recipient_details"
         : uncertain
           ? "identify_error"
-          : ["delivered", "failed", "canceled", "returned"].includes(w.status)
-            ? "none"
-            : "continue",
+          : w.status === "awaiting_card_verification"
+            ? "verify_card"
+            : ["delivered", "failed", "canceled", "returned"].includes(w.status)
+              ? "none"
+              : "continue",
     steps: steps.map(([key, label], i) => ({
       key,
       label,

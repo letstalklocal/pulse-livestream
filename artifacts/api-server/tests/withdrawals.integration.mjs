@@ -53,6 +53,7 @@ try {
     bundle: true,
     platform: "node",
     format: "cjs",
+    define: { "import.meta.url": JSON.stringify(import.meta.url) },
     external: ["pg-native"],
     logLevel: "silent",
   });
@@ -3026,6 +3027,159 @@ try {
   );
   console.log(
     "PASS prior resolved phone correction and prior recovery absence proofs do not block a newly inspected generic attempt",
+  );
+
+  await pool.query(
+    "INSERT INTO users VALUES(50,'Card fixture','card');INSERT INTO coin_balances(user_id,balance) VALUES(50,10000)",
+  );
+  await api.enroll(
+    pool,
+    {
+      userId: 50,
+      expectedWalletCoins: "10000",
+      reason: "Card verification fixture",
+    },
+    "owner",
+  );
+  await api.saveRecipient(pool, 50, {
+    legalFirstName: "Card",
+    legalLastName: "Creator",
+    countryCode: "CO",
+    email: "card@example.com",
+    phone: "+573001234568",
+  });
+  const cardRequest = await api.requestWithdrawal(pool, 50, "test-business", {
+    methodId: method,
+    withdrawalCents: 1500,
+    idempotencyKey: "card-verification-handoff",
+  });
+  const cardClaim = await api.prepare(
+    pool,
+    "test-business",
+    cardRequest.id,
+    { evidence: "Start card fixture" },
+    "maker",
+  );
+  const cardInput = {
+    attemptId: cardClaim.attemptId,
+    preparationHash: cardClaim.preparationHash,
+    kind: "card_verification",
+    cardVerificationRequired: true,
+    draftSaved: false,
+    recipientMatches: true,
+    noRecipientLinkIssued: true,
+    noFundsSent: true,
+    noFundingDebit: true,
+    evidence: "Expected card prompt before sending",
+  };
+  await assert.rejects(
+    () =>
+      api.completePreparation(
+        pool,
+        "test-business",
+        cardRequest.id,
+        { ...cardInput, draftId: "invented" },
+        "maker",
+      ),
+    (error) => error.code === "card_verification_unverified",
+  );
+  await assert.rejects(
+    () =>
+      api.completePreparation(
+        pool,
+        "test-business",
+        cardRequest.id,
+        {
+          ...cardInput,
+          quote: { ...quote, receiveCurrency: "USD" },
+        },
+        "maker",
+      ),
+    (error) => error.status >= 400,
+  );
+  const cardWaiting = await api.completePreparation(
+    pool,
+    "test-business",
+    cardRequest.id,
+    cardInput,
+    "maker",
+  );
+  assert.equal(cardWaiting.status, "awaiting_card_verification");
+  assert.deepEqual(cardWaiting.cardVerification, {
+    required: true,
+    draftCreated: false,
+  });
+  assert.equal(cardWaiting.progress.stage, "awaiting_card_verification");
+  assert.equal(cardWaiting.progress.nextAction, "verify_card");
+  assert.equal(
+    cardWaiting.progress.statusLabel,
+    "Waiting for card verification",
+  );
+  const cardResume = await api.prepare(
+    pool,
+    "test-business",
+    cardRequest.id,
+    { evidence: "Card completed; inspect same attempt" },
+    "maker",
+  );
+  assert.equal(cardResume.attemptId, cardClaim.attemptId);
+  assert.equal(cardResume.recipientHandling, "reuse_existing");
+  assert.equal(cardResume.status, "preparing");
+  assert.equal(
+    (
+      await pool.query(
+        "SELECT count(*)::integer n FROM creator_payout_attempts WHERE withdrawal_id=$1",
+        [cardRequest.id],
+      )
+    ).rows[0].n,
+    1,
+  );
+  const verifiedDraftId = "card-auto-saved-draft";
+  const cardDraft = await api.completePreparation(
+    pool,
+    "test-business",
+    cardRequest.id,
+    {
+      ...cardInput,
+      draftSaved: true,
+      draftId: verifiedDraftId,
+      reviewUrl: `https://www.remitly.com/test-only-fixture/review/${verifiedDraftId}`,
+      evidence:
+        "Actual autosaved draft inspected while card verification remains required",
+    },
+    "maker",
+  );
+  assert.equal(cardDraft.status, "awaiting_card_verification");
+  assert.deepEqual(cardDraft.cardVerification, {
+    required: true,
+    draftCreated: true,
+  });
+  assert.equal(
+    cardDraft.progress.statusLabel,
+    "Draft created — waiting for card verification",
+  );
+  const cardAdmin = await api.adminWithdrawalDetail(
+    pool,
+    cardRequest.id,
+    "test-business",
+  );
+  assert.equal(cardAdmin.pendingFirstTimeRecipient, true);
+  assert.equal(cardAdmin.attempts[0].draftId, verifiedDraftId);
+  assert.equal(
+    cardAdmin.attempts[0].evidence.reviewUrl,
+    `https://www.remitly.com/test-only-fixture/review/${verifiedDraftId}`,
+  );
+  assert.equal(
+    (
+      await pool.query(
+        "SELECT count(*)::integer n FROM creator_cash_ledger WHERE withdrawal_id=$1 AND kind='reservation'",
+        [cardRequest.id],
+      )
+    ).rows[0].n,
+    1,
+  );
+  console.log(
+    "PASS expected card verification handoff, safe progress, verified draft and same-attempt resume retain reservation",
   );
 
   await assert.rejects(

@@ -352,6 +352,16 @@ function publicRecipientCorrection(r: Row) {
   };
 }
 const summary = (r: Row) => {
+  const cardVerification =
+    r.status === "awaiting_card_verification"
+      ? {
+          required: true,
+          draftCreated:
+            r.attempt_evidence?.draftSaved === true &&
+            !!r.draft_id &&
+            !!r.attempt_evidence?.reviewUrl,
+        }
+      : null;
   const recipientIssue = publicRecipientIssue(r);
   const recipientCorrection = publicRecipientCorrection(r);
   const progress = withdrawalProgress({
@@ -362,6 +372,7 @@ const summary = (r: Row) => {
     recipientIssue,
     recipientCorrection,
     recordedStage: r.progress_recorded_stage,
+    cardVerification,
   });
   return {
     id: r.id,
@@ -390,6 +401,7 @@ const summary = (r: Row) => {
         ? null
         : (recipientIssue?.message ?? null),
     recipientCorrection,
+    cardVerification,
     progress,
     version: r.version,
     createdAt: r.created_at,
@@ -412,7 +424,7 @@ export async function overview(db: Database, uid: number) {
     ).rows[0];
     const ws = (
       await c.query(
-        `SELECT w.*,${recipientIssueEvidence("w")},${recipientCorrectionEvidence("w")} FROM creator_withdrawals w WHERE user_id=$1 ORDER BY created_at DESC`,
+        `SELECT w.*,${recipientIssueEvidence("w")},${recipientCorrectionEvidence("w")},a.draft_id,a.evidence attempt_evidence FROM creator_withdrawals w LEFT JOIN LATERAL (SELECT draft_id,evidence FROM creator_payout_attempts WHERE withdrawal_id=w.id ORDER BY created_at DESC LIMIT 1) a ON true WHERE user_id=$1 ORDER BY w.created_at DESC`,
         [uid],
       )
     ).rows;
@@ -566,7 +578,7 @@ export async function withdrawalDetail(
 ) {
   const r = (
     await db.query(
-      `SELECT w.*,${recipientIssueEvidence("w")},${recipientCorrectionEvidence("w")} FROM creator_withdrawals w WHERE id=$1 AND ($2::integer IS NULL OR user_id=$2) AND ($3::text IS NULL OR account_key=$3)`,
+      `SELECT w.*,${recipientIssueEvidence("w")},${recipientCorrectionEvidence("w")},a.draft_id,a.evidence attempt_evidence FROM creator_withdrawals w LEFT JOIN LATERAL (SELECT draft_id,evidence FROM creator_payout_attempts WHERE withdrawal_id=w.id ORDER BY created_at DESC LIMIT 1) a ON true WHERE w.id=$1 AND ($2::integer IS NULL OR w.user_id=$2) AND ($3::text IS NULL OR w.account_key=$3)`,
       [id, uid ?? null, account ?? null],
     )
   ).rows[0];
@@ -655,12 +667,16 @@ const recipientPaymentHistory = (r: Row) => ({
 });
 // Pending first-time work requires a verified provider draft, never just a contact or quote.
 const pendingFirstTimeRecipient = (status: string, attempt: Row | undefined) =>
-  status === "awaiting_human_review" &&
-  attempt?.state === "awaiting_human_review" &&
-  attempt?.evidence?.kind === "first_time_draft" &&
+  ((status === "awaiting_human_review" &&
+    attempt?.state === "awaiting_human_review" &&
+    attempt?.evidence?.kind === "first_time_draft") ||
+    (status === "awaiting_card_verification" &&
+      attempt?.state === "awaiting_card_verification" &&
+      attempt?.evidence?.kind === "card_verification")) &&
   attempt.evidence.draftSaved === true &&
-  attempt.evidence.draftReopened === true &&
-  attempt.evidence.noPriorTransfer === true &&
+  (attempt.evidence.kind === "card_verification" ||
+    (attempt.evidence.draftReopened === true &&
+      attempt.evidence.noPriorTransfer === true)) &&
   !!attempt.draftId &&
   !!attempt.evidence.reviewUrl;
 export async function listWithdrawals(
@@ -926,6 +942,98 @@ export async function prepare(
       true
     )
       fail("Preparation is paused.", 409);
+    if (continuous && w.status === "awaiting_card_verification") {
+      const a = (
+        await c.query(
+          "SELECT * FROM creator_payout_attempts WHERE withdrawal_id=$1 ORDER BY created_at DESC LIMIT 1 FOR UPDATE",
+          [id],
+        )
+      ).rows[0];
+      if (
+        !a ||
+        a.state !== "awaiting_card_verification" ||
+        a.evidence?.kind !== "card_verification" ||
+        a.binding_hash !== binding(w)
+      )
+        fail(
+          "Card verification attempt changed; inspect the saved draft.",
+          409,
+        );
+      const reserved = (
+        await c.query(
+          "SELECT COALESCE(sum(reserved_ticks),0)::text reserved FROM creator_cash_ledger WHERE user_id=$1 AND withdrawal_id=$2",
+          [w.user_id, id],
+        )
+      ).rows[0].reserved;
+      if (BigInt(reserved) !== BigInt(w.gross_cents) * 4n)
+        fail(
+          "Exact withdrawal reservation is missing or inconsistent.",
+          409,
+          "reservation_mismatch",
+        );
+      const recipient = (
+        await c.query(
+          "SELECT * FROM creator_payout_recipients WHERE user_id=$1 FOR UPDATE",
+          [w.user_id],
+        )
+      ).rows[0];
+      if (
+        !recipient ||
+        recipient.revision !== w.recipient.revision ||
+        hash(recipient.data) !==
+          hash(
+            Object.fromEntries(
+              Object.entries(w.recipient).filter(
+                ([key]) => !["revision", "status"].includes(key),
+              ),
+            ),
+          )
+      )
+        fail(
+          "Saved recipient changed; inspect the existing attempt.",
+          409,
+          "recipient_snapshot_mismatch",
+        );
+      await c.query(
+        "UPDATE creator_payout_attempts SET state='preparing',maker=$2,lease_until=now()+interval '15 minutes',updated_at=now() WHERE id=$1",
+        [a.id, actor],
+      );
+      await c.query(
+        "UPDATE creator_withdrawals SET status='preparing',updated_at=now() WHERE id=$1",
+        [id],
+      );
+      await event(
+        c,
+        w.user_id,
+        actor,
+        "preparing",
+        {
+          attemptId: a.id,
+          recipientHandling: "reuse_existing",
+          resumedCardVerification: true,
+          evidence,
+        },
+        id,
+      );
+      return {
+        ...(await withdrawalDetail(c, id, undefined, account)),
+        attemptId: a.id,
+        preparationHash: a.binding_hash,
+        recipientHandling: "reuse_existing",
+        cardVerification: {
+          required: true,
+          draftCreated: a.evidence.draftSaved === true,
+        },
+        ...(a.evidence.draftSaved === true
+          ? {
+              existingDraft: {
+                draftId: a.draft_id,
+                reviewUrl: a.evidence.reviewUrl,
+              },
+            }
+          : {}),
+      };
+    }
     if (
       continuous &&
       !["awaiting_quote", "requested", "awaiting_confirmation"].includes(
@@ -1065,20 +1173,55 @@ export async function completePreparation(
     "draftSaved",
     "draftReopened",
     "noPriorTransfer",
+    "cardVerificationRequired",
+    "noRecipientLinkIssued",
+    "noFundsSent",
+    "noFundingDebit",
     "recovery",
   ]);
+  const cardHandoff = b.kind === "card_verification";
   const evidence = note(b.evidence, "preparation evidence", 5000);
-  const coverage = note(b.historyCoverage, "provider history coverage", 2000);
-  if (!["first_time_link", "scheduled", "first_time_draft"].includes(b.kind))
+  const coverage = cardHandoff
+    ? null
+    : note(b.historyCoverage, "provider history coverage", 2000);
+  if (
+    ![
+      "first_time_link",
+      "scheduled",
+      "first_time_draft",
+      "card_verification",
+    ].includes(b.kind)
+  )
     fail("Specify a saved first-time draft or one-time scheduled preparation.");
   if (
-    b.recipientMatches !== true ||
-    b.amountsMatch !== true ||
-    b.historyInspected !== true ||
-    b.oneTime !== true ||
-    b.autoSend !== false
+    !cardHandoff &&
+    (b.recipientMatches !== true ||
+      b.amountsMatch !== true ||
+      b.historyInspected !== true ||
+      b.oneTime !== true ||
+      b.autoSend !== false)
   )
     fail("All preparation checks must be confirmed; auto-send must be off.");
+  if (
+    cardHandoff &&
+    (b.cardVerificationRequired !== true ||
+      typeof b.draftSaved !== "boolean" ||
+      b.recipientMatches !== true ||
+      b.noRecipientLinkIssued !== true ||
+      b.noFundsSent !== true ||
+      b.noFundingDebit !== true ||
+      b.quoteHash !== undefined ||
+      b.deadline !== undefined ||
+      b.draftReopened !== undefined ||
+      b.noPriorTransfer !== undefined ||
+      (b.draftSaved === false &&
+        (b.draftId !== undefined || b.reviewUrl !== undefined)))
+  )
+    fail(
+      "Card verification handoff requires truthful pre-send and draft evidence.",
+      409,
+      "card_verification_unverified",
+    );
   const recovery =
     b.recovery === undefined
       ? null
@@ -1128,7 +1271,7 @@ export async function completePreparation(
     if (recoveryProof) {
       const prior = (
         await c.query(
-          "SELECT evidence FROM creator_payout_events WHERE withdrawal_id=$1 AND action='saved_preparation_recovered' AND evidence->>'observationId'=$2",
+          "SELECT evidence FROM creator_payout_events WHERE withdrawal_id=$1 AND action IN ('saved_preparation_recovered','card_verification_recovered') AND evidence->>'observationId'=$2",
           [id, recoveryProof.observationId],
         )
       ).rows[0];
@@ -1171,7 +1314,7 @@ export async function completePreparation(
       if (
         !recovering ||
         !continuous ||
-        !firstTimeDraft ||
+        !(firstTimeDraft || cardHandoff) ||
         recoveryProof.expectedVersion !== w.version ||
         b.preparationHash !== a.binding_hash ||
         a.binding_hash !== binding(w)
@@ -1200,8 +1343,14 @@ export async function completePreparation(
           409,
           "recovery_observation_stale",
         );
-      const draftId = str(b.draftId, "draft ID");
-      const reviewUrl = safeProviderLink(b.reviewUrl);
+      const draftId =
+        b.draftSaved === true || firstTimeDraft
+          ? str(b.draftId, "draft ID")
+          : null;
+      const reviewUrl =
+        b.draftSaved === true || firstTimeDraft
+          ? safeProviderLink(b.reviewUrl)
+          : null;
       const attempts = (
         await c.query(
           "SELECT * FROM creator_payout_attempts WHERE withdrawal_id=$1 ORDER BY created_at FOR UPDATE",
@@ -1347,7 +1496,9 @@ export async function completePreparation(
         c,
         w.user_id,
         actor,
-        "saved_preparation_recovered",
+        cardHandoff
+          ? "card_verification_recovered"
+          : "saved_preparation_recovered",
         {
           ...recovery,
           ...recoveryProof,
@@ -1361,7 +1512,182 @@ export async function completePreparation(
         id,
       );
     }
+    if (cardHandoff) {
+      if (
+        !continuous ||
+        b.preparationHash !== a.binding_hash ||
+        a.binding_hash !== binding(w)
+      )
+        fail(
+          "Card verification requires the current continuous attempt.",
+          409,
+          "card_verification_attempt_conflict",
+        );
+      const attempts = (
+        await c.query(
+          "SELECT * FROM creator_payout_attempts WHERE withdrawal_id=$1 ORDER BY created_at FOR UPDATE",
+          [id],
+        )
+      ).rows;
+      const events = (
+        await c.query(
+          "SELECT action,evidence FROM creator_payout_events WHERE withdrawal_id=$1 ORDER BY id FOR SHARE",
+          [id],
+        )
+      ).rows;
+      const effectMarker =
+        /(?:providerReference|activityId|providerLink|recipientLink|linkIssued|paymentSent|fundingDebit|fundingDebited|releasedAt|sentAt|transferId|transactionId)/i;
+      const hasEffect = (value: unknown): boolean =>
+        !!value &&
+        typeof value === "object" &&
+        Object.entries(value as Row).some(
+          ([key, part]) =>
+            (effectMarker.test(key) &&
+              !/^no[A-Z]/.test(key) &&
+              part !== null &&
+              part !== false &&
+              part !== "") ||
+            (typeof part === "object" && hasEffect(part)),
+        );
+      if (
+        w.provider_link ||
+        attempts.some(
+          (item) =>
+            item.provider_reference ||
+            item.activity_id ||
+            hasEffect(item.evidence),
+        ) ||
+        events.some(
+          (item) =>
+            ["human_declined", "human_release_recorded", "reconciled"].includes(
+              item.action,
+            ) || hasEffect(item.evidence),
+        )
+      )
+        fail(
+          "A human decision or provider transfer effect is recorded.",
+          409,
+          "provider_effects_recorded",
+        );
+      const reserved = (
+        await c.query(
+          "SELECT COALESCE(sum(reserved_ticks),0)::text reserved FROM creator_cash_ledger WHERE user_id=$1 AND withdrawal_id=$2",
+          [w.user_id, id],
+        )
+      ).rows[0].reserved;
+      if (BigInt(reserved) !== BigInt(w.gross_cents) * 4n)
+        fail(
+          "Exact withdrawal reservation is missing or inconsistent.",
+          409,
+          "reservation_mismatch",
+        );
+      const recipient = (
+        await c.query(
+          "SELECT * FROM creator_payout_recipients WHERE user_id=$1 FOR UPDATE",
+          [w.user_id],
+        )
+      ).rows[0];
+      if (
+        !recipient ||
+        recipient.revision !== w.recipient.revision ||
+        hash(recipient.data) !==
+          hash(
+            Object.fromEntries(
+              Object.entries(w.recipient).filter(
+                ([key]) => !["revision", "status"].includes(key),
+              ),
+            ),
+          )
+      )
+        fail(
+          "Saved recipient changed; inspect the existing attempt.",
+          409,
+          "recipient_snapshot_mismatch",
+        );
+      const draftId = b.draftSaved === true ? str(b.draftId, "draft ID") : null;
+      const reviewUrl =
+        b.draftSaved === true ? safeProviderLink(b.reviewUrl) : null;
+      if (
+        a.evidence?.draftSaved === true &&
+        (b.draftSaved !== true ||
+          a.draft_id !== draftId ||
+          a.evidence.reviewUrl !== reviewUrl)
+      )
+        fail(
+          "The saved provider draft must be preserved on this attempt.",
+          409,
+          "saved_draft_mismatch",
+        );
+      if (
+        draftId &&
+        ![
+          ...new URL(reviewUrl!).pathname.split("/"),
+          ...new URL(reviewUrl!).searchParams.values(),
+        ].includes(draftId)
+      )
+        fail(
+          "The card-verification draft URL must identify the saved draft.",
+          409,
+          "card_verification_unverified",
+        );
+      const quote =
+        b.quote === undefined ? null : providerQuoteForWithdrawal(w, b.quote);
+      if (quote) {
+        const updated = (
+          await c.query(
+            "UPDATE creator_withdrawals SET quote=$2,approved_quote_hash=NULL,checker=NULL,version=version+1,updated_at=now() WHERE id=$1 RETURNING *",
+            [id, JSON.stringify(quote)],
+          )
+        ).rows[0];
+        Object.assign(w, updated);
+        await c.query(
+          "UPDATE creator_payout_attempts SET binding_hash=$2 WHERE id=$1",
+          [a.id, binding(w)],
+        );
+      }
+      const details = {
+        ...a.evidence,
+        kind: "card_verification",
+        workflowMode: "continuous",
+        cardVerificationRequired: true,
+        draftSaved: b.draftSaved,
+        ...(draftId ? { draftId, reviewUrl } : {}),
+        recipientMatches: true,
+        noRecipientLinkIssued: true,
+        noFundsSent: true,
+        noFundingDebit: true,
+        evidence,
+        ...(quote ? { quoteHash: quote.hash } : {}),
+      };
+      await c.query(
+        "UPDATE creator_payout_attempts SET state='awaiting_card_verification',draft_id=$2,evidence=$3,updated_at=now() WHERE id=$1",
+        [a.id, draftId, JSON.stringify(details)],
+      );
+      await c.query(
+        "UPDATE creator_withdrawals SET status='awaiting_card_verification',updated_at=now() WHERE id=$1",
+        [id],
+      );
+      await event(
+        c,
+        w.user_id,
+        actor,
+        "card_verification_required",
+        { attemptId: a.id, ...details, reservationRetained: true },
+        id,
+      );
+      return withdrawalDetail(c, id, undefined, account);
+    }
     if (firstTimeDraft) {
+      if (
+        a.evidence?.cardVerificationRequired === true &&
+        a.evidence?.draftSaved === true &&
+        (a.draft_id !== b.draftId || a.evidence.reviewUrl !== b.reviewUrl)
+      )
+        fail(
+          "The saved provider draft must be preserved on this attempt.",
+          409,
+          "saved_draft_mismatch",
+        );
       if (
         !continuous ||
         b.draftSaved !== true ||
@@ -1396,6 +1722,12 @@ export async function completePreparation(
         "First-time draft evidence is only valid for first-time saved drafts.",
       );
     }
+    if (a.evidence?.cardVerificationRequired === true && !firstTimeDraft)
+      fail(
+        "Card verification draft requires first-time draft inspection before review.",
+        409,
+        "card_verification_unverified",
+      );
     if (continuous) {
       if (
         b.preparationHash !== a.binding_hash ||
@@ -3094,9 +3426,26 @@ export async function releasePreparationLease(
       (a.evidence?.workflowMode === "continuous"
         ? b.preparationHash !== a.binding_hash || b.quoteHash !== undefined
         : b.quoteHash !== w.quote?.hash || b.preparationHash !== undefined) ||
-      !["preparing", "unknown"].includes(a.state)
+      !["preparing", "unknown", "awaiting_card_verification"].includes(a.state)
     )
       fail("Preparation attempt does not match this operator and quote.", 409);
+    if (a.state === "awaiting_card_verification") {
+      if (w.status !== "awaiting_card_verification")
+        fail(
+          "Card verification attempt changed.",
+          409,
+          "card_verification_attempt_conflict",
+        );
+      await event(
+        c,
+        w.user_id,
+        actor,
+        "preparation_lease_released_card_verification",
+        { attemptId: a.id, evidence },
+        id,
+      );
+      return adminWithdrawalDetail(c, id, account);
+    }
     await c.query(
       "UPDATE creator_payout_attempts SET state='unknown',updated_at=now() WHERE id=$1",
       [a.id],

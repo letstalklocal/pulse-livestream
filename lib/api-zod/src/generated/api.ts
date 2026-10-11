@@ -137,7 +137,7 @@ export const ListPayoutOperatorWithdrawalsResponse = zod.object({
   "withdrawals": zod.array(zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneGrossCentsMin).max(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -199,7 +199,7 @@ export const ListPayoutOperatorWithdrawalsResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneRecipientCorrectionOnePhoneMax).regex(listPayoutOperatorWithdrawalsResponseWithdrawalsItemOneRecipientCorrectionOnePhoneRegExp),
@@ -212,13 +212,17 @@ export const ListPayoutOperatorWithdrawalsResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "creatorName": zod.string(),
   "reviewDeadline": zod.string().nullable(),
@@ -291,7 +295,7 @@ export const getPayoutOperatorWithdrawalResponseTwoBalancesReservedUsdRegExp = n
 export const GetPayoutOperatorWithdrawalResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(getPayoutOperatorWithdrawalResponseOneOneGrossCentsMin).max(getPayoutOperatorWithdrawalResponseOneOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -353,7 +357,7 @@ export const GetPayoutOperatorWithdrawalResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(getPayoutOperatorWithdrawalResponseOneOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(getPayoutOperatorWithdrawalResponseOneOneRecipientCorrectionOnePhoneMax).regex(getPayoutOperatorWithdrawalResponseOneOneRecipientCorrectionOnePhoneRegExp),
@@ -366,13 +370,17 @@ export const GetPayoutOperatorWithdrawalResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -617,7 +625,7 @@ export const recordPayoutOperatorQuoteResponseOneRecipientCorrectionOneEmailMax 
 export const RecordPayoutOperatorQuoteResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(recordPayoutOperatorQuoteResponseOneGrossCentsMin).max(recordPayoutOperatorQuoteResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -679,7 +687,7 @@ export const RecordPayoutOperatorQuoteResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(recordPayoutOperatorQuoteResponseOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(recordPayoutOperatorQuoteResponseOneRecipientCorrectionOnePhoneMax).regex(recordPayoutOperatorQuoteResponseOneRecipientCorrectionOnePhoneRegExp),
@@ -692,13 +700,17 @@ export const RecordPayoutOperatorQuoteResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -808,7 +820,7 @@ export const retryPayoutOperatorUnsavedPreparationResponseOneRecipientCorrection
 export const RetryPayoutOperatorUnsavedPreparationResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(retryPayoutOperatorUnsavedPreparationResponseOneGrossCentsMin).max(retryPayoutOperatorUnsavedPreparationResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -870,7 +882,7 @@ export const RetryPayoutOperatorUnsavedPreparationResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(retryPayoutOperatorUnsavedPreparationResponseOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(retryPayoutOperatorUnsavedPreparationResponseOneRecipientCorrectionOnePhoneMax).regex(retryPayoutOperatorUnsavedPreparationResponseOneRecipientCorrectionOnePhoneRegExp),
@@ -883,13 +895,17 @@ export const RetryPayoutOperatorUnsavedPreparationResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -956,7 +972,7 @@ export const beginPayoutOperatorPreparationResponseOneOneRecipientCorrectionOneE
 export const BeginPayoutOperatorPreparationResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(beginPayoutOperatorPreparationResponseOneOneGrossCentsMin).max(beginPayoutOperatorPreparationResponseOneOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -1018,7 +1034,7 @@ export const BeginPayoutOperatorPreparationResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(beginPayoutOperatorPreparationResponseOneOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(beginPayoutOperatorPreparationResponseOneOneRecipientCorrectionOnePhoneMax).regex(beginPayoutOperatorPreparationResponseOneOneRecipientCorrectionOnePhoneRegExp),
@@ -1031,13 +1047,17 @@ export const BeginPayoutOperatorPreparationResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -1046,7 +1066,11 @@ export const BeginPayoutOperatorPreparationResponse = zod.object({
 })).and(zod.object({
   "attemptId": zod.string(),
   "preparationHash": zod.string().optional(),
-  "recipientHandling": zod.enum(['reuse_existing']).optional().describe('Select the verified existing corrected provider contact; never recreate or edit the recipient for this preparation.')
+  "recipientHandling": zod.enum(['reuse_existing']).optional().describe('Select the verified existing corrected provider contact; never recreate or edit the recipient for this preparation.'),
+  "existingDraft": zod.object({
+  "draftId": zod.string(),
+  "reviewUrl": zod.string()
+}).optional().describe('Protected same-attempt draft pointer when resuming card verification. Reopen it; never create a replacement.')
 }))
 
 
@@ -1058,36 +1082,61 @@ export const RecordPayoutOperatorPreparationParams = zod.object({
   "id": zod.coerce.string()
 })
 
-export const recordPayoutOperatorPreparationBodyDataEvidenceMax = 5000;
+export const recordPayoutOperatorPreparationBodyDataOneEvidenceMax = 5000;
 
-export const recordPayoutOperatorPreparationBodyDataQuoteSendAmountCentsMin = 0;
-export const recordPayoutOperatorPreparationBodyDataQuoteSendAmountCentsMax = 50000;
+export const recordPayoutOperatorPreparationBodyDataOneQuoteSendAmountCentsMin = 0;
+export const recordPayoutOperatorPreparationBodyDataOneQuoteSendAmountCentsMax = 50000;
 
-export const recordPayoutOperatorPreparationBodyDataQuoteFeeCentsMin = 0;
-export const recordPayoutOperatorPreparationBodyDataQuoteFeeCentsMax = 50000;
+export const recordPayoutOperatorPreparationBodyDataOneQuoteFeeCentsMin = 0;
+export const recordPayoutOperatorPreparationBodyDataOneQuoteFeeCentsMax = 50000;
 
-export const recordPayoutOperatorPreparationBodyDataQuoteTaxCentsMin = 0;
-export const recordPayoutOperatorPreparationBodyDataQuoteTaxCentsMax = 50000;
+export const recordPayoutOperatorPreparationBodyDataOneQuoteTaxCentsMin = 0;
+export const recordPayoutOperatorPreparationBodyDataOneQuoteTaxCentsMax = 50000;
 
-export const recordPayoutOperatorPreparationBodyDataQuotePromotionalDiscountCentsMin = 0;
-export const recordPayoutOperatorPreparationBodyDataQuotePromotionalDiscountCentsMax = 50000;
+export const recordPayoutOperatorPreparationBodyDataOneQuotePromotionalDiscountCentsMin = 0;
+export const recordPayoutOperatorPreparationBodyDataOneQuotePromotionalDiscountCentsMax = 50000;
 
-export const recordPayoutOperatorPreparationBodyDataQuoteReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
-export const recordPayoutOperatorPreparationBodyDataQuoteProviderMinimumSendCentsMin = 0;
-export const recordPayoutOperatorPreparationBodyDataQuoteProviderMinimumSendCentsMax = 50000;
+export const recordPayoutOperatorPreparationBodyDataOneQuoteReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
+export const recordPayoutOperatorPreparationBodyDataOneQuoteProviderMinimumSendCentsMin = 0;
+export const recordPayoutOperatorPreparationBodyDataOneQuoteProviderMinimumSendCentsMax = 50000;
 
-export const recordPayoutOperatorPreparationBodyDataQuoteEvidenceMax = 5000;
+export const recordPayoutOperatorPreparationBodyDataOneQuoteEvidenceMax = 5000;
 
 
-export const recordPayoutOperatorPreparationBodyDataRecoveryEvidenceMax = 5000;
+export const recordPayoutOperatorPreparationBodyDataOneRecoveryEvidenceMax = 5000;
 
-export const recordPayoutOperatorPreparationBodyDataRecoveryHistoryCoverageMax = 2000;
+export const recordPayoutOperatorPreparationBodyDataOneRecoveryHistoryCoverageMax = 2000;
+
+export const recordPayoutOperatorPreparationBodyDataTwoQuoteSendAmountCentsMin = 0;
+export const recordPayoutOperatorPreparationBodyDataTwoQuoteSendAmountCentsMax = 50000;
+
+export const recordPayoutOperatorPreparationBodyDataTwoQuoteFeeCentsMin = 0;
+export const recordPayoutOperatorPreparationBodyDataTwoQuoteFeeCentsMax = 50000;
+
+export const recordPayoutOperatorPreparationBodyDataTwoQuoteTaxCentsMin = 0;
+export const recordPayoutOperatorPreparationBodyDataTwoQuoteTaxCentsMax = 50000;
+
+export const recordPayoutOperatorPreparationBodyDataTwoQuotePromotionalDiscountCentsMin = 0;
+export const recordPayoutOperatorPreparationBodyDataTwoQuotePromotionalDiscountCentsMax = 50000;
+
+export const recordPayoutOperatorPreparationBodyDataTwoQuoteReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
+export const recordPayoutOperatorPreparationBodyDataTwoQuoteProviderMinimumSendCentsMin = 0;
+export const recordPayoutOperatorPreparationBodyDataTwoQuoteProviderMinimumSendCentsMax = 50000;
+
+export const recordPayoutOperatorPreparationBodyDataTwoQuoteEvidenceMax = 5000;
+
+export const recordPayoutOperatorPreparationBodyDataTwoEvidenceMax = 5000;
+
+
+export const recordPayoutOperatorPreparationBodyDataTwoRecoveryEvidenceMax = 5000;
+
+export const recordPayoutOperatorPreparationBodyDataTwoRecoveryHistoryCoverageMax = 2000;
 
 
 
 export const RecordPayoutOperatorPreparationBody = zod.object({
   "leaseId": zod.string(),
-  "data": zod.object({
+  "data": zod.union([zod.object({
   "attemptId": zod.string(),
   "quoteHash": zod.string().optional(),
   "draftId": zod.string().optional(),
@@ -1099,24 +1148,24 @@ export const RecordPayoutOperatorPreparationBody = zod.object({
   "amountsMatch": zod.boolean(),
   "historyInspected": zod.boolean(),
   "historyCoverage": zod.string(),
-  "evidence": zod.string().min(1).max(recordPayoutOperatorPreparationBodyDataEvidenceMax),
+  "evidence": zod.string().min(1).max(recordPayoutOperatorPreparationBodyDataOneEvidenceMax),
   "kind": zod.enum(['first_time_link', 'scheduled', 'first_time_draft']),
   "preparationHash": zod.string().optional(),
   "quote": zod.object({
   "methodId": zod.string(),
-  "sendAmountCents": zod.number().min(recordPayoutOperatorPreparationBodyDataQuoteSendAmountCentsMin).max(recordPayoutOperatorPreparationBodyDataQuoteSendAmountCentsMax),
-  "feeCents": zod.number().min(recordPayoutOperatorPreparationBodyDataQuoteFeeCentsMin).max(recordPayoutOperatorPreparationBodyDataQuoteFeeCentsMax),
-  "taxCents": zod.number().min(recordPayoutOperatorPreparationBodyDataQuoteTaxCentsMin).max(recordPayoutOperatorPreparationBodyDataQuoteTaxCentsMax),
-  "promotionalDiscountCents": zod.number().min(recordPayoutOperatorPreparationBodyDataQuotePromotionalDiscountCentsMin).max(recordPayoutOperatorPreparationBodyDataQuotePromotionalDiscountCentsMax),
-  "receiveAmount": zod.string().regex(recordPayoutOperatorPreparationBodyDataQuoteReceiveAmountRegExp),
+  "sendAmountCents": zod.number().min(recordPayoutOperatorPreparationBodyDataOneQuoteSendAmountCentsMin).max(recordPayoutOperatorPreparationBodyDataOneQuoteSendAmountCentsMax),
+  "feeCents": zod.number().min(recordPayoutOperatorPreparationBodyDataOneQuoteFeeCentsMin).max(recordPayoutOperatorPreparationBodyDataOneQuoteFeeCentsMax),
+  "taxCents": zod.number().min(recordPayoutOperatorPreparationBodyDataOneQuoteTaxCentsMin).max(recordPayoutOperatorPreparationBodyDataOneQuoteTaxCentsMax),
+  "promotionalDiscountCents": zod.number().min(recordPayoutOperatorPreparationBodyDataOneQuotePromotionalDiscountCentsMin).max(recordPayoutOperatorPreparationBodyDataOneQuotePromotionalDiscountCentsMax),
+  "receiveAmount": zod.string().regex(recordPayoutOperatorPreparationBodyDataOneQuoteReceiveAmountRegExp),
   "receiveCurrency": zod.string(),
   "fundingMethod": zod.string(),
-  "providerMinimumSendCents": zod.number().min(recordPayoutOperatorPreparationBodyDataQuoteProviderMinimumSendCentsMin).max(recordPayoutOperatorPreparationBodyDataQuoteProviderMinimumSendCentsMax),
+  "providerMinimumSendCents": zod.number().min(recordPayoutOperatorPreparationBodyDataOneQuoteProviderMinimumSendCentsMin).max(recordPayoutOperatorPreparationBodyDataOneQuoteProviderMinimumSendCentsMax),
   "source": zod.enum(['signed_in_remitly_business']),
   "sourceUrl": zod.string(),
   "observedAt": zod.coerce.date(),
   "expiresAt": zod.coerce.date(),
-  "evidence": zod.string().min(1).max(recordPayoutOperatorPreparationBodyDataQuoteEvidenceMax)
+  "evidence": zod.string().min(1).max(recordPayoutOperatorPreparationBodyDataOneQuoteEvidenceMax)
 }).optional(),
   "draftSaved": zod.literal(true).optional(),
   "draftReopened": zod.literal(true).optional(),
@@ -1126,16 +1175,59 @@ export const RecordPayoutOperatorPreparationBody = zod.object({
   "observationId": zod.string(),
   "sourceUrl": zod.enum(['https://www.remitly.com/us/en/homepage', 'https://www.remitly.com/us/en/transfer/send']),
   "observedAt": zod.coerce.date(),
-  "evidence": zod.string().min(1).max(recordPayoutOperatorPreparationBodyDataRecoveryEvidenceMax),
-  "historyCoverage": zod.string().min(1).max(recordPayoutOperatorPreparationBodyDataRecoveryHistoryCoverageMax),
+  "evidence": zod.string().min(1).max(recordPayoutOperatorPreparationBodyDataOneRecoveryEvidenceMax),
+  "historyCoverage": zod.string().min(1).max(recordPayoutOperatorPreparationBodyDataOneRecoveryHistoryCoverageMax),
   "historyInspected": zod.literal(true),
   "noRecipientLinkIssued": zod.literal(true),
   "noFundsSent": zod.literal(true),
   "noFundingDebit": zod.literal(true),
   "noPendingTransfers": zod.literal(true),
   "noUnknownTransfers": zod.literal(true)
-}).optional().describe('Fresh scoped provider-history inspection for same-attempt completion of an existing verified unsent first-time draft; never authorizes creation or sending.')
-}).describe('Continuous preparation requires preparationHash plus final quote and verified saved draft together. first_time_draft also requires actual saved\/reopened draft evidence, noPriorTransfer, stable draft ID and approved URL identifying that ID. quoteHash is legacy-only. For unknown\/expired same-attempt first_time_draft completion, recovery requires current version and fresh no-effect history evidence; the existing saved\/reopened draft must match. No replacement draft or recipient edit is authorized.')
+}).optional().describe('Fresh scoped provider inspection for same-attempt completion of an existing verified first-time draft or recording an expected card-verification handoff after interruption; never authorizes creation or sending.')
+}).describe('Continuous preparation requires preparationHash plus final quote and verified saved draft together. first_time_draft also requires actual saved\/reopened draft evidence, noPriorTransfer, stable draft ID and approved URL identifying that ID. quoteHash is legacy-only. For unknown\/expired same-attempt first_time_draft completion, recovery requires current version and fresh no-effect history evidence; the existing saved\/reopened draft must match. No replacement draft or recipient edit is authorized.'),zod.object({
+  "attemptId": zod.string(),
+  "preparationHash": zod.string(),
+  "kind": zod.enum(['card_verification']),
+  "cardVerificationRequired": zod.literal(true),
+  "draftSaved": zod.boolean(),
+  "draftId": zod.string().optional(),
+  "reviewUrl": zod.string().optional(),
+  "quote": zod.object({
+  "methodId": zod.string(),
+  "sendAmountCents": zod.number().min(recordPayoutOperatorPreparationBodyDataTwoQuoteSendAmountCentsMin).max(recordPayoutOperatorPreparationBodyDataTwoQuoteSendAmountCentsMax),
+  "feeCents": zod.number().min(recordPayoutOperatorPreparationBodyDataTwoQuoteFeeCentsMin).max(recordPayoutOperatorPreparationBodyDataTwoQuoteFeeCentsMax),
+  "taxCents": zod.number().min(recordPayoutOperatorPreparationBodyDataTwoQuoteTaxCentsMin).max(recordPayoutOperatorPreparationBodyDataTwoQuoteTaxCentsMax),
+  "promotionalDiscountCents": zod.number().min(recordPayoutOperatorPreparationBodyDataTwoQuotePromotionalDiscountCentsMin).max(recordPayoutOperatorPreparationBodyDataTwoQuotePromotionalDiscountCentsMax),
+  "receiveAmount": zod.string().regex(recordPayoutOperatorPreparationBodyDataTwoQuoteReceiveAmountRegExp),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string(),
+  "providerMinimumSendCents": zod.number().min(recordPayoutOperatorPreparationBodyDataTwoQuoteProviderMinimumSendCentsMin).max(recordPayoutOperatorPreparationBodyDataTwoQuoteProviderMinimumSendCentsMax),
+  "source": zod.enum(['signed_in_remitly_business']),
+  "sourceUrl": zod.string(),
+  "observedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "evidence": zod.string().min(1).max(recordPayoutOperatorPreparationBodyDataTwoQuoteEvidenceMax)
+}).optional(),
+  "recipientMatches": zod.literal(true),
+  "noFundsSent": zod.literal(true),
+  "noFundingDebit": zod.literal(true),
+  "noRecipientLinkIssued": zod.literal(true),
+  "evidence": zod.string().min(1).max(recordPayoutOperatorPreparationBodyDataTwoEvidenceMax),
+  "recovery": zod.object({
+  "expectedVersion": zod.number().min(1),
+  "observationId": zod.string(),
+  "sourceUrl": zod.enum(['https://www.remitly.com/us/en/homepage', 'https://www.remitly.com/us/en/transfer/send']),
+  "observedAt": zod.coerce.date(),
+  "evidence": zod.string().min(1).max(recordPayoutOperatorPreparationBodyDataTwoRecoveryEvidenceMax),
+  "historyCoverage": zod.string().min(1).max(recordPayoutOperatorPreparationBodyDataTwoRecoveryHistoryCoverageMax),
+  "historyInspected": zod.literal(true),
+  "noRecipientLinkIssued": zod.literal(true),
+  "noFundsSent": zod.literal(true),
+  "noFundingDebit": zod.literal(true),
+  "noPendingTransfers": zod.literal(true),
+  "noUnknownTransfers": zod.literal(true)
+}).optional().describe('Fresh scoped provider inspection for same-attempt completion of an existing verified first-time draft or recording an expected card-verification handoff after interruption; never authorizes creation or sending.')
+}).describe('Expected card-verification handoff on the same first-time attempt. No deadline or complete quote required. draftSaved=true requires an actually verified saved draft ID and matching approved review URL; false never claims a draft exists. This state is not ready for checking or sending. Human verifies the card in Remitly; Maker resumes the same attempt\/draft. Never include card details.')])
 })
 
 export const recordPayoutOperatorPreparationResponseOneGrossCentsMin = 1500;
@@ -1176,7 +1268,7 @@ export const recordPayoutOperatorPreparationResponseOneRecipientCorrectionOneEma
 export const RecordPayoutOperatorPreparationResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(recordPayoutOperatorPreparationResponseOneGrossCentsMin).max(recordPayoutOperatorPreparationResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -1238,7 +1330,7 @@ export const RecordPayoutOperatorPreparationResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(recordPayoutOperatorPreparationResponseOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(recordPayoutOperatorPreparationResponseOneRecipientCorrectionOnePhoneMax).regex(recordPayoutOperatorPreparationResponseOneRecipientCorrectionOnePhoneRegExp),
@@ -1251,13 +1343,17 @@ export const RecordPayoutOperatorPreparationResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -1333,7 +1429,7 @@ export const checkPayoutOperatorPreparationResponseOneRecipientCorrectionOneEmai
 export const CheckPayoutOperatorPreparationResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(checkPayoutOperatorPreparationResponseOneGrossCentsMin).max(checkPayoutOperatorPreparationResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -1395,7 +1491,7 @@ export const CheckPayoutOperatorPreparationResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(checkPayoutOperatorPreparationResponseOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(checkPayoutOperatorPreparationResponseOneRecipientCorrectionOnePhoneMax).regex(checkPayoutOperatorPreparationResponseOneRecipientCorrectionOnePhoneRegExp),
@@ -1408,13 +1504,17 @@ export const CheckPayoutOperatorPreparationResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -1491,7 +1591,7 @@ export const resolvePayoutOperatorRecipientErrorResponseOneRecipientCorrectionOn
 export const ResolvePayoutOperatorRecipientErrorResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(resolvePayoutOperatorRecipientErrorResponseOneGrossCentsMin).max(resolvePayoutOperatorRecipientErrorResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -1553,7 +1653,7 @@ export const ResolvePayoutOperatorRecipientErrorResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(resolvePayoutOperatorRecipientErrorResponseOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(resolvePayoutOperatorRecipientErrorResponseOneRecipientCorrectionOnePhoneMax).regex(resolvePayoutOperatorRecipientErrorResponseOneRecipientCorrectionOnePhoneRegExp),
@@ -1566,13 +1666,17 @@ export const ResolvePayoutOperatorRecipientErrorResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -1664,7 +1768,7 @@ export const reconcilePayoutOperatorWithdrawalResponseOneRecipientCorrectionOneE
 export const ReconcilePayoutOperatorWithdrawalResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(reconcilePayoutOperatorWithdrawalResponseOneGrossCentsMin).max(reconcilePayoutOperatorWithdrawalResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -1726,7 +1830,7 @@ export const ReconcilePayoutOperatorWithdrawalResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(reconcilePayoutOperatorWithdrawalResponseOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(reconcilePayoutOperatorWithdrawalResponseOneRecipientCorrectionOnePhoneMax).regex(reconcilePayoutOperatorWithdrawalResponseOneRecipientCorrectionOnePhoneRegExp),
@@ -1739,13 +1843,17 @@ export const ReconcilePayoutOperatorWithdrawalResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -1822,7 +1930,7 @@ export const renewPayoutOperatorPreparationLeaseResponseTwoBalancesReservedUsdRe
 export const RenewPayoutOperatorPreparationLeaseResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(renewPayoutOperatorPreparationLeaseResponseOneOneGrossCentsMin).max(renewPayoutOperatorPreparationLeaseResponseOneOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -1884,7 +1992,7 @@ export const RenewPayoutOperatorPreparationLeaseResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(renewPayoutOperatorPreparationLeaseResponseOneOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(renewPayoutOperatorPreparationLeaseResponseOneOneRecipientCorrectionOnePhoneMax).regex(renewPayoutOperatorPreparationLeaseResponseOneOneRecipientCorrectionOnePhoneRegExp),
@@ -1897,13 +2005,17 @@ export const RenewPayoutOperatorPreparationLeaseResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -2018,7 +2130,7 @@ export const releasePayoutOperatorPreparationLeaseResponseTwoBalancesReservedUsd
 export const ReleasePayoutOperatorPreparationLeaseResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(releasePayoutOperatorPreparationLeaseResponseOneOneGrossCentsMin).max(releasePayoutOperatorPreparationLeaseResponseOneOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -2080,7 +2192,7 @@ export const ReleasePayoutOperatorPreparationLeaseResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(releasePayoutOperatorPreparationLeaseResponseOneOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(releasePayoutOperatorPreparationLeaseResponseOneOneRecipientCorrectionOnePhoneMax).regex(releasePayoutOperatorPreparationLeaseResponseOneOneRecipientCorrectionOnePhoneRegExp),
@@ -2093,13 +2205,17 @@ export const ReleasePayoutOperatorPreparationLeaseResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -2209,7 +2325,7 @@ export const markPayoutOperatorUnknownResponseOneRecipientCorrectionOneEmailMax 
 export const MarkPayoutOperatorUnknownResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(markPayoutOperatorUnknownResponseOneGrossCentsMin).max(markPayoutOperatorUnknownResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -2271,7 +2387,7 @@ export const MarkPayoutOperatorUnknownResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(markPayoutOperatorUnknownResponseOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(markPayoutOperatorUnknownResponseOneRecipientCorrectionOnePhoneMax).regex(markPayoutOperatorUnknownResponseOneRecipientCorrectionOnePhoneRegExp),
@@ -2284,13 +2400,17 @@ export const MarkPayoutOperatorUnknownResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -2398,7 +2518,7 @@ export const GetWithdrawalOverviewResponse = zod.object({
   "withdrawals": zod.array(zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(getWithdrawalOverviewResponseWithdrawalsItemGrossCentsMin).max(getWithdrawalOverviewResponseWithdrawalsItemGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -2460,7 +2580,7 @@ export const GetWithdrawalOverviewResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(getWithdrawalOverviewResponseWithdrawalsItemRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(getWithdrawalOverviewResponseWithdrawalsItemRecipientCorrectionOnePhoneMax).regex(getWithdrawalOverviewResponseWithdrawalsItemRecipientCorrectionOnePhoneRegExp),
@@ -2473,13 +2593,17 @@ export const GetWithdrawalOverviewResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }))
 })
 
@@ -2609,7 +2733,7 @@ export const getWithdrawalDetailResponseOneRecipientCorrectionOneEmailMax = 254;
 export const GetWithdrawalDetailResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(getWithdrawalDetailResponseOneGrossCentsMin).max(getWithdrawalDetailResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -2671,7 +2795,7 @@ export const GetWithdrawalDetailResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(getWithdrawalDetailResponseOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(getWithdrawalDetailResponseOneRecipientCorrectionOnePhoneMax).regex(getWithdrawalDetailResponseOneRecipientCorrectionOnePhoneRegExp),
@@ -2684,13 +2808,17 @@ export const GetWithdrawalDetailResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -2757,7 +2885,7 @@ export const submitAdminWithdrawalRecipientCorrectionResponseOneRecipientCorrect
 export const SubmitAdminWithdrawalRecipientCorrectionResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(submitAdminWithdrawalRecipientCorrectionResponseOneGrossCentsMin).max(submitAdminWithdrawalRecipientCorrectionResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -2819,7 +2947,7 @@ export const SubmitAdminWithdrawalRecipientCorrectionResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(submitAdminWithdrawalRecipientCorrectionResponseOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(submitAdminWithdrawalRecipientCorrectionResponseOneRecipientCorrectionOnePhoneMax).regex(submitAdminWithdrawalRecipientCorrectionResponseOneRecipientCorrectionOnePhoneRegExp),
@@ -2832,13 +2960,17 @@ export const SubmitAdminWithdrawalRecipientCorrectionResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -2905,7 +3037,7 @@ export const submitWithdrawalRecipientCorrectionResponseOneRecipientCorrectionOn
 export const SubmitWithdrawalRecipientCorrectionResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(submitWithdrawalRecipientCorrectionResponseOneGrossCentsMin).max(submitWithdrawalRecipientCorrectionResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -2967,7 +3099,7 @@ export const SubmitWithdrawalRecipientCorrectionResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(submitWithdrawalRecipientCorrectionResponseOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(submitWithdrawalRecipientCorrectionResponseOneRecipientCorrectionOnePhoneMax).regex(submitWithdrawalRecipientCorrectionResponseOneRecipientCorrectionOnePhoneRegExp),
@@ -2980,13 +3112,17 @@ export const SubmitWithdrawalRecipientCorrectionResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -3046,7 +3182,7 @@ export const approveWithdrawalQuoteResponseOneRecipientCorrectionOneEmailMax = 2
 export const ApproveWithdrawalQuoteResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(approveWithdrawalQuoteResponseOneGrossCentsMin).max(approveWithdrawalQuoteResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -3108,7 +3244,7 @@ export const ApproveWithdrawalQuoteResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(approveWithdrawalQuoteResponseOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(approveWithdrawalQuoteResponseOneRecipientCorrectionOnePhoneMax).regex(approveWithdrawalQuoteResponseOneRecipientCorrectionOnePhoneRegExp),
@@ -3121,13 +3257,17 @@ export const ApproveWithdrawalQuoteResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -3182,7 +3322,7 @@ export const cancelUnpreparedWithdrawalResponseOneRecipientCorrectionOneEmailMax
 export const CancelUnpreparedWithdrawalResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(cancelUnpreparedWithdrawalResponseOneGrossCentsMin).max(cancelUnpreparedWithdrawalResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -3244,7 +3384,7 @@ export const CancelUnpreparedWithdrawalResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(cancelUnpreparedWithdrawalResponseOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(cancelUnpreparedWithdrawalResponseOneRecipientCorrectionOnePhoneMax).regex(cancelUnpreparedWithdrawalResponseOneRecipientCorrectionOnePhoneRegExp),
@@ -3257,13 +3397,17 @@ export const CancelUnpreparedWithdrawalResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -3325,7 +3469,7 @@ export const ListAdminWithdrawalsResponse = zod.object({
   "withdrawals": zod.array(zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(listAdminWithdrawalsResponseWithdrawalsItemOneGrossCentsMin).max(listAdminWithdrawalsResponseWithdrawalsItemOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -3387,7 +3531,7 @@ export const ListAdminWithdrawalsResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(listAdminWithdrawalsResponseWithdrawalsItemOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(listAdminWithdrawalsResponseWithdrawalsItemOneRecipientCorrectionOnePhoneMax).regex(listAdminWithdrawalsResponseWithdrawalsItemOneRecipientCorrectionOnePhoneRegExp),
@@ -3400,13 +3544,17 @@ export const ListAdminWithdrawalsResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "creatorName": zod.string(),
   "reviewDeadline": zod.string().nullable(),
@@ -3576,7 +3724,7 @@ export const getAdminWithdrawalDetailResponseTwoBalancesReservedUsdRegExp = new 
 export const GetAdminWithdrawalDetailResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(getAdminWithdrawalDetailResponseOneOneGrossCentsMin).max(getAdminWithdrawalDetailResponseOneOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -3638,7 +3786,7 @@ export const GetAdminWithdrawalDetailResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(getAdminWithdrawalDetailResponseOneOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(getAdminWithdrawalDetailResponseOneOneRecipientCorrectionOnePhoneMax).regex(getAdminWithdrawalDetailResponseOneOneRecipientCorrectionOnePhoneRegExp),
@@ -3651,13 +3799,17 @@ export const GetAdminWithdrawalDetailResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -3787,7 +3939,7 @@ export const recordWithdrawalQuoteResponseOneRecipientCorrectionOneEmailMax = 25
 export const RecordWithdrawalQuoteResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(recordWithdrawalQuoteResponseOneGrossCentsMin).max(recordWithdrawalQuoteResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -3849,7 +4001,7 @@ export const RecordWithdrawalQuoteResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(recordWithdrawalQuoteResponseOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(recordWithdrawalQuoteResponseOneRecipientCorrectionOnePhoneMax).regex(recordWithdrawalQuoteResponseOneRecipientCorrectionOnePhoneRegExp),
@@ -3862,13 +4014,17 @@ export const RecordWithdrawalQuoteResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -3932,7 +4088,7 @@ export const beginWithdrawalPreparationResponseOneOneRecipientCorrectionOneEmail
 export const BeginWithdrawalPreparationResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(beginWithdrawalPreparationResponseOneOneGrossCentsMin).max(beginWithdrawalPreparationResponseOneOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -3994,7 +4150,7 @@ export const BeginWithdrawalPreparationResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(beginWithdrawalPreparationResponseOneOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(beginWithdrawalPreparationResponseOneOneRecipientCorrectionOnePhoneMax).regex(beginWithdrawalPreparationResponseOneOneRecipientCorrectionOnePhoneRegExp),
@@ -4007,13 +4163,17 @@ export const BeginWithdrawalPreparationResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -4022,7 +4182,11 @@ export const BeginWithdrawalPreparationResponse = zod.object({
 })).and(zod.object({
   "attemptId": zod.string(),
   "preparationHash": zod.string().optional(),
-  "recipientHandling": zod.enum(['reuse_existing']).optional().describe('Select the verified existing corrected provider contact; never recreate or edit the recipient for this preparation.')
+  "recipientHandling": zod.enum(['reuse_existing']).optional().describe('Select the verified existing corrected provider contact; never recreate or edit the recipient for this preparation.'),
+  "existingDraft": zod.object({
+  "draftId": zod.string(),
+  "reviewUrl": zod.string()
+}).optional().describe('Protected same-attempt draft pointer when resuming card verification. Reopen it; never create a replacement.')
 }))
 
 
@@ -4034,34 +4198,59 @@ export const RecordWithdrawalPreparationParams = zod.object({
   "id": zod.coerce.string()
 })
 
-export const recordWithdrawalPreparationBodyEvidenceMax = 5000;
+export const recordWithdrawalPreparationBodyOneEvidenceMax = 5000;
 
-export const recordWithdrawalPreparationBodyQuoteSendAmountCentsMin = 0;
-export const recordWithdrawalPreparationBodyQuoteSendAmountCentsMax = 50000;
+export const recordWithdrawalPreparationBodyOneQuoteSendAmountCentsMin = 0;
+export const recordWithdrawalPreparationBodyOneQuoteSendAmountCentsMax = 50000;
 
-export const recordWithdrawalPreparationBodyQuoteFeeCentsMin = 0;
-export const recordWithdrawalPreparationBodyQuoteFeeCentsMax = 50000;
+export const recordWithdrawalPreparationBodyOneQuoteFeeCentsMin = 0;
+export const recordWithdrawalPreparationBodyOneQuoteFeeCentsMax = 50000;
 
-export const recordWithdrawalPreparationBodyQuoteTaxCentsMin = 0;
-export const recordWithdrawalPreparationBodyQuoteTaxCentsMax = 50000;
+export const recordWithdrawalPreparationBodyOneQuoteTaxCentsMin = 0;
+export const recordWithdrawalPreparationBodyOneQuoteTaxCentsMax = 50000;
 
-export const recordWithdrawalPreparationBodyQuotePromotionalDiscountCentsMin = 0;
-export const recordWithdrawalPreparationBodyQuotePromotionalDiscountCentsMax = 50000;
+export const recordWithdrawalPreparationBodyOneQuotePromotionalDiscountCentsMin = 0;
+export const recordWithdrawalPreparationBodyOneQuotePromotionalDiscountCentsMax = 50000;
 
-export const recordWithdrawalPreparationBodyQuoteReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
-export const recordWithdrawalPreparationBodyQuoteProviderMinimumSendCentsMin = 0;
-export const recordWithdrawalPreparationBodyQuoteProviderMinimumSendCentsMax = 50000;
+export const recordWithdrawalPreparationBodyOneQuoteReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
+export const recordWithdrawalPreparationBodyOneQuoteProviderMinimumSendCentsMin = 0;
+export const recordWithdrawalPreparationBodyOneQuoteProviderMinimumSendCentsMax = 50000;
 
-export const recordWithdrawalPreparationBodyQuoteEvidenceMax = 5000;
-
-
-export const recordWithdrawalPreparationBodyRecoveryEvidenceMax = 5000;
-
-export const recordWithdrawalPreparationBodyRecoveryHistoryCoverageMax = 2000;
+export const recordWithdrawalPreparationBodyOneQuoteEvidenceMax = 5000;
 
 
+export const recordWithdrawalPreparationBodyOneRecoveryEvidenceMax = 5000;
 
-export const RecordWithdrawalPreparationBody = zod.object({
+export const recordWithdrawalPreparationBodyOneRecoveryHistoryCoverageMax = 2000;
+
+export const recordWithdrawalPreparationBodyTwoQuoteSendAmountCentsMin = 0;
+export const recordWithdrawalPreparationBodyTwoQuoteSendAmountCentsMax = 50000;
+
+export const recordWithdrawalPreparationBodyTwoQuoteFeeCentsMin = 0;
+export const recordWithdrawalPreparationBodyTwoQuoteFeeCentsMax = 50000;
+
+export const recordWithdrawalPreparationBodyTwoQuoteTaxCentsMin = 0;
+export const recordWithdrawalPreparationBodyTwoQuoteTaxCentsMax = 50000;
+
+export const recordWithdrawalPreparationBodyTwoQuotePromotionalDiscountCentsMin = 0;
+export const recordWithdrawalPreparationBodyTwoQuotePromotionalDiscountCentsMax = 50000;
+
+export const recordWithdrawalPreparationBodyTwoQuoteReceiveAmountRegExp = new RegExp('^\\d+(\\.\\d{1,8})?$');
+export const recordWithdrawalPreparationBodyTwoQuoteProviderMinimumSendCentsMin = 0;
+export const recordWithdrawalPreparationBodyTwoQuoteProviderMinimumSendCentsMax = 50000;
+
+export const recordWithdrawalPreparationBodyTwoQuoteEvidenceMax = 5000;
+
+export const recordWithdrawalPreparationBodyTwoEvidenceMax = 5000;
+
+
+export const recordWithdrawalPreparationBodyTwoRecoveryEvidenceMax = 5000;
+
+export const recordWithdrawalPreparationBodyTwoRecoveryHistoryCoverageMax = 2000;
+
+
+
+export const RecordWithdrawalPreparationBody = zod.union([zod.object({
   "attemptId": zod.string(),
   "quoteHash": zod.string().optional(),
   "draftId": zod.string().optional(),
@@ -4073,24 +4262,24 @@ export const RecordWithdrawalPreparationBody = zod.object({
   "amountsMatch": zod.boolean(),
   "historyInspected": zod.boolean(),
   "historyCoverage": zod.string(),
-  "evidence": zod.string().min(1).max(recordWithdrawalPreparationBodyEvidenceMax),
+  "evidence": zod.string().min(1).max(recordWithdrawalPreparationBodyOneEvidenceMax),
   "kind": zod.enum(['first_time_link', 'scheduled', 'first_time_draft']),
   "preparationHash": zod.string().optional(),
   "quote": zod.object({
   "methodId": zod.string(),
-  "sendAmountCents": zod.number().min(recordWithdrawalPreparationBodyQuoteSendAmountCentsMin).max(recordWithdrawalPreparationBodyQuoteSendAmountCentsMax),
-  "feeCents": zod.number().min(recordWithdrawalPreparationBodyQuoteFeeCentsMin).max(recordWithdrawalPreparationBodyQuoteFeeCentsMax),
-  "taxCents": zod.number().min(recordWithdrawalPreparationBodyQuoteTaxCentsMin).max(recordWithdrawalPreparationBodyQuoteTaxCentsMax),
-  "promotionalDiscountCents": zod.number().min(recordWithdrawalPreparationBodyQuotePromotionalDiscountCentsMin).max(recordWithdrawalPreparationBodyQuotePromotionalDiscountCentsMax),
-  "receiveAmount": zod.string().regex(recordWithdrawalPreparationBodyQuoteReceiveAmountRegExp),
+  "sendAmountCents": zod.number().min(recordWithdrawalPreparationBodyOneQuoteSendAmountCentsMin).max(recordWithdrawalPreparationBodyOneQuoteSendAmountCentsMax),
+  "feeCents": zod.number().min(recordWithdrawalPreparationBodyOneQuoteFeeCentsMin).max(recordWithdrawalPreparationBodyOneQuoteFeeCentsMax),
+  "taxCents": zod.number().min(recordWithdrawalPreparationBodyOneQuoteTaxCentsMin).max(recordWithdrawalPreparationBodyOneQuoteTaxCentsMax),
+  "promotionalDiscountCents": zod.number().min(recordWithdrawalPreparationBodyOneQuotePromotionalDiscountCentsMin).max(recordWithdrawalPreparationBodyOneQuotePromotionalDiscountCentsMax),
+  "receiveAmount": zod.string().regex(recordWithdrawalPreparationBodyOneQuoteReceiveAmountRegExp),
   "receiveCurrency": zod.string(),
   "fundingMethod": zod.string(),
-  "providerMinimumSendCents": zod.number().min(recordWithdrawalPreparationBodyQuoteProviderMinimumSendCentsMin).max(recordWithdrawalPreparationBodyQuoteProviderMinimumSendCentsMax),
+  "providerMinimumSendCents": zod.number().min(recordWithdrawalPreparationBodyOneQuoteProviderMinimumSendCentsMin).max(recordWithdrawalPreparationBodyOneQuoteProviderMinimumSendCentsMax),
   "source": zod.enum(['signed_in_remitly_business']),
   "sourceUrl": zod.string(),
   "observedAt": zod.coerce.date(),
   "expiresAt": zod.coerce.date(),
-  "evidence": zod.string().min(1).max(recordWithdrawalPreparationBodyQuoteEvidenceMax)
+  "evidence": zod.string().min(1).max(recordWithdrawalPreparationBodyOneQuoteEvidenceMax)
 }).optional(),
   "draftSaved": zod.literal(true).optional(),
   "draftReopened": zod.literal(true).optional(),
@@ -4100,16 +4289,59 @@ export const RecordWithdrawalPreparationBody = zod.object({
   "observationId": zod.string(),
   "sourceUrl": zod.enum(['https://www.remitly.com/us/en/homepage', 'https://www.remitly.com/us/en/transfer/send']),
   "observedAt": zod.coerce.date(),
-  "evidence": zod.string().min(1).max(recordWithdrawalPreparationBodyRecoveryEvidenceMax),
-  "historyCoverage": zod.string().min(1).max(recordWithdrawalPreparationBodyRecoveryHistoryCoverageMax),
+  "evidence": zod.string().min(1).max(recordWithdrawalPreparationBodyOneRecoveryEvidenceMax),
+  "historyCoverage": zod.string().min(1).max(recordWithdrawalPreparationBodyOneRecoveryHistoryCoverageMax),
   "historyInspected": zod.literal(true),
   "noRecipientLinkIssued": zod.literal(true),
   "noFundsSent": zod.literal(true),
   "noFundingDebit": zod.literal(true),
   "noPendingTransfers": zod.literal(true),
   "noUnknownTransfers": zod.literal(true)
-}).optional().describe('Fresh scoped provider-history inspection for same-attempt completion of an existing verified unsent first-time draft; never authorizes creation or sending.')
-}).describe('Continuous preparation requires preparationHash plus final quote and verified saved draft together. first_time_draft also requires actual saved\/reopened draft evidence, noPriorTransfer, stable draft ID and approved URL identifying that ID. quoteHash is legacy-only. For unknown\/expired same-attempt first_time_draft completion, recovery requires current version and fresh no-effect history evidence; the existing saved\/reopened draft must match. No replacement draft or recipient edit is authorized.')
+}).optional().describe('Fresh scoped provider inspection for same-attempt completion of an existing verified first-time draft or recording an expected card-verification handoff after interruption; never authorizes creation or sending.')
+}).describe('Continuous preparation requires preparationHash plus final quote and verified saved draft together. first_time_draft also requires actual saved\/reopened draft evidence, noPriorTransfer, stable draft ID and approved URL identifying that ID. quoteHash is legacy-only. For unknown\/expired same-attempt first_time_draft completion, recovery requires current version and fresh no-effect history evidence; the existing saved\/reopened draft must match. No replacement draft or recipient edit is authorized.'),zod.object({
+  "attemptId": zod.string(),
+  "preparationHash": zod.string(),
+  "kind": zod.enum(['card_verification']),
+  "cardVerificationRequired": zod.literal(true),
+  "draftSaved": zod.boolean(),
+  "draftId": zod.string().optional(),
+  "reviewUrl": zod.string().optional(),
+  "quote": zod.object({
+  "methodId": zod.string(),
+  "sendAmountCents": zod.number().min(recordWithdrawalPreparationBodyTwoQuoteSendAmountCentsMin).max(recordWithdrawalPreparationBodyTwoQuoteSendAmountCentsMax),
+  "feeCents": zod.number().min(recordWithdrawalPreparationBodyTwoQuoteFeeCentsMin).max(recordWithdrawalPreparationBodyTwoQuoteFeeCentsMax),
+  "taxCents": zod.number().min(recordWithdrawalPreparationBodyTwoQuoteTaxCentsMin).max(recordWithdrawalPreparationBodyTwoQuoteTaxCentsMax),
+  "promotionalDiscountCents": zod.number().min(recordWithdrawalPreparationBodyTwoQuotePromotionalDiscountCentsMin).max(recordWithdrawalPreparationBodyTwoQuotePromotionalDiscountCentsMax),
+  "receiveAmount": zod.string().regex(recordWithdrawalPreparationBodyTwoQuoteReceiveAmountRegExp),
+  "receiveCurrency": zod.string(),
+  "fundingMethod": zod.string(),
+  "providerMinimumSendCents": zod.number().min(recordWithdrawalPreparationBodyTwoQuoteProviderMinimumSendCentsMin).max(recordWithdrawalPreparationBodyTwoQuoteProviderMinimumSendCentsMax),
+  "source": zod.enum(['signed_in_remitly_business']),
+  "sourceUrl": zod.string(),
+  "observedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "evidence": zod.string().min(1).max(recordWithdrawalPreparationBodyTwoQuoteEvidenceMax)
+}).optional(),
+  "recipientMatches": zod.literal(true),
+  "noFundsSent": zod.literal(true),
+  "noFundingDebit": zod.literal(true),
+  "noRecipientLinkIssued": zod.literal(true),
+  "evidence": zod.string().min(1).max(recordWithdrawalPreparationBodyTwoEvidenceMax),
+  "recovery": zod.object({
+  "expectedVersion": zod.number().min(1),
+  "observationId": zod.string(),
+  "sourceUrl": zod.enum(['https://www.remitly.com/us/en/homepage', 'https://www.remitly.com/us/en/transfer/send']),
+  "observedAt": zod.coerce.date(),
+  "evidence": zod.string().min(1).max(recordWithdrawalPreparationBodyTwoRecoveryEvidenceMax),
+  "historyCoverage": zod.string().min(1).max(recordWithdrawalPreparationBodyTwoRecoveryHistoryCoverageMax),
+  "historyInspected": zod.literal(true),
+  "noRecipientLinkIssued": zod.literal(true),
+  "noFundsSent": zod.literal(true),
+  "noFundingDebit": zod.literal(true),
+  "noPendingTransfers": zod.literal(true),
+  "noUnknownTransfers": zod.literal(true)
+}).optional().describe('Fresh scoped provider inspection for same-attempt completion of an existing verified first-time draft or recording an expected card-verification handoff after interruption; never authorizes creation or sending.')
+}).describe('Expected card-verification handoff on the same first-time attempt. No deadline or complete quote required. draftSaved=true requires an actually verified saved draft ID and matching approved review URL; false never claims a draft exists. This state is not ready for checking or sending. Human verifies the card in Remitly; Maker resumes the same attempt\/draft. Never include card details.')])
 
 export const recordWithdrawalPreparationResponseOneGrossCentsMin = 1500;
 export const recordWithdrawalPreparationResponseOneGrossCentsMax = 50000;
@@ -4149,7 +4381,7 @@ export const recordWithdrawalPreparationResponseOneRecipientCorrectionOneEmailMa
 export const RecordWithdrawalPreparationResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(recordWithdrawalPreparationResponseOneGrossCentsMin).max(recordWithdrawalPreparationResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -4211,7 +4443,7 @@ export const RecordWithdrawalPreparationResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(recordWithdrawalPreparationResponseOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(recordWithdrawalPreparationResponseOneRecipientCorrectionOnePhoneMax).regex(recordWithdrawalPreparationResponseOneRecipientCorrectionOnePhoneRegExp),
@@ -4224,13 +4456,17 @@ export const RecordWithdrawalPreparationResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -4303,7 +4539,7 @@ export const checkWithdrawalPreparationResponseOneRecipientCorrectionOneEmailMax
 export const CheckWithdrawalPreparationResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(checkWithdrawalPreparationResponseOneGrossCentsMin).max(checkWithdrawalPreparationResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -4365,7 +4601,7 @@ export const CheckWithdrawalPreparationResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(checkWithdrawalPreparationResponseOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(checkWithdrawalPreparationResponseOneRecipientCorrectionOnePhoneMax).regex(checkWithdrawalPreparationResponseOneRecipientCorrectionOnePhoneRegExp),
@@ -4378,13 +4614,17 @@ export const CheckWithdrawalPreparationResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -4452,7 +4692,7 @@ export const recordHumanWithdrawalReleaseResponseOneRecipientCorrectionOneEmailM
 export const RecordHumanWithdrawalReleaseResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(recordHumanWithdrawalReleaseResponseOneGrossCentsMin).max(recordHumanWithdrawalReleaseResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -4514,7 +4754,7 @@ export const RecordHumanWithdrawalReleaseResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(recordHumanWithdrawalReleaseResponseOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(recordHumanWithdrawalReleaseResponseOneRecipientCorrectionOnePhoneMax).regex(recordHumanWithdrawalReleaseResponseOneRecipientCorrectionOnePhoneRegExp),
@@ -4527,13 +4767,17 @@ export const RecordHumanWithdrawalReleaseResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -4596,7 +4840,7 @@ export const declineWithdrawalResponseOneRecipientCorrectionOneEmailMax = 254;
 export const DeclineWithdrawalResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(declineWithdrawalResponseOneGrossCentsMin).max(declineWithdrawalResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -4658,7 +4902,7 @@ export const DeclineWithdrawalResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(declineWithdrawalResponseOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(declineWithdrawalResponseOneRecipientCorrectionOnePhoneMax).regex(declineWithdrawalResponseOneRecipientCorrectionOnePhoneRegExp),
@@ -4671,13 +4915,17 @@ export const DeclineWithdrawalResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -4746,7 +4994,7 @@ export const reportWithdrawalRecipientErrorResponseOneRecipientCorrectionOneEmai
 export const ReportWithdrawalRecipientErrorResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(reportWithdrawalRecipientErrorResponseOneGrossCentsMin).max(reportWithdrawalRecipientErrorResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -4808,7 +5056,7 @@ export const ReportWithdrawalRecipientErrorResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(reportWithdrawalRecipientErrorResponseOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(reportWithdrawalRecipientErrorResponseOneRecipientCorrectionOnePhoneMax).regex(reportWithdrawalRecipientErrorResponseOneRecipientCorrectionOnePhoneRegExp),
@@ -4821,13 +5069,17 @@ export const ReportWithdrawalRecipientErrorResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -4897,7 +5149,7 @@ export const markWithdrawalInvestigationResponseOneRecipientCorrectionOneEmailMa
 export const MarkWithdrawalInvestigationResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(markWithdrawalInvestigationResponseOneGrossCentsMin).max(markWithdrawalInvestigationResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -4959,7 +5211,7 @@ export const MarkWithdrawalInvestigationResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(markWithdrawalInvestigationResponseOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(markWithdrawalInvestigationResponseOneRecipientCorrectionOnePhoneMax).regex(markWithdrawalInvestigationResponseOneRecipientCorrectionOnePhoneRegExp),
@@ -4972,13 +5224,17 @@ export const MarkWithdrawalInvestigationResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -5052,7 +5308,7 @@ export const resolveWithdrawalRecipientErrorResponseOneRecipientCorrectionOneEma
 export const ResolveWithdrawalRecipientErrorResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(resolveWithdrawalRecipientErrorResponseOneGrossCentsMin).max(resolveWithdrawalRecipientErrorResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -5114,7 +5370,7 @@ export const ResolveWithdrawalRecipientErrorResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(resolveWithdrawalRecipientErrorResponseOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(resolveWithdrawalRecipientErrorResponseOneRecipientCorrectionOnePhoneMax).regex(resolveWithdrawalRecipientErrorResponseOneRecipientCorrectionOnePhoneRegExp),
@@ -5127,13 +5383,17 @@ export const ResolveWithdrawalRecipientErrorResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),
@@ -5222,7 +5482,7 @@ export const reconcileWithdrawalResponseOneRecipientCorrectionOneEmailMax = 254;
 export const ReconcileWithdrawalResponse = zod.object({
   "id": zod.string(),
   "userId": zod.number(),
-  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown']),
+  "status": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'awaiting_card_verification']),
   "grossCents": zod.number().min(reconcileWithdrawalResponseOneGrossCentsMin).max(reconcileWithdrawalResponseOneGrossCentsMax),
   "methodId": zod.string(),
   "recipient": zod.object({
@@ -5284,7 +5544,7 @@ export const ReconcileWithdrawalResponse = zod.object({
   "fields": zod.array(zod.enum(['phone', 'email', 'name', 'other'])).min(1).max(reconcileWithdrawalResponseOneRecipientIssueOneFieldsMax),
   "message": zod.string().describe('Server-generated safe explanation; never raw provider evidence.')
 }).nullish(),
-  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved']).optional(),
+  "creatorStatus": zod.enum(['awaiting_quote', 'awaiting_confirmation', 'requested', 'preparing', 'awaiting_human_review', 'awaiting_recipient', 'processing', 'delivered', 'failed', 'canceled', 'expired', 'returned', 'unknown', 'error', 'correction_saved', 'awaiting_card_verification']).optional(),
   "errorMessage": zod.string().nullish(),
   "recipientCorrection": zod.object({
   "phone": zod.string().max(reconcileWithdrawalResponseOneRecipientCorrectionOnePhoneMax).regex(reconcileWithdrawalResponseOneRecipientCorrectionOnePhoneRegExp),
@@ -5297,13 +5557,17 @@ export const ReconcileWithdrawalResponse = zod.object({
   "statusLabel": zod.string(),
   "currentStep": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "blocked": zod.boolean(),
-  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none']),
+  "nextAction": zod.enum(['verify_saved_correction', 'correct_recipient_details', 'identify_error', 'continue', 'none', 'verify_card']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['requested', 'preparing', 'review', 'recipient', 'processing', 'delivered']),
   "label": zod.string(),
   "state": zod.enum(['complete', 'current', 'upcoming'])
 }))
-}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.')
+}).optional().describe('Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery.'),
+  "cardVerification": zod.object({
+  "required": zod.literal(true),
+  "draftCreated": zod.boolean()
+}).describe('Expected human card-verification handoff. draftCreated is true only after actual provider saved-draft verification. Neither value authorizes sending.').nullish()
 }).and(zod.object({
   "history": zod.array(zod.object({
   "action": zod.string(),

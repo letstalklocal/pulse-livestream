@@ -182,7 +182,7 @@ export async function runMakerRetryMcp({
       name: "pulse_payout_identity",
       arguments: {},
     });
-    assert.equal(identity.structuredContent.workflowRevision, "2026-10-11.6");
+    assert.equal(identity.structuredContent.workflowRevision, "2026-10-11.7");
     const result = await client.callTool({
       name: "pulse_payout_retry_recipient_creation",
       arguments: { id, leaseId, data },

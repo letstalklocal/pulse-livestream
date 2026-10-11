@@ -123,20 +123,45 @@ process.once('message', async cfg => {
           const data = await new Promise((resolve, reject) => new SVGA.Parser().load(asset.url, resolve, reject));
           if (!(data.frames / data.FPS > 0 && data.frames / data.FPS <= 60)) throw Error('SVGA duration');
           let decodedBytes = 0;
+          const rasters = [];
           if (Object.keys(data.images || {}).length > 512) throw Error('SVGA image limit');
-          for (const encoded of Object.values(data.images || {})) {
+          for (const [key, encoded] of Object.entries(data.images || {})) {
             if (typeof encoded !== 'string') continue;
             const header = Uint8Array.from(atob(encoded.slice(0, 64)), x => x.charCodeAt(0));
             if (header[0] === 137 && header[1] === 80 && header.length >= 24) {
-              const dimensions = new DataView(header.buffer); decodedBytes += dimensions.getUint32(16) * dimensions.getUint32(20) * 4;
+              const dimensions = new DataView(header.buffer), width = dimensions.getUint32(16), height = dimensions.getUint32(20);
+              if (!width || !height || width > 4096 || height > 4096) throw Error('SVGA image dimensions');
+              decodedBytes += width * height * 4;
+              rasters.push({ key, width, height });
             }
           }
-          if (decodedBytes > 128 * 1024 * 1024) throw Error('SVGA decoded memory limit');
+          // Large full-frame SVGA sequences previously tripped global fallback,
+          // where older hosts publish a chime instead of the embedded soundtrack.
+          // Keep the existing memory ceiling: shrink rasters, not movie geometry
+          // or audio. Decode one source at a time and retain only smaller images.
+          const resized = [];
+          if (decodedBytes > 128 * 1024 * 1024) {
+            const ratio = Math.sqrt(96 * 1024 * 1024 / decodedBytes);
+            const scratch = document.createElement('canvas');
+            for (const { key, width, height } of rasters) {
+              const bytes = Uint8Array.from(atob(data.images[key]), x => x.charCodeAt(0));
+              scratch.width = Math.max(1, Math.floor(width * ratio)); scratch.height = Math.max(1, Math.floor(height * ratio));
+              const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/png' }), {
+                resizeWidth: scratch.width, resizeHeight: scratch.height, resizeQuality: 'high',
+              });
+              try { scratch.getContext('2d').drawImage(bitmap, 0, 0); }
+              finally { bitmap.close(); }
+              data.images[key] = scratch.toDataURL('image/png').split(',')[1];
+              resized.push({ key: key.replace('.matte', ''), encoded: data.images[key], transform: [width / scratch.width, 0, 0, height / scratch.height, 0, 0] });
+            }
+            scratch.width = scratch.height = 1;
+          }
           const node = document.createElement('div'); node.id = 'gift-' + crypto.randomUUID();
           const size = data.videoSize || { width: 360, height: 640 };
           const fit = Math.min(360 / size.width, 640 / size.height);
           node.style.cssText = `width:${size.width * fit}px;height:${size.height * fit}px;position:absolute;left:-1000px`; document.body.append(node);
           item.node = node; item.player = new SVGA.Player('#' + node.id); item.player.setVideoItem(data); item.data = data;
+          for (const raster of resized) item.player.setImage(raster.encoded, raster.key, raster.transform);
           item.duration = data.frames / data.FPS;
           if (!gift.sound) {
             if ((data.audios?.length || 0) > 16) throw Error('Audio limit');

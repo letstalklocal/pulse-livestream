@@ -47,6 +47,24 @@ const root = path.resolve(__dirname, "../../admin/public");
         viewport: { width: 1440, height: 1000 },
       }),
       errors = [];
+    await page.addInitScript(() => {
+      if (!window.AudioContext) return;
+      window.__giftAudioProbe = {starts: 0, energy: 0, context: null};
+      const original = AudioContext.prototype.createBufferSource;
+      AudioContext.prototype.createBufferSource = function () {
+        const source = original.call(this), start = source.start.bind(source), context = this;
+        source.start = (...args) => {
+          window.__giftAudioProbe.starts++;
+          window.__giftAudioProbe.context = context;
+          if (source.buffer) {
+            const values = source.buffer.getChannelData(0);
+            window.__giftAudioProbe.energy = values.reduce((sum, value) => sum + value * value, 0);
+          }
+          return start(...args);
+        };
+        return source;
+      };
+    });
     page.on("pageerror", (e) => {
       errors.push(e.message);
       console.error("Browser error:", e.message);
@@ -112,7 +130,7 @@ const root = path.resolve(__dirname, "../../admin/public");
     let soundPreviewGate;
     await page.route("**/api/gift-catalog/assets/**", async route => {
       assert.equal(route.request().headers().authorization, "Bearer fixture");
-      if (route.request().url().endsWith('/fixture_svga')) return route.fulfill({contentType:"application/octet-stream",body:await fs.readFile(path.resolve(__dirname,"../../mobile/assets/gifts/luxury/Virtual-Kiss-Gift.svga"))});
+      if (route.request().url().endsWith('/fixture_svga')) return route.fulfill({contentType:"application/octet-stream",body:await fs.readFile(path.resolve(__dirname,"../../mobile/assets/gifts/luxury/Blast-Off-Gift.svga"))});
       const sound = /\/(default_sound|asset_sound_fixture)$/.test(route.request().url());
       if (sound && soundPreviewGate) await soundPreviewGate;
       return route.fulfill({contentType:sound ? "audio/mpeg" : "image/png",body:await fs.readFile(path.resolve(__dirname,sound ? "../../mobile/assets/moments/default-gift.mp3" : "../../mobile/assets/gifts/rose.png"))});
@@ -248,7 +266,7 @@ const root = path.resolve(__dirname, "../../admin/public");
       await previewCanvas.waitFor();
       assert.equal(await previewCanvas.evaluate(canvas => Math.abs(canvas.width - canvas.clientWidth) <= 1 && Math.abs(canvas.height - canvas.clientHeight) <= 1), true, 'SVGA backing dimensions match the preview, avoiding double scaling');
       assert.equal(await previewCanvas.evaluate(() => getComputedStyle(document.documentElement).colorScheme), 'dark', 'Sandbox matches the parent color scheme to preserve iframe transparency');
-      await page.waitForFunction(field => document.getElementById(`gift-${field}-feedback`)?.textContent.includes('SVGA animation preview'),field);
+      await page.waitForFunction(field => document.querySelector(`#gift-${field}-preview iframe`)?.dataset.ready === 'true',field);
       const previewFrame = await (await page.locator(`#gift-${field}-preview iframe`).elementHandle()).contentFrame();
       await previewFrame.waitForFunction(() => {
         const canvas=document.querySelector('canvas');
@@ -264,11 +282,21 @@ const root = path.resolve(__dirname, "../../admin/public");
     const iphoneCanvas = await page.locator('#gift-iosAssetId-preview iframe').evaluate(c=>{c.dataset.original='true';return c.dataset.original;});
     await page.locator('button[data-preview-platform="androidAssetId"]').click();
     await page.locator('[data-gift-preview="androidAssetId"]').click();
-    await page.waitForFunction(()=>document.getElementById('gift-androidAssetId-feedback')?.textContent.includes('SVGA animation preview'));
+    await page.waitForFunction(()=>document.querySelector('#gift-androidAssetId-preview iframe')?.dataset.ready === 'true');
     assert.equal(await page.locator('#gift-iosAssetId-preview iframe').getAttribute('data-original'),iphoneCanvas);
     assert.equal(await page.locator('#gift-preview-screen img').getAttribute('src'),animatedArtwork);
     await page.locator('button[data-preview-platform="iosAssetId"]').click();
-    await page.waitForFunction(()=>document.getElementById('gift-iosAssetId-feedback')?.textContent.includes('SVGA animation preview'));
+    await page.waitForFunction(()=>document.querySelector('#gift-iosAssetId-preview iframe')?.dataset.ready === 'true');
+    const originalAudio = page.locator('[data-gift-sound-play="original"]');
+    assert.equal(await originalAudio.isEnabled(), true, 'SVGA original-audio preview works without a separate sound asset');
+    await originalAudio.click();
+    await page.waitForFunction(()=>document.querySelector('#gift-iosAssetId-preview iframe')?.dataset.ready === 'true');
+    const audioFrame = await (await page.locator('#gift-iosAssetId-preview iframe').elementHandle()).contentFrame();
+    await audioFrame.waitForFunction(() => window.__giftAudioProbe.starts > 0 && window.__giftAudioProbe.energy > 0 && window.__giftAudioProbe.context.state === 'running');
+    assert.equal(await page.locator('#gift-iosAssetId-feedback').textContent(), '', 'No obsolete silent-preview message');
+    assert.equal(await page.locator('[name="soundChoice"]:checked').inputValue(), 'original', 'Preview does not change sound selection');
+    await originalAudio.click();
+    assert.equal(await originalAudio.getAttribute('data-playing'), null, 'Original-audio stop returns the icon to Play');
     await page.locator('#gift-iosAssetId-preview button').click();
     assert.equal(await page.locator('#gift-iosAssetId-preview button').textContent(),'Play preview');
     await page.screenshot({ path: '/tmp/pulse-gift-animation-reference-desktop.png' });

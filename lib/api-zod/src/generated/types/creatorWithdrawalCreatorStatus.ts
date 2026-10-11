@@ -25,4 +25,5 @@ export const CreatorWithdrawalCreatorStatus = {
   unknown: 'unknown',
   error: 'error',
   correction_saved: 'correction_saved',
+  awaiting_card_verification: 'awaiting_card_verification',
 } as const;

@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type WithdrawalPreparationInputKind = typeof WithdrawalPreparationInputKind[keyof typeof WithdrawalPreparationInputKind];
+export type WithdrawalCompletedPreparationInputKind = typeof WithdrawalCompletedPreparationInputKind[keyof typeof WithdrawalCompletedPreparationInputKind];
 
 
-export const WithdrawalPreparationInputKind = {
+export const WithdrawalCompletedPreparationInputKind = {
   first_time_link: 'first_time_link',
   scheduled: 'scheduled',
   first_time_draft: 'first_time_draft',

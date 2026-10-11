@@ -9,6 +9,7 @@ import type { CreatorWithdrawalCreatorStatus } from './creatorWithdrawalCreatorS
 import type { CreatorWithdrawalProgress } from './creatorWithdrawalProgress';
 import type { CreatorWithdrawalProviderOnboardingStatus } from './creatorWithdrawalProviderOnboardingStatus';
 import type { CreatorWithdrawalStatus } from './creatorWithdrawalStatus';
+import type { WithdrawalCardVerification } from './withdrawalCardVerification';
 import type { WithdrawalChecker } from './withdrawalChecker';
 import type { WithdrawalQuote } from './withdrawalQuote';
 import type { WithdrawalRecipient } from './withdrawalRecipient';
@@ -46,4 +47,5 @@ export interface CreatorWithdrawal {
   recipientCorrection?: WithdrawalRecipientCorrection | null;
   /** Presentation progress and operator next action. Does not authorize a retry or send; saved corrections require guarded recovery. */
   progress?: CreatorWithdrawalProgress;
+  cardVerification?: WithdrawalCardVerification | null;
 }

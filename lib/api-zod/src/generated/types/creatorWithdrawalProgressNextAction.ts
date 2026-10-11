@@ -15,4 +15,5 @@ export const CreatorWithdrawalProgressNextAction = {
   identify_error: 'identify_error',
   continue: 'continue',
   none: 'none',
+  verify_card: 'verify_card',
 } as const;
